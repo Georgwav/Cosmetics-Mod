@@ -64,12 +64,17 @@ public final class Rows {
         }
     }
 
-    /** On/off switch. The whole row is the click target. */
+    /**
+     * On/off switch. The whole row is the click target, except the arrow at the right end when the
+     * row has an {@link #onEdit edit action}.
+     */
     public static final class Toggle extends FlatWidget {
+        private static final int EDIT_WIDTH = 18;
         private final String label;
         private final String detail;
         private final BooleanSupplier getter;
         private final Consumer<Boolean> setter;
+        private Runnable edit;
 
         public Toggle(int x, int y, int width, String label, String detail, BooleanSupplier getter, Consumer<Boolean> setter) {
             super(x, y, width, Theme.ROW_HEIGHT, Component.literal(label));
@@ -79,6 +84,16 @@ public final class Rows {
             this.setter = setter;
         }
 
+        /** Adds an arrow at the right end of the row that runs {@code action} (e.g. open a detail page). */
+        public Toggle onEdit(Runnable action) {
+            this.edit = action;
+            return this;
+        }
+
+        private boolean overEdit(double mouseX) {
+            return edit != null && mouseX >= getX() + getWidth() - EDIT_WIDTH;
+        }
+
         @Override
         protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             if (hovered) {
@@ -86,18 +101,27 @@ public final class Rows {
             }
             boolean on = getter.getAsBoolean();
             int ty = textY(this, font);
+            int editW = edit != null ? EDIT_WIDTH : 0;
+            if (edit != null) {
+                boolean overArrow = hovered && overEdit(mouseX);
+                if (overArrow) {
+                    rect(g, getX() + getWidth() - EDIT_WIDTH, getY(), EDIT_WIDTH, getHeight(), Theme.ROW_HOVER);
+                }
+                g.centeredText(font, ">", getX() + getWidth() - EDIT_WIDTH / 2, ty,
+                        overArrow ? Theme.ACCENT_HOVER : Theme.TEXT_DIM);
+            }
             int switchW = 22;
-            int available = getWidth() - switchW - 24;
+            int available = getWidth() - switchW - 24 - editW;
             String shownLabel = fit(font, label, available);
             text(g, font, shownLabel, getX() + 6, ty, Theme.TEXT);
             if (detail != null && !detail.isEmpty()) {
                 int detailX = getX() + 12 + font.width(shownLabel);
-                int detailSpace = getX() + getWidth() - switchW - 12 - detailX;
+                int detailSpace = getX() + getWidth() - switchW - 12 - editW - detailX;
                 if (detailSpace > 20) {
                     text(g, font, fit(font, detail, detailSpace), detailX, ty, Theme.TEXT_FAINT);
                 }
             }
-            int sx = getX() + getWidth() - switchW - 6;
+            int sx = getX() + getWidth() - switchW - 6 - editW;
             int sy = getY() + (getHeight() - 10) / 2;
             rect(g, sx, sy, switchW, 10, on ? (hovered ? Theme.ACCENT_HOVER : Theme.ACCENT) : (hovered ? Theme.TRACK_HOVER : Theme.TRACK));
             rect(g, on ? sx + switchW - 9 : sx + 1, sy + 1, 8, 8, Theme.KNOB);
@@ -105,7 +129,11 @@ public final class Rows {
 
         @Override
         protected void pressed(double mouseX, double mouseY) {
-            setter.accept(!getter.getAsBoolean());
+            if (overEdit(mouseX)) {
+                edit.run();
+            } else {
+                setter.accept(!getter.getAsBoolean());
+            }
         }
     }
 
@@ -116,6 +144,7 @@ public final class Rows {
         private final Supplier<T> getter;
         private final Consumer<T> setter;
         private final Function<T, String> names;
+        private Function<T, Integer> swatch;
 
         public Cycle(int x, int y, int width, String label, List<T> values, Supplier<T> getter, Consumer<T> setter,
                      Function<T, String> names) {
@@ -127,12 +156,18 @@ public final class Rows {
             this.names = names;
         }
 
+        /** Shows a small square in each value's colour (ARGB) next to its name. */
+        public Cycle<T> withSwatch(Function<T, Integer> colors) {
+            this.swatch = colors;
+            return this;
+        }
+
         private int valueLeft(Font font) {
             int widest = 0;
             for (T value : values) {
                 widest = Math.max(widest, font.width(names.apply(value)));
             }
-            return getX() + getWidth() - 6 - widest - 24;
+            return getX() + getWidth() - 6 - widest - 24 - (swatch != null ? 12 : 0);
         }
 
         @Override
@@ -144,10 +179,17 @@ public final class Rows {
             int left = valueLeft(font);
             text(g, font, fit(font, label, left - getX() - 12), getX() + 6, ty, Theme.TEXT);
             int right = getX() + getWidth() - 6;
-            String value = names.apply(getter.get());
+            T current = getter.get();
+            String value = names.apply(current);
             int center = (left + right) / 2;
             text(g, font, "<", left, ty, hovered && mouseX < center ? Theme.ACCENT_HOVER : Theme.TEXT_FAINT);
             textRight(g, font, ">", right, ty, hovered && mouseX >= center ? Theme.ACCENT_HOVER : Theme.TEXT_FAINT);
+            if (swatch != null) {
+                int textLeft = center - font.width(value) / 2;
+                int sy = getY() + (getHeight() - 8) / 2;
+                rect(g, textLeft - 13, sy - 1, 10, 10, Theme.PANEL_BORDER);
+                rect(g, textLeft - 12, sy, 8, 8, swatch.apply(current));
+            }
             g.centeredText(font, value, center, ty, Theme.ACCENT);
         }
 

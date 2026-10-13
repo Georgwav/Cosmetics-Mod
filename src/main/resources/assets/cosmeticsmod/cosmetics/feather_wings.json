@@ -1,0 +1,22 @@
+{
+  "name": "Feather Wings",
+  "slot": "back",
+  "texture": "cosmeticsmod:textures/cosmetic/feather_wings.png",
+  "texture_size": [32, 16],
+  "parts": [
+    {
+      "name": "left_wing",
+      "animation": { "type": "swing", "axis": "y", "pivot": [1, 0, 3], "amplitude": 20, "speed": 0.6 },
+      "cubes": [
+        { "from": [1, -3, 2.5], "to": [13, 9, 3], "faces": { "north": [0, 0, 12, 12], "south": [0, 0, 12, 12], "up": [0, 12, 12, 13], "down": [0, 12, 12, 13], "west": [12, 0, 13, 12], "east": [12, 0, 13, 12] } }
+      ]
+    },
+    {
+      "name": "right_wing",
+      "animation": { "type": "swing", "axis": "y", "pivot": [-1, 0, 3], "amplitude": -20, "speed": 0.6 },
+      "cubes": [
+        { "from": [-13, -3, 2.5], "to": [-1, 9, 3], "faces": { "north": [12, 0, 0, 12], "south": [12, 0, 0, 12], "up": [0, 12, 12, 13], "down": [0, 12, 12, 13], "west": [12, 0, 13, 12], "east": [12, 0, 13, 12] } }
+      ]
+    }
+  ]
+}

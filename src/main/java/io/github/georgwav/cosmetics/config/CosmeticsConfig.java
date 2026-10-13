@@ -82,6 +82,50 @@ public final class CosmeticsConfig {
      */
     public Map<String, List<String>> equipped = defaultEquipped();
 
+    /** Your settings for individual cosmetics (colour, size, position, glow, animation), keyed by cosmetic id. */
+    public Map<String, CosmeticOptions> cosmeticOptions = new LinkedHashMap<>();
+
+    /** Settings for one cosmetic. Defaults leave the cosmetic exactly as its creator made it. */
+    public static final class CosmeticOptions {
+        /** RGB tint multiplied onto the texture; white keeps the original colours. */
+        public int color = 0xFFFFFF;
+        /** Cycle through the colour wheel instead of using {@link #color}. */
+        public boolean rainbow = false;
+        /** Rainbow cycles per 10 seconds, 0.1..5. */
+        public float rainbowSpeed = 1.0f;
+        /** Size, 0.5..1.5. */
+        public float scale = 1.0f;
+        /** Position offset in pixels, -8..8 (+Y is down, -Z is the front). */
+        public float offsetX = 0f;
+        public float offsetY = 0f;
+        public float offsetZ = 0f;
+        /** Draw this cosmetic's glowing parts. */
+        public boolean glow = true;
+        /** Play this cosmetic's animation. */
+        public boolean animate = true;
+        /** Animation speed multiplier, 0.1..3. */
+        public float animationSpeed = 1.0f;
+
+        public boolean isDefault() {
+            CosmeticOptions d = DEFAULT_OPTIONS;
+            return color == d.color && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed && scale == d.scale
+                    && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
+                    && animate == d.animate && animationSpeed == d.animationSpeed;
+        }
+
+        void sanitize() {
+            color &= 0xFFFFFF;
+            rainbowSpeed = clamp(rainbowSpeed, 0.1f, 5f, 1f);
+            scale = clamp(scale, 0.5f, 1.5f, 1f);
+            offsetX = clamp(offsetX, -8f, 8f, 0f);
+            offsetY = clamp(offsetY, -8f, 8f, 0f);
+            offsetZ = clamp(offsetZ, -8f, 8f, 0f);
+            animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
+        }
+    }
+
+    private static final CosmeticOptions DEFAULT_OPTIONS = new CosmeticOptions();
+
     public static CosmeticsConfig get() {
         return instance;
     }
@@ -96,12 +140,28 @@ public final class CosmeticsConfig {
         return visible == null || visible;
     }
 
+    /** Settings for a cosmetic, for reading. Never null; don't modify the result. */
+    public CosmeticOptions options(String cosmeticId) {
+        CosmeticOptions options = cosmeticOptions.get(cosmeticId);
+        return options != null ? options : DEFAULT_OPTIONS;
+    }
+
+    /** Settings for a cosmetic, for editing (created on first use). */
+    public CosmeticOptions editOptions(String cosmeticId) {
+        return cosmeticOptions.computeIfAbsent(cosmeticId, id -> new CosmeticOptions());
+    }
+
+    /** Puts one cosmetic's settings back to how its creator made it. */
+    public void resetOptions(String cosmeticId) {
+        cosmeticOptions.remove(cosmeticId);
+    }
+
     /** The local player's equipped cosmetic ids (mutable; call {@code EquippedCosmetics.invalidate()} after changes). */
     public List<String> localEquipped() {
         return equipped.computeIfAbsent("local", k -> new ArrayList<>());
     }
 
-    /** Puts every setting except the wardrobe back to its default. */
+    /** Puts every setting except the wardrobe (what you wear and how each cosmetic looks) back to its default. */
     public void resetSettings() {
         CosmeticsConfig defaults = new CosmeticsConfig();
         enabled = defaults.enabled;
@@ -181,6 +241,17 @@ public final class CosmeticsConfig {
         capeSwing = Math.max(0f, Math.min(2f, capeSwing));
         maxRenderDistance = Math.max(0, Math.min(512, maxRenderDistance));
         shadowDistance = Math.max(0, Math.min(512, shadowDistance));
+        if (cosmeticOptions == null) {
+            cosmeticOptions = new LinkedHashMap<>();
+        }
+        cosmeticOptions.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+        cosmeticOptions.values().forEach(CosmeticOptions::sanitize);
+        // Don't keep entries that change nothing.
+        cosmeticOptions.values().removeIf(CosmeticOptions::isDefault);
+    }
+
+    private static float clamp(float value, float min, float max, float fallback) {
+        return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
     }
 
     private static Map<CosmeticSlot, SlotPriority> defaultPriorities() {

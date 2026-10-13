@@ -32,6 +32,7 @@ stops the game or the other cosmetics.
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
 | `parts` | yes | One or more parts. |
+| `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
 
 ## Parts
 
@@ -41,6 +42,7 @@ stops the game or the other cosmetics.
 | `mode` | no | `cutout` (default): opaque or alpha-tested. `translucent`: alpha-blended. `emissive`: glows, drawn with the vanilla `eyes` render type, which shaderpacks treat as emissive. |
 | `texture` | no | Overrides the cosmetic's texture for this part, for example a mostly transparent glow overlay. Must use the same `texture_size`. |
 | `cubes` | yes | The part's boxes. |
+| `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
 
 ## Cubes
 
@@ -61,6 +63,36 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 | `mirror` | no | Mirrors UVs on X (vanilla `mirror`). |
 | `pivot` | no | Rotation origin in pixels. Default `[0, 0, 0]`. |
 | `rotation` | no | Degrees around X, Y, Z, applied in vanilla order: X, then Y, then Z. |
+
+## Animation
+
+`animation` is one object, or an array of them applied in order. For example, the bundled halo spins and
+bobs:
+
+```json
+"animation": [
+  { "type": "spin", "axis": "y", "speed": 0.15 },
+  { "type": "bob", "axis": "y", "amplitude": 0.6, "speed": 0.4 }
+]
+```
+
+The bundled wings flap out of step, because each wing swings the opposite way around its own pivot:
+
+```json
+{ "name": "left_wing",  "animation": { "type": "swing", "axis": "y", "pivot": [1, 0, 3],  "amplitude": 20 },  ... },
+{ "name": "right_wing", "animation": { "type": "swing", "axis": "y", "pivot": [-1, 0, 3], "amplitude": -20 }, ... }
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `type` | yes | `spin`: keeps turning around the axis. `bob`: moves back and forth along it. `swing`: rocks back and forth around it. |
+| `axis` | no | `x`, `y` (default) or `z`, in the same model axes as cubes. |
+| `pivot` | no | Rotation origin in pixels for `spin` and `swing`. Default `[0, 0, 0]` (the anchor's pivot). |
+| `amplitude` | no | Degrees for `swing` (default 15), pixels for `bob` (default 0.5). |
+| `speed` | no | Turns per second for `spin` (default 0.25), cycles per second for `bob` and `swing` (default 0.5). |
+| `phase` | no | Offset into the cycle, 0 to 1, so parts can move out of step. |
+
+Players can turn animation off, or change its speed, for each cosmetic on its settings page.
 
 ## Equipping
 

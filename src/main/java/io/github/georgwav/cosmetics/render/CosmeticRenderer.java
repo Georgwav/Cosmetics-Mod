@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
@@ -20,8 +21,12 @@ import org.joml.Quaternionf;
 public final class CosmeticRenderer {
     /** Receives one layer of a cosmetic at the pose stack's current pose. */
     public interface Sink {
-        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light);
+        /** @param color ARGB tint for every vertex (white = the texture's own colours) */
+        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color);
     }
+
+    /** Animation clock start; animations and the rainbow tint read seconds since then. */
+    private static final long START_NANOS = System.nanoTime();
 
     private CosmeticRenderer() {
     }
@@ -49,6 +54,7 @@ public final class CosmeticRenderer {
             return;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
+        double seconds = (System.nanoTime() - START_NANOS) / 1.0e9;
         if (info.local && !shadowPass) {
             RenderStats.localPlayerFrames++;
         }
@@ -88,14 +94,27 @@ public final class CosmeticRenderer {
                 if (slot == CosmeticSlot.CAPE) {
                     applyCapeSway(poseStack, info, config);
                 }
+                CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+                applyPlacement(poseStack, options);
+                int color = Tint.argb(options, seconds);
                 for (BakedCosmetic.Layer layer : cosmetic.layers()) {
-                    if ((layer.mode() == RenderMode.EMISSIVE && !config.emissiveParts)
+                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && options.glow))
                             || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
                         continue;
                     }
                     int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
+                    boolean moving = options.animate && layer.animations().length > 0;
+                    if (moving) {
+                        poseStack.pushPose();
+                        for (CosmeticDefinition.Animation animation : layer.animations()) {
+                            applyAnimation(poseStack, animation, animation.valueAt(seconds, options.animationSpeed));
+                        }
+                    }
                     for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                        sink.draw(poseStack, cosmetic, layer, light);
+                        sink.draw(poseStack, cosmetic, layer, light, color);
+                    }
+                    if (moving) {
+                        poseStack.popPose();
                     }
                     RenderStats.meshesDrawn++;
                     if (shadowPass) {
@@ -111,6 +130,43 @@ public final class CosmeticRenderer {
         if (RenderStats.TIMING) {
             RenderStats.nanos += System.nanoTime() - start;
         }
+    }
+
+    /** The user's per-cosmetic offset and size, around the anchor's pivot. */
+    private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options) {
+        if (options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f) {
+            poseStack.translate(options.offsetX / 16f, options.offsetY / 16f, options.offsetZ / 16f);
+        }
+        if (options.scale != 1f) {
+            poseStack.scale(options.scale, options.scale, options.scale);
+        }
+    }
+
+    /** One animation step at its current value (degrees for spin/swing, pixels for bob). */
+    private static void applyAnimation(PoseStack poseStack, CosmeticDefinition.Animation animation, float value) {
+        if (animation.type() == CosmeticDefinition.AnimationType.BOB) {
+            float d = value / 16f;
+            poseStack.translate(animation.axis() == 0 ? d : 0f, animation.axis() == 1 ? d : 0f, animation.axis() == 2 ? d : 0f);
+            return;
+        }
+        float px = animation.pivotX() / 16f, py = animation.pivotY() / 16f, pz = animation.pivotZ() / 16f;
+        float radians = (float) Math.toRadians(value);
+        Quaternionf rotation = switch (animation.axis()) {
+            case 0 -> new Quaternionf().rotationX(radians);
+            case 2 -> new Quaternionf().rotationZ(radians);
+            default -> new Quaternionf().rotationY(radians);
+        };
+        poseStack.translate(px, py, pz);
+        rotate(poseStack, rotation);
+        poseStack.translate(-px, -py, -pz);
+    }
+
+    private static void rotate(PoseStack poseStack, Quaternionf rotation) {
+        //? if >=26.3 {
+        /*poseStack.rotate(rotation);
+        *///?} else {
+        poseStack.mulPose(rotation);
+        //?}
     }
 
     /** True if a distance limit (in blocks, 0 = none) excludes something at this squared distance. */
@@ -134,11 +190,7 @@ public final class CosmeticRenderer {
                 .rotationX((float) Math.toRadians(6.0F + lean / 2.0F + flap))
                 .rotateZ((float) Math.toRadians(lean2 / 2.0F))
                 .rotateY((float) Math.toRadians(180.0F - lean2 / 2.0F));
-        //? if >=26.3 {
-        /*poseStack.rotate(rotation);
-        *///?} else {
-        poseStack.mulPose(rotation);
-        //?}
+        rotate(poseStack, rotation);
     }
 
     /**

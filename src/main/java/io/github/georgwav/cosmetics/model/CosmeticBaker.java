@@ -26,21 +26,26 @@ public final class CosmeticBaker {
     private CosmeticBaker() {
     }
 
+    /** Parts that share a mode, texture and movement are drawn as one layer. */
+    private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations) {
+    }
+
     public static BakedCosmetic bake(CosmeticDefinition definition) {
-        // One layer per (mode, texture), in draw order: cutout, translucent, emissive.
-        Map<RenderMode, Map<String, FloatList>> buffers = new EnumMap<>(RenderMode.class);
+        // One layer per (mode, texture, animation), in draw order: cutout, translucent, emissive.
+        Map<RenderMode, Map<LayerKey, FloatList>> buffers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             FloatList out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(part.texture(), t -> new FloatList());
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations()), k -> new FloatList());
             for (CosmeticDefinition.Cube cube : part.cubes()) {
                 bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out);
             }
         }
         List<BakedCosmetic.Layer> layers = new ArrayList<>();
-        buffers.forEach((mode, byTexture) -> byTexture.forEach((texture, list) -> {
+        buffers.forEach((mode, byKey) -> byKey.forEach((key, list) -> {
             BakedMesh mesh = new BakedMesh(list.toArray());
             if (!mesh.isEmpty()) {
-                layers.add(new BakedCosmetic.Layer(mode, texture, mesh));
+                layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
+                        key.animations().toArray(new CosmeticDefinition.Animation[0])));
             }
         }));
         return new BakedCosmetic(definition, layers);

@@ -26,13 +26,52 @@ public record CosmeticDefinition(
 ) {
 
     /**
-     * @param name    for error messages only
-     * @param mode    which vanilla render type draws this part
-     * @param texture texture for this part; usually the cosmetic's texture, but e.g. a glowing overlay
-     *                has its own mostly-transparent texture
-     * @param cubes   the part's boxes
+     * @param name       for error messages only
+     * @param mode       which vanilla render type draws this part
+     * @param texture    texture for this part; usually the cosmetic's texture, but e.g. a glowing overlay
+     *                   has its own mostly-transparent texture
+     * @param cubes      the part's boxes
+     * @param animations movement applied to the whole part every frame, in order (empty for none)
      */
-    public record Part(String name, RenderMode mode, String texture, List<Cube> cubes) {
+    public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
+    }
+
+    /**
+     * A simple looping movement. All fields are plain values, so equal animations compare equal and
+     * parts that move together are baked into one layer.
+     *
+     * @param type      what kind of movement
+     * @param axis      0 = X, 1 = Y, 2 = Z (model axes: +Y is down)
+     * @param pivotX    rotation origin in pixels (spin and swing)
+     * @param pivotY    rotation origin in pixels
+     * @param pivotZ    rotation origin in pixels
+     * @param amplitude degrees for swing, pixels for bob; unused for spin
+     * @param speed     turns per second for spin, cycles per second for bob and swing
+     * @param phase     offset into the cycle, 0..1, so two parts can move out of step
+     */
+    public record Animation(AnimationType type, int axis, float pivotX, float pivotY, float pivotZ,
+                            float amplitude, float speed, float phase) {
+        /**
+         * Where the movement is at {@code seconds}: degrees for spin and swing, pixels for bob.
+         * {@code speedFactor} scales the speed (the per-cosmetic animation speed setting).
+         */
+        public float valueAt(double seconds, float speedFactor) {
+            double cycle = seconds * speed * speedFactor + phase;
+            cycle -= Math.floor(cycle);
+            return switch (type) {
+                case SPIN -> (float) (cycle * 360.0);
+                case BOB, SWING -> (float) (amplitude * Math.sin(cycle * 2.0 * Math.PI));
+            };
+        }
+    }
+
+    public enum AnimationType {
+        /** Keeps turning around the axis. */
+        SPIN,
+        /** Moves back and forth along the axis. */
+        BOB,
+        /** Rocks back and forth around the axis, like a flapping wing. */
+        SWING
     }
 
     /**

@@ -2,6 +2,10 @@
   "slot": "head",
   "texture": "cosmeticsmod:textures/cosmetic/halo.png",
   "texture_size": [16, 16],
+  "animation": [
+    { "type": "spin", "axis": "y", "speed": 0.15 },
+    { "type": "bob", "axis": "y", "amplitude": 0.6, "speed": 0.4 }
+  ],
   "parts": [
     {
       "name": "ring",

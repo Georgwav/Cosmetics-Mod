@@ -39,6 +39,9 @@ public final class CosmeticParser {
             }
         }
 
+        // A cosmetic-level animation applies to every part that doesn't set its own.
+        List<CosmeticDefinition.Animation> defaultAnimations = json.has("animation")
+                ? parseAnimations(json.get("animation"), "animation") : List.of();
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
         JsonArray partsJson = requireArray(json, "parts");
         for (int i = 0; i < partsJson.size(); i++) {
@@ -51,7 +54,9 @@ public final class CosmeticParser {
             for (int c = 0; c < cubesJson.size(); c++) {
                 cubes.add(parseCube(cubesJson.get(c).getAsJsonObject(), name + "[" + c + "]"));
             }
-            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes)));
+            List<CosmeticDefinition.Animation> animations = partJson.has("animation")
+                    ? parseAnimations(partJson.get("animation"), name + ".animation") : defaultAnimations;
+            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
@@ -75,6 +80,61 @@ public final class CosmeticParser {
             out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
         }
         return out.length() > 0 ? out.toString() : id;
+    }
+
+    /** One animation object, or an array of them applied in order. */
+    private static List<CosmeticDefinition.Animation> parseAnimations(JsonElement element, String where) {
+        List<CosmeticDefinition.Animation> result = new ArrayList<>();
+        if (element.isJsonArray()) {
+            JsonArray array = element.getAsJsonArray();
+            for (int i = 0; i < array.size(); i++) {
+                result.add(parseAnimation(array.get(i), where + "[" + i + "]"));
+            }
+        } else {
+            result.add(parseAnimation(element, where));
+        }
+        return List.copyOf(result);
+    }
+
+    private static CosmeticDefinition.Animation parseAnimation(JsonElement element, String where) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException(where + " must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        CosmeticDefinition.AnimationType type;
+        try {
+            type = CosmeticDefinition.AnimationType.valueOf(requireString(json, "type").toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new JsonParseException(where + ": type must be spin, bob or swing");
+        }
+        String axisName = json.has("axis") ? json.get("axis").getAsString().toLowerCase(Locale.ROOT) : "y";
+        int axis = switch (axisName) {
+            case "x" -> 0;
+            case "y" -> 1;
+            case "z" -> 2;
+            default -> throw new JsonParseException(where + ": axis must be x, y or z");
+        };
+        float[] pivot = json.has("pivot") ? floats(json.get("pivot"), 3, where + ".pivot") : new float[3];
+        float defaultAmplitude = switch (type) {
+            case SPIN -> 0f;
+            case BOB -> 0.5f;
+            case SWING -> 15f;
+        };
+        float amplitude = number(json, "amplitude", defaultAmplitude, where);
+        float speed = number(json, "speed", type == CosmeticDefinition.AnimationType.SPIN ? 0.25f : 0.5f, where);
+        float phase = number(json, "phase", 0f, where);
+        return new CosmeticDefinition.Animation(type, axis, pivot[0], pivot[1], pivot[2], amplitude, speed, phase);
+    }
+
+    private static float number(JsonObject json, String key, float fallback, String where) {
+        if (!json.has(key)) {
+            return fallback;
+        }
+        float value = json.get(key).getAsFloat();
+        if (!Float.isFinite(value)) {
+            throw new JsonParseException(where + "." + key + " must be a finite number");
+        }
+        return value;
     }
 
     private static CosmeticDefinition.Cube parseCube(JsonObject json, String where) {
