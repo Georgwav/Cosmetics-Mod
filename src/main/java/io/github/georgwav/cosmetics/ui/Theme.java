@@ -11,6 +11,9 @@ public final class Theme {
     public static final int DIVIDER = 0xFF20232B;
     public static final int ROW_HOVER = 0x16FFFFFF;
     public static final int PREVIEW_BG = 0xFF101216;
+    /** A wardrobe tile, and the one the mouse is on. */
+    public static final int TILE = 0xFF1A1D24;
+    public static final int TILE_HOVER = 0xFF232731;
 
     public static final int TEXT = 0xFFE7E9EF;
     public static final int TEXT_DIM = 0xFF8A90A0;

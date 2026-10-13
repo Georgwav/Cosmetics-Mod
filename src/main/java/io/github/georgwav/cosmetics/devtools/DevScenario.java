@@ -277,6 +277,13 @@ public final class DevScenario {
                     if (frames <= 0) {
                         failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
                     }
+                    if (uiTab == 0) {
+                        // The Wardrobe's tiles draw each cosmetic's picture.
+                        ui.addProperty("tile_pictures", CosmeticsScreen.tilePicturesMade());
+                        if (CosmeticsScreen.tilePicturesMade() <= 0) {
+                            failures.add("the Wardrobe drew no tile pictures");
+                        }
+                    }
                     // Switching tabs and resizing the window rebuild the page; its list must stay at the top.
                     if (uiScreen != null && !uiScreen.rebuildKeepsListAtTop()) {
                         failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab)
