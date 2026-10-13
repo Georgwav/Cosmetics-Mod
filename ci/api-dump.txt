@@ -6,10 +6,10 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-1.21.1 !net.minecraft.client.model.PlayerModel,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-1.21.3 !net.minecraft.client.model.PlayerModel,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-1.21.8 net.minecraft.client.model.PlayerModel,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-1.21.10 net.minecraft.client.model.PlayerModel,net.minecraft.client.model.player.PlayerModel,net.minecraft.client.model.player.*,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-1.21.11 !net.minecraft.client.model.player.PlayerModel,net.minecraft.client.model.*,net.minecraft.client.model.PlayerModel,net.minecraft.client.model.player.*,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-26.1.2 net.minecraft.client.model.player.PlayerModel,net.minecraft.client.model.player.*,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
-26.3 !net.minecraft.client.model.player.PlayerModel,net.minecraft.client.model.*,net.minecraft.client.model.HumanoidModel,net.minecraft.client.model.player.*,net.minecraft.client.model.geom.ModelPart,net.minecraft.client.model.geom.PartPose,net.minecraft.client.CameraType
+1.21.1 !net.minecraft.client.renderer.entity.player.PlayerRenderer,net.minecraft.client.renderer.entity.LivingEntityRenderer,net.minecraft.world.entity.player.Player,net.minecraft.world.entity.LivingEntity
+1.21.3 !net.minecraft.client.renderer.entity.player.PlayerRenderer,net.minecraft.client.renderer.entity.state.PlayerRenderState,net.minecraft.client.renderer.entity.LivingEntityRenderer,net.minecraft.world.entity.player.Player
+1.21.8 net.minecraft.client.renderer.entity.player.PlayerRenderer,net.minecraft.client.renderer.entity.LivingEntityRenderer,net.minecraft.world.entity.player.Player
+1.21.10 !net.minecraft.client.renderer.entity.player.AvatarRenderer,net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.world.entity.player.Player
+1.21.11 net.minecraft.client.renderer.entity.player.AvatarRenderer,net.minecraft.world.entity.player.Player,net.minecraft.world.entity.LivingEntity
+26.1.2 net.minecraft.client.renderer.entity.player.AvatarRenderer,net.minecraft.world.entity.player.Player
+26.3 !net.minecraft.client.renderer.entity.player.AvatarRenderer,net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.entity.LivingEntityRenderer,net.minecraft.world.entity.player.Player,net.minecraft.world.entity.LivingEntity,net.minecraft.world.entity.Entity
