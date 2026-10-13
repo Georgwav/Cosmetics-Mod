@@ -285,11 +285,27 @@ public final class CosmeticRenderer {
     }
 
     /**
+     * Draws a cosmetic on its own, without a player, at the pose stack's pose: the Wardrobe's tile pictures. It
+     * stands still: wings at their resting angle, skeletal pieces at the start of their style, a texture
+     * animation on its first frame. It has the player's colour for it.
+     */
+    public static void drawAlone(PoseStack poseStack, BakedCosmetic cosmetic, Sink sink) {
+        CosmeticsConfig.CosmeticOptions options = CosmeticsConfig.get().options(cosmetic.id());
+        boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+        int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+        CosmeticDefinition.Wings wings = cosmetic.wings();
+        float wingAngle = wings != null ? wings.idle().base() : 0f;
+        drawLayers(poseStack, cosmetic, MeshEmitter.FULL_BRIGHT, Tint.argb(options, cosmetic, 0.0), glow, false, 1f,
+                style, 0f, wings, wingAngle, 0.0, 0.0, false, null, sink);
+    }
+
+    /**
      * The held cosmetic that replaces this item for this player, or null: the first one of the player's
      * cosmetics in a held slot that this item takes (a shield cosmetic for a shield).
      */
     public static BakedCosmetic heldFor(java.util.UUID player, boolean local, CosmeticSlot slot) {
-        if (player == null || !CosmeticsConfig.get().enabled) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        if (player == null || !config.enabled || !config.slotVisible(slot)) {
             return null;
         }
         for (BakedCosmetic cosmetic : EquippedCosmetics.forPlayer(player, local)) {
@@ -412,7 +428,7 @@ public final class CosmeticRenderer {
         poseStack.translate(-px, -py, -pz);
     }
 
-    private static void rotate(PoseStack poseStack, Quaternionf rotation) {
+    public static void rotate(PoseStack poseStack, Quaternionf rotation) {
         //? if >=26.3 {
         /*poseStack.rotate(rotation);
         *///?} else {

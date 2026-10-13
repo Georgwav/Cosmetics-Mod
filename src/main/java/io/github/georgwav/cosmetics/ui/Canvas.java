@@ -16,6 +16,17 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 *///?} else {
 import net.minecraft.client.gui.GuiGraphics;
 //?}
+//? if >=1.21.11 {
+import net.minecraft.resources.Identifier;
+//?} else {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
+//? if >=1.21.6 {
+//?} elif >=1.21.2 {
+/*import net.minecraft.client.renderer.RenderType;
+*///?} else {
+/*import com.mojang.blaze3d.systems.RenderSystem;
+*///?}
 
 /**
  * The few drawing calls the settings screen uses. 26.1 renamed {@code GuiGraphics} and its methods, so
@@ -49,6 +60,28 @@ public final class Canvas {
     public void gradient(int x1, int y1, int x2, int y2, int top, int bottom) {
         raw.fillGradient(x1, y1, x2, y2, top, bottom);
     }
+
+    /** A whole square texture of {@code textureSize} pixels drawn into a width x height rectangle, see-through where it is. */
+    //? if >=1.21.11 {
+    public void blit(Identifier texture, int x, int y, int width, int height, int textureSize) {
+        raw.blit(texture, x, y, x + width, y + height, 0f, 1f, 0f, 1f);
+    }
+    //?} elif >=1.21.6 {
+    /*public void blit(ResourceLocation texture, int x, int y, int width, int height, int textureSize) {
+        raw.blit(texture, x, y, x + width, y + height, 0f, 1f, 0f, 1f);
+    }
+    *///?} elif >=1.21.2 {
+    /*public void blit(ResourceLocation texture, int x, int y, int width, int height, int textureSize) {
+        raw.blit(RenderType::guiTextured, texture, x, y, 0f, 0f, width, height, textureSize, textureSize,
+                textureSize, textureSize);
+    }
+    *///?} else {
+    /*public void blit(ResourceLocation texture, int x, int y, int width, int height, int textureSize) {
+        RenderSystem.enableBlend();
+        raw.blit(texture, x, y, width, height, 0f, 0f, textureSize, textureSize, textureSize, textureSize);
+        RenderSystem.disableBlend();
+    }
+    *///?}
 
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {

@@ -19,6 +19,7 @@ import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
 import io.github.georgwav.cosmetics.ui.widget.Rows;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -77,7 +78,10 @@ public final class CosmeticsScreen extends Screen {
     private static Tab lastTab = Tab.WARDROBE;
     private static View lastView = View.ALL;
     /** Most rows one list shows (only so a broken pack can't build a million widgets). */
-    private static final int ROWS_PER_VIEW = 10_000;
+    /** Tiles are at least this wide; the row's width is shared out between as many as fit. */
+    private static final int TILE_MIN_WIDTH = 78;
+    private static final int TILE_HEIGHT = 96;
+    private static final int TILE_GAP = 6;
     private static final int SIDEBAR_WIDTH = 104;
     /** How far you turned the preview round and tipped it (degrees), kept while the game runs. */
     private static float previewSpin;
@@ -105,8 +109,10 @@ public final class CosmeticsScreen extends Screen {
     private int previewX, previewW;
     private int sidebarX;
     private View view = lastView;
-    /** The wardrobe's cosmetic rows and the cosmetic each shows, for trying on whatever the mouse points at. */
-    private final Map<FlatWidget, String> rowCosmetics = new java.util.IdentityHashMap<>();
+    /** The wardrobe's rows of tiles, for trying on whatever the mouse points at. */
+    private final List<TileRow> tileRows = new ArrayList<>();
+    /** The tiles' pictures of each cosmetic. */
+    private final TilePictures pictures = new TilePictures();
     /** The cosmetic the preview shows you in right now without you wearing it, or null. */
     private String tryingOn;
     /** The preview's turn as drawn, easing towards {@link #previewSpin} (plus a half turn for back items). */
@@ -162,6 +168,11 @@ public final class CosmeticsScreen extends Screen {
         return forCosmetic(null, pick != null ? pick.id() : "");
     }
 
+    /** Wardrobe tile pictures made since the game started (for the in-game test). */
+    public static int tilePicturesMade() {
+        return TilePictures.made;
+    }
+
     public static String tabName(int tabIndex) {
         return Tab.values()[Math.floorMod(tabIndex, TAB_COUNT)].name().toLowerCase(java.util.Locale.ROOT);
     }
@@ -179,11 +190,11 @@ public final class CosmeticsScreen extends Screen {
         contentOffsets.clear();
         contentHeight = 0;
         searchBox = null;
-        rowCosmetics.clear();
+        tileRows.clear();
 
         // As big as the window allows, within reason.
-        pw = Math.min(width - 16, 880);
-        ph = Math.min(height - 16, 540);
+        pw = Math.min(width - 16, 1080);
+        ph = Math.min(height - 16, 620);
         px = (width - pw) / 2;
         py = (height - ph) / 2;
         BakedCosmetic detail = detailId != null && tab == Tab.WARDROBE ? CosmeticRegistry.get(detailId) : null;
@@ -193,7 +204,7 @@ public final class CosmeticsScreen extends Screen {
             sidebarX = left;
             left += SIDEBAR_WIDTH + 8;
         }
-        previewW = Math.max(Theme.PREVIEW_WIDTH, Math.min(230, pw / 4));
+        previewW = Math.max(Theme.PREVIEW_WIDTH, Math.min(210, pw / 5));
         showPreview = minecraft != null && minecraft.player != null && px + pw - left - previewW >= 260;
         if (showPreview) {
             previewX = left;
@@ -298,7 +309,7 @@ public final class CosmeticsScreen extends Screen {
         }
         content.clear();
         contentOffsets.clear();
-        rowCosmetics.clear();
+        tileRows.clear();
         contentHeight = 0;
         scroll = 0;
         buildWardrobe();
@@ -425,17 +436,16 @@ public final class CosmeticsScreen extends Screen {
                     () -> "", Theme.TEXT_DIM));
         } else if (view == View.ALL || view == View.WEARING) {
             // Everything: grouped by slot.
-            int limit = ROWS_PER_VIEW;
             for (CosmeticSlot slot : CosmeticSlot.values()) {
                 List<BakedCosmetic> inSlot = shown.stream().filter(c -> c.slot() == slot).toList();
                 if (inSlot.isEmpty()) {
                     continue;
                 }
                 section("slot." + slot.id());
-                addCosmeticRows(inSlot, limit);
+                addTiles(inSlot);
             }
         } else {
-            addCosmeticRows(shown, ROWS_PER_VIEW);
+            addTiles(shown);
         }
         if (!config.showOwnCosmetics || !config.enabled) {
             section("wardrobe.note");
@@ -443,19 +453,12 @@ public final class CosmeticsScreen extends Screen {
         }
     }
 
-    /** One row per cosmetic (the switch wears it, the arrow opens its page), then "N more" past the limit. */
-    private void addCosmeticRows(List<BakedCosmetic> cosmetics, int limit) {
-        CosmeticsConfig config = CosmeticsConfig.get();
-        for (BakedCosmetic cosmetic : cosmetics.subList(0, Math.min(limit, cosmetics.size()))) {
-            String id = cosmetic.id();
-            String source = id.startsWith("cosmeticsmod:") ? null : id.substring(0, id.indexOf(':'));
-            Rows.Toggle row = add(new Rows.Toggle(listX, 0, listW, cosmetic.name(), source,
-                    () -> config.localEquipped().contains(id), on -> setEquipped(id, on))
-                    .onEdit(() -> openDetail(id)));
-            rowCosmetics.put(row, id);
-        }
-        if (cosmetics.size() > limit) {
-            add(new Rows.Info(listX, 0, listW, t("wardrobe.more", cosmetics.size() - limit), () -> "", Theme.TEXT_DIM));
+    /** The cosmetics as tiles, as many to a row as fit (clicking one wears it, its gear opens its page). */
+    private void addTiles(List<BakedCosmetic> cosmetics) {
+        int columns = Math.max(1, (listW + TILE_GAP) / (TILE_MIN_WIDTH + TILE_GAP));
+        int tileW = (listW - (columns - 1) * TILE_GAP) / columns;
+        for (int i = 0; i < cosmetics.size(); i += columns) {
+            tileRows.add(add(new TileRow(listX, listW, tileW, cosmetics.subList(i, Math.min(cosmetics.size(), i + columns)))));
         }
     }
 
@@ -800,6 +803,12 @@ public final class CosmeticsScreen extends Screen {
     }
 
     @Override
+    public void removed() {
+        pictures.close();
+        super.removed();
+    }
+
+    @Override
     public void onClose() {
         EquippedCosmetics.preview(null);
         CosmeticsConfig.save();
@@ -841,6 +850,7 @@ public final class CosmeticsScreen extends Screen {
     /** Paints the whole screen; the backdrop is drawn here so every version draws it exactly once, without blur. */
     private void draw(Canvas g, int mouseX, int mouseY, float partialTick) {
         framesRendered++;
+        pictures.beginFrame();
         g.fill(0, 0, width, height, Theme.BACKDROP);
         g.fill(px - 1, py - 1, px + pw + 1, py + ph + 1, Theme.PANEL_BORDER);
         g.fill(px, py, px + pw, py + ph, Theme.PANEL);
@@ -888,9 +898,10 @@ public final class CosmeticsScreen extends Screen {
         if (tab == Tab.WARDROBE && detailId != null) {
             pointed = detailId;
         } else if (tab == Tab.WARDROBE && mouseY >= listY && mouseY < listY + listH) {
-            for (Map.Entry<FlatWidget, String> row : rowCosmetics.entrySet()) {
-                if (row.getKey().visible && row.getKey().isMouseOver(mouseX, mouseY)) {
-                    pointed = row.getValue();
+            for (TileRow row : tileRows) {
+                BakedCosmetic tile = row.visible && row.isMouseOver(mouseX, mouseY) ? row.at(mouseX, mouseY) : null;
+                if (tile != null) {
+                    pointed = tile.id();
                     break;
                 }
             }
@@ -942,5 +953,96 @@ public final class CosmeticsScreen extends Screen {
             end--;
         }
         return text.substring(0, end) + ellipsis;
+    }
+
+    /**
+     * One row of the wardrobe's tiles. A tile shows its cosmetic's picture (turning while the mouse is on it) and
+     * name; clicking it puts the cosmetic on or takes it off, the gear in its corner opens the cosmetic's page, and
+     * what you wear has an outline.
+     */
+    private final class TileRow extends FlatWidget {
+        private static final int GEAR = 12;
+        private final List<BakedCosmetic> cosmetics;
+        private final int tileW;
+
+        TileRow(int x, int width, int tileW, List<BakedCosmetic> cosmetics) {
+            // The row is a little taller than its tiles: the gap below them, as between tiles.
+            super(x, 0, width, TILE_HEIGHT + TILE_GAP - Theme.ROW_GAP, Component.literal(cosmetics.get(0).name()));
+            this.cosmetics = cosmetics;
+            this.tileW = tileW;
+        }
+
+        private int index(double mouseX) {
+            int dx = (int) Math.floor(mouseX) - getX();
+            int i = dx / (tileW + TILE_GAP);
+            return dx >= 0 && i < cosmetics.size() && dx - i * (tileW + TILE_GAP) < tileW ? i : -1;
+        }
+
+        /** The cosmetic whose tile is at the mouse, or null (between tiles). */
+        BakedCosmetic at(double mouseX, double mouseY) {
+            int i = mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            return i >= 0 ? cosmetics.get(i) : null;
+        }
+
+        private boolean onGear(double mouseX, double mouseY, int i) {
+            int right = getX() + i * (tileW + TILE_GAP) + tileW - 2;
+            return mouseX >= right - GEAR && mouseX < right && mouseY >= getY() + 2 && mouseY < getY() + 2 + GEAR;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            List<String> wearing = CosmeticsConfig.get().localEquipped();
+            int pointed = hovered && mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            for (int i = 0; i < cosmetics.size(); i++) {
+                BakedCosmetic cosmetic = cosmetics.get(i);
+                int x = getX() + i * (tileW + TILE_GAP);
+                int y = getY();
+                boolean worn = wearing.contains(cosmetic.id());
+                boolean over = i == pointed;
+                if (worn) {
+                    rect(g, x - 1, y - 1, tileW + 2, TILE_HEIGHT + 2, Theme.ACCENT);
+                }
+                rect(g, x, y, tileW, TILE_HEIGHT, over ? Theme.TILE_HOVER : Theme.TILE);
+                int picture = Math.min(tileW - 8, TILE_HEIGHT - font.lineHeight - 12);
+                int px = x + (tileW - picture) / 2;
+                int py = y + 4;
+                if (!pictures.draw(g, cosmetic, px, py, picture, over)) {
+                    // Nothing to picture (only particles), or not made yet: a few sparkles.
+                    int cx = px + picture / 2;
+                    int cy = py + picture / 2;
+                    for (int k = 0; k < 6; k++) {
+                        double a = k * Math.PI / 3 + (System.nanoTime() / 1.0e9) * (over ? 1.5 : 0.0);
+                        int sx = cx + (int) Math.round(Math.cos(a) * picture * 0.28);
+                        int sy = cy + (int) Math.round(Math.sin(a) * picture * 0.28);
+                        rect(g, sx - 1, sy - 1, 2, 2, Theme.TEXT_FAINT);
+                    }
+                }
+                String name = fit(font, cosmetic.name(), tileW - 6);
+                g.centeredText(font, name, x + tileW / 2, y + TILE_HEIGHT - font.lineHeight - 4,
+                        worn ? Theme.ACCENT_HOVER : over ? Theme.TEXT : Theme.TEXT_DIM);
+                // The gear: this cosmetic's settings.
+                int gx = x + tileW - 2 - GEAR;
+                int gy = y + 2;
+                boolean onGear = over && onGear(mouseX, mouseY, i);
+                if (over || worn) {
+                    rect(g, gx, gy, GEAR, GEAR, onGear ? Theme.TRACK_HOVER : Theme.TRACK);
+                    g.centeredText(font, "\u2699", gx + GEAR / 2 + 1, gy + 2, onGear ? Theme.TEXT : Theme.TEXT_DIM);
+                }
+            }
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            int i = mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            if (i < 0) {
+                return;
+            }
+            String id = cosmetics.get(i).id();
+            if (onGear(mouseX, mouseY, i)) {
+                openDetail(id);
+            } else {
+                setEquipped(id, !CosmeticsConfig.get().localEquipped().contains(id));
+            }
+        }
     }
 }
