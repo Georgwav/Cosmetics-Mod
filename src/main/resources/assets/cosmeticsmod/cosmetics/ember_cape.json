@@ -1,0 +1,15 @@
+{
+  "slot": "cape",
+  "name": "Ember Cape",
+  "texture": "cosmeticsmod:textures/cosmetic/ember_cape.png",
+  "texture_size": [64, 32],
+  "texture_animation": { "frames": 4, "frame_times": [180, 120, 120, 180] },
+  "parts": [
+    {
+      "name": "cloth",
+      "cubes": [
+        { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0] }
+      ]
+    }
+  ]
+}
