@@ -485,7 +485,7 @@ def write_png(path, width, height, rows):
 # --------------------------------------------------------------------------------------------- one run
 
 def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None, mode="smoke",
-             timeout=1200, mods_info=None, node=None):
+             timeout=1200, mods_info=None, node=None, extra_env=None):
     game_dir = Path(out_dir) / f"{inst.mc}-{label}"
     shutil.rmtree(game_dir, ignore_errors=True)
     (game_dir / "mods").mkdir(parents=True)
@@ -535,7 +535,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     env = dict(os.environ, DISPLAY=display.name, LIBGL_ALWAYS_SOFTWARE="1",
                # 26.3+ uses SDL3, whose GLX path finds no matching visual on Xvfb; Mesa's EGL works.
                # Versions using GLFW ignore these.
-               SDL_VIDEO_DRIVER="x11", SDL_VIDEO_FORCE_EGL="1")
+               SDL_VIDEO_DRIVER="x11", SDL_VIDEO_FORCE_EGL="1", **(extra_env or {}))
     log_path = game_dir / "stdout.log"
     LOG(f"[{inst.mc}/{label}] launching ({mode})")
     started = time.time()
@@ -772,13 +772,14 @@ def run_stack(args, inst, jar, mc, label, spec, mode):
                 return write_na(args, mc, label, {**stack_info(stack), **pack_info}, missing)
             for _ in range(MAX_LOADER_FIXES + 1):
                 summary = run_game(inst, jar, args.out, label, mods_dir, shaderpack, mode=mode,
-                                   mods_info={**stack_info(stack), **pack_info}, node=args.node)
+                                   mods_info={**stack_info(stack), **pack_info}, node=args.node,
+                                   extra_env=spec.get("env"))
                 game_dir = Path(args.out) / f"{mc}-{label}"
                 conflict = stack_conflict(game_dir)
                 if summary["passed"]:
                     return summary
                 if conflict is None:
-                    return check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary)
+                    return check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary, spec.get("env"))
                 last_conflict = conflict
                 fix = apply_loader_fix(read_logs(game_dir), mods_dir, stack, mc, tried)
                 if fix is None:
@@ -795,14 +796,14 @@ def run_stack(args, inst, jar, mc, label, spec, mode):
 MAX_LOADER_FIXES = 4
 
 
-def check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary):
+def check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary, extra_env=None):
     """
     A stack failed for a reason other than a version conflict. Runs the same stack without this mod:
     if it crashes there too, the failure belongs to the other mods or to CI's software OpenGL, and the
     stack is reported as n/a with the reason. Otherwise this mod is involved and the failure stands.
     """
     control = run_game(inst, None, args.out, label + "-without-cosmeticsmod", mods_dir, shaderpack,
-                       mode="control", timeout=420, node=args.node)
+                       mode="control", timeout=420, node=args.node, extra_env=extra_env)
     game_dir = Path(args.out) / f"{mc}-{label}"
     if control["survived"]:
         summary["problems"].append("the same stack without this mod runs fine, so this mod is involved")
