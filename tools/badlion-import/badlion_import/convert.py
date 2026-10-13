@@ -47,12 +47,13 @@ RULES: dict[str, TypeRule] = {
     "BANDANA": TypeRule("face", (0, 0, 0)),
     "NECK": TypeRule("body", (0, 0, 0)),
     "BELT": TypeRule("body", (0, 12, 0)),
-    "BACK": TypeRule("back", (0, 24, 0)),
+    # Backpacks: their translation (in blocks, see placement) is from the middle of the back.
+    "BACK": TypeRule("back", (0, 6, 2)),
     "TAIL": TypeRule("back", (0, 12, 0)),
     "CAPE": TypeRule("cape", (0, 0, 0), "cape"),
     "WINGS": TypeRule("back", (0, 4, 2), "wings"),
-    # Shields replace the held vanilla shield; Badlion's shield models are centred on the plate, whose centre
-    # in the vanilla shield model is (0, 0, -1.5).
+    # Shields replace the held vanilla shield: sized by their shieldModelData, turned as Badlion turns them in
+    # third person, and centred on the vanilla plate, whose centre is (0, 0, -1.5). See shield_placement.
     "SHIELD": TypeRule("shield", (0, 0, -1.5)),
     # Pets stand on the left shoulder (the mod's pet slot origin); with petData.onHead, on top of the head (the
     # mod's head pet position), and pets with only an "air" animation float (see pet_position).
@@ -327,9 +328,43 @@ def location_to_path(location: str) -> str:
 
 # ---------------------------------------------------------------------- definitions to placement
 
+PIXELS_PER_BLOCK = 16.0
+# A model unit is a pixel unless models.json says otherwise.
+DEFAULT_BLOCKS_PER_UNIT = 1.0 / PIXELS_PER_BLOCK
+
+
+def _number(value) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
 def model_scale(model: badlion.Model | None) -> float:
-    s = model.raw.get("scale") if model else None
-    return float(s) if isinstance(s, (int, float)) and not isinstance(s, bool) and s > 0 else 1.0
+    """The mod's mesh scale (pixels per model unit) from models.json's `scale`, which is blocks per model unit:
+    0.0625 is a model made in pixels, 0.004 one made 16 times finer. 0 means the default (pixels); a small
+    negative value is taken off the default (backpacks), anything else falls back to it."""
+    s = _number(model.raw.get("scale")) if model else None
+    if s is None or s == 0:
+        return 1.0
+    if s < 0:
+        s = DEFAULT_BLOCKS_PER_UNIT + s
+        if s <= 0:
+            return 1.0
+    return s * PIXELS_PER_BLOCK
+
+
+def axis_angle(raw) -> list[list[float]] | None:
+    """Badlion's rotations, {w: degrees, x, y, z: the axis}, as a matrix; None for no turn."""
+    if not isinstance(raw, dict):
+        return None
+    angle = _number(raw.get("w")) or 0.0
+    axis = vector(raw)
+    length = math.sqrt(sum(a * a for a in axis))
+    if abs(angle) < 1e-9 or length < 1e-9:
+        return None
+    x, y, z = (a / length for a in axis)
+    c, s_, t = math.cos(math.radians(angle)), math.sin(math.radians(angle)), 1 - math.cos(math.radians(angle))
+    return [[t * x * x + c, t * x * y - s_ * z, t * x * z + s_ * y],
+            [t * x * y + s_ * z, t * y * y + c, t * y * z - s_ * x],
+            [t * x * z - s_ * y, t * y * z + s_ * x, t * z * z + c]]
 
 
 def vector(raw, keys=("x", "y", "z")) -> list[float]:
@@ -362,9 +397,10 @@ class Placement:
     scale: float
     rotation: list[float]
     offset: list[float]
+    mirror: bool = False
 
     def mesh_keys(self) -> dict:
-        keys = {}
+        keys = {"mirror": True} if self.mirror else {}
         if abs(self.scale - 1.0) > 1e-9:
             keys["scale"] = round(self.scale, 6)
         if any(abs(a) > 1e-9 for a in self.rotation):
@@ -422,27 +458,67 @@ def fits_other_way(covered_as_is: list[bool], covered_flipped: list[bool], opaqu
 
 def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool, rule: TypeRule,
               ts: TypeSettings) -> Placement:
-    """The model's Badlion transform (scale, rotation, translation, the cosmetic's sizing) followed by the axis
-    change, the type's origin and the type's extra settings."""
+    """The model's Badlion transform followed by the axis change, the type's origin and the type's extra
+    settings. Badlion places a model point v at translation + rotation(scale * v) in the model's own axes, with
+    the scale and translation in blocks (see model_scale); the cosmetic's (or model's) sizingData scales it
+    further (a small value is blocks per unit instead, as some wings have) and moves it by pixels."""
     convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
     if rule.kind == "cape":
         convert = multiply(CAPE_SPACE, convert)
     extra = rotation_matrix(ts.rotation)
-    own = rotation_matrix(vector(model.raw.get("rotation"))) if model and model.raw.get("rotation") else None
+    own = axis_angle(model.raw.get("rotation")) if model else None
     total = multiply(extra, multiply(convert, own) if own else convert)
 
     sizing = sizing_of(cosmetic, model)
     s = model_scale(model)
-    sizing_scale = sizing.get("scale")
-    if isinstance(sizing_scale, (int, float)) and not isinstance(sizing_scale, bool) and sizing_scale > 0:
-        s *= sizing_scale
+    sizing_scale = _number(sizing.get("scale"))
+    if sizing_scale is not None and sizing_scale > 0:
+        s = sizing_scale * PIXELS_PER_BLOCK if sizing_scale < SIZING_BLOCKS_BELOW else s * sizing_scale
     translation = vector(model.raw.get("translation")) if model else [0.0, 0.0, 0.0]
+    # Skeletal models' translations were made for their skeleton's own origin; only OBJ ones are in blocks.
+    unit = 1.0 if md5 else PIXELS_PER_BLOCK
     sizing_offset = vector(sizing, ("offsetX", "offsetY", "offsetZ"))
-    t = [translation[i] + sizing_offset[i] for i in range(3)]
+    t = [translation[i] * unit + sizing_offset[i] for i in range(3)]
     moved = apply(multiply(extra, convert), t)
     origin = apply(extra, rule.origin)
     offset = [moved[i] + origin[i] + ts.offset[i] for i in range(3)]
     return Placement(s, euler(total), offset)
+
+
+# A sizingData scale below this is blocks per model unit (0.08), not a factor (1.2).
+SIZING_BLOCKS_BELOW = 0.5
+
+
+def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeRule, ts: TypeSettings) -> Placement:
+    """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), turned and
+    mirrored as Badlion turns it in third person, and centred on the vanilla shield's plate (the type's origin),
+    because Badlion's shields are each placed by their own hand-tuned offsets we can't reproduce."""
+    convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
+    extra = rotation_matrix(ts.rotation)
+    data = model.raw.get("shieldModelData") if model and isinstance(model.raw.get("shieldModelData"), dict) else {}
+    arm = _number(data.get("armScale"))
+    s = arm * PIXELS_PER_BLOCK if arm and arm > 0 else model_scale(model)
+    third = data.get("thirdPerson") if isinstance(data.get("thirdPerson"), dict) else {}
+    own = axis_angle(third.get("rotate")) or [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    flip = vector(third.get("scale")) if isinstance(third.get("scale"), dict) else [1.0, 1.0, 1.0]
+    own = multiply(own, [[1.0 if flip[0] >= 0 else -1.0, 0, 0], [0, 1.0 if flip[1] >= 0 else -1.0, 0],
+                         [0, 0, 1.0 if flip[2] >= 0 else -1.0]])
+    mirror = determinant(own) < 0
+    if mirror:  # the mod mirrors X before turning
+        own = multiply(own, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
+    total = multiply(extra, multiply(convert, own))
+    middle = [(bounds[0][i] + bounds[1][i]) / 2 for i in range(3)] if bounds else [0.0, 0.0, 0.0]
+    if mirror:
+        middle[0] = -middle[0]
+    moved = apply(total, [m * s for m in middle])
+    origin = apply(extra, rule.origin)
+    offset = [origin[i] - moved[i] + ts.offset[i] for i in range(3)]
+    return Placement(s, euler(total), offset, mirror)
+
+
+def determinant(m) -> float:
+    return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
 
 
 # ---------------------------------------------------------------------- the plan
@@ -680,7 +756,12 @@ class Planner:
             flip = not flip
         # The texture decides when it clearly fits the other way; not for calibration variants, which test both.
         fit = not (variant and "flip" in variant)
-        place = placement(c, model, mf.md5, rule, ts)
+        if rule.slot == "shield":
+            text = self.text(mesh_path)
+            summary = meshes.summarize_md5mesh(text) if mf.md5 else meshes.summarize_obj(text)
+            place = shield_placement(model, summary.bounds, mf.md5, rule, ts)
+        else:
+            place = placement(c, model, mf.md5, rule, ts)
 
         mesh = {"model": mf.location, "shading": ts.shading, **place.mesh_keys()}
         styles: dict[str, str] = {}

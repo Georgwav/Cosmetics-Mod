@@ -74,7 +74,7 @@ def test_inspect_confirms_the_layout_and_finds_the_cape_model(input_folder):
 
     # The numbers that place each model, for checking the conversion.
     row = next(line for line in layout.splitlines() if line.startswith("| `HAT/tophat` |"))
-    assert '{"x":0,"y":1,"z":0}' in row
+    assert '{"x":0,"y":0.5,"z":0}' in row
 
     # Structure only: no cosmetic names in LAYOUT.md.
     for name in ("Red Cape", "Flowing Cape", "Angel", "Top Hat"):

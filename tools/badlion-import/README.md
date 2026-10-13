@@ -49,6 +49,17 @@ without a `modelName` use) and:
   present cosmetic, `--summary <file>` to save it (not inside this repository), `--no-hash` to skip the
   SHA-1 check of every file (faster).
 
+### `survey`: any other client's files
+
+```powershell
+badlion-import survey C:\Users\Pc\Downloads\Imports --out C:\badlion-packs\SURVEY.md
+```
+
+Looks through a folder of another client's cosmetic files (Lunar, NoRisk, ...), and into the archives in it, and
+writes `SURVEY.md` for planning an importer: path patterns, file kinds and sizes, the keys and value types of the
+JSON files (with short id-like values such as types), image sizes, model counts and bounds, and the first bytes of
+files it can't read. Structure only: no pixels, no vertices, no names or other text, so it can be shared.
+
 ### `list`
 
 ```powershell
@@ -125,8 +136,9 @@ conversion used.
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
   flap);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
-- shields: shown instead of the vanilla shield while you hold one, centred on the vanilla shield's plate and
-  scaled by the model's `scale` (Badlion's `shieldModelData` isn't converted);
+- shields: shown instead of the vanilla shield while you hold one, at the size Badlion holds them
+  (`shieldModelData.armScale`), turned and mirrored as Badlion shows them in third person, and centred on the
+  vanilla shield's plate;
 - boots (one model on both feet) and armbands (on the left arm);
 - pets: on your left shoulder, on your head for pets Badlion puts there, and floating beside you for pets
   that only have an `air` animation. Their `shoulder` and `air` animations are styles; the mod plays `air`
@@ -139,6 +151,9 @@ conversion used.
   more on painted pixels than on see-through ones, the import turns them around (listed in the report's
   notes). This is what makes a model show as a few scattered pixels when it's wrong.
 - sizing (`sizingData`): the cosmetic's own, else its model's in `models.json`.
+- size and position as Badlion has them: `models.json`'s `scale` is blocks per model unit (0.0625 for a model
+  made in pixels, 0.004 for one made 16 times finer; 0 is pixels), its `translation` is in blocks along the
+  model's own axes, and its `rotation` turns by `w` degrees around the axis `x, y, z`.
 
 Skipped and listed in the report: player pets, swords, bows, sprays, auras and nametag decorations, cosmetics
 without a model of their own (other than capes), and sub-models (only a cosmetic's main model converts).
