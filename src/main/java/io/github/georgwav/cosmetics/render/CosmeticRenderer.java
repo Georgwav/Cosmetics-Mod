@@ -10,9 +10,6 @@ import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.model.geom.ModelPart;
 import org.joml.Quaternionf;
-//? if >=26.3 {
-/*import org.joml.Matrix4f;
-*///?}
 
 /**
  * Version-independent part of the render layer: decides which cosmetics to draw for a player, places
@@ -121,7 +118,7 @@ public final class CosmeticRenderer {
                 .rotateZ((float) Math.toRadians(info.capeLean2 / 2.0F))
                 .rotateY((float) Math.toRadians(180.0F - info.capeLean2 / 2.0F));
         //? if >=26.3 {
-        /*poseStack.mulPose(new Matrix4f().rotation(rotation));
+        /*poseStack.rotate(rotation);
         *///?} else {
         poseStack.mulPose(rotation);
         //?}

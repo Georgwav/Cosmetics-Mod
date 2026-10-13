@@ -4,5 +4,3 @@
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
-26.1.2 net.minecraft.client.renderer.rendertype.RenderTypes
-26.3 net.minecraft.client.renderer.rendertype.RenderTypes,com.mojang.blaze3d.vertex.PoseStack
