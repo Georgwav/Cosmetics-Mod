@@ -73,7 +73,7 @@ repaired on load.
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`). |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
-| `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). |
+| `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
 | `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
 | `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |

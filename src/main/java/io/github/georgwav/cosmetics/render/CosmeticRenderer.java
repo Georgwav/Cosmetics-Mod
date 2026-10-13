@@ -118,6 +118,9 @@ public final class CosmeticRenderer {
                 boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
                 float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
                 int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+                // Capes also follow the cape settings: a skeletal cape's own waving stops with cape physics off
+                // (or no swing) and speeds up or slows down with the swing strength.
+                float capeMotion = slot == CosmeticSlot.CAPE ? (config.capePhysics ? config.capeSwing : 0f) : 1f;
                 CosmeticDefinition.Wings wings = cosmetic.wings();
                 float wingAngle = 0f;
                 double wingPhase = 0.0;
@@ -160,7 +163,7 @@ public final class CosmeticRenderer {
                             clip = rig.clipForStyle(style);
                             // With wings, a skeletal mesh plays one loop of its clip per flap.
                             clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
-                                    : rig.clipTime(clip, seconds, animate ? animationSpeed : 0f);
+                                    : rig.clipTime(clip, seconds, animate ? animationSpeed * capeMotion : 0f);
                             poseStack.pushPose();
                             pushes++;
                             applyRig(poseStack, rig, layer.joint(), clip, clipTime);
