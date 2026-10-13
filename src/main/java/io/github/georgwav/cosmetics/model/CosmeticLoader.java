@@ -5,6 +5,11 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+//? if >=1.21.11 {
+import net.minecraft.resources.Identifier;
+//?} else {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
 
 import java.io.FileNotFoundException;
 import java.io.Reader;
@@ -15,7 +20,8 @@ import java.util.Map;
 /**
  * Loads every {@code assets/<namespace>/cosmetics/*.json} from the active resource packs and bakes it.
  * Cosmetics can use Bedrock geometry models from {@code assets/<namespace>/cosmetic_models/} and mesh
- * files ({@code .obj}, {@code .bbmodel}) from anywhere under {@code assets/<namespace>/models/}.
+ * files ({@code .obj}, {@code .bbmodel}) by their full location, such as
+ * {@code namespace:models/cosmetic/name.obj}.
  * A broken file is logged and skipped; it never stops the other cosmetics or the game from loading.
  */
 public final class CosmeticLoader {
@@ -23,7 +29,6 @@ public final class CosmeticLoader {
     private static final String MODEL_DIRECTORY = "cosmetic_models";
     private static final String SUFFIX = ".json";
     private static final String GEO_SUFFIX = ".geo.json";
-    private static final String MESH_DIRECTORY = "models";
 
     private CosmeticLoader() {
     }
@@ -44,17 +49,18 @@ public final class CosmeticLoader {
             return resource.openAsReader();
         };
 
-        // Mesh files by full location ("namespace:models/.../name.obj"). Vanilla only reads .json files
-        // under models/, so these never reach the block and item model loader.
-        Map<String, Resource> meshFiles = new HashMap<>();
-        for (var entry : manager.listResources(MESH_DIRECTORY, location -> location.getPath().endsWith(".obj")
-                || location.getPath().endsWith(".bbmodel")).entrySet()) {
-            meshFiles.put(entry.getKey().getNamespace() + ":" + entry.getKey().getPath(), entry.getValue());
-        }
+        // Mesh files are opened by their full location when a cosmetic asks for one (the parser has
+        // already checked it's a valid .obj or .bbmodel location), so nothing is scanned up front.
+        // Vanilla only reads .json files under models/, so these never reach the block and item models.
         CosmeticParser.FileSource files = location -> {
-            Resource resource = meshFiles.get(location);
+            //? if >=1.21.11 {
+            Identifier id = Identifier.parse(location);
+            //?} else {
+            /*ResourceLocation id = ResourceLocation.parse(location);
+            *///?}
+            Resource resource = manager.getResource(id).orElse(null);
             if (resource == null) {
-                throw new FileNotFoundException("no such file in any resource pack (mesh files go under assets/<namespace>/models/)");
+                throw new FileNotFoundException("no such file in any resource pack");
             }
             return resource.open();
         };
