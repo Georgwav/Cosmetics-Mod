@@ -30,6 +30,7 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
+import zipfile
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -265,16 +266,21 @@ def read_root_property(key):
 
 # --------------------------------------------------------------------------------------------- Modrinth
 
-def modrinth_version(project, mc=None, loader="fabric", prerelease=False):
-    """Newest version of a project for a Minecraft version; releases first unless prerelease is True."""
+def modrinth_versions(project, mc=None, loader="fabric"):
+    """All versions of a project for a Minecraft version, newest first (empty if none or unreachable)."""
     params = {"loaders": json.dumps([loader])}
     if mc:
         params["game_versions"] = json.dumps([mc])
     url = f"{MODRINTH}/project/{project}/version?{urllib.parse.urlencode(params)}"
     try:
-        versions = json.loads(fetch(url))
+        return json.loads(fetch(url))
     except IOError:
-        return None
+        return []
+
+
+def modrinth_version(project, mc=None, loader="fabric", prerelease=False):
+    """Newest version of a project for a Minecraft version; releases first unless prerelease is True."""
+    versions = modrinth_versions(project, mc, loader)
     if not versions:
         return None
     if prerelease:
@@ -300,7 +306,8 @@ def modrinth_download(version, dest_dir):
 
 def fetch_stack(mods, mc, dest_dir, prerelease=False):
     """
-    Downloads a mod stack plus its required dependencies. Returns ({name: version}, missing).
+    Downloads a mod stack plus its required dependencies. Returns (stack, missing) where stack maps each
+    downloaded jar's file name to {"name", "version"} (the Modrinth version object).
 
     Versions are resolved first and downloaded at the end, so a dependency that a mod pins to an exact
     version (Modrinth "version_id", e.g. Iris pinning its Sodium) wins over the newest one.
@@ -338,11 +345,66 @@ def fetch_stack(mods, mc, dest_dir, prerelease=False):
         if project not in SKIP_PROJECTS:
             chosen[project] = pinned
             names.setdefault(project, project)
-    got = {}
+    stack = {}
     for project, version in chosen.items():
-        modrinth_download(version, dest_dir)
-        got[names[project]] = version["version_number"]
-    return got, missing
+        stack[modrinth_download(version, dest_dir).name] = {"name": names[project], "version": version}
+    return stack, missing
+
+
+def stack_info(stack):
+    """{name: version number} of a downloaded stack, for reports."""
+    return {entry["name"]: entry["version"]["version_number"] for entry in stack.values()}
+
+
+# Fabric Loader's suggested fix when mods need other versions of each other, e.g.
+# "Replace mod 'Sodium' (sodium) 0.9.2+mc26.1.2 with version 0.0.0 or any version between 0.9.1- (inclusive) ..."
+LOADER_REPLACE = re.compile(r"Replace mod '[^']*' \(([^)\s]+)\) (\S+) with (.+)")
+VERSION_NUMBER = re.compile(r"\d+(?:\.\d+)+")
+
+
+def jar_mod_id(jar):
+    try:
+        with zipfile.ZipFile(jar) as z:
+            return json.loads(z.read("fabric.mod.json").decode("utf-8", "replace")).get("id")
+    except (KeyError, OSError, ValueError, zipfile.BadZipFile):
+        return None
+
+
+def contains_version(text, number):
+    """True if `number` (e.g. 0.9.1) appears in `text` as a whole version, not inside 10.9.12."""
+    return re.search(r"(?<![\d.])" + re.escape(number) + r"(?![\d])(?!\.\d)", text) is not None
+
+
+def apply_loader_fix(log_text, mods_dir, stack, mc, tried):
+    """
+    Follows Fabric Loader's "Replace mod ..." suggestions: swaps each named mod for the newest build of
+    the same Modrinth project that has the version the loader asks for (or, if no build matches, the
+    next older build). Returns a description of the swaps, or None if there was nothing to try.
+    """
+    swaps = []
+    for mod_id, current, wanted in LOADER_REPLACE.findall(log_text):
+        jar_name = next((name for name in stack if jar_mod_id(Path(mods_dir) / name) == mod_id), None)
+        if jar_name is None:
+            continue  # not one of the downloaded mods (e.g. Fabric API or this mod): nothing to swap
+        entry = stack[jar_name]
+        version = entry["version"]
+        tried.add(version["id"])
+        builds = modrinth_versions(version["project_id"], mc)
+        numbers = [n.rstrip("-") for n in VERSION_NUMBER.findall(wanted) if n.rstrip("-") != "0.0.0"]
+        matching = [b for b in builds if b["id"] not in tried
+                    and any(contains_version(b["version_number"], n) for n in numbers)]
+        current_index = next((i for i, b in enumerate(builds) if b["id"] == version["id"]), -1)
+        older = [b for b in builds[current_index + 1:] if b["id"] not in tried]
+        replacement = (matching or older or [None])[0]
+        if replacement is None:
+            continue
+        tried.add(replacement["id"])
+        (Path(mods_dir) / jar_name).unlink(missing_ok=True)
+        new_jar = modrinth_download(replacement, mods_dir)
+        del stack[jar_name]
+        stack[new_jar.name] = {"name": entry["name"], "version": replacement}
+        swaps.append(f"{mod_id} {current} -> {replacement['version_number']}")
+    return ", ".join(swaps) or None
 
 
 INCOMPATIBLE_STACK = "Incompatible mods found"
@@ -641,37 +703,55 @@ def cmd_compat(args):
 
 def run_stack(args, inst, jar, mc, label, spec, mode):
     """
-    Runs the game with one mod stack. Tries the newest releases first; if Fabric says those versions
-    don't work together (a problem between the other mods, not this one), retries with the newest
-    builds including betas, and reports n/a if that doesn't resolve either.
+    Runs the game with one mod stack, starting from the newest releases. If Fabric says those versions
+    don't work together (a problem between the other mods, not this one), follows the loader's
+    suggested version swaps, then tries the newest builds including betas, and reports n/a if nothing
+    resolves.
     """
-    last_conflict = None
+    last_conflict, stack = None, {}
     for prerelease in (False, True):
         mods_dir = Path(args.cache) / "stacks" / mc / (label + ("-pre" if prerelease else ""))
         shutil.rmtree(mods_dir, ignore_errors=True)
         mods_dir.mkdir(parents=True)
+        tried = set()
         try:
-            got, missing = fetch_stack(spec["mods"], mc, mods_dir, prerelease=prerelease)
-            shaderpack = None
+            stack, missing = fetch_stack(spec["mods"], mc, mods_dir, prerelease=prerelease)
+            shaderpack, pack_info = None, {}
             if spec.get("shaderpack"):
                 pack = modrinth_version(spec["shaderpack"], None, loader="iris")
                 if pack is None:
                     missing.append(spec["shaderpack"])
                 else:
                     shaderpack = modrinth_download(pack, Path(args.cache) / "shaderpacks")
-                    got[spec["shaderpack"]] = pack["version_number"]
+                    pack_info = {spec["shaderpack"]: pack["version_number"]}
             if missing:
-                return write_na(args, mc, label, got, missing)
-            summary = run_game(inst, jar, args.out, label, mods_dir, shaderpack, mode=mode,
-                               mods_info=got, node=args.node)
+                return write_na(args, mc, label, {**stack_info(stack), **pack_info}, missing)
+            for _ in range(MAX_LOADER_FIXES + 1):
+                summary = run_game(inst, jar, args.out, label, mods_dir, shaderpack, mode=mode,
+                                   mods_info={**stack_info(stack), **pack_info}, node=args.node)
+                game_dir = Path(args.out) / f"{mc}-{label}"
+                conflict = stack_conflict(game_dir)
+                if summary["passed"] or conflict is None:
+                    return summary
+                last_conflict = conflict
+                fix = apply_loader_fix(read_logs(game_dir), mods_dir, stack, mc, tried)
+                if fix is None:
+                    break
+                LOG(f"[{mc}/{label}] the other mods need different versions of each other; retrying with {fix}")
         except Exception as e:  # noqa: BLE001
             return setup_failure(args, mc, label, mode, e)
-        conflict = stack_conflict(Path(args.out) / f"{mc}-{label}")
-        if summary["passed"] or conflict is None:
-            return summary
-        last_conflict = conflict
-        LOG(f"[{mc}/{label}] the other mods' versions conflict with each other; retrying with newest betas")
-    return write_na(args, mc, label, got, [], reason=f"newest builds of these mods conflict with each other: {last_conflict}")
+        if not prerelease:
+            LOG(f"[{mc}/{label}] no working combination of releases; retrying with the newest betas")
+    return write_na(args, mc, label, stack_info(stack), [],
+                    reason=f"no published builds of these mods work together: {last_conflict}")
+
+
+MAX_LOADER_FIXES = 4
+
+
+def read_logs(game_dir):
+    return "\n".join(log.read_text(errors="replace")
+                     for log in (game_dir / "logs" / "latest.log", game_dir / "stdout.log") if log.exists())
 
 
 def stack_conflict(game_dir):
