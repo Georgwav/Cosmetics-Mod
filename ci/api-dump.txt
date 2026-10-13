@@ -1,10 +1,10 @@
 # Used by the "api-dump" CI job (runs when a commit message contains [api-dump]).
-# One line per Minecraft build: <version> <comma-separated classes>. Prints `javap -public` for each
+# One line per Minecraft build: <version> <comma-separated classes>. Prints `javap -protected` for each
 # class as that version's Minecraft (Mojang names) has it. Handy when porting to a new version.
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
-26.3 net.minecraft.client.Minecraft,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.GuiGraphics,net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.KeyMapping
-26.2 net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.screens.inventory.InventoryScreen
-26.1.2 net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.KeyMapping
-1.21.10 net.minecraft.client.KeyMapping,net.minecraft.client.gui.components.AbstractWidget
+26.3 net.minecraft.client.gui.GuiGraphicsExtractor,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.Gui,net.minecraft.client.KeyMapping$Category
+26.2 net.minecraft.client.Minecraft,net.minecraft.client.gui.GuiGraphicsExtractor
+26.1.2 net.minecraft.client.gui.GuiGraphicsExtractor,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.Minecraft,net.minecraft.client.KeyMapping$Category
+1.21.10 net.minecraft.client.KeyMapping$Category

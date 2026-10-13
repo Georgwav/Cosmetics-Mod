@@ -104,7 +104,7 @@ tasks.named('build') {
 }
 
 // Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
-// prints the public API of those classes exactly as this version's Minecraft has it.
+// prints the public and protected API of those classes exactly as this version's Minecraft has it.
 tasks.register('dumpApi') {
     group = 'help'
     def classes = providers.gradleProperty('dumpClasses').orElse('')
@@ -113,7 +113,7 @@ tasks.register('dumpApi') {
         def javap = ToolProvider.findFirst('javap').orElseThrow()
         classes.get().split(',').findAll { !it.isBlank() }.each { name ->
             println "===== ${mcVersion} ${name.trim()} ====="
-            javap.run(System.out, System.err, '-public', '-cp', classpath.asPath, name.trim())
+            javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name.trim())
         }
     }
 }
