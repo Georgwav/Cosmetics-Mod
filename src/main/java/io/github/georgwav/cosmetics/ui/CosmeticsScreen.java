@@ -43,7 +43,7 @@ public final class CosmeticsScreen extends Screen {
 
     /** The wardrobe's categories, in the side bar's order. */
     private enum View {
-        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, OUTFITS;
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, OUTFITS;
 
         boolean includes(BakedCosmetic cosmetic, List<String> wearing) {
             return switch (this) {
@@ -57,6 +57,7 @@ public final class CosmeticsScreen extends Screen {
                 case BACK -> cosmetic.slot() == CosmeticSlot.BACK && cosmetic.wings() == null;
                 case SHIELDS -> cosmetic.slot() == CosmeticSlot.SHIELD;
                 case AURAS -> cosmetic.slot() == CosmeticSlot.AURA;
+                case PETS -> cosmetic.slot() == CosmeticSlot.PET;
                 case OUTFITS -> false;
             };
         }

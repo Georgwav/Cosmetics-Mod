@@ -114,6 +114,9 @@ public final class CosmeticRenderer {
                 anchor.translateAndRotate(poseStack);
                 if (slot == CosmeticSlot.CAPE) {
                     applyCapeSway(poseStack, info, config);
+                } else if (slot == CosmeticSlot.PET) {
+                    // The top of the left shoulder (+X is the wearer's left).
+                    poseStack.translate(6f / 16f, 0f, 0f);
                 }
                 CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
                 applyPlacement(poseStack, options, cosmetic);

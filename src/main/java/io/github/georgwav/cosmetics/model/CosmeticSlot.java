@@ -23,7 +23,9 @@ public enum CosmeticSlot {
      */
     SHIELD(Anchor.HELD),
     /** Auras: particles around the player, usually without a model. */
-    AURA(Anchor.BODY);
+    AURA(Anchor.BODY),
+    /** Pets: sit on the wearer's left shoulder; modelled standing on the origin, which is the top of that shoulder. */
+    PET(Anchor.BODY);
 
     /** HELD: drawn in place of a held item rather than on the player model. */
     public enum Anchor { HEAD, BODY, HELD }

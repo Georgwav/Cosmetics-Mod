@@ -28,7 +28,7 @@ stops the game or the other cosmetics.
 
 | Key | Required | Meaning |
 |---|---|---|
-| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield` or `aura`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
+| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `aura` or `pet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
 | `parts` | yes, unless `model` is set | One or more parts. |
@@ -65,6 +65,8 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 - **Body anchor**: the body spans `[-4, 0, -2]` to `[4, 12, 2]`.
 - **`cape` slot**: before your cubes are drawn, the anchor is moved 2 px behind the body and swings exactly like the
   vanilla cape. Model capes like the vanilla cape cube, `from [-5, 0, -1] to [5, 16, 0]`, with the vanilla 64x32 cape layout.
+- **`pet` slot**: the pet sits on the wearer's left shoulder: model it standing on the origin, which is the top of
+  that shoulder (body space `[6, 0, 0]`), growing upwards (-Y).
 - **`shield` slot**: drawn instead of the vanilla shield while the player holds one (either hand, first and third
   person), in the vanilla shield model's space: its plate spans `[-6, -11, -2]` to `[6, 11, -1]` with the front facing
   -Z, and its handle `[-1, -3, -1]` to `[1, 3, 5]`. Shields in the inventory and on the ground stay vanilla.

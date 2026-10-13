@@ -53,11 +53,13 @@ RULES: dict[str, TypeRule] = {
     # Shields replace the held vanilla shield; Badlion's shield models are centred on the plate, whose centre
     # in the vanilla shield model is (0, 0, -1.5).
     "SHIELD": TypeRule("shield", (0, 0, -1.5)),
+    # Pets stand on the left shoulder (the mod's pet slot origin); with petData.onHead, on top of the head.
+    "PET": TypeRule("pet", (0, 0, 0), "pet"),
 }
+PET_ON_HEAD = TypeRule("head", (0, -8, 0), "pet")
 
 UNSUPPORTED: dict[str, str] = {
-    "PET": "pets aren't worn on the player",
-    "PLAYER_PET": "pets aren't worn on the player",
+    "PLAYER_PET": "player pets aren't supported",
     "SWORD": "held items aren't supported",
     "BOW": "held items aren't supported",
     "PROJECTILE": "held items aren't supported",
@@ -80,6 +82,7 @@ BOX_CAPE_WIDTH = 10
 BOX_CAPE_DEPTH = 1
 CAPE_STYLE_ORDER = ("dynamic", "curved", "rect")
 WING_ANIMATION_ORDER = ("flapping", "wings", "animation")
+PET_STYLE_ORDER = ("shoulder", "idle", "air")
 
 
 # ---------------------------------------------------------------------- rotations
@@ -580,6 +583,8 @@ class Planner:
             return self.plan_box_cape(c, texture, variant, notes)
 
         rule = RULES[c.type]
+        if rule.kind == "pet" and (c.raw.get("petData") or {}).get("onHead") is True:
+            rule = PET_ON_HEAD
         ts = self.settings.of(c.type)
         mf = self.model_file(mesh_path)
         for key in ("subModels", "extraModels", "shieldModelData"):
@@ -671,9 +676,12 @@ class Planner:
             else:
                 extra = {}
                 if styles:
-                    if rule.kind == "cape" or len(styles) > 1:
+                    if rule.kind in ("cape", "pet") or len(styles) > 1:
                         extra = {"bone_animations": styles}
-                        default = cape_style if cape_style in styles else choose(styles, CAPE_STYLE_ORDER)
+                        if rule.kind == "pet":
+                            default = choose(styles, PET_STYLE_ORDER)
+                        else:
+                            default = cape_style if cape_style in styles else choose(styles, CAPE_STYLE_ORDER)
                         if default:
                             doc["default_style"] = default
                     else:
