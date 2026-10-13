@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.emote;
 
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
@@ -14,6 +15,10 @@ import net.minecraft.client.player.LocalPlayer;
  * <p>Right after the game poses a player model, {@code PlayerModelMixin} calls {@link #pose}, which moves the
  * parts of your model as the emote says. While an emote plays the camera can move in front of or behind you,
  * and moving stops it (both can be set in Display). Render and client thread only.
+ *
+ * <p>An elytra emote (played from the wheel while gliding) is different: it plays until you stop gliding,
+ * moving doesn't stop it, the camera stays where it is, and you are drawn upright to the ground rather than
+ * lying along your flight ({@link #upright}, used by {@code PlayerRendererMixin}).
  */
 public final class EmotePlayer {
     /** An emote stopped early blends back over at least this long. */
@@ -22,6 +27,8 @@ public final class EmotePlayer {
     private static final float GRACE_SECONDS = 0.3f;
 
     private static Emote current;
+    /** Played while gliding with an elytra. */
+    private static boolean elytra;
     private static long startNanos;
     /** When it was asked to stop; 0 while it plays on. */
     private static long stopNanos;
@@ -39,15 +46,23 @@ public final class EmotePlayer {
 
     /** Plays {@code emote} on your player, in place of any playing now. */
     public static void play(Emote emote) {
+        play(emote, false);
+    }
+
+    /** Plays {@code emote}; {@code whileGliding} makes it an elytra emote (see the class description). */
+    public static void play(Emote emote, boolean whileGliding) {
         Minecraft client = Minecraft.getInstance();
         if (emote == null || client.player == null || !CosmeticsConfig.get().emotes) {
             return;
         }
         current = emote;
+        elytra = whileGliding;
         startNanos = System.nanoTime();
         stopNanos = 0L;
+        EquippedCosmetics.emoteProps(emote.props());
         CosmeticsConfig.EmoteCamera camera = CosmeticsConfig.get().emoteCamera;
-        if (camera != CosmeticsConfig.EmoteCamera.UNCHANGED) {
+        // Gliding, you need to see where you're going.
+        if (camera != CosmeticsConfig.EmoteCamera.UNCHANGED && !elytra) {
             CameraType wanted = camera == CosmeticsConfig.EmoteCamera.FRONT ? CameraType.THIRD_PERSON_FRONT
                     : CameraType.THIRD_PERSON_BACK;
             CameraType now = client.options.getCameraType();
@@ -87,7 +102,8 @@ public final class EmotePlayer {
             end(client);
             return;
         }
-        if (stopNanos == 0L && CosmeticsConfig.get().emoteStopOnMove && interrupted(player)) {
+        if (stopNanos == 0L && (elytra ? !player.isFallFlying()
+                : CosmeticsConfig.get().emoteStopOnMove && interrupted(player))) {
             stop();
         }
     }
@@ -105,7 +121,9 @@ public final class EmotePlayer {
 
     private static void end(Minecraft client) {
         current = null;
+        elytra = false;
         stopNanos = 0L;
+        EquippedCosmetics.emoteProps(java.util.List.of());
         if (cameraBefore != null) {
             // Put the camera back, unless you've moved it yourself since.
             if (client.options.getCameraType() == cameraSet) {
@@ -168,6 +186,23 @@ public final class EmotePlayer {
         }
         posedFrames++;
         return true;
+    }
+
+    /**
+     * How far your player {@code entityId} is drawn upright to the ground while gliding, 0 (lying along the flight,
+     * as normal) to 1 (upright): the weight of the elytra emote playing, 0 when there is none.
+     */
+    public static float upright(int entityId) {
+        Emote emote = current;
+        if (emote == null || !elytra) {
+            return 0f;
+        }
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || player.getId() != entityId) {
+            return 0f;
+        }
+        // An emote that played out blends back down with its own fade; while it holds or loops, stay upright.
+        return Math.max(0f, Math.min(1f, emote.weightAt(seconds(startNanos)) * stopWeight()));
     }
 
     /** How much is left of an emote that was stopped early (1 while it plays on). */

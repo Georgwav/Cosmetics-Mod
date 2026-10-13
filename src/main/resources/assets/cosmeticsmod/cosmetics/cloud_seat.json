@@ -1,0 +1,33 @@
+{
+  "slot": "body",
+  "name": "Cloud Seat",
+  "prop": true,
+  "texture": "cosmeticsmod:textures/cosmetic/flying_cloud.png",
+  "texture_size": [64, 32],
+  "parts": [
+    {
+      "name": "cloud",
+      "mode": "translucent",
+      "cubes": [
+        { "from": [-7, 14, -11], "to": [7, 17, 5], "uv": [0, 0] },
+        { "from": [-9, 13, -6], "to": [-5, 17, 2], "uv": [0, 0] },
+        { "from": [5, 13, -7], "to": [9, 17, 1], "uv": [0, 0] },
+        { "from": [-3, 13, 3], "to": [4, 16, 7], "uv": [0, 0] },
+        { "from": [-5, 17, -8], "to": [5, 19, 2], "uv": [0, 0] }
+      ]
+    }
+  ],
+  "particles": {
+    "texture": "cosmeticsmod:ember",
+    "when": "always",
+    "rate": 10,
+    "lifetime": [0.6, 1.2],
+    "origin": [0, 8, 4],
+    "area": [6, 1, 4],
+    "velocity": [0, 0, 5],
+    "spread": [1, 1, 1],
+    "size": [3, 5],
+    "alpha": [0.6, 0],
+    "colors": ["#FFFFFF", "#E8F1FF"]
+  }
+}

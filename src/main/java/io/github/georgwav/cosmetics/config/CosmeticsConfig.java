@@ -75,6 +75,11 @@ public final class CosmeticsConfig {
     public boolean emoteStopOnMove = true;
     /** The emotes on the emote wheel, in order. Empty puts every emote on it. */
     public List<String> emoteWheel = new ArrayList<>();
+    /**
+     * The emotes on the elytra wheel (the emote wheel opened while gliding), in order. Empty puts the emotes made
+     * for flying on it.
+     */
+    public List<String> elytraEmoteWheel = new ArrayList<>();
 
     /** Where the camera goes while you emote: in front of you, behind you, or nowhere (it stays as it is). */
     public enum EmoteCamera { FRONT, BACK, UNCHANGED }
@@ -298,6 +303,12 @@ public final class CosmeticsConfig {
         }
     }
 
+    /** A list of ids without nulls or repeats, in order (a missing list gives an empty one). */
+    private static List<String> cleanIds(List<String> ids) {
+        return ids == null ? new ArrayList<>()
+                : new ArrayList<>(new java.util.LinkedHashSet<>(ids.stream().filter(id -> id != null).toList()));
+    }
+
     /** Repairs a hand-edited or older file: fills missing entries, clamps numbers into range. */
     void sanitize() {
         if (slotPriority == null) {
@@ -331,8 +342,8 @@ public final class CosmeticsConfig {
         if (emoteCamera == null) {
             emoteCamera = EmoteCamera.FRONT;
         }
-        emoteWheel = emoteWheel == null ? new ArrayList<>()
-                : new ArrayList<>(new java.util.LinkedHashSet<>(emoteWheel.stream().filter(id -> id != null).toList()));
+        emoteWheel = cleanIds(emoteWheel);
+        elytraEmoteWheel = cleanIds(elytraEmoteWheel);
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }

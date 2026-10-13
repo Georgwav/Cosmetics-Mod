@@ -20,6 +20,7 @@ import java.util.List;
  * @param wings         wing behaviour (flapping with movement), or null
  * @param particles     particles the cosmetic gives off around its player (an aura, a trail); empty for none
  * @param sides         for arm and feet cosmetics, which limbs: {@link #LEFT}, {@link #RIGHT} or both
+ * @param prop          only shown while an emote that brings it plays (a cloud to ride); not in the Wardrobe
  */
 public record CosmeticDefinition(
         String id,
@@ -34,7 +35,8 @@ public record CosmeticDefinition(
         String defaultStyle,
         Wings wings,
         List<ParticleEmitter> particles,
-        int sides
+        int sides,
+        boolean prop
 ) {
     public static final int WHITE = 0xFFFFFF;
     public static final int LEFT = 1;
@@ -43,7 +45,7 @@ public record CosmeticDefinition(
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
         this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
-                slot.defaultSides());
+                slot.defaultSides(), false);
     }
 
     /**

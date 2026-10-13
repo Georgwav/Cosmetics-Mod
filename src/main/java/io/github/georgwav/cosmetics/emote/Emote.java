@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.emote;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,9 +22,17 @@ import java.util.Map;
  * @param fadeOut    seconds to blend back out once it ends or is stopped
  * @param rootPivotY where {@code root} rotations turn around, in model pixels (24 = the feet, 12 = the hips)
  * @param bones      channels per bone: an array of six, null where the emote doesn't move that number
+ * @param elytra     made for flying with an elytra: on the elytra wheel unless the player picks its emotes
+ * @param props      cosmetic ids shown on the player while the emote plays (a cloud to ride)
  */
 public record Emote(String id, String name, String author, float length, Ending ending, float loopStart,
-                    float fadeIn, float fadeOut, float rootPivotY, Map<Bone, Channel[]> bones) {
+                    float fadeIn, float fadeOut, float rootPivotY, Map<Bone, Channel[]> bones, boolean elytra,
+                    List<String> props) {
+
+    public Emote(String id, String name, String author, float length, Ending ending, float loopStart,
+                 float fadeIn, float fadeOut, float rootPivotY, Map<Bone, Channel[]> bones) {
+        this(id, name, author, length, ending, loopStart, fadeIn, fadeOut, rootPivotY, bones, false, List.of());
+    }
 
     public static final int X = 0;
     public static final int Y = 1;

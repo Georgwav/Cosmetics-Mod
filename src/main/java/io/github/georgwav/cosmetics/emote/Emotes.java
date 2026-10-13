@@ -24,7 +24,8 @@ public final class Emotes {
     private static volatile Map<String, Emote> emotes = Map.of();
     /** The bundled emotes in their place on the wheel: the most used first. */
     private static final List<String> BUNDLED_ORDER = java.util.stream.Stream.of("wave", "clap", "cheer", "dance",
-                    "dab", "facepalm", "salute", "shrug", "bow", "nod", "head_shake", "spin", "t_pose", "sit")
+                    "dab", "facepalm", "salute", "shrug", "bow", "nod", "head_shake", "spin", "t_pose", "sit", "cloud_rider",
+                    "cloud_sit")
             .map(name -> CosmeticsMod.MOD_ID + ":" + name).toList();
 
     private Emotes() {
@@ -67,10 +68,19 @@ public final class Emotes {
         return emotes.get(id);
     }
 
-    /** The emotes on the wheel, in order: the ones picked in the Wardrobe, or all of them when none are picked. */
-    public static List<Emote> wheel() {
-        List<String> picked = CosmeticsConfig.get().emoteWheel;
+    /**
+     * The emotes on a wheel, in order: the ones picked in the Wardrobe, or by default every emote (the emote wheel)
+     * or the emotes made for flying (the elytra wheel, which falls back to every emote when none are).
+     */
+    public static List<Emote> wheel(boolean elytra) {
+        List<String> picked = picked(elytra);
         if (picked.isEmpty()) {
+            if (elytra) {
+                List<Emote> flying = emotes.values().stream().filter(Emote::elytra).toList();
+                if (!flying.isEmpty()) {
+                    return flying;
+                }
+            }
             return List.copyOf(emotes.values());
         }
         List<Emote> wheel = new ArrayList<>();
@@ -83,23 +93,27 @@ public final class Emotes {
         return wheel;
     }
 
-    /** Whether {@code id} is on the wheel. */
-    public static boolean onWheel(String id) {
-        List<String> picked = CosmeticsConfig.get().emoteWheel;
-        return picked.isEmpty() ? emotes.containsKey(id) : picked.contains(id);
+    /** Whether {@code id} is on a wheel. */
+    public static boolean onWheel(String id, boolean elytra) {
+        return wheel(elytra).stream().anyMatch(e -> e.id().equals(id));
     }
 
-    /** Puts {@code id} on the wheel or takes it off. */
-    public static void setOnWheel(String id, boolean on) {
-        List<String> picked = CosmeticsConfig.get().emoteWheel;
+    /** Puts {@code id} on a wheel or takes it off. */
+    public static void setOnWheel(String id, boolean elytra, boolean on) {
+        List<String> picked = picked(elytra);
         if (picked.isEmpty()) {
-            // "All of them" until now: start from the full list.
-            picked.addAll(emotes.keySet());
+            // The default until now: start from what the wheel showed.
+            wheel(elytra).forEach(e -> picked.add(e.id()));
         }
         picked.remove(id);
         if (on) {
             picked.add(id);
         }
+    }
+
+    private static List<String> picked(boolean elytra) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        return elytra ? config.elytraEmoteWheel : config.emoteWheel;
     }
 
     /**

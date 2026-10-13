@@ -33,6 +33,9 @@ public final class EquippedCosmetics {
     private static long previewTouched;
     private static final long PREVIEW_LAPSE_NANOS = 500_000_000L;
 
+    /** Props of the emote the local player is playing (a cloud to ride), shown on them while it plays. */
+    private static List<String> emoteProps = List.of();
+
     /** Test/benchmark switch: every player wears every loaded cosmetic. */
     private static final boolean EQUIP_ALL = Boolean.getBoolean(CosmeticsMod.MOD_ID + ".equipAll");
 
@@ -48,6 +51,14 @@ public final class EquippedCosmetics {
         previewTouched = System.nanoTime();
         if (!java.util.Objects.equals(id, previewId)) {
             previewId = id;
+            localCache = null;
+        }
+    }
+
+    /** Shows these props on the local player (the emote they play brings them); an empty list takes them off. */
+    public static void emoteProps(List<String> ids) {
+        if (!ids.equals(emoteProps)) {
+            emoteProps = List.copyOf(ids);
             localCache = null;
         }
     }
@@ -87,26 +98,38 @@ public final class EquippedCosmetics {
         return cached;
     }
 
-    /** What the local player wears with the preview (if any) in place of the cosmetics in its slot. */
+    /**
+     * What the local player wears with the preview (if any) in place of the cosmetics in its slot, and the props
+     * of the emote they play.
+     */
     private static BakedCosmetic[] withPreview(BakedCosmetic[] worn) {
         BakedCosmetic shown = previewId != null && !EQUIP_ALL ? CosmeticRegistry.get(previewId) : null;
-        if (shown == null) {
+        if (shown == null && emoteProps.isEmpty()) {
             return worn;
         }
-        List<BakedCosmetic> result = new ArrayList<>(worn.length + 1);
+        List<BakedCosmetic> result = new ArrayList<>(worn.length + 1 + emoteProps.size());
         for (BakedCosmetic cosmetic : worn) {
-            if (cosmetic.slot() != shown.slot()) {
+            if (shown == null || cosmetic.slot() != shown.slot()) {
                 result.add(cosmetic);
             }
         }
-        result.add(shown);
+        if (shown != null) {
+            result.add(shown);
+        }
+        for (String id : emoteProps) {
+            BakedCosmetic prop = CosmeticRegistry.get(id);
+            if (prop != null && !result.contains(prop)) {
+                result.add(prop);
+            }
+        }
         return result.toArray(NONE);
     }
 
     private static BakedCosmetic[] resolve(String uuidKey, String aliasKey) {
         if (EQUIP_ALL) {
+            // Everything but emote props, which only come with their emotes.
             Collection<BakedCosmetic> all = CosmeticRegistry.all();
-            return all.toArray(NONE);
+            return all.stream().filter(c -> !c.definition().prop()).toArray(BakedCosmetic[]::new);
         }
         Map<String, List<String>> equipped = CosmeticsConfig.get().equipped;
         List<String> ids = new ArrayList<>();

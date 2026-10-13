@@ -1,0 +1,48 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.cosmeticsmod.cloud_rider": {
+      "loop": true,
+      "animation_length": 2.0,
+      "elytra": true,
+      "props": ["cosmeticsmod:flying_cloud"],
+      "bones": {
+        "root": {
+          "rotation": [0, 25, 0],
+          "position": {
+            "0.0": {"post": [0, 0, 0], "lerp_mode": "catmullrom"},
+            "1.0": {"post": [0, 0.8, 0], "lerp_mode": "catmullrom"},
+            "2.0": {"post": [0, 0, 0], "lerp_mode": "catmullrom"}
+          }
+        },
+        "head": {
+          "rotation": {
+            "0.0": {"post": [-5, -25, 0], "lerp_mode": "catmullrom"},
+            "1.0": {"post": [-5, -20, 3], "lerp_mode": "catmullrom"},
+            "2.0": {"post": [-5, -25, 0], "lerp_mode": "catmullrom"}
+          }
+        },
+        "right_arm": {
+          "rotation": {
+            "0.0": {"post": [-10, 0, 65], "lerp_mode": "catmullrom"},
+            "1.0": {"post": [-10, 0, 78], "lerp_mode": "catmullrom"},
+            "2.0": {"post": [-10, 0, 65], "lerp_mode": "catmullrom"}
+          }
+        },
+        "left_arm": {
+          "rotation": {
+            "0.0": {"post": [-10, 0, -55], "lerp_mode": "catmullrom"},
+            "1.0": {"post": [-10, 0, -68], "lerp_mode": "catmullrom"},
+            "2.0": {"post": [-10, 0, -55], "lerp_mode": "catmullrom"}
+          }
+        },
+        "right_leg": {
+          "rotation": [0, 0, 10]
+        },
+        "left_leg": {
+          "rotation": [0, 0, -10]
+        }
+      }
+    }
+  }
+}
