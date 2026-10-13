@@ -101,6 +101,7 @@
   "cosmeticsmod.screen.offset_z": "Move forward",
   "cosmeticsmod.screen.glow": "Glow",
   "cosmeticsmod.screen.glow.off_globally": "off in Display",
+  "cosmeticsmod.screen.color.default_button": "Default colour",
   "cosmeticsmod.screen.animation": "Animation",
   "cosmeticsmod.screen.animation_speed": "Animation speed",
 

@@ -545,14 +545,6 @@ public final class CosmeticsScreen extends Screen {
     private static final List<Integer> COLORS = List.of(
             0xFFFFFF, 0xFF5555, 0xFFAA33, 0xFFFF55, 0x88FF55, 0x33CC66, 0x55FFFF,
             0x5588FF, 0xAA66FF, 0xFF77CC, 0xAAAAAA, 0x444444);
-    private static final List<String> COLOR_NAMES = List.of(
-            "white", "red", "orange", "yellow", "lime", "green", "cyan", "blue", "purple", "pink", "gray", "black");
-
-    private static String colorName(int rgb) {
-        int index = COLORS.indexOf(rgb);
-        return index >= 0 ? t("color." + COLOR_NAMES.get(index)) : String.format("#%06X", rgb);
-    }
-
     /** One cosmetic's page: wear it, then whichever of colour, size and position, glow and animation it allows. */
     private void buildDetail(BakedCosmetic cosmetic) {
         CosmeticsConfig config = CosmeticsConfig.get();
@@ -581,26 +573,27 @@ public final class CosmeticsScreen extends Screen {
         }
         if (tint) {
             int defaultColor = cosmetic.defaultColor();
-            List<Integer> colors = new ArrayList<>(COLORS);
-            if (!colors.contains(defaultColor)) {
-                colors.add(0, defaultColor);
-            }
-            add(new Rows.Cycle<>(listX, 0, listW, t("color"), colors,
+            add(new Rows.ColorPicker(listX, 0, listW,
                     () -> {
                         Integer color = config.options(id).color;
                         return color != null ? color : defaultColor;
                     },
                     // Picking the cosmetic's own colour goes back to following it.
                     v -> config.editOptions(id).color = v == defaultColor ? null : v,
-                    v -> v == defaultColor && v != CosmeticDefinition.WHITE ? t("color.default") : colorName(v))
-                    .withSwatch(rgb -> 0xFF000000 | rgb));
+                    () -> config.editOptions(id).color = null,
+                    COLORS, t("color.default_button")));
         }
         if (rainbow) {
             add(new Rows.Toggle(listX, 0, listW, t("rainbow"), null,
-                    () -> config.options(id).rainbow, v -> config.editOptions(id).rainbow = v));
-            add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
-                    () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
-                    CosmeticsScreen::times));
+                    () -> config.options(id).rainbow, v -> {
+                        config.editOptions(id).rainbow = v;
+                        rebuildWidgets(); // the speed shows only while rainbow is on
+                    }));
+            if (config.options(id).rainbow) {
+                add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
+                        () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
+                        CosmeticsScreen::times));
+            }
         }
         if (saturation) {
             add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,

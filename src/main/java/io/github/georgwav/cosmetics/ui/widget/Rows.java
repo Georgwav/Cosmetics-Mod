@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
@@ -136,6 +137,176 @@ public final class Rows {
             } else {
                 setter.accept(!getter.getAsBoolean());
             }
+        }
+    }
+
+    /**
+     * A colour picker: a saturation/brightness square and a hue bar to drag on, the colour with its hex code,
+     * a row of quick picks, and "Default" to go back to the cosmetic's own colour.
+     */
+    public static final class ColorPicker extends FlatWidget {
+        public static final int HEIGHT = 96;
+        private static final int BAR = 10;
+        private static final int SWATCH = 12;
+        private final IntSupplier getter;
+        private final IntConsumer setter;
+        private final Runnable reset;
+        private final List<Integer> presets;
+        private final String defaultLabel;
+        /** The colour being edited, as hue, saturation, value, so dragging to black keeps the hue. */
+        private float hue;
+        private float sat;
+        private float val;
+        private int shown = -1;
+        /** What the press started on: 1 the square, 2 the hue bar, 0 nothing to drag. */
+        private int dragging;
+
+        public ColorPicker(int x, int y, int width, IntSupplier getter, IntConsumer setter, Runnable reset,
+                           List<Integer> presets, String defaultLabel) {
+            super(x, y, width, HEIGHT, Component.empty());
+            this.getter = getter;
+            this.setter = setter;
+            this.reset = reset;
+            this.presets = presets;
+            this.defaultLabel = defaultLabel;
+        }
+
+        private int squareWidth() {
+            return Math.max(60, Math.min(160, getWidth() / 2 - 24));
+        }
+
+        private int squareX() {
+            return getX();
+        }
+
+        private int squareY() {
+            return getY() + 4;
+        }
+
+        private int squareHeight() {
+            return getHeight() - 8;
+        }
+
+        private int barX() {
+            return squareX() + squareWidth() + 6;
+        }
+
+        private int panelX() {
+            return barX() + BAR + 10;
+        }
+
+        /** Takes over the colour when it was changed elsewhere (the quick picks, Default, another screen). */
+        private void sync() {
+            int rgb = getter.getAsInt() & 0xFFFFFF;
+            if (rgb != shown) {
+                float[] hsv = io.github.georgwav.cosmetics.render.Tint.rgbToHsv(rgb);
+                // A grey or black has no hue of its own: keep the one being dragged.
+                if (hsv[1] > 0.001f && hsv[2] > 0.001f) {
+                    hue = hsv[0];
+                }
+                if (hsv[2] > 0.001f) {
+                    sat = hsv[1];
+                }
+                val = hsv[2];
+                shown = rgb;
+            }
+        }
+
+        private void apply() {
+            int rgb = io.github.georgwav.cosmetics.render.Tint.hsvToRgb(hue, sat, val);
+            shown = rgb;
+            setter.accept(rgb);
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            sync();
+            int sx = squareX(), sy = squareY(), sw = squareWidth(), sh = squareHeight();
+            // The square: saturation left to right, brightness top to bottom, two pixels a column.
+            for (int i = 0; i < sw; i += 2) {
+                int top = 0xFF000000 | io.github.georgwav.cosmetics.render.Tint.hsvToRgb(hue, (i + 1f) / sw, 1f);
+                g.gradient(sx + i, sy, Math.min(sx + i + 2, sx + sw), sy + sh, top, 0xFF000000);
+            }
+            int cx = sx + Math.round(sat * (sw - 1));
+            int cy = sy + Math.round((1f - val) * (sh - 1));
+            rect(g, cx - 2, cy - 2, 5, 1, 0xFFFFFFFF);
+            rect(g, cx - 2, cy + 2, 5, 1, 0xFFFFFFFF);
+            rect(g, cx - 2, cy - 1, 1, 3, 0xFFFFFFFF);
+            rect(g, cx + 2, cy - 1, 1, 3, 0xFFFFFFFF);
+            // The hue bar, red at the top round to red at the bottom.
+            int bx = barX();
+            for (int k = 0; k < 6; k++) {
+                int y1 = sy + sh * k / 6;
+                int y2 = sy + sh * (k + 1) / 6;
+                g.gradient(bx, y1, bx + BAR, y2, 0xFF000000 | io.github.georgwav.cosmetics.render.Tint.hsvToRgb(k / 6f, 1f, 1f),
+                        0xFF000000 | io.github.georgwav.cosmetics.render.Tint.hsvToRgb(((k + 1) % 6) / 6f, 1f, 1f));
+            }
+            int hy = sy + Math.round(hue * (sh - 1));
+            rect(g, bx - 2, hy - 1, BAR + 4, 3, 0xFFFFFFFF);
+            rect(g, bx - 1, hy, BAR + 2, 1, 0xFF000000);
+            // The colour, its hex code, the quick picks and Default.
+            int px = panelX();
+            rect(g, px - 1, sy - 1, 34, 22, Theme.PANEL_BORDER);
+            rect(g, px, sy, 32, 20, 0xFF000000 | shown);
+            text(g, font, String.format(java.util.Locale.ROOT, "#%06X", shown), px + 40, sy + 6, Theme.TEXT);
+            int perRow = Math.max(1, Math.min(presets.size(), (getX() + getWidth() - px) / (SWATCH + 3)));
+            for (int i = 0; i < presets.size(); i++) {
+                int x = px + (i % perRow) * (SWATCH + 3);
+                int y = sy + 28 + (i / perRow) * (SWATCH + 3);
+                boolean over = mouseX >= x && mouseX < x + SWATCH && mouseY >= y && mouseY < y + SWATCH;
+                rect(g, x - 1, y - 1, SWATCH + 2, SWATCH + 2, over ? Theme.ACCENT_HOVER : Theme.PANEL_BORDER);
+                rect(g, x, y, SWATCH, SWATCH, 0xFF000000 | presets.get(i));
+            }
+            int dy = sy + sh - font.lineHeight;
+            boolean overDefault = mouseX >= px && mouseX < px + font.width(defaultLabel) && mouseY >= dy - 2
+                    && mouseY < dy + font.lineHeight;
+            text(g, font, defaultLabel, px, dy, overDefault ? Theme.ACCENT_HOVER : Theme.TEXT_DIM);
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            sync();
+            dragging = 0;
+            int sy = squareY(), sh = squareHeight();
+            if (mouseX >= squareX() && mouseX < squareX() + squareWidth() && mouseY >= sy && mouseY < sy + sh) {
+                dragging = 1;
+            } else if (mouseX >= barX() - 2 && mouseX < barX() + BAR + 2 && mouseY >= sy && mouseY < sy + sh) {
+                dragging = 2;
+            }
+            if (dragging != 0) {
+                dragged(mouseX, mouseY);
+                return;
+            }
+            int px = panelX();
+            int perRow = Math.max(1, Math.min(presets.size(), (getX() + getWidth() - px) / (SWATCH + 3)));
+            for (int i = 0; i < presets.size(); i++) {
+                int x = px + (i % perRow) * (SWATCH + 3);
+                int y = sy + 28 + (i / perRow) * (SWATCH + 3);
+                if (mouseX >= x && mouseX < x + SWATCH && mouseY >= y && mouseY < y + SWATCH) {
+                    setter.accept(presets.get(i));
+                    return;
+                }
+            }
+            if (mouseX >= px && mouseY >= sy + sh - 12) {
+                reset.run();
+            }
+        }
+
+        @Override
+        protected void dragged(double mouseX, double mouseY) {
+            int sy = squareY(), sh = squareHeight();
+            if (dragging == 1) {
+                sat = clamp01((float) (mouseX - squareX()) / (squareWidth() - 1));
+                val = 1f - clamp01((float) (mouseY - sy) / (sh - 1));
+                apply();
+            } else if (dragging == 2) {
+                hue = Math.min(0.9999f, clamp01((float) (mouseY - sy) / (sh - 1)));
+                apply();
+            }
+        }
+
+        private static float clamp01(float v) {
+            return Math.max(0f, Math.min(1f, v));
         }
     }
 

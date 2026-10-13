@@ -45,6 +45,11 @@ public final class Canvas {
         //?}
     }
 
+    /** Rectangle fading from {@code top} to {@code bottom} (ARGB). */
+    public void gradient(int x1, int y1, int x2, int y2, int top, int bottom) {
+        raw.fillGradient(x1, y1, x2, y2, top, bottom);
+    }
+
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {
         //? if >=26.1 {

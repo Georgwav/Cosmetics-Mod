@@ -77,8 +77,30 @@ public final class Tint {
         return hsvToRgb(hue, delta / max * factor, max);
     }
 
+    /** {hue, saturation, value} of an RGB colour, each in [0, 1] (hue in [0, 1)). */
+    public static float[] rgbToHsv(int rgb) {
+        float r = (rgb >> 16 & 0xFF) / 255f;
+        float g = (rgb >> 8 & 0xFF) / 255f;
+        float b = (rgb & 0xFF) / 255f;
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float delta = max - min;
+        float hue = 0f;
+        if (delta > 0f) {
+            if (max == r) {
+                hue = ((g - b) / delta) / 6f;
+            } else if (max == g) {
+                hue = ((b - r) / delta + 2f) / 6f;
+            } else {
+                hue = ((r - g) / delta + 4f) / 6f;
+            }
+            hue -= (float) Math.floor(hue);
+        }
+        return new float[]{hue, max <= 0f ? 0f : delta / max, max};
+    }
+
     /** RGB for a hue in [0, 1), saturation and value in [0, 1]. */
-    static int hsvToRgb(float hue, float saturation, float value) {
+    public static int hsvToRgb(float hue, float saturation, float value) {
         float h = hue * 6f;
         int sector = (int) h % 6;
         float f = h - (int) h;
