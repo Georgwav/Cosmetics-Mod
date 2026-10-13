@@ -31,8 +31,9 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 *///?}
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.minecraft.client.KeyMapping;
 
@@ -94,7 +95,7 @@ final class VersionHooks {
         //? if <1.21.9 {
         /*KeyMapping key = new KeyMapping("key.cosmeticsmod.open", InputConstants.Type.KEYSYM, unbound, "key.categories.cosmeticsmod");
         *///?} else {
-        KeyMapping key = new KeyMapping("key.cosmeticsmod.open", InputConstants.Type.KEYSYM, unbound, KeyMapping.Category.MISC);
+        KeyMapping key = new KeyMapping("key.cosmeticsmod.open", unbound, KeyMapping.Category.MISC);
         //?}
         //? if <26.1 {
         return KeyBindingHelper.registerKeyBinding(key);
@@ -103,13 +104,19 @@ final class VersionHooks {
         *///?}
     }
 
-    /** {@code /cosmetics} opens the settings screen. */
+    /**
+     * {@code /cosmetics} opens the settings screen. Built with plain Brigadier rather than Fabric's
+     * command helper class, which 26.1 renamed.
+     */
     static void registerCommand() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommandManager.literal("cosmetics").executes(context -> {
-                    ScreenOpener.requestOpen();
-                    return 1;
-                })));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> registerCommand(dispatcher));
+    }
+
+    private static <S> void registerCommand(CommandDispatcher<S> dispatcher) {
+        dispatcher.register(LiteralArgumentBuilder.<S>literal("cosmetics").executes(context -> {
+            ScreenOpener.requestOpen();
+            return 1;
+        }));
     }
 
     /** Loads cosmetics from resource packs on startup and on every F3+T. */

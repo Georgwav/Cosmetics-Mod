@@ -11,10 +11,13 @@ import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
 import io.github.georgwav.cosmetics.ui.widget.Rows;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+//? if >=26.1 {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
+*///?} else {
+import net.minecraft.client.gui.GuiGraphics;
+//?}
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -299,34 +302,58 @@ public final class CosmeticsScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
-    /** Drawn in {@link #render} instead, so every version paints the backdrop exactly once and without blur. */
+    // Minecraft's draw entry points; 26.1 renamed them (render -> extractRenderState, and so on).
+    //? if >=26.1 {
+    /*@Override
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        draw(new Canvas(g), mouseX, mouseY, partialTick);
+    }
+
+    private static void drawWidget(FlatWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
+        widget.extractRenderState(g.raw, mouseX, mouseY, partialTick);
+    }
+    *///?} else {
     @Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        draw(new Canvas(g), mouseX, mouseY, partialTick);
+    }
+
+    private static void drawWidget(FlatWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
+        widget.render(g.raw, mouseX, mouseY, partialTick);
+    }
+    //?}
+
+    /** Paints the whole screen; the backdrop is drawn here so every version draws it exactly once, without blur. */
+    private void draw(Canvas g, int mouseX, int mouseY, float partialTick) {
         framesRendered++;
         g.fill(0, 0, width, height, Theme.BACKDROP);
         g.fill(px - 1, py - 1, px + pw + 1, py + ph + 1, Theme.PANEL_BORDER);
         g.fill(px, py, px + pw, py + ph, Theme.PANEL);
 
         // Header and footer.
-        g.drawString(font, title.getString(), px + Theme.PAD, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT, false);
+        g.text(font, title.getString(), px + Theme.PAD, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
         g.fill(px, py + Theme.HEADER_HEIGHT, px + pw, py + Theme.HEADER_HEIGHT + 1, Theme.DIVIDER);
         g.fill(px, py + ph - Theme.FOOTER_HEIGHT, px + pw, py + ph - Theme.FOOTER_HEIGHT + 1, Theme.DIVIDER);
-        g.drawString(font, t("hint"), px + Theme.PAD, py + ph - Theme.FOOTER_HEIGHT + (Theme.FOOTER_HEIGHT - font.lineHeight) / 2 + 1,
-                Theme.TEXT_FAINT, false);
+        g.text(font, t("hint"), px + Theme.PAD, py + ph - Theme.FOOTER_HEIGHT + (Theme.FOOTER_HEIGHT - font.lineHeight) / 2 + 1,
+                Theme.TEXT_FAINT);
 
         if (showPreview) {
-            renderPreview(g, mouseX, mouseY);
+            drawPreview(g, mouseX, mouseY);
         }
 
-        g.enableScissor(listX, listY, listX + listW, listY + listH);
+        g.clip(listX, listY, listX + listW, listY + listH);
         for (FlatWidget widget : content) {
-            widget.render(g, mouseX, mouseY, partialTick);
+            drawWidget(widget, g, mouseX, mouseY, partialTick);
         }
-        g.disableScissor();
+        g.endClip();
 
         if (maxScroll() > 0) {
             int trackX = listX + listW + 2;
@@ -337,19 +364,18 @@ public final class CosmeticsScreen extends Screen {
         }
 
         for (FlatWidget widget : chrome) {
-            widget.render(g, mouseX, mouseY, partialTick);
+            drawWidget(widget, g, mouseX, mouseY, partialTick);
         }
     }
 
-    private void renderPreview(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawPreview(Canvas g, int mouseX, int mouseY) {
         int x1 = px + Theme.PAD;
         int y1 = listY;
         int x2 = x1 + Theme.PREVIEW_WIDTH;
         int y2 = listY + listH;
         g.fill(x1, y1, x2, y2, Theme.PREVIEW_BG);
         int scale = Math.max(20, (int) ((y2 - y1) / 2.9f));
-        InventoryScreen.renderEntityInInventoryFollowsMouse(g, x1, y1 + 6, x2, y2 - 6, scale, 0.0625f,
-                mouseX, mouseY, minecraft.player);
-        g.drawCenteredString(font, t("preview"), (x1 + x2) / 2, y2 - font.lineHeight - 4, Theme.TEXT_FAINT);
+        g.entityFollowingMouse(x1, y1 + 6, x2, y2 - 6, scale, 0.0625f, mouseX, mouseY, minecraft.player);
+        g.centeredText(font, t("preview"), (x1 + x2) / 2, y2 - font.lineHeight - 4, Theme.TEXT_FAINT);
     }
 }

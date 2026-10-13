@@ -1,19 +1,24 @@
 package io.github.georgwav.cosmetics.ui.widget;
 
+import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+//? if >=26.1 {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
+*///?} else {
+import net.minecraft.client.gui.GuiGraphics;
+//?}
 //? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
 //?}
 
 /**
  * Base for the settings screen's flat widgets. All version-specific widget plumbing (the click and drag
- * signatures changed in 1.21.9) lives here, so subclasses only implement {@link #draw},
- * {@link #pressed} and {@link #dragged}.
+ * signatures changed in 1.21.9, the draw method was renamed in 26.1) lives here, so subclasses only
+ * implement {@link #draw}, {@link #pressed} and {@link #dragged}.
  *
  * <p>Widgets can be clipped to a viewport (the scrolling list): outside it they neither highlight nor
  * react to the mouse.
@@ -27,7 +32,7 @@ public abstract class FlatWidget extends AbstractWidget {
     }
 
     /** Draws the widget. {@code hovered} already accounts for the clip area. */
-    protected abstract void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered);
+    protected abstract void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered);
 
     /** Left click inside the widget. */
     protected void pressed(double mouseX, double mouseY) {
@@ -51,8 +56,19 @@ public abstract class FlatWidget extends AbstractWidget {
         return super.isMouseOver(mouseX, mouseY) && inClip(mouseY);
     }
 
+    //? if >=26.1 {
+    /*@Override
+    protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        drawWidget(new Canvas(g), mouseX, mouseY);
+    }
+    *///?} else {
     @Override
     protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        drawWidget(new Canvas(g), mouseX, mouseY);
+    }
+    //?}
+
+    private void drawWidget(Canvas g, int mouseX, int mouseY) {
         boolean hovered = active && mouseX >= getX() && mouseX < getX() + getWidth()
                 && mouseY >= getY() && mouseY < getY() + getHeight() && inClip(mouseY);
         draw(g, Minecraft.getInstance().font, mouseX, mouseY, hovered);
@@ -91,15 +107,15 @@ public abstract class FlatWidget extends AbstractWidget {
 
     // ------------------------------------------------------------------ drawing helpers
 
-    protected static void text(GuiGraphics g, Font font, String text, int x, int y, int color) {
-        g.drawString(font, text, x, y, color, false);
+    protected static void text(Canvas g, Font font, String text, int x, int y, int color) {
+        g.text(font, text, x, y, color);
     }
 
-    protected static void textRight(GuiGraphics g, Font font, String text, int right, int y, int color) {
-        g.drawString(font, text, right - font.width(text), y, color, false);
+    protected static void textRight(Canvas g, Font font, String text, int right, int y, int color) {
+        g.text(font, text, right - font.width(text), y, color);
     }
 
-    protected static void rect(GuiGraphics g, int x, int y, int width, int height, int color) {
+    protected static void rect(Canvas g, int x, int y, int width, int height, int color) {
         g.fill(x, y, x + width, y + height, color);
     }
 

@@ -105,15 +105,27 @@ tasks.named('build') {
 
 // Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
 // prints the public and protected API of those classes exactly as this version's Minecraft has it.
+// An entry ending in .* (e.g. net.fabricmc.fabric.api.client.command.v2.*) lists that package's classes.
 tasks.register('dumpApi') {
     group = 'help'
     def classes = providers.gradleProperty('dumpClasses').orElse('')
     def classpath = sourceSets.main.compileClasspath
     doLast {
         def javap = ToolProvider.findFirst('javap').orElseThrow()
-        classes.get().split(',').findAll { !it.isBlank() }.each { name ->
-            println "===== ${mcVersion} ${name.trim()} ====="
-            javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name.trim())
+        classes.get().split(',').collect { it.trim() }.findAll { !it.isEmpty() }.each { name ->
+            println "===== ${mcVersion} ${name} ====="
+            if (name.endsWith('.*')) {
+                def prefix = name[0..-3].replace('.', '/') + '/'
+                classpath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { file ->
+                    new java.util.zip.ZipFile(file).withCloseable { zip ->
+                        zip.entries().collect { it.name }
+                                .findAll { it.startsWith(prefix) && it.endsWith('.class') && !it.substring(prefix.length()).contains('/') }
+                                .each { println "${it[0..-7].replace('/', '.')}    (${file.name})" }
+                    }
+                }
+            } else {
+                javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name)
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 package io.github.georgwav.cosmetics.ui.widget;
 
+import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.Theme;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -33,7 +33,7 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             int y = getY() + getHeight() - font.lineHeight - 1;
             text(g, font, title, getX() + 4, y, Theme.TEXT_DIM);
             int lineX = getX() + 10 + font.width(title);
@@ -56,7 +56,7 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             String v = value.get();
             int ty = textY(this, font);
             text(g, font, fit(font, label, getWidth() - font.width(v) - 20), getX() + 6, ty, Theme.TEXT);
@@ -80,7 +80,7 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             if (hovered) {
                 rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
             }
@@ -136,7 +136,7 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             if (hovered) {
                 rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
             }
@@ -148,7 +148,7 @@ public final class Rows {
             int center = (left + right) / 2;
             text(g, font, "<", left, ty, hovered && mouseX < center ? Theme.ACCENT_HOVER : Theme.TEXT_FAINT);
             textRight(g, font, ">", right, ty, hovered && mouseX >= center ? Theme.ACCENT_HOVER : Theme.TEXT_FAINT);
-            g.drawCenteredString(font, value, center, ty, Theme.ACCENT);
+            g.centeredText(font, value, center, ty, Theme.ACCENT);
         }
 
         @Override
@@ -189,7 +189,7 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             if (hovered) {
                 rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
             }
@@ -242,14 +242,14 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             if (primary) {
                 rect(g, getX(), getY(), getWidth(), getHeight(), hovered ? Theme.ACCENT_HOVER : Theme.ACCENT);
             } else {
                 rect(g, getX(), getY(), getWidth(), getHeight(), hovered ? Theme.TRACK_HOVER : Theme.TRACK);
             }
             int ty = getY() + (getHeight() - font.lineHeight) / 2 + 1;
-            g.drawCenteredString(font, fit(font, label, getWidth() - 8), getX() + getWidth() / 2, ty,
+            g.centeredText(font, fit(font, label, getWidth() - 8), getX() + getWidth() / 2, ty,
                     primary ? 0xFF0B0D12 : Theme.TEXT);
         }
 
@@ -273,10 +273,10 @@ public final class Rows {
         }
 
         @Override
-        protected void draw(GuiGraphics g, Font font, int mouseX, int mouseY, boolean hovered) {
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             boolean on = selected.getAsBoolean();
             int ty = getY() + (getHeight() - font.lineHeight) / 2;
-            g.drawCenteredString(font, label, getX() + getWidth() / 2, ty,
+            g.centeredText(font, label, getX() + getWidth() / 2, ty,
                     on ? Theme.TEXT : (hovered ? Theme.TEXT : Theme.TEXT_DIM));
             if (on) {
                 int w = font.width(label);
