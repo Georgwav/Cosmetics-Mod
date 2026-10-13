@@ -4,7 +4,9 @@
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
-26.3 net.minecraft.client.gui.GuiGraphicsExtractor,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.Gui,net.minecraft.client.KeyMapping$Category
-26.2 net.minecraft.client.Minecraft,net.minecraft.client.gui.GuiGraphicsExtractor
-26.1.2 net.minecraft.client.gui.GuiGraphicsExtractor,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.Minecraft,net.minecraft.client.KeyMapping$Category
-1.21.10 net.minecraft.client.KeyMapping$Category
+# A class starting with ! also prints private members and bytecode.
+1.21.1 !net.minecraft.client.gui.screens.inventory.InventoryScreen
+1.21.8 !net.minecraft.client.gui.screens.inventory.InventoryScreen
+1.21.11 !net.minecraft.client.gui.screens.inventory.InventoryScreen
+26.1.2 !net.minecraft.client.gui.screens.inventory.InventoryScreen
+26.3 !net.minecraft.client.gui.screens.inventory.InventoryScreen

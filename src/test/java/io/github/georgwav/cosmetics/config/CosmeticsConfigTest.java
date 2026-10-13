@@ -53,6 +53,43 @@ class CosmeticsConfigTest {
     }
 
     @Test
+    void outfitsSaveAndPutOnExactlyWhatWasWorn() {
+        CosmeticsConfig config = new CosmeticsConfig();
+        config.localEquipped().addAll(List.of("a:hat", "a:cape"));
+        String first = config.saveOutfit("Outfit");
+        assertEquals("Outfit 1", first);
+        assertTrue(config.wearsOutfit(first));
+
+        config.localEquipped().clear();
+        config.localEquipped().add("a:wings");
+        assertEquals("Outfit 2", config.saveOutfit("Outfit"));
+        assertFalse(config.wearsOutfit(first));
+
+        config.wearOutfit(first);
+        assertEquals(List.of("a:hat", "a:cape"), config.localEquipped());
+        assertTrue(config.wearsOutfit(first));
+        // Changing what you wear doesn't change the saved outfit.
+        config.localEquipped().add("a:wings");
+        assertEquals(List.of("a:hat", "a:cape"), config.outfits.get(first));
+
+        config.outfits.remove(first);
+        assertEquals("Outfit 1", config.saveOutfit("Outfit"));
+    }
+
+    @Test
+    void sanitizeRepairsOutfits() {
+        CosmeticsConfig config = new CosmeticsConfig();
+        config.outfits = null;
+        config.sanitize();
+        assertTrue(config.outfits.isEmpty());
+        config.outfits.put(" ", List.of("a:hat"));
+        config.outfits.put("Mine", new java.util.ArrayList<>(java.util.Arrays.asList("a:hat", null)));
+        config.sanitize();
+        assertEquals(java.util.Set.of("Mine"), config.outfits.keySet());
+        assertEquals(List.of("a:hat"), config.outfits.get("Mine"));
+    }
+
+    @Test
     void resetKeepsTheWardrobe() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.localEquipped().add("cosmeticsmod:top_hat");

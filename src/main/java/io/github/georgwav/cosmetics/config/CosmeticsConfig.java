@@ -95,6 +95,9 @@ public final class CosmeticsConfig {
      */
     public Map<String, List<String>> equipped = defaultEquipped();
 
+    /** Saved outfits: a name and the cosmetic ids it puts on, in the order they were saved. */
+    public Map<String, List<String>> outfits = new LinkedHashMap<>();
+
     /** Your settings for individual cosmetics (colour, size, position, glow, animation), keyed by cosmetic id. */
     public Map<String, CosmeticOptions> cosmeticOptions = new LinkedHashMap<>();
 
@@ -181,6 +184,33 @@ public final class CosmeticsConfig {
     }
 
     /** The local player's equipped cosmetic ids (mutable; call {@code EquippedCosmetics.invalidate()} after changes). */
+    /** Saves what the local player wears as a new outfit named "Outfit N" and returns its name. */
+    public String saveOutfit(String namePrefix) {
+        int n = 1;
+        while (outfits.containsKey(namePrefix + " " + n)) {
+            n++;
+        }
+        String name = namePrefix + " " + n;
+        outfits.put(name, new ArrayList<>(localEquipped()));
+        return name;
+    }
+
+    /** Puts on exactly the cosmetics of an outfit (what you wore before comes off). */
+    public void wearOutfit(String name) {
+        List<String> ids = outfits.get(name);
+        if (ids != null) {
+            List<String> wearing = localEquipped();
+            wearing.clear();
+            wearing.addAll(ids);
+        }
+    }
+
+    /** Whether the local player wears exactly this outfit (in any order). */
+    public boolean wearsOutfit(String name) {
+        List<String> ids = outfits.get(name);
+        return ids != null && new java.util.HashSet<>(ids).equals(new java.util.HashSet<>(localEquipped()));
+    }
+
     public List<String> localEquipped() {
         return equipped.computeIfAbsent("local", k -> new ArrayList<>());
     }
@@ -265,6 +295,11 @@ public final class CosmeticsConfig {
         }
         equipped.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         equipped.values().forEach(list -> list.removeIf(id -> id == null));
+        if (outfits == null) {
+            outfits = new LinkedHashMap<>();
+        }
+        outfits.entrySet().removeIf(e -> e.getKey() == null || e.getKey().isBlank() || e.getValue() == null);
+        outfits.values().forEach(list -> list.removeIf(id -> id == null));
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }
