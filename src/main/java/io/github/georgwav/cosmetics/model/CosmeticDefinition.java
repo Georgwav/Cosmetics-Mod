@@ -17,6 +17,7 @@ import java.util.List;
  * @param options       which {@link CosmeticOption}s players may change, as a bit set
  * @param defaultColor  RGB tint the cosmetic has until a player picks another (white = the texture's own colours)
  * @param defaultStyle  style (named skeletal animation) shown until a player picks another, or null for the first
+ * @param wings         wing behaviour (flapping with movement), or null
  */
 public record CosmeticDefinition(
         String id,
@@ -28,13 +29,45 @@ public record CosmeticDefinition(
         List<Part> parts,
         int options,
         int defaultColor,
-        String defaultStyle
+        String defaultStyle,
+        Wings wings
 ) {
     public static final int WHITE = 0xFFFFFF;
 
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
-        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null);
+        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null);
+    }
+
+    /**
+     * Wings that flap with what the player does: a resting angle and a flap for standing, moving, flying and
+     * sneaking, blended smoothly. Parts marked {@code "wing": "left"/"right"} turn by the flap, in opposite
+     * directions; skeletal meshes play one loop of their clip per flap.
+     *
+     * @param axis         0 = X, 1 = Y, 2 = Z (model axes) the wings turn around
+     * @param offset       pixels the whole cosmetic moves, always
+     * @param sneakOffset  pixels added while sneaking
+     * @param armorOffset  pixels added while something is worn in the chest slot (not an elytra)
+     * @param spread       pixels each wing moves outwards, sideways
+     */
+    public record Wings(int axis, WingState idle, WingState moving, WingState flying, WingState sneaking,
+                        float[] offset, float[] sneakOffset, float[] armorOffset, float spread) {
+    }
+
+    /**
+     * @param base      resting angle in degrees (positive opens the wings outwards)
+     * @param amplitude flap in degrees either side of the resting angle
+     * @param speed     flaps per second
+     */
+    public record WingState(float base, float amplitude, float speed) {
+    }
+
+    /**
+     * A part that is one of the wings.
+     *
+     * @param side +1 for the left wing (+X), -1 for the right
+     */
+    public record WingPart(int side, float pivotX, float pivotY, float pivotZ) {
     }
 
     /**
@@ -48,15 +81,16 @@ public record CosmeticDefinition(
      * @param textureAnimation flip-book animation of the part's texture, or null for a still texture
      * @param tinted     takes the cosmetic's tint colour; false keeps the texture's own colours whatever the
      *                   player picks (for example everything except the one coloured layer)
+     * @param wing       which wing this part is, for the cosmetic's {@link Wings}; null for other parts
      */
     public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
-                       List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted) {
+                       List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted, WingPart wing) {
         public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
-            this(name, mode, texture, cubes, animations, List.of(), null, true);
+            this(name, mode, texture, cubes, animations, List.of(), null, true, null);
         }
 
         public Part withTextureAnimation(TextureAnimation animation) {
-            return new Part(name, mode, texture, cubes, animations, meshes, animation, tinted);
+            return new Part(name, mode, texture, cubes, animations, meshes, animation, tinted, wing);
         }
     }
 

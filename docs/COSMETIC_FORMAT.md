@@ -38,6 +38,7 @@ stops the game or the other cosmetics.
 | `texture_animation` | no | Flip-book animation of `texture`, for every part drawn with it. See [Animated textures](#animated-textures). |
 | `options` | no | Which settings players may change on the cosmetic's page. See [Player settings](#player-settings). |
 | `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
+| `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts
@@ -51,6 +52,8 @@ stops the game or the other cosmetics.
 | `meshes` | one of `cubes`/`meshes` | The part's free-form meshes. See [Meshes](#meshes). A part can have both. |
 | `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
 | `texture_animation` | no | Flip-book animation of this part's texture; overrides the cosmetic's. See [Animated textures](#animated-textures). |
+| `wing` | no | `"left"` or `"right"`: this part is one of the cosmetic's [wings](#wings). |
+| `wing_pivot` | no | Where that wing turns, in pixels. Default `[0, 0, 0]`. |
 | `tint` | no | `false` keeps this part in its texture's own colours whatever tint, rainbow or default colour is chosen. Default `true`. Use it to colour one layer of a cosmetic and leave the rest as painted. |
 
 ## Cubes
@@ -253,6 +256,55 @@ transforms per frame, and the mesh is split by how its vertices are weighted.
 - Only the remaining triangles (corners shared between joints) are skinned on the CPU each frame, into a
   buffer made at load time. Nothing is allocated per frame.
 - Mesh triangles count towards `maxMeshTriangles` like any other mesh.
+
+## Wings
+
+`wings` makes a cosmetic's wings flap with what the player does: slowly while standing, faster while
+walking or running, fastest while flying (creative flight or gliding with an elytra), and folded while
+sneaking. Changes blend smoothly, so the wings never jump when the player starts or stops.
+
+```json
+{
+  "slot": "back",
+  "texture": "<ns>:textures/cosmetic/wings.png",
+  "wings": {
+    "axis": "y",
+    "base": -25,
+    "idle":     { "amplitude": 6, "speed": 0.4 },
+    "moving":   { "amplitude": 18, "speed": 1.2 },
+    "flying":   { "base": -10, "amplitude": 30, "speed": 2.5 },
+    "sneaking": { "base": -45, "amplitude": 3, "speed": 0.3 },
+    "sneak_offset": [0, 1, 0],
+    "armor_offset": [0, 0, 1]
+  },
+  "parts": [
+    { "name": "left_wing",  "wing": "left",  "wing_pivot": [1, 0, 3],  "cubes": [ ... ] },
+    { "name": "right_wing", "wing": "right", "wing_pivot": [-1, 0, 3], "cubes": [ ... ] }
+  ]
+}
+```
+
+This is the bundled `cosmeticsmod:glider_wings`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `axis` | `y` | Axis the wings turn around (model axes). |
+| `base` | `0` | Resting angle in degrees for every state that doesn't set its own (sneaking defaults to 10° less). |
+| `idle`, `moving`, `flying`, `sneaking` | see below | Each `{ "base": degrees, "amplitude": degrees, "speed": flaps per second }`. |
+| `offset` | `[0, 0, 0]` | Pixels the whole cosmetic moves. |
+| `sneak_offset` | `[0, 0, 0]` | Pixels added while sneaking (blended in). |
+| `armor_offset` | `[0, 0, 0]` | Pixels added while something other than an elytra is worn in the chest slot. |
+| `spread` | `0` | Pixels each wing moves outwards, sideways. |
+
+Defaults per state: `idle` 6° at 0.35 flaps per second, `moving` 18° at 1, `flying` 32° at 2, `sneaking` 3° at 0.25.
+"Moving" is reached at about sprinting speed; slower walking blends between `idle` and `moving`.
+
+- The angle is `base + amplitude × sin(flap)`. The left wing turns by it around `axis` by the right-hand rule
+  (around Y, from the back towards the player's left side); the right wing turns the opposite way, each
+  around its own `wing_pivot`.
+- Skeletal meshes in a cosmetic with `wings` play one loop of their animation per flap, so baked-in flapping
+  speeds up and slows down too.
+- Flapping follows the cosmetic's animation setting: off holds the resting angle.
 
 ## Styles
 

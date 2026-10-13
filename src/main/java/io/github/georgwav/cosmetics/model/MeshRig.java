@@ -140,6 +140,16 @@ public final class MeshRig {
         return (float) Math.min(t, (c.frameCount() - 1) / (double) c.frameRate());
     }
 
+    /** Where a clip is after {@code cycles} loops of it (only the fraction counts), in seconds into it. */
+    public float clipTimeAtCycle(int clip, double cycles) {
+        Clip c = clips[clip];
+        if (c.frameCount() <= 1) {
+            return 0f;
+        }
+        double length = (c.loop() ? c.frameCount() : c.frameCount() - 1) / (double) c.frameRate();
+        return (float) ((cycles - Math.floor(cycles)) * length);
+    }
+
     /**
      * The joints of a clip at {@code clipTime}: {@code joints * 7} floats, position then rotation
      * quaternion per joint. The array is reused; read it before the next call.

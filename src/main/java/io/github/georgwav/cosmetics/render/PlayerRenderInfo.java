@@ -24,6 +24,13 @@ public final class PlayerRenderInfo {
     public float capeFlap;
     public float capeLean;
     public float capeLean2;
+    /** Horizontal speed in blocks per tick, for wings. */
+    public float moveSpeed;
+    public boolean sneaking;
+    /** Flying in creative or gliding with an elytra. */
+    public boolean flying;
+    /** Something other than an elytra is worn in the chest slot. */
+    public boolean chestArmor;
 
     public void reset() {
         uuid = null;
@@ -36,5 +43,9 @@ public final class PlayerRenderInfo {
         capeFlap = 0;
         capeLean = 0;
         capeLean2 = 0;
+        moveSpeed = 0;
+        sneaking = false;
+        flying = false;
+        chestArmor = false;
     }
 }

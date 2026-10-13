@@ -205,7 +205,14 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         boolean hasCape = skin.cape() != null;
         //?}
         info.vanillaCapeVisible = hasCape && player.isModelPartShown(PlayerModelPart.CAPE);
-        info.elytra = player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA);
+        var chest = player.getItemBySlot(EquipmentSlot.CHEST);
+        info.elytra = chest.is(Items.ELYTRA);
+        info.chestArmor = !chest.isEmpty() && !info.elytra;
+        info.sneaking = player.isCrouching();
+        info.flying = player.getAbilities().flying || player.isFallFlying();
+        double dx = player.getX() - player.xo;
+        double dz = player.getZ() - player.zo;
+        info.moveSpeed = (float) Math.sqrt(dx * dx + dz * dz);
         info.helmet = !player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
         var self = Minecraft.getInstance().player;
         info.distanceSq = info.local || self == null ? 0.0 : player.distanceToSqr(self);

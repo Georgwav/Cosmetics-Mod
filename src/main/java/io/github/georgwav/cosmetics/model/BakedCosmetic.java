@@ -24,7 +24,7 @@ public final class BakedCosmetic {
         this.layers = layers.toArray(new Layer[0]);
         this.emissive = layers.stream().anyMatch(l -> l.mode() == RenderMode.EMISSIVE);
         this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null
-                || (l.rig() != null && l.rig().animated()));
+                || (l.rig() != null && l.rig().animated())) || definition.wings() != null;
         this.styles = styles;
         int index = definition.defaultStyle() != null ? java.util.Arrays.asList(styles).indexOf(definition.defaultStyle()) : 0;
         this.defaultStyle = Math.max(0, index);
@@ -59,6 +59,11 @@ public final class BakedCosmetic {
     /** RGB tint until a player picks another; white keeps the texture's own colours. */
     public int defaultColor() {
         return definition.defaultColor();
+    }
+
+    /** Wing behaviour, or null. */
+    public CosmeticDefinition.Wings wings() {
+        return definition.wings();
     }
 
     /** Has glowing parts (so the glow setting applies to it). */
@@ -103,17 +108,18 @@ public final class BakedCosmetic {
         private final MeshRig rig;
         private final int joint;
         private final SkinnedMesh skin;
+        private final CosmeticDefinition.WingPart wing;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
         Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
               BakedMesh smoothMesh, TextureFrames textureFrames, boolean tinted) {
-            this(mode, texture, mesh, animations, smoothMesh, textureFrames, tinted, null, -1, null);
+            this(mode, texture, mesh, animations, smoothMesh, textureFrames, tinted, null, -1, null, null);
         }
 
         Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
               BakedMesh smoothMesh, TextureFrames textureFrames, boolean tinted, MeshRig rig, int joint,
-              SkinnedMesh skin) {
+              SkinnedMesh skin, CosmeticDefinition.WingPart wing) {
             this.mode = mode;
             this.texture = texture;
             this.mesh = mesh;
@@ -124,6 +130,12 @@ public final class BakedCosmetic {
             this.rig = rig;
             this.joint = joint;
             this.skin = skin;
+            this.wing = wing;
+        }
+
+        /** Which wing this layer is (turned by the cosmetic's wing behaviour), or null. */
+        public CosmeticDefinition.WingPart wing() {
+            return wing;
         }
 
         /** The skeleton this layer's geometry belongs to, or null for still geometry. */

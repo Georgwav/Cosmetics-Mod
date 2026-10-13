@@ -50,6 +50,7 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:halo` (glowing, slowly spins and bobs)
   - `cosmeticsmod:explorer_backpack`
   - `cosmeticsmod:feather_wings` (flapping)
+  - `cosmeticsmod:glider_wings` (flap faster when moving or flying, fold when sneaking)
   - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
   - `cosmeticsmod:orbit_ring` (a smooth-shaded gold ring from an OBJ mesh, circling the head)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)

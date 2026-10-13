@@ -155,8 +155,21 @@ public final class CosmeticParser {
                 partTextureAnimation = partTexture.equals(texture) ? textureAnimation : null;
             }
             boolean tinted = !partJson.has("tint") || bool(partJson.get("tint"), name + ".tint");
+            CosmeticDefinition.WingPart wing = null;
+            if (partJson.has("wing")) {
+                int side = switch (partJson.get("wing").getAsString()) {
+                    case "left" -> 1;
+                    case "right" -> -1;
+                    default -> throw new JsonParseException(name + ".wing must be 'left' or 'right'");
+                };
+                float[] pivot = partJson.has("wing_pivot") ? floats(partJson.get("wing_pivot"), 3, name + ".wing_pivot")
+                        : new float[3];
+                wing = new CosmeticDefinition.WingPart(side, pivot[0], pivot[1], pivot[2]);
+            } else if (partJson.has("wing_pivot")) {
+                throw new JsonParseException(name + ": 'wing_pivot' needs 'wing'");
+            }
             parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations,
-                    List.copyOf(meshes), partTextureAnimation, tinted));
+                    List.copyOf(meshes), partTextureAnimation, tinted, wing));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
@@ -183,8 +196,58 @@ public final class CosmeticParser {
                         + styles(parts));
             }
         }
+        CosmeticDefinition.Wings wings = json.has("wings") ? parseWings(json.get("wings")) : null;
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle);
+                options, defaultColor, defaultStyle, wings);
+    }
+
+    /** Defaults for each state when a cosmetic doesn't set them: base angle, amplitude, flaps per second. */
+    static final CosmeticDefinition.WingState WING_IDLE = new CosmeticDefinition.WingState(0f, 6f, 0.35f);
+    static final CosmeticDefinition.WingState WING_MOVING = new CosmeticDefinition.WingState(0f, 18f, 1.0f);
+    static final CosmeticDefinition.WingState WING_FLYING = new CosmeticDefinition.WingState(0f, 32f, 2.0f);
+    static final CosmeticDefinition.WingState WING_SNEAKING = new CosmeticDefinition.WingState(-10f, 3f, 0.25f);
+
+    private static CosmeticDefinition.Wings parseWings(JsonElement element) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException("wings must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        String axisName = json.has("axis") ? json.get("axis").getAsString().toLowerCase(Locale.ROOT) : "y";
+        int axis = switch (axisName) {
+            case "x" -> 0;
+            case "y" -> 1;
+            case "z" -> 2;
+            default -> throw new JsonParseException("wings.axis must be x, y or z");
+        };
+        // "base" sets the resting angle of every state that doesn't set its own.
+        Float base = json.has("base") ? number(json, "base", 0f, "wings") : null;
+        return new CosmeticDefinition.Wings(axis,
+                wingState(json, "idle", WING_IDLE, base),
+                wingState(json, "moving", WING_MOVING, base),
+                wingState(json, "flying", WING_FLYING, base),
+                wingState(json, "sneaking", WING_SNEAKING, base == null ? null : base + WING_SNEAKING.base()),
+                json.has("offset") ? floats(json.get("offset"), 3, "wings.offset") : new float[3],
+                json.has("sneak_offset") ? floats(json.get("sneak_offset"), 3, "wings.sneak_offset") : new float[3],
+                json.has("armor_offset") ? floats(json.get("armor_offset"), 3, "wings.armor_offset") : new float[3],
+                number(json, "spread", 0f, "wings"));
+    }
+
+    private static CosmeticDefinition.WingState wingState(JsonObject wings, String key, CosmeticDefinition.WingState fallback,
+                                                          Float base) {
+        float defaultBase = base != null ? base : fallback.base();
+        if (!wings.has(key)) {
+            return new CosmeticDefinition.WingState(defaultBase, fallback.amplitude(), fallback.speed());
+        }
+        if (!wings.get(key).isJsonObject()) {
+            throw new JsonParseException("wings." + key + " must be an object like {\"amplitude\": 20, \"speed\": 1}");
+        }
+        JsonObject json = wings.getAsJsonObject(key);
+        float speed = number(json, "speed", fallback.speed(), "wings." + key);
+        if (speed < 0f || speed > 20f) {
+            throw new JsonParseException("wings." + key + ".speed must be 0 to 20 flaps per second");
+        }
+        return new CosmeticDefinition.WingState(number(json, "base", defaultBase, "wings." + key),
+                number(json, "amplitude", fallback.amplitude(), "wings." + key), speed);
     }
 
     /** The names of every skeletal animation in the cosmetic, in the order they first appear. */

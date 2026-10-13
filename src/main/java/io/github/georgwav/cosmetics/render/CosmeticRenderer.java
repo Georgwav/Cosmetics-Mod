@@ -69,7 +69,8 @@ public final class CosmeticRenderer {
             return;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
-        double seconds = (System.nanoTime() - START_NANOS) / 1.0e9;
+        long now = System.nanoTime();
+        double seconds = (now - START_NANOS) / 1.0e9;
         if (info.local && !shadowPass) {
             RenderStats.localPlayerFrames++;
         }
@@ -117,6 +118,15 @@ public final class CosmeticRenderer {
                 boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
                 float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
                 int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+                CosmeticDefinition.Wings wings = cosmetic.wings();
+                float wingAngle = 0f;
+                double wingPhase = 0.0;
+                if (wings != null) {
+                    WingMotion.Pose wing = WingMotion.pose(info.uuid, info.moveSpeed, info.sneaking, info.flying, wings, now);
+                    wingAngle = animate ? wing.angle : wing.base;
+                    wingPhase = animate ? wing.phase : 0.0;
+                    applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
+                }
                 for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                     if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
                             || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
@@ -137,12 +147,20 @@ public final class CosmeticRenderer {
                                 applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
                             }
                         }
+                        CosmeticDefinition.WingPart wingPart = layer.wing();
+                        if (wingPart != null && wings != null) {
+                            poseStack.pushPose();
+                            pushes++;
+                            applyWing(poseStack, wings, wingPart, wingAngle);
+                        }
                         MeshRig rig = layer.rig();
                         int clip = 0;
                         float clipTime = 0f;
                         if (rig != null) {
                             clip = rig.clipForStyle(style);
-                            clipTime = rig.clipTime(clip, seconds, animate ? animationSpeed : 0f);
+                            // With wings, a skeletal mesh plays one loop of its clip per flap.
+                            clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
+                                    : rig.clipTime(clip, seconds, animate ? animationSpeed : 0f);
                             poseStack.pushPose();
                             pushes++;
                             applyRig(poseStack, rig, layer.joint(), clip, clipTime);
@@ -181,6 +199,39 @@ public final class CosmeticRenderer {
         if (options.scale != 1f && cosmetic.allows(CosmeticOption.SIZE)) {
             poseStack.scale(options.scale, options.scale, options.scale);
         }
+    }
+
+    /** The wings' offsets: always, blended in while sneaking, and while a chestplate is worn. */
+    private static void applyWingOffsets(PoseStack poseStack, CosmeticDefinition.Wings wings, float sneak, boolean armor) {
+        float[] o = wings.offset();
+        float[] s = wings.sneakOffset();
+        float[] a = wings.armorOffset();
+        float x = o[0] + s[0] * sneak + (armor ? a[0] : 0f);
+        float y = o[1] + s[1] * sneak + (armor ? a[1] : 0f);
+        float z = o[2] + s[2] * sneak + (armor ? a[2] : 0f);
+        if (x != 0f || y != 0f || z != 0f) {
+            poseStack.translate(x / 16f, y / 16f, z / 16f);
+        }
+    }
+
+    /**
+     * Turns one wing around its pivot: the left wing by {@code angle} around the wing axis (right-hand
+     * rule), the right wing the other way, after moving each sideways by the spread.
+     */
+    private static void applyWing(PoseStack poseStack, CosmeticDefinition.Wings wings, CosmeticDefinition.WingPart wing,
+                                  float angle) {
+        float spread = wing.side() * wings.spread() / 16f;
+        float px = wing.pivotX() / 16f;
+        float py = wing.pivotY() / 16f;
+        float pz = wing.pivotZ() / 16f;
+        float radians = (float) Math.toRadians(angle * wing.side());
+        poseStack.translate(px + spread, py, pz);
+        rotate(poseStack, switch (wings.axis()) {
+            case 0 -> ROTATION.rotationX(radians);
+            case 2 -> ROTATION.rotationZ(radians);
+            default -> ROTATION.rotationY(radians);
+        });
+        poseStack.translate(-px, -py, -pz);
     }
 
     /**
