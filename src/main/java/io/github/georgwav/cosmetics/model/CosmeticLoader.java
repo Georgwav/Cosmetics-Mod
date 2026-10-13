@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.model;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -41,16 +42,21 @@ public final class CosmeticLoader {
             return resource.openAsReader();
         };
 
+        int maxMeshTriangles = CosmeticsConfig.get().maxMeshTriangles;
+
         Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();
         // `var`: the key type is ResourceLocation before 1.21.11 and Identifier after.
         for (var entry : manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet()) {
             String path = entry.getKey().getPath();
             String id = entry.getKey().getNamespace() + ":"
                     + path.substring(DIRECTORY.length() + 1, path.length() - SUFFIX.length());
+            String file = "assets/" + entry.getKey().getNamespace() + "/" + path;
+            CosmeticParser.Context context = new CosmeticParser.Context(models, CosmeticParser.NO_FILES,
+                    warning -> CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {}", id, file, warning), maxMeshTriangles);
             try (Reader reader = entry.getValue().openAsReader()) {
-                loaded.put(id, CosmeticBaker.bake(CosmeticParser.parse(id, reader, models)));
+                loaded.put(id, CosmeticBaker.bake(CosmeticParser.parse(id, reader, context)));
             } catch (Exception e) {
-                CosmeticsMod.LOGGER.error("Skipping cosmetic '{}': {}", id, e.toString());
+                CosmeticsMod.LOGGER.error("Skipping cosmetic '{}' ({}): {}", id, file, e.toString());
             }
         }
         CosmeticRegistry.replace(loaded);

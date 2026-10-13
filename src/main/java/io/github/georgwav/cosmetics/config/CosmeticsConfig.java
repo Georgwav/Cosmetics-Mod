@@ -63,6 +63,11 @@ public final class CosmeticsConfig {
     public boolean renderInShadowPass = true;
     /** In the Iris shadow pass, only players within this many blocks cast cosmetic shadows. 0 = no limit. */
     public int shadowDistance = 32;
+    /**
+     * Most mesh triangles (a quad counts as two) one cosmetic may have. A cosmetic over the limit isn't
+     * loaded (with a clear message), so a heavy model can never cause stutter. Applies on resource reload.
+     */
+    public int maxMeshTriangles = 20_000;
 
     // ---------------------------------------------------------------- compatibility
 
@@ -177,6 +182,7 @@ public final class CosmeticsConfig {
         maxRenderDistance = defaults.maxRenderDistance;
         renderInShadowPass = defaults.renderInShadowPass;
         shadowDistance = defaults.shadowDistance;
+        maxMeshTriangles = defaults.maxMeshTriangles;
         slotPriority = defaultPriorities();
         deferToFigura = defaults.deferToFigura;
     }
@@ -241,6 +247,7 @@ public final class CosmeticsConfig {
         capeSwing = Math.max(0f, Math.min(2f, capeSwing));
         maxRenderDistance = Math.max(0, Math.min(512, maxRenderDistance));
         shadowDistance = Math.max(0, Math.min(512, shadowDistance));
+        maxMeshTriangles = Math.max(1_000, Math.min(200_000, maxMeshTriangles));
         if (cosmeticOptions == null) {
             cosmeticOptions = new LinkedHashMap<>();
         }
