@@ -9,6 +9,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +42,9 @@ public final class CosmeticParser {
     static final FileSource NO_FILES = location -> {
         throw new IOException("mesh files are not available here");
     };
+
+    /** Largest mesh files read, in bytes. */
+    static final int MAX_OBJ_BYTES = 4 << 20;
 
     /**
      * Everything a cosmetic file may need besides itself.
@@ -153,7 +157,7 @@ public final class CosmeticParser {
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
     }
 
-    /** One entry of a part's {@code meshes}. */
+    /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} file. */
     private static CosmeticDefinition.Mesh parseMesh(JsonObject json, String where, String namespace,
                                                      int texW, int texH, Context context) {
         boolean smooth = false;
@@ -178,8 +182,24 @@ public final class CosmeticParser {
                 json.has("rotation") ? floats(json.get("rotation"), 3, where + ".rotation") : new float[3],
                 json.has("offset") ? floats(json.get("offset"), 3, where + ".offset") : new float[3]);
 
-        MeshBuilder.Raw raw = inlineMesh(json, where);
-        return MeshBuilder.build(raw, placement, smooth, texW, texH, where, context.warnings());
+        MeshBuilder.Raw raw;
+        String source;
+        if (json.has("model")) {
+            if (json.has("vertices") || json.has("faces") || json.has("uvs")) {
+                throw new JsonParseException(where + ": use either 'model' or inline 'vertices'/'uvs'/'faces', not both");
+            }
+            String location = qualifyFile(namespace, json.get("model").getAsString(), where);
+            if (location.endsWith(".obj")) {
+                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH);
+            } else {
+                throw new JsonParseException(where + ": model must be a .obj file");
+            }
+            source = location;
+        } else {
+            raw = inlineMesh(json, where);
+            source = where;
+        }
+        return MeshBuilder.build(raw, placement, smooth, texW, texH, source, context.warnings());
     }
 
     /** {@code vertices}, {@code uvs} (texture pixels) and optional {@code normals} are parallel arrays. */
@@ -224,6 +244,27 @@ public final class CosmeticParser {
             raw.faceSources.add(faceWhere);
         }
         return raw;
+    }
+
+    private static String qualifyFile(String namespace, String location, String where) {
+        String qualified = location.indexOf(':') < 0 ? namespace + ":" + location : location;
+        if (!qualified.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+            throw new JsonParseException(where + ": invalid file location '" + location + "'");
+        }
+        return qualified;
+    }
+
+    /** Reads a whole file as UTF-8, refusing anything over {@code limit} bytes. */
+    private static String readText(FileSource files, String location, int limit) {
+        try (InputStream in = files.open(location)) {
+            byte[] data = in.readNBytes(limit + 1);
+            if (data.length > limit) {
+                throw new JsonParseException(location + " is larger than " + (limit >> 20) + " MiB");
+            }
+            return new String(data, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new JsonParseException("Can't read " + location + ": " + e.getMessage());
+        }
     }
 
     /**

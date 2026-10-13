@@ -209,6 +209,82 @@ class MeshTest {
         assertArrayEquals(new float[]{0, 1, 0}, slice(vertex(smooth, 0, 3), 5, 8), EPS);
     }
 
+    // ------------------------------------------------------------------ OBJ
+
+    private static final String OBJ_CUBE_CORNER = """
+            # a square, a triangle and a pentagon
+            o test
+            v 0 0 0
+            v 4 0 0
+            v 4 4 0
+            v 0 4 0
+            v 8 0 0
+            vt 0 1
+            vt 1 1
+            vt 1 0
+            vt 0 0
+            vn 0 0 -1
+            s off
+            usemtl whatever
+            f 4/4 3/3 2/2 1/1
+            f -4/-3 -1/-1 -3/-2
+            f 1/1 2/2 5/2 3/3 4/4
+            """;
+
+    @Test
+    void objReadsQuadsTrianglesPolygonsAndNegativeIndices() {
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/a.obj\"}"),
+                Map.of("test:models/cosmetic/a.obj", OBJ_CUBE_CORNER)));
+        // Quad, triangle, then the pentagon fanned into 3 triangles, of which the first (1, 2, 5) lies on
+        // a line and is dropped.
+        assertArrayEquals(new int[]{4, 3, 3, 3}, mesh.faceSizes());
+        assertEquals(2 + 1 + 2, mesh.triangles());
+        assertEquals(1, warnings.size(), warnings.toString());
+        assertTrue(warnings.get(0).contains("a.obj:17"), warnings.get(0));
+        // UVs: 0..1 with V up become pixels with V down (texture 16x16): vt "0 0" is (0, 16).
+        float[] c = mesh.corners();
+        assertArrayEquals(new float[]{0, 4, 0, 0, 16}, slice(c, 0, 5), EPS);
+        // Negative indices count back: -4 is vertex 2 (4,0,0) at this point, -3 is uv 2.
+        int second = 4 * CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        assertArrayEquals(new float[]{4, 0, 0, 16, 0}, slice(c, second, second + 5), EPS);
+    }
+
+    @Test
+    void objNormalsAreUsedForSmoothShadingWhenEveryFaceHasThem() {
+        String obj = """
+                v 0 0 0
+                v 4 0 0
+                v 0 4 0
+                vt 0 0
+                vn 1 0 0
+                f 1/1/1 3/1/1 2/1/1
+                """;
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/n.obj\", \"shading\": \"smooth\"}"),
+                Map.of("test:models/cosmetic/n.obj", obj)));
+        assertArrayEquals(new float[]{1, 0, 0}, normalOf(mesh, 0, 0), EPS);
+        // Flat shading ignores file normals.
+        CosmeticDefinition.Mesh flat = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/n.obj\"}"),
+                Map.of("test:models/cosmetic/n.obj", obj)));
+        assertArrayEquals(new float[]{0, 0, -1}, normalOf(flat, 0, 0), EPS);
+    }
+
+    @Test
+    void objErrorsNameTheFileAndLine() {
+        assertMessage("n.obj:3", "v 0 0 0\nvt 0 0\nf 1/1 2/1 3/1\n");                 // index out of range
+        assertMessage("n.obj:4", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");             // no texture coordinate
+        assertMessage("n.obj:1", "v 0 zero 0\n");                                     // not a number
+        assertMessage("n.obj:2", "v 0 0 0\nvt 0 2\n");                                // uv outside 0..1
+        assertMessage("n.obj:3", "v 0 0 0\nvt 0 0\nf 0/1 1/1 1/1\n");                 // index 0
+        assertMessage("n.obj:3", "v 0 0 0\nvt 0 0\nf 1/1 1/1\n");                     // too few vertices
+        assertMessage("n.obj", "v 0 0 0\n");                                          // no faces
+    }
+
+    private void assertMessage(String expected, String obj) {
+        RuntimeException e = assertThrows(RuntimeException.class, () -> parse(withMesh("{\"model\": \"test:models/cosmetic/n.obj\"}"),
+                Map.of("test:models/cosmetic/n.obj", obj)));
+        assertTrue(e.getMessage().contains(expected), e.getMessage());
+    }
+
     // ------------------------------------------------------------------ validation
 
     @Test
@@ -225,6 +301,9 @@ class MeshTest {
         assertError("shading", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"glossy\"}"));
         assertError("scale", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"scale\": 0}"));
         assertError("zero length", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"smooth\", \"normals\": [[0,0,0],[0,0,1],[0,0,1]]}"));
+        assertError("missing.obj", withMesh("{\"model\": \"test:models/cosmetic/missing.obj\"}"));
+        assertError("must be a .obj file", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
+        assertError("not both", withMesh("{\"model\": \"test:models/cosmetic/a.obj\", " + tri + ", \"faces\": [[0,1,2]]}"));
         assertError("'cubes', 'meshes' or both", """
                 {"slot": "head", "texture": "test:t.png", "parts": [{"name": "empty"}]}
                 """);
@@ -244,6 +323,14 @@ class MeshTest {
         assertEquals(1, mesh.faceSizes().length);
         assertEquals(1, warnings.size());
         assertTrue(warnings.get(0).contains("faces[1]"), warnings.get(0));
+    }
+
+    @Test
+    void filesOverTheSizeLimitAreRefused() {
+        String huge = "#" + "x".repeat(CosmeticParser.MAX_OBJ_BYTES) + "\n";
+        RuntimeException e = assertThrows(RuntimeException.class, () -> parse(withMesh("{\"model\": \"test:models/cosmetic/big.obj\"}"),
+                Map.of("test:models/cosmetic/big.obj", huge)));
+        assertTrue(e.getMessage().contains("larger than 4 MiB"), e.getMessage());
     }
 
     @Test
