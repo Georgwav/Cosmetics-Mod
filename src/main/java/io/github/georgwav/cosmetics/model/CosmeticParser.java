@@ -101,10 +101,16 @@ public final class CosmeticParser {
         // A cosmetic-level animation applies to every part that doesn't set its own.
         List<CosmeticDefinition.Animation> defaultAnimations = json.has("animation")
                 ? parseAnimations(json.get("animation"), "animation") : List.of();
+        // A cosmetic-level texture animation applies to every part drawn with the cosmetic's own texture.
+        CosmeticDefinition.TextureAnimation textureAnimation = json.has("texture_animation")
+                ? parseTextureAnimation(json.get("texture_animation"), namespace, "texture_animation") : null;
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
         if (json.has("model")) {
             BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models);
-            parts.addAll(model.parts());
+            for (CosmeticDefinition.Part part : model.parts()) {
+                parts.add(textureAnimation != null && part.texture().equals(texture)
+                        ? part.withTextureAnimation(textureAnimation) : part);
+            }
             if (!json.has("texture_size")) {
                 textureSize = new int[]{model.textureWidth(), model.textureHeight()};
             }
@@ -139,7 +145,15 @@ public final class CosmeticParser {
             }
             List<CosmeticDefinition.Animation> animations = partJson.has("animation")
                     ? parseAnimations(partJson.get("animation"), name + ".animation") : defaultAnimations;
-            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations, List.copyOf(meshes)));
+            CosmeticDefinition.TextureAnimation partTextureAnimation;
+            if (partJson.has("texture_animation")) {
+                partTextureAnimation = parseTextureAnimation(partJson.get("texture_animation"), namespace,
+                        name + ".texture_animation");
+            } else {
+                partTextureAnimation = partTexture.equals(texture) ? textureAnimation : null;
+            }
+            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations,
+                    List.copyOf(meshes), partTextureAnimation));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
@@ -313,6 +327,85 @@ public final class CosmeticParser {
         }
         return BedrockGeometry.convert(geometry.getAsJsonObject(), "model '" + modelId + "'", texture,
                 new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations);
+    }
+
+    /** Most frames a texture animation may have. */
+    static final int MAX_TEXTURE_FRAMES = 1024;
+
+    /**
+     * {@code {"frames": 8, "frame_time": 100}} for a vertical strip, optionally with per-frame
+     * {@code "frame_times"}, or {@code "textures": [...]} for one file per frame.
+     */
+    private static CosmeticDefinition.TextureAnimation parseTextureAnimation(JsonElement element, String namespace,
+                                                                             String where) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException(where + " must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        List<String> textures = null;
+        if (json.has("textures")) {
+            JsonArray array = requireArray(json, "textures");
+            List<String> list = new ArrayList<>();
+            for (JsonElement entry : array) {
+                if (!entry.isJsonPrimitive()) {
+                    throw new JsonParseException(where + ".textures must list texture locations");
+                }
+                list.add(qualify(namespace, entry.getAsString()));
+            }
+            textures = List.copyOf(list);
+        }
+        int frames;
+        if (json.has("frames")) {
+            frames = wholeNumber(json.get("frames"), where + ".frames");
+            if (textures != null && frames != textures.size()) {
+                throw new JsonParseException(where + ": frames is " + frames + " but " + textures.size()
+                        + " textures are listed");
+            }
+        } else if (textures != null) {
+            frames = textures.size();
+        } else {
+            throw new JsonParseException(where + " needs 'frames' (a vertical strip) or 'textures' (one file per frame)");
+        }
+        if (frames < 1 || frames > MAX_TEXTURE_FRAMES) {
+            throw new JsonParseException(where + ": frames must be 1 to " + MAX_TEXTURE_FRAMES);
+        }
+        List<Integer> times = new ArrayList<>();
+        if (json.has("frame_times")) {
+            JsonArray array = requireArray(json, "frame_times");
+            if (array.size() != frames) {
+                throw new JsonParseException(where + ".frame_times needs one entry per frame (" + frames + " frames, "
+                        + array.size() + " entries)");
+            }
+            for (int i = 0; i < array.size(); i++) {
+                times.add(frameTime(array.get(i), where + ".frame_times[" + i + "]"));
+            }
+        } else {
+            int time = json.has("frame_time") ? frameTime(json.get("frame_time"), where + ".frame_time") : 100;
+            for (int i = 0; i < frames; i++) {
+                times.add(time);
+            }
+        }
+        return new CosmeticDefinition.TextureAnimation(frames, List.copyOf(times), textures);
+    }
+
+    /** A frame's duration: whole milliseconds, 1 ms to 10 minutes. */
+    private static int frameTime(JsonElement element, String where) {
+        int millis = wholeNumber(element, where);
+        if (millis < 1 || millis > 600_000) {
+            throw new JsonParseException(where + " must be 1 to 600000 milliseconds");
+        }
+        return millis;
+    }
+
+    private static int wholeNumber(JsonElement element, String where) {
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            throw new JsonParseException(where + " must be a whole number");
+        }
+        double value = element.getAsDouble();
+        if (value != Math.rint(value) || Math.abs(value) > Integer.MAX_VALUE) {
+            throw new JsonParseException(where + " must be a whole number");
+        }
+        return (int) value;
     }
 
     /** {@code cosmeticsmod:top_hat} becomes {@code Top Hat}. */

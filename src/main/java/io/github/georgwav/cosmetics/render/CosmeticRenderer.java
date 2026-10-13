@@ -8,6 +8,7 @@ import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.RenderMode;
+import io.github.georgwav.cosmetics.model.TextureFrames;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.model.geom.ModelPart;
 import org.joml.Quaternionf;
@@ -21,8 +22,11 @@ import org.joml.Quaternionf;
 public final class CosmeticRenderer {
     /** Receives one layer of a cosmetic at the pose stack's current pose. */
     public interface Sink {
-        /** @param color ARGB tint for every vertex (white = the texture's own colours) */
-        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color);
+        /**
+         * @param color ARGB tint for every vertex (white = the texture's own colours)
+         * @param frame which frame of the layer's texture animation shows (0 when it has none)
+         */
+        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color, int frame);
     }
 
     /** Animation clock start; animations and the rainbow tint read seconds since then. */
@@ -103,6 +107,8 @@ public final class CosmeticRenderer {
                         continue;
                     }
                     int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
+                    TextureFrames frames = layer.textureFrames();
+                    int frame = frames != null && options.animate ? frames.frameAt(seconds, options.animationSpeed) : 0;
                     boolean moving = options.animate && layer.animations().length > 0;
                     if (moving) {
                         poseStack.pushPose();
@@ -111,7 +117,7 @@ public final class CosmeticRenderer {
                         }
                     }
                     for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                        sink.draw(poseStack, cosmetic, layer, light, color);
+                        sink.draw(poseStack, cosmetic, layer, light, color, frame);
                     }
                     if (moving) {
                         poseStack.popPose();

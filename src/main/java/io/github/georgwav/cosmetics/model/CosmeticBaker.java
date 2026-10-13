@@ -28,8 +28,9 @@ public final class CosmeticBaker {
     private CosmeticBaker() {
     }
 
-    /** Parts that share a mode, texture and movement are drawn as one layer. */
-    private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations) {
+    /** Parts that share a mode, texture, movement and texture animation are drawn as one layer. */
+    private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations,
+                            CosmeticDefinition.TextureAnimation textureAnimation) {
     }
 
     /**
@@ -47,9 +48,15 @@ public final class CosmeticBaker {
         Map<RenderMode, Map<LayerKey, LayerBuffers>> buffers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             LayerBuffers out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(new LayerKey(part.texture(), part.animations()), k -> new LayerBuffers());
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation()),
+                            k -> new LayerBuffers());
+            // UVs address one frame; in a vertical strip that frame is 1/frames of the image's height.
+            float texH = definition.textureHeight();
+            if (part.textureAnimation() != null && part.textureAnimation().strip()) {
+                texH *= part.textureAnimation().frames();
+            }
             for (CosmeticDefinition.Cube cube : part.cubes()) {
-                bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out.flat);
+                bakeCube(cube, definition.textureWidth(), texH, out.flat);
             }
             for (CosmeticDefinition.Mesh mesh : part.meshes()) {
                 FloatList target = out.flat;
@@ -59,7 +66,7 @@ public final class CosmeticBaker {
                     }
                     target = out.smooth;
                 }
-                bakeMesh(mesh, definition.textureWidth(), definition.textureHeight(), target);
+                bakeMesh(mesh, definition.textureWidth(), texH, target);
             }
         }
         List<BakedCosmetic.Layer> layers = new ArrayList<>();
@@ -70,8 +77,9 @@ public final class CosmeticBaker {
                 smooth = null;
             }
             if (!mesh.isEmpty() || smooth != null) {
+                TextureFrames frames = key.textureAnimation() != null ? new TextureFrames(key.textureAnimation()) : null;
                 layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
-                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth));
+                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames));
             }
         }));
         return new BakedCosmetic(definition, layers);

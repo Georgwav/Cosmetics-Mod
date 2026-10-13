@@ -33,11 +33,32 @@ public record CosmeticDefinition(
      * @param cubes      the part's boxes
      * @param animations movement applied to the whole part every frame, in order (empty for none)
      * @param meshes     the part's free-form meshes (empty for none)
+     * @param textureAnimation flip-book animation of the part's texture, or null for a still texture
      */
     public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
-                       List<Mesh> meshes) {
+                       List<Mesh> meshes, TextureAnimation textureAnimation) {
         public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
-            this(name, mode, texture, cubes, animations, List.of());
+            this(name, mode, texture, cubes, animations, List.of(), null);
+        }
+
+        public Part withTextureAnimation(TextureAnimation animation) {
+            return new Part(name, mode, texture, cubes, animations, meshes, animation);
+        }
+    }
+
+    /**
+     * A texture that flips through frames, like a flip-book. Either one image holding every frame stacked
+     * top to bottom ({@code textures} is null; UVs address one frame, as {@code texture_size} describes
+     * it), or one file per frame. Lists, not arrays, so equal animations compare equal and parts that
+     * animate together share a layer.
+     *
+     * @param frames     number of frames, at least 1
+     * @param frameTimes how long each frame shows, in milliseconds, one entry per frame
+     * @param textures   one texture per frame, or null for a vertical strip in the part's texture
+     */
+    public record TextureAnimation(int frames, List<Integer> frameTimes, List<String> textures) {
+        public boolean strip() {
+            return textures == null;
         }
     }
 

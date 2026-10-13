@@ -18,7 +18,7 @@ public final class BakedCosmetic {
         this.definition = definition;
         this.layers = layers.toArray(new Layer[0]);
         this.emissive = layers.stream().anyMatch(l -> l.mode() == RenderMode.EMISSIVE);
-        this.animated = layers.stream().anyMatch(l -> l.animations().length > 0);
+        this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null);
     }
 
     /** Has glowing parts (so the glow setting applies to it). */
@@ -26,7 +26,7 @@ public final class BakedCosmetic {
         return emissive;
     }
 
-    /** Has moving parts (so the animation settings apply to it). */
+    /** Has moving parts or animated textures (so the animation settings apply to it). */
     public boolean hasAnimation() {
         return animated;
     }
@@ -58,16 +58,23 @@ public final class BakedCosmetic {
         private final BakedMesh mesh;
         private final CosmeticDefinition.Animation[] animations;
         private final BakedMesh smoothMesh;
+        private final TextureFrames textureFrames;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
         Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
-              BakedMesh smoothMesh) {
+              BakedMesh smoothMesh, TextureFrames textureFrames) {
             this.mode = mode;
             this.texture = texture;
             this.mesh = mesh;
             this.animations = animations;
             this.smoothMesh = smoothMesh;
+            this.textureFrames = textureFrames;
+        }
+
+        /** The layer's texture animation, or null when its texture stands still. */
+        public TextureFrames textureFrames() {
+            return textureFrames;
         }
 
         /**

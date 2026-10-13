@@ -3,7 +3,6 @@ package io.github.georgwav.cosmetics.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
-import io.github.georgwav.cosmetics.model.BakedMesh;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -68,13 +67,10 @@ import java.util.NoSuchElementException;
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
-        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer));
-        MeshEmitter.emit(layer.mesh(), poseStack.last(), consumer, light, color);
-        BakedMesh smooth = layer.smoothMesh();
-        if (smooth != null) {
-            MeshEmitter.emitSmooth(smooth, poseStack.last(), consumer, light, color);
-        }
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
+                     int frame) {
+        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), poseStack.last(), consumer, light, color);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -127,13 +123,10 @@ import java.util.NoSuchElementException;
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
-        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer));
-        MeshEmitter.emit(layer.mesh(), poseStack.last(), consumer, light, color);
-        BakedMesh smooth = layer.smoothMesh();
-        if (smooth != null) {
-            MeshEmitter.emitSmooth(smooth, poseStack.last(), consumer, light, color);
-        }
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
+                     int frame) {
+        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), poseStack.last(), consumer, light, color);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -166,21 +159,18 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
+                     int frame) {
         String id = cosmetic.id();
-        BakedMesh mesh = layer.mesh();
-        BakedMesh smooth = layer.smoothMesh();
+        float vOffset = vOffset(layer, frame);
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
-        collector.submitCustomGeometry(poseStack, CosmeticRenderTypes.get(layer), (pose, consumer) -> {
+        collector.submitCustomGeometry(poseStack, CosmeticRenderTypes.get(layer, frame), (pose, consumer) -> {
             if (RenderGuard.isDisabled(id)) {
                 return;
             }
             long start = RenderStats.TIMING ? System.nanoTime() : 0L;
             try {
-                MeshEmitter.emit(mesh, pose, consumer, light, color);
-                if (smooth != null) {
-                    MeshEmitter.emitSmooth(smooth, pose, consumer, light, color);
-                }
+                MeshEmitter.emitLayer(layer, vOffset, pose, consumer, light, color);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }
@@ -190,6 +180,11 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         });
     }
 //?}
+
+    /** V offset of a frame in a vertical-strip texture animation; 0 for every other layer. */
+    private static float vOffset(BakedCosmetic.Layer layer, int frame) {
+        return layer.textureFrames() != null ? layer.textureFrames().vOffset(frame) : 0f;
+    }
 
     /** Fills what every version can read straight from the player entity. */
     private static boolean fillCommon(PlayerRenderInfo info, Entity entity) {

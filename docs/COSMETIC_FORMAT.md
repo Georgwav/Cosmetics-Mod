@@ -35,6 +35,7 @@ stops the game or the other cosmetics.
 | `model` | no | A Blockbench / Bedrock model to use instead of (or as well as) `parts`. See [Blockbench models](#blockbench-models). |
 | `bones` | no | Per-bone settings for `model`. |
 | `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
+| `texture_animation` | no | Flip-book animation of `texture`, for every part drawn with it. See [Animated textures](#animated-textures). |
 
 ## Parts
 
@@ -46,6 +47,7 @@ stops the game or the other cosmetics.
 | `cubes` | one of `cubes`/`meshes` | The part's boxes. |
 | `meshes` | one of `cubes`/`meshes` | The part's free-form meshes. See [Meshes](#meshes). A part can have both. |
 | `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
+| `texture_animation` | no | Flip-book animation of this part's texture; overrides the cosmetic's. See [Animated textures](#animated-textures). |
 
 ## Cubes
 
@@ -274,6 +276,47 @@ The bundled wings flap out of step, because each wing swings the opposite way ar
 | `phase` | no | Offset into the cycle, 0 to 1, so parts can move out of step. |
 
 Players can turn animation off, or change its speed, for each cosmetic on its settings page.
+
+## Animated textures
+
+A texture can flip through frames like a flip-book. The geometry stays as it is; each frame only moves
+the texture coordinates or swaps the texture, so it costs nothing extra to draw.
+
+**All frames in one image**, stacked top to bottom. `texture_size` describes one frame, and the image is
+`frames` times as tall. A 64x32 cape with 4 frames is a 64x128 PNG:
+
+```json
+{
+  "slot": "cape",
+  "texture": "<ns>:textures/cosmetic/ember_cape.png",
+  "texture_size": [64, 32],
+  "texture_animation": { "frames": 4, "frame_times": [120, 80, 80, 120] },
+  "parts": [ { "cubes": [ { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0] } ] } ]
+}
+```
+
+**One file per frame**, all the same size:
+
+```json
+"texture_animation": {
+  "textures": ["<ns>:textures/cosmetic/flag_0.png", "<ns>:textures/cosmetic/flag_1.png"],
+  "frame_time": 100
+}
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `frames` | yes, unless `textures` is set | Number of frames, 1 to 1024. With `textures` it may be left out; if given it must match. |
+| `textures` | no | One texture per frame, shown instead of the part's `texture`. Without it, the frames are a vertical strip in the part's texture. |
+| `frame_time` | no | How long every frame shows, in milliseconds. Default `100`. |
+| `frame_times` | no | How long each frame shows, in milliseconds, one entry per frame. Overrides `frame_time`. |
+
+- The cosmetic's `texture_animation` applies to every part drawn with the cosmetic's own `texture`, including
+  the bones of a [Blockbench model](#blockbench-models). Parts with their own `texture` (such as a glow overlay)
+  stay still unless they set their own `texture_animation`.
+- Texture animation follows the cosmetic's animation settings: off shows the first frame, and the speed
+  setting speeds it up or slows it down.
+- Frame times are whole milliseconds, 1 to 600 000.
 
 ## Equipping
 
