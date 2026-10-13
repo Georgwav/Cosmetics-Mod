@@ -6,13 +6,10 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-1.21.1 net.minecraft.client.renderer.ItemInHandRenderer,net.minecraft.client.renderer.entity.ItemRenderer,!net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer
-1.21.3 net.minecraft.client.renderer.ItemInHandRenderer,net.minecraft.client.renderer.entity.ItemRenderer,net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer
-1.21.4 !net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.ItemInHandRenderer,net.minecraft.client.renderer.special.SpecialModelRenderer,net.minecraft.core.component.DataComponentMap
-1.21.5 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.special.SpecialModelRenderer
-1.21.8 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.SpecialModelRenderer
-1.21.10 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.special.SpecialModelRenderer
-1.21.11 !net.minecraft.client.renderer.item.ItemModelResolver,!net.minecraft.client.renderer.ItemInHandRenderer,net.minecraft.client.renderer.special.SpecialModelRenderer,net.minecraft.core.component.DataComponentMap
-26.1.2 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.ShieldSpecialRenderer
-26.2 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.ShieldSpecialRenderer
-26.3 net.minecraft.client.renderer.item.ItemModelResolver,net.minecraft.client.renderer.special.SpecialModelRenderer,net.minecraft.core.component.DataComponentMap
+1.21.1 net.minecraft.client.particle.TextureSheetParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.ParticleRenderType,net.minecraft.client.renderer.texture.TextureAtlas
+1.21.4 net.minecraft.client.particle.TextureSheetParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleRenderType
+1.21.8 net.minecraft.client.particle.TextureSheetParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.ParticleRenderType
+1.21.10 net.minecraft.client.particle.SingleQuadParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.SingleQuadParticle$Layer
+1.21.11 net.minecraft.client.particle.SingleQuadParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.SingleQuadParticle$Layer,!net.minecraft.client.particle.FlameParticle,net.minecraft.client.renderer.texture.TextureAtlas,net.minecraft.client.Minecraft
+26.1.2 net.minecraft.client.particle.SingleQuadParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.SingleQuadParticle$Layer
+26.3 net.minecraft.client.particle.SingleQuadParticle,net.minecraft.client.particle.Particle,net.minecraft.client.particle.ParticleEngine,net.minecraft.client.particle.SingleQuadParticle$Layer,!net.minecraft.client.particle.FlameParticle,net.minecraft.client.renderer.texture.TextureAtlas,net.minecraft.client.Minecraft,net.minecraft.client.renderer.texture.atlas.SpriteSources,net.minecraft.data.AtlasIds

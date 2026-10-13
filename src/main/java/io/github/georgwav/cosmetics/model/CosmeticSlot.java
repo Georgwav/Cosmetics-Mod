@@ -21,7 +21,9 @@ public enum CosmeticSlot {
      * Shields. Drawn in place of a held shield, in the vanilla shield model's space: the plate spans
      * x -6..6, y -11..11, z -2..-1, its front facing -Z.
      */
-    SHIELD(Anchor.HELD);
+    SHIELD(Anchor.HELD),
+    /** Auras: particles around the player, usually without a model. */
+    AURA(Anchor.BODY);
 
     /** HELD: drawn in place of a held item rather than on the player model. */
     public enum Anchor { HEAD, BODY, HELD }

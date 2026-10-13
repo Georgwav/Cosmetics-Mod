@@ -18,6 +18,7 @@
   "cosmeticsmod.screen.slot.back": "Back",
   "cosmeticsmod.screen.slot.cape": "Capes",
   "cosmeticsmod.screen.slot.shield": "Shields",
+  "cosmeticsmod.screen.slot.aura": "Auras",
 
   "cosmeticsmod.screen.wardrobe.empty": "No cosmetics loaded. Add some with a resource pack.",
   "cosmeticsmod.screen.wardrobe.note": "Note",
@@ -35,6 +36,7 @@
   "cosmeticsmod.screen.view.body": "Body",
   "cosmeticsmod.screen.view.back": "Back",
   "cosmeticsmod.screen.view.shields": "Shields",
+  "cosmeticsmod.screen.view.auras": "Auras",
   "cosmeticsmod.screen.view.outfits": "Outfits",
   "cosmeticsmod.screen.outfits.save": "Save what you're wearing as an outfit",
   "cosmeticsmod.screen.outfits.name": "Outfit",

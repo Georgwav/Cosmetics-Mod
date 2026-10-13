@@ -90,7 +90,9 @@ public final class CosmeticParser {
         ModelSource models = context.models();
         String namespace = id.substring(0, id.indexOf(':'));
         CosmeticSlot slot = CosmeticSlot.byId(requireString(json, "slot"));
-        String texture = qualify(namespace, requireString(json, "texture"));
+        // Particles alone (an aura) need no parts and no texture of their own.
+        boolean particlesOnly = json.has("particles") && !json.has("parts") && !json.has("model");
+        String texture = particlesOnly && !json.has("texture") ? "" : qualify(namespace, requireString(json, "texture"));
         int[] textureSize = {64, 64};
         if (json.has("texture_size")) {
             float[] size = floats(json.get("texture_size"), 2, "texture_size");
@@ -117,7 +119,8 @@ public final class CosmeticParser {
                 textureSize = new int[]{model.textureWidth(), model.textureHeight()};
             }
         }
-        JsonArray partsJson = json.has("model") && !json.has("parts") ? new JsonArray() : requireArray(json, "parts");
+        JsonArray partsJson = (json.has("model") || particlesOnly) && !json.has("parts") ? new JsonArray()
+                : requireArray(json, "parts");
         for (int i = 0; i < partsJson.size(); i++) {
             JsonObject partJson = partsJson.get(i).getAsJsonObject();
             String name = partJson.has("name") ? partJson.get("name").getAsString() : "part" + i;
@@ -171,7 +174,9 @@ public final class CosmeticParser {
             parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations,
                     List.copyOf(meshes), partTextureAnimation, tinted, wing));
         }
-        if (parts.isEmpty()) {
+        List<CosmeticDefinition.ParticleEmitter> particles = json.has("particles")
+                ? parseParticles(json.get("particles"), namespace) : List.of();
+        if (parts.isEmpty() && particles.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
         }
         int triangles = 0;
@@ -198,7 +203,109 @@ public final class CosmeticParser {
         }
         CosmeticDefinition.Wings wings = json.has("wings") ? parseWings(json.get("wings")) : null;
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings);
+                options, defaultColor, defaultStyle, wings, particles);
+    }
+
+    /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */
+    static final float MAX_PARTICLE_RATE = 200f;
+
+    private static List<CosmeticDefinition.ParticleEmitter> parseParticles(JsonElement element, String namespace) {
+        JsonArray array;
+        if (element.isJsonArray()) {
+            array = element.getAsJsonArray();
+        } else if (element.isJsonObject()) {
+            array = new JsonArray();
+            array.add(element);
+        } else {
+            throw new JsonParseException("particles must be an object or an array of objects");
+        }
+        List<CosmeticDefinition.ParticleEmitter> emitters = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            String where = "particles[" + i + "]";
+            if (!array.get(i).isJsonObject()) {
+                throw new JsonParseException(where + " must be an object");
+            }
+            emitters.add(parseEmitter(array.get(i).getAsJsonObject(), namespace, where));
+        }
+        return List.copyOf(emitters);
+    }
+
+    private static CosmeticDefinition.ParticleEmitter parseEmitter(JsonObject json, String namespace, String where) {
+        List<String> sprites = new ArrayList<>();
+        if (json.has("texture")) {
+            sprites.add(qualify(namespace, json.get("texture").getAsString()));
+        } else if (json.has("textures")) {
+            for (JsonElement sprite : requireArray(json, "textures")) {
+                sprites.add(qualify(namespace, sprite.getAsString()));
+            }
+        }
+        if (sprites.isEmpty()) {
+            throw new JsonParseException(where + " needs 'texture' or 'textures' (particle textures, e.g. \"minecraft:heart\")");
+        }
+        float rate = number(json, "rate", 10f, where);
+        if (rate <= 0f || rate > MAX_PARTICLE_RATE) {
+            throw new JsonParseException(where + ".rate must be above 0 and at most " + (int) MAX_PARTICLE_RATE);
+        }
+        float[] life = range(json, "lifetime", 1f, 2f, where);
+        if (life[0] <= 0f) {
+            throw new JsonParseException(where + ".lifetime must be positive");
+        }
+        float[] size = range(json, "size", 2f, 2f, where);
+        float[] alpha = range(json, "alpha", 1f, 0f, where);
+        if (size[0] < 0f || size[1] < 0f || alpha[0] < 0f || alpha[0] > 1f || alpha[1] < 0f || alpha[1] > 1f) {
+            throw new JsonParseException(where + ": size can't be negative and alpha must be from 0 to 1");
+        }
+        float drag = number(json, "drag", 0f, where);
+        if (drag < 0f || drag > 1f) {
+            throw new JsonParseException(where + ".drag must be from 0 to 1");
+        }
+        int[] colors;
+        if (json.has("colors")) {
+            JsonArray colorsJson = requireArray(json, "colors");
+            colors = new int[colorsJson.size()];
+            for (int c = 0; c < colors.length; c++) {
+                colors[c] = color(colorsJson.get(c), where + ".colors[" + c + "]");
+            }
+            if (colors.length == 0) {
+                throw new JsonParseException(where + ".colors can't be empty");
+            }
+        } else {
+            colors = new int[]{json.has("color") ? color(json.get("color"), where + ".color") : CosmeticDefinition.WHITE};
+        }
+        CosmeticDefinition.ParticleTrigger when = CosmeticDefinition.ParticleTrigger.ALWAYS;
+        if (json.has("when")) {
+            try {
+                when = CosmeticDefinition.ParticleTrigger.valueOf(json.get("when").getAsString().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new JsonParseException(where + ".when must be 'always', 'moving' or 'still'");
+            }
+        }
+        return new CosmeticDefinition.ParticleEmitter(List.copyOf(sprites), rate, Math.min(life[0], life[1]),
+                Math.max(life[0], life[1]),
+                vector(json, "origin", new float[]{0f, 16f, 0f}, where),
+                vector(json, "area", new float[]{6f, 12f, 6f}, where),
+                vector(json, "velocity", new float[]{0f, 8f, 0f}, where),
+                vector(json, "spread", new float[]{2f, 2f, 2f}, where),
+                number(json, "gravity", 0f, where), drag, size[0], size[1], alpha[0], alpha[1], colors,
+                json.has("glow") && bool(json.get("glow"), where + ".glow"), Math.abs(number(json, "spin", 0f, where)),
+                when);
+    }
+
+    /** A number or a [from, to] pair. */
+    private static float[] range(JsonObject json, String key, float from, float to, String where) {
+        if (!json.has(key)) {
+            return new float[]{from, to};
+        }
+        JsonElement element = json.get(key);
+        if (element.isJsonArray()) {
+            return floats(element, 2, where + "." + key);
+        }
+        float value = number(json, key, from, where);
+        return new float[]{value, value};
+    }
+
+    private static float[] vector(JsonObject json, String key, float[] fallback, String where) {
+        return json.has(key) ? floats(json.get(key), 3, where + "." + key) : fallback.clone();
     }
 
     /** Defaults for each state when a cosmetic doesn't set them: base angle, amplitude, flaps per second. */
