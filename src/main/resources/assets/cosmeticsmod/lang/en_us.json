@@ -103,6 +103,10 @@
   "cosmeticsmod.screen.hide_elytra": "Hide capes with elytra",
   "cosmeticsmod.screen.cape_physics": "Cape physics",
   "cosmeticsmod.screen.cape_swing": "Cape swing",
+  "cosmeticsmod.screen.section.particles": "Particles",
+  "cosmeticsmod.screen.particles": "Particle cosmetics (auras, trails)",
+  "cosmeticsmod.screen.particle_density": "Amount",
+  "cosmeticsmod.screen.own_particles_first_person": "Your own in first person",
 
   "cosmeticsmod.screen.render_distance": "Render distance",
   "cosmeticsmod.screen.shadows": "Cast shadows with shaders",

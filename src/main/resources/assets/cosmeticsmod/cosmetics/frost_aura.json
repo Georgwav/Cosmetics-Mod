@@ -1,0 +1,17 @@
+{
+  "slot": "aura",
+  "name": "Frost Aura",
+  "particles": {
+    "texture": "cosmeticsmod:snowflake",
+    "rate": 8,
+    "lifetime": [1.5, 2.5],
+    "origin": [0, 36, 0],
+    "area": [10, 3, 10],
+    "velocity": [0, -10, 0],
+    "spread": [3, 1, 3],
+    "size": [3, 2],
+    "alpha": [0.9, 0],
+    "colors": ["#FFFFFF", "#CFEFFF", "#A8DAFF"],
+    "spin": 90
+  }
+}

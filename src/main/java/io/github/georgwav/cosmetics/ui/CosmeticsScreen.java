@@ -623,6 +623,12 @@ public final class CosmeticsScreen extends Screen {
         toggle("cape_physics", () -> c.capePhysics, v -> c.capePhysics = v);
         add(new Rows.Slider(listX, 0, listW, t("cape_swing"), 0, 2, 0.1,
                 () -> c.capeSwing, v -> c.capeSwing = (float) v, v -> Math.round(v * 100) + "%"));
+
+        section("section.particles");
+        toggle("particles", () -> c.particles, v -> c.particles = v);
+        add(new Rows.Slider(listX, 0, listW, t("particle_density"), 0, 2, 0.1,
+                () -> c.particleDensity, v -> c.particleDensity = (float) v, v -> Math.round(v * 100) + "%"));
+        toggle("own_particles_first_person", () -> c.ownParticlesInFirstPerson, v -> c.ownParticlesInFirstPerson = v);
     }
 
     private void buildPerformance() {

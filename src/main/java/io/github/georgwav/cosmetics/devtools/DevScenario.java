@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.compat.iris.IrisCompat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
@@ -65,6 +66,7 @@ public final class DevScenario {
     /** The settings page the UI check has open. */
     private CosmeticsScreen uiScreen;
     private long phaseStart;
+    private long particlesAtPhaseStart;
     private boolean finished;
 
     private DevScenario(boolean smoke, boolean benchmark) {
@@ -295,6 +297,7 @@ public final class DevScenario {
         ticks = 0;
         RenderStats.reset();
         phaseStart = System.nanoTime();
+        particlesAtPhaseStart = AuraParticles.spawned;
         if (next != Phase.DONE) {
             CosmeticsMod.LOGGER.info("Dev scenario phase: {}", next);
             if (next != Phase.SETTINGS_UI) {
@@ -314,6 +317,7 @@ public final class DevScenario {
         p.addProperty("skippedShadowPass", RenderStats.skippedShadowPass);
         p.addProperty("deferredToOtherMods", RenderStats.deferredToOtherMods);
         p.addProperty("heldDrawn", RenderStats.heldDrawn);
+        p.addProperty("particles", AuraParticles.spawned - particlesAtPhaseStart);
         if (RenderStats.TIMING && RenderStats.localPlayerFrames > 0) {
             p.addProperty("cosmeticsMsPerFrame", RenderStats.nanos / 1.0e6 / RenderStats.localPlayerFrames);
         }
@@ -371,6 +375,11 @@ public final class DevScenario {
                 && held("vanilla_front") + held("vanilla_back") <= 0) {
             failures.add("the shield cosmetic was never drawn in place of the held shield");
         }
+        boolean particleCosmetic = CosmeticRegistry.all().stream().anyMatch(c -> !c.definition().particles().isEmpty());
+        if (phases.has("vanilla_front") && Boolean.getBoolean(PREFIX + "equipAll") && particleCosmetic
+                && count("vanilla_front", "particles") + count("vanilla_back", "particles") <= 0) {
+            failures.add("particle cosmetics (auras) gave off no particles");
+        }
         if (phases.has("shaders_on") && phases.getAsJsonObject("shaders_on").get("shadowPassMeshes").getAsLong() <= 0) {
             failures.add("cosmetics were not drawn in the Iris shadow pass (they should cast shadows by default)");
         }
@@ -383,6 +392,10 @@ public final class DevScenario {
                 failures.add("cosmetics disappeared from the main pass with renderInShadowPass=false");
             }
         }
+    }
+
+    private long count(String phaseName, String key) {
+        return phases.has(phaseName) ? phases.getAsJsonObject(phaseName).get(key).getAsLong() : 0;
     }
 
     private long held(String phaseName) {
