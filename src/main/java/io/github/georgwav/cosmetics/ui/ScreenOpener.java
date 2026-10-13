@@ -11,7 +11,11 @@ public final class ScreenOpener {
     }
 
     public static void open(Screen screen) {
+        //? if >=26.2 {
+        /*Minecraft.getInstance().gui.setScreen(screen); // 26.2 moved screen handling into Gui
+        *///?} else {
         Minecraft.getInstance().setScreen(screen);
+        //?}
     }
 
     /**
