@@ -6,14 +6,16 @@ import java.io.Reader;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Every cosmetic shipped in the jar must parse, bake and reference a texture that exists. */
+/** Every cosmetic shipped in the jar must parse without warnings, bake and reference a texture that exists. */
 class BundledCosmeticsTest {
     @Test
     void allBundledCosmeticsBake() throws Exception {
@@ -26,16 +28,29 @@ class BundledCosmeticsTest {
             files = stream.filter(p -> p.toString().endsWith(".json")).toList();
         }
         assertFalse(files.isEmpty());
+        CosmeticParser.ModelSource models = modelId -> Files.newBufferedReader(assets
+                .resolve(modelId.substring(0, modelId.indexOf(':')))
+                .resolve("cosmetic_models/" + modelId.substring(modelId.indexOf(':') + 1) + ".geo.json"));
+        CosmeticParser.FileSource meshFiles = location -> Files.newInputStream(assets
+                .resolve(location.substring(0, location.indexOf(':')))
+                .resolve(location.substring(location.indexOf(':') + 1)));
         for (Path file : files) {
             String name = file.getFileName().toString();
             String id = "cosmeticsmod:" + name.substring(0, name.length() - ".json".length());
-            BakedCosmetic cosmetic;
-            CosmeticParser.ModelSource models = modelId -> Files.newBufferedReader(assets
-                    .resolve(modelId.substring(0, modelId.indexOf(':')))
-                    .resolve("cosmetic_models/" + modelId.substring(modelId.indexOf(':') + 1) + ".geo.json"));
+            List<String> warnings = new ArrayList<>();
+            CosmeticParser.Context context = new CosmeticParser.Context(models, meshFiles, warnings::add,
+                    CosmeticParser.Context.DEFAULT_MAX_MESH_TRIANGLES);
+            CosmeticDefinition definition;
             try (Reader reader = Files.newBufferedReader(file)) {
-                cosmetic = CosmeticBaker.bake(CosmeticParser.parse(id, reader, models));
+                definition = CosmeticParser.parse(id, reader, context);
             }
+            assertEquals(List.of(), warnings, id);
+            for (CosmeticDefinition.Part part : definition.parts()) {
+                for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                    assertNormalsMatchWinding(id, mesh);
+                }
+            }
+            BakedCosmetic cosmetic = CosmeticBaker.bake(definition);
             assertTrue(cosmetic.layers().length > 0, id + " has no geometry");
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                 String texture = layer.texture();
@@ -43,6 +58,33 @@ class BundledCosmeticsTest {
                 Path png = assets.resolve(namespace).resolve(texture.substring(texture.indexOf(':') + 1));
                 assertTrue(Files.exists(png), id + " references missing texture " + texture);
             }
+        }
+    }
+
+    /**
+     * Each face's corners must wind counter-clockwise seen from the side their normals point to, or the
+     * face is lit as if seen from behind (and culled from the wrong side by culling render types).
+     */
+    private static void assertNormalsMatchWinding(String id, CosmeticDefinition.Mesh mesh) {
+        float[] c = mesh.corners();
+        int stride = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        int first = 0;
+        for (int f = 0; f < mesh.faceSizes().length; f++) {
+            int size = mesh.faceSizes()[f];
+            float[][] positions = new float[size][];
+            int[] face = new int[size];
+            for (int i = 0; i < size; i++) {
+                int o = (first + i) * stride;
+                positions[i] = new float[]{c[o], c[o + 1], c[o + 2]};
+                face[i] = i;
+            }
+            float[] winding = MeshBuilder.newell(face, positions);
+            for (int i = 0; i < size; i++) {
+                int o = (first + i) * stride;
+                float dot = winding[0] * c[o + 5] + winding[1] * c[o + 6] + winding[2] * c[o + 7];
+                assertTrue(dot > 0, id + " (" + mesh.source() + "): face " + f + " winds against its normals");
+            }
+            first += size;
         }
     }
 }

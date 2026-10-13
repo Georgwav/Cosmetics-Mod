@@ -7,12 +7,15 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Parses cosmetic JSON files. See {@code docs/COSMETIC_FORMAT.md} for the format.
@@ -27,27 +30,62 @@ public final class CosmeticParser {
         Reader open(String modelId) throws IOException;
     }
 
+    /** Opens a mesh file referenced by a cosmetic, by its full location ({@code namespace:path/name.obj}). */
+    @FunctionalInterface
+    public interface FileSource {
+        InputStream open(String location) throws IOException;
+    }
+
     private static final ModelSource NO_MODELS = modelId -> {
         throw new IOException("model files are not available here");
     };
+    static final FileSource NO_FILES = location -> {
+        throw new IOException("mesh files are not available here");
+    };
+
+    /** Largest mesh files read, in bytes. */
+    static final int MAX_OBJ_BYTES = 4 << 20;
+    static final int MAX_BBMODEL_BYTES = 16 << 20;
+
+    /**
+     * Everything a cosmetic file may need besides itself.
+     *
+     * @param maxMeshTriangles the most mesh triangles (a quad is two) one cosmetic may have; more is an error
+     */
+    public record Context(ModelSource models, FileSource files, Consumer<String> warnings, int maxMeshTriangles) {
+        public static final int DEFAULT_MAX_MESH_TRIANGLES = 20_000;
+
+        static Context withModels(ModelSource models) {
+            return new Context(models, NO_FILES, warning -> { }, DEFAULT_MAX_MESH_TRIANGLES);
+        }
+    }
 
     public static CosmeticDefinition parse(String id, Reader reader) {
         return parse(id, reader, NO_MODELS);
     }
 
     public static CosmeticDefinition parse(String id, Reader reader, ModelSource models) {
+        return parse(id, reader, Context.withModels(models));
+    }
+
+    public static CosmeticDefinition parse(String id, Reader reader, Context context) {
         JsonElement root = JsonParser.parseReader(reader);
         if (!root.isJsonObject()) {
             throw new JsonParseException("Cosmetic " + id + " must be a JSON object");
         }
-        return parse(id, root.getAsJsonObject(), models);
+        return parse(id, root.getAsJsonObject(), context);
     }
 
     public static CosmeticDefinition parse(String id, JsonObject json) {
-        return parse(id, json, NO_MODELS);
+        return parse(id, json, Context.withModels(NO_MODELS));
     }
 
     public static CosmeticDefinition parse(String id, JsonObject json, ModelSource models) {
+        return parse(id, json, Context.withModels(models));
+    }
+
+    public static CosmeticDefinition parse(String id, JsonObject json, Context context) {
+        ModelSource models = context.models();
         String namespace = id.substring(0, id.indexOf(':'));
         CosmeticSlot slot = CosmeticSlot.byId(requireString(json, "slot"));
         String texture = qualify(namespace, requireString(json, "texture"));
@@ -77,20 +115,160 @@ public final class CosmeticParser {
             String name = partJson.has("name") ? partJson.get("name").getAsString() : "part" + i;
             RenderMode mode = partJson.has("mode") ? RenderMode.byId(partJson.get("mode").getAsString()) : RenderMode.CUTOUT;
             String partTexture = partJson.has("texture") ? qualify(namespace, partJson.get("texture").getAsString()) : texture;
+            if (!partJson.has("cubes") && !partJson.has("meshes")) {
+                throw new JsonParseException(name + ": a part needs 'cubes', 'meshes' or both");
+            }
             List<CosmeticDefinition.Cube> cubes = new ArrayList<>();
-            JsonArray cubesJson = requireArray(partJson, "cubes");
-            for (int c = 0; c < cubesJson.size(); c++) {
-                cubes.add(parseCube(cubesJson.get(c).getAsJsonObject(), name + "[" + c + "]"));
+            if (partJson.has("cubes")) {
+                JsonArray cubesJson = requireArray(partJson, "cubes");
+                for (int c = 0; c < cubesJson.size(); c++) {
+                    cubes.add(parseCube(cubesJson.get(c).getAsJsonObject(), name + "[" + c + "]"));
+                }
+            }
+            List<CosmeticDefinition.Mesh> meshes = new ArrayList<>();
+            if (partJson.has("meshes")) {
+                JsonArray meshesJson = requireArray(partJson, "meshes");
+                for (int m = 0; m < meshesJson.size(); m++) {
+                    String where = id + " " + name + ".meshes[" + m + "]";
+                    if (!meshesJson.get(m).isJsonObject()) {
+                        throw new JsonParseException(where + " must be an object");
+                    }
+                    meshes.add(parseMesh(meshesJson.get(m).getAsJsonObject(), where, namespace,
+                            textureSize[0], textureSize[1], context));
+                }
             }
             List<CosmeticDefinition.Animation> animations = partJson.has("animation")
                     ? parseAnimations(partJson.get("animation"), name + ".animation") : defaultAnimations;
-            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations));
+            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations, List.copyOf(meshes)));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
         }
+        int triangles = 0;
+        for (CosmeticDefinition.Part part : parts) {
+            for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                triangles += mesh.triangles();
+            }
+        }
+        if (triangles > context.maxMeshTriangles()) {
+            throw new JsonParseException("Cosmetic " + id + " has " + triangles + " mesh triangles, more than the limit of "
+                    + context.maxMeshTriangles() + " (maxMeshTriangles in config/cosmeticsmod.json)");
+        }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+    }
+
+    /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} / {@code .bbmodel} file. */
+    private static CosmeticDefinition.Mesh parseMesh(JsonObject json, String where, String namespace,
+                                                     int texW, int texH, Context context) {
+        boolean smooth = false;
+        if (json.has("shading")) {
+            String shading = json.get("shading").getAsString();
+            switch (shading) {
+                case "flat" -> smooth = false;
+                case "smooth" -> smooth = true;
+                default -> throw new JsonParseException(where + ": shading must be 'flat' or 'smooth', not '" + shading + "'");
+            }
+        }
+        float[] scale = {1, 1, 1};
+        if (json.has("scale")) {
+            JsonElement value = json.get("scale");
+            scale = value.isJsonArray() ? floats(value, 3, where + ".scale") : new float[]{
+                    value.getAsFloat(), value.getAsFloat(), value.getAsFloat()};
+        }
+        MeshBuilder.Placement placement = new MeshBuilder.Placement(
+                json.has("mirror") && json.get("mirror").getAsBoolean(),
+                scale,
+                json.has("pivot") ? floats(json.get("pivot"), 3, where + ".pivot") : new float[3],
+                json.has("rotation") ? floats(json.get("rotation"), 3, where + ".rotation") : new float[3],
+                json.has("offset") ? floats(json.get("offset"), 3, where + ".offset") : new float[3]);
+
+        MeshBuilder.Raw raw;
+        String source;
+        if (json.has("model")) {
+            if (json.has("vertices") || json.has("faces") || json.has("uvs")) {
+                throw new JsonParseException(where + ": use either 'model' or inline 'vertices'/'uvs'/'faces', not both");
+            }
+            String location = qualifyFile(namespace, json.get("model").getAsString(), where);
+            if (location.endsWith(".obj")) {
+                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH);
+            } else if (location.endsWith(".bbmodel")) {
+                raw = BbmodelParser.parse(readText(context.files(), location, MAX_BBMODEL_BYTES), location, texW, texH,
+                        context.warnings());
+            } else {
+                throw new JsonParseException(where + ": model must be a .obj or .bbmodel file");
+            }
+            source = location;
+        } else {
+            raw = inlineMesh(json, where);
+            source = where;
+        }
+        return MeshBuilder.build(raw, placement, smooth, texW, texH, source, context.warnings());
+    }
+
+    /** {@code vertices}, {@code uvs} (texture pixels) and optional {@code normals} are parallel arrays. */
+    private static MeshBuilder.Raw inlineMesh(JsonObject json, String where) {
+        JsonArray vertices = requireArray(json, "vertices");
+        JsonArray uvs = requireArray(json, "uvs");
+        JsonArray faces = requireArray(json, "faces");
+        JsonArray normals = json.has("normals") ? requireArray(json, "normals") : null;
+        if (uvs.size() != vertices.size()) {
+            throw new JsonParseException(where + ": 'uvs' needs one entry per vertex (" + vertices.size()
+                    + " vertices, " + uvs.size() + " uvs)");
+        }
+        if (normals != null && normals.size() != vertices.size()) {
+            throw new JsonParseException(where + ": 'normals' needs one entry per vertex (" + vertices.size()
+                    + " vertices, " + normals.size() + " normals)");
+        }
+        MeshBuilder.Raw raw = new MeshBuilder.Raw();
+        if (normals != null) {
+            raw.normals = new ArrayList<>();
+        }
+        for (int i = 0; i < vertices.size(); i++) {
+            raw.addCorner(floats(vertices.get(i), 3, where + ".vertices[" + i + "]"),
+                    floats(uvs.get(i), 2, where + ".uvs[" + i + "]"),
+                    normals != null ? floats(normals.get(i), 3, where + ".normals[" + i + "]") : null, i);
+        }
+        for (int f = 0; f < faces.size(); f++) {
+            String faceWhere = where + ".faces[" + f + "]";
+            JsonElement faceJson = faces.get(f);
+            if (!faceJson.isJsonArray() || faceJson.getAsJsonArray().size() < 3 || faceJson.getAsJsonArray().size() > 4) {
+                throw new JsonParseException(faceWhere + " must list 3 or 4 vertex indices");
+            }
+            JsonArray indices = faceJson.getAsJsonArray();
+            int[] face = new int[indices.size()];
+            for (int i = 0; i < face.length; i++) {
+                double value = indices.get(i).getAsDouble();
+                if (value != Math.rint(value)) {
+                    throw new JsonParseException(faceWhere + ": vertex index " + value + " is not a whole number");
+                }
+                face[i] = (int) value;
+            }
+            raw.faces.add(face);
+            raw.faceSources.add(faceWhere);
+        }
+        return raw;
+    }
+
+    private static String qualifyFile(String namespace, String location, String where) {
+        String qualified = location.indexOf(':') < 0 ? namespace + ":" + location : location;
+        if (!qualified.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+            throw new JsonParseException(where + ": invalid file location '" + location + "'");
+        }
+        return qualified;
+    }
+
+    /** Reads a whole file as UTF-8, refusing anything over {@code limit} bytes. */
+    private static String readText(FileSource files, String location, int limit) {
+        try (InputStream in = files.open(location)) {
+            byte[] data = in.readNBytes(limit + 1);
+            if (data.length > limit) {
+                throw new JsonParseException(location + " is larger than " + (limit >> 20) + " MiB");
+            }
+            return new String(data, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new JsonParseException("Can't read " + location + ": " + e.getMessage());
+        }
     }
 
     /**

@@ -51,9 +51,11 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:explorer_backpack`
   - `cosmeticsmod:feather_wings` (flapping)
   - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
+  - `cosmeticsmod:orbit_ring` (a smooth-shaded gold ring from an OBJ mesh, circling the head)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
-- **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`, written by hand or modelled in
-  Blockbench (Bedrock Entity, exported as `.geo.json`). See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
+- **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
+  model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), or use an `.obj`
+  from Blender. See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
 
 ### Config file (`config/cosmeticsmod.json`)
 
@@ -72,6 +74,7 @@ repaired on load.
 | `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
 | `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |
 | `shadowDistance` | `32` | Only players within this many blocks cast cosmetic shadows (`0` = no limit). |
+| `maxMeshTriangles` | `20000` | Most mesh triangles one cosmetic may have (1000 to 200000). Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
 | `slotPriority` | all `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |

@@ -1,0 +1,23 @@
+{
+  "slot": "head",
+  "name": "Orbit Ring",
+  "texture": "cosmeticsmod:textures/cosmetic/orbit_ring.png",
+  "texture_size": [32, 16],
+  "animation": [
+    { "type": "spin", "axis": "y", "speed": 0.12 },
+    { "type": "bob", "axis": "y", "amplitude": 0.4, "speed": 0.3 }
+  ],
+  "parts": [
+    {
+      "name": "ring",
+      "meshes": [
+        {
+          "model": "cosmeticsmod:models/cosmetic/orbit_ring.obj",
+          "shading": "smooth",
+          "rotation": [12, 0, -10],
+          "offset": [0, -6.5, 0]
+        }
+      ]
+    }
+  ]
+}

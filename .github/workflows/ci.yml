@@ -7,6 +7,8 @@ name: CI
 #                       also the compat matrix (Sodium, Iris + Complementary/BSL, Voxy, Distant Horizons,
 #                       ImmediatelyFast, Entity Culling, EMF/ETF, 3D Skin Layers, Figura) and the benchmark
 #                       (shaders off and on).
+# - a commit message containing [bench]: A/B benchmark of this commit against main (built from main here) on
+#                       1.21.11 and 26.3, same scene, alternating runs; medians and ranges in the job summary.
 # - a commit message containing [api-dump]: prints Minecraft class APIs listed in ci/api-dump.txt.
 on:
   push:
@@ -175,6 +177,60 @@ jobs:
         with:
           name: compat-matrix
           path: compat-matrix.md
+
+  bench:
+    name: Benchmark A/B ${{ matrix.node }}
+    needs: build
+    if: ${{ !cancelled() && contains(github.event.head_commit.message, '[bench]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["1.21.11", "26.3"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install virtual display and software OpenGL
+        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends xvfb x11-apps libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libopengl0
+      - uses: actions/download-artifact@v4
+        with:
+          name: jars
+          path: build/libs
+      - name: Build main for comparison
+        run: |
+          git worktree add "$RUNNER_TEMP/base" origin/main
+          cd "$RUNNER_TEMP/base"
+          ./gradlew ":${{ matrix.node }}:build" -x test
+      - uses: actions/cache@v4
+        with:
+          path: ci/work/cache
+          key: mc-${{ matrix.node }}-${{ hashFiles('ci/versions.json', 'gradle.properties') }}
+          restore-keys: mc-${{ matrix.node }}-
+      - name: Benchmark main and this commit, alternating
+        run: |
+          jar() { ls "$1"/*+mc${{ matrix.node }}.jar | grep -v -- '-sources' | head -1; }
+          python3 ci/mcci.py bench-ab --node "${{ matrix.node }}" --rounds 4 \
+            --base "$(jar "$RUNNER_TEMP/base/build/libs")" --head "$(jar build/libs)"
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.node }}
+          path: |
+            ci/work/bench/bench-ab.*
+            ci/work/bench/*/summary.json
+            ci/work/bench/*/cosmeticsmod-results.json
+            ci/work/bench/*/logs/latest.log
+          if-no-files-found: warn
 
   api-dump:
     name: API dump

@@ -7,6 +7,10 @@ Used by CI so every supported Minecraft release is tested in-game without anyone
   runtime   --node 1.21.8          every release that build's jar covers (1.21.6, 1.21.7, 1.21.8), vanilla + Fabric API
   compat    --node 1.21.8          the newest release of that build with each mod stack in compat-sets.json,
                                    then the benchmark (shaders off and on)
+  bench-ab  --node 1.21.11 --base A.jar --head B.jar
+                                   A/B benchmark: the same scene (Sodium + Iris + Complementary, every
+                                   cosmetic 50 times) with two builds of the mod, alternating for several
+                                   rounds, reported as medians and ranges per phase
   summarize --runs <dir>           markdown table of every run (GitHub job summary + compat-matrix.md)
 
 For each run it downloads Minecraft, Fabric Loader and Fabric API from the official sources, generates a
@@ -782,12 +786,13 @@ def cmd_compat(args):
     return 1 if failures else 0
 
 
-def run_stack(args, inst, jar, mc, label, spec, mode):
+def run_stack(args, inst, jar, mc, label, spec, mode, resolved=None):
     """
     Runs the game with one mod stack, starting from the newest releases. If Fabric says those versions
     don't work together (a problem between the other mods, not this one), follows the loader's
     suggested version swaps, then tries the newest builds including betas, and reports n/a if nothing
-    resolves.
+    resolves. When the run passes and `resolved` is a dict, the working setup is stored in it so later
+    runs can reuse it without resolving again.
     """
     last_conflict, stack = None, {}
     for prerelease in (False, True):
@@ -814,6 +819,9 @@ def run_stack(args, inst, jar, mc, label, spec, mode):
                 game_dir = Path(args.out) / f"{mc}-{label}"
                 conflict = stack_conflict(game_dir)
                 if summary["passed"]:
+                    if resolved is not None:
+                        resolved.update(mods_dir=mods_dir, shaderpack=shaderpack,
+                                        mods_info={**stack_info(stack), **pack_info})
                     return summary
                 if conflict is None:
                     return check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary, spec.get("env"))
@@ -895,6 +903,102 @@ def setup_failure(args, mc, label, mode, error):
     return summary
 
 
+# A cosmetic definition inside a mod jar.
+COSMETIC_FILE = re.compile(r"assets/[^/]+/cosmetics/[^/]+\.json$")
+# Benchmark numbers compared between the two builds: (key in the phase results, label, lower is better).
+BENCH_METRICS = [("cosmeticsMsPerFrame", "Cosmetics CPU ms/frame", True), ("fps", "FPS", False)]
+
+
+def same_cosmetics(jar, reference, dest):
+    """
+    A copy of `jar` without the cosmetics that `reference` doesn't bundle, so both builds draw exactly the
+    same scene (for example, a new example cosmetic is left out of the comparison). Returns the removed
+    entries.
+    """
+    with zipfile.ZipFile(reference) as z:
+        keep = {name for name in z.namelist() if COSMETIC_FILE.match(name)}
+    removed = []
+    Path(dest).parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(jar) as src, zipfile.ZipFile(dest, "w") as out:
+        for item in src.infolist():
+            if COSMETIC_FILE.match(item.filename) and item.filename not in keep:
+                removed.append(item.filename)
+                continue
+            out.writestr(item, src.read(item.filename))
+    return removed
+
+
+def median(values):
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+
+
+def cmd_bench_ab(args):
+    """
+    Runs the benchmark with the base and head builds in alternating order (A B, B A, A B, ...) so drift
+    on the runner (thermal, noisy neighbours) hits both the same, then compares medians per phase.
+    """
+    info = node_info(args.node)
+    mc = info["test"][-1]
+    work = Path(args.out)
+    work.mkdir(parents=True, exist_ok=True)
+    head = work / "jars" / "head" / Path(args.head).name
+    removed = same_cosmetics(args.head, args.base, head)
+    LOG(f"[{mc}/bench-ab] head jar without cosmetics the base doesn't have: "
+        + (", ".join(removed) if removed else "nothing removed"))
+    jars = {"base": Path(args.base), "head": head}
+    sets = json.loads((ROOT / "ci" / "compat-sets.json").read_text())
+    spec = sets["sodium-iris-complementary"]
+    inst = Instance(mc, java_for(info["java"]), args.cache)
+    phases = {"base": [], "head": []}
+    setup = {}
+    for r in range(args.rounds):
+        for which in (("base", "head") if r % 2 == 0 else ("head", "base")):
+            label = f"bench-{which}-{r + 1}"
+            if not setup:
+                summary = run_stack(args, inst, jars[which], mc, label, spec, "benchmark", resolved=setup)
+            else:
+                summary = run_game(inst, jars[which], args.out, label, setup["mods_dir"], setup["shaderpack"],
+                                   mode="benchmark", mods_info=setup["mods_info"], node=args.node,
+                                   extra_env=spec.get("env"))
+            if not summary["passed"] or summary.get("na"):
+                LOG(f"[{mc}/bench-ab] {label} did not complete: {'; '.join(summary.get('problems', []))}")
+                return 1
+            phases[which].append(summary["phases"])
+
+    lines = [f"## Benchmark A/B, Minecraft {mc}", "",
+             f"Same scene with both builds: Sodium + Iris + Complementary, every cosmetic drawn 50 times, "
+             f"{args.rounds} runs each in alternating order. Software rendering, so compare the two "
+             f"columns, not the absolute numbers. Median [min to max].", ""]
+    if removed:
+        lines += ["Left out of the head build so both draw the same: " + ", ".join(f"`{r}`" for r in removed), ""]
+    lines += [f"| Phase | Metric | Base ({Path(args.base).name}) | Head ({Path(args.head).name}) | Change | Ranges overlap |",
+              "|---|---|---|---|---|---|"]
+    result = {"mc": mc, "node": args.node, "rounds": args.rounds, "removed": removed, "phases": {}}
+    for phase in phases["base"][0]:
+        for key, name, _ in BENCH_METRICS:
+            a = [p[phase][key] for p in phases["base"] if key in p.get(phase, {})]
+            b = [p[phase][key] for p in phases["head"] if key in p.get(phase, {})]
+            if not a or not b:
+                continue
+            ma, mb = median(a), median(b)
+            change = (mb - ma) / ma * 100 if ma else 0.0
+            overlap = min(b) <= max(a) and min(a) <= max(b)
+            lines.append(f"| {phase} | {name} | {ma:.4g} [{min(a):.4g} to {max(a):.4g}] | "
+                         f"{mb:.4g} [{min(b):.4g} to {max(b):.4g}] | {change:+.1f}% | {'yes' if overlap else 'no'} |")
+            result["phases"].setdefault(phase, {})[key] = {"base": a, "head": b, "changePercent": change,
+                                                           "rangesOverlap": overlap}
+    text = "\n".join(lines) + "\n"
+    (work / "bench-ab.md").write_text(text)
+    (work / "bench-ab.json").write_text(json.dumps(result, indent=2))
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+            f.write(text)
+    print(text)
+    return 0
+
+
 def cmd_summarize(args):
     runs = [json.loads(p.read_text()) for p in sorted(Path(args.runs).rglob("summary.json"))]
 
@@ -945,11 +1049,19 @@ def main():
         if name == "compat":
             p.add_argument("--sets", default="", help="comma-separated stacks from compat-sets.json (default: all)")
             p.add_argument("--benchmark", action="store_true", help="also run the benchmark (shaders off/on)")
+    p = sub.add_parser("bench-ab")
+    p.add_argument("--node", required=True, help="build (Stonecutter version) both jars are for, e.g. 1.21.11")
+    p.add_argument("--base", required=True, help="jar to compare against, e.g. built from main")
+    p.add_argument("--head", required=True, help="jar under test")
+    p.add_argument("--rounds", type=int, default=4, help="benchmark runs per jar")
+    p.add_argument("--cache", default=str(ROOT / "ci" / "work" / "cache"))
+    p.add_argument("--out", default=str(ROOT / "ci" / "work" / "bench"))
     p = sub.add_parser("summarize")
     p.add_argument("--runs", default=str(ROOT / "ci" / "work" / "runs"))
     p.add_argument("--output", default=str(ROOT / "ci" / "work" / "compat-matrix.md"))
     args = parser.parse_args()
-    return {"runtime": cmd_runtime, "compat": cmd_compat, "summarize": cmd_summarize}[args.command](args)
+    return {"runtime": cmd_runtime, "compat": cmd_compat, "bench-ab": cmd_bench_ab,
+            "summarize": cmd_summarize}[args.command](args)
 
 
 if __name__ == "__main__":

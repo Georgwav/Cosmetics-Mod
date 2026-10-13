@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.BakedMesh;
 import net.minecraft.client.Minecraft;
@@ -68,8 +69,12 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
-        MeshEmitter.emit(layer.mesh(), poseStack.last(), buffers.getBuffer(CosmeticRenderTypes.get(layer)),
-                light, color);
+        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer));
+        MeshEmitter.emit(layer.mesh(), poseStack.last(), consumer, light, color);
+        BakedMesh smooth = layer.smoothMesh();
+        if (smooth != null) {
+            MeshEmitter.emitSmooth(smooth, poseStack.last(), consumer, light, color);
+        }
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -123,8 +128,12 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
-        MeshEmitter.emit(layer.mesh(), poseStack.last(), buffers.getBuffer(CosmeticRenderTypes.get(layer)),
-                light, color);
+        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer));
+        MeshEmitter.emit(layer.mesh(), poseStack.last(), consumer, light, color);
+        BakedMesh smooth = layer.smoothMesh();
+        if (smooth != null) {
+            MeshEmitter.emitSmooth(smooth, poseStack.last(), consumer, light, color);
+        }
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -160,6 +169,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
         String id = cosmetic.id();
         BakedMesh mesh = layer.mesh();
+        BakedMesh smooth = layer.smoothMesh();
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
         collector.submitCustomGeometry(poseStack, CosmeticRenderTypes.get(layer), (pose, consumer) -> {
             if (RenderGuard.isDisabled(id)) {
@@ -168,6 +178,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             long start = RenderStats.TIMING ? System.nanoTime() : 0L;
             try {
                 MeshEmitter.emit(mesh, pose, consumer, light, color);
+                if (smooth != null) {
+                    MeshEmitter.emitSmooth(smooth, pose, consumer, light, color);
+                }
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }

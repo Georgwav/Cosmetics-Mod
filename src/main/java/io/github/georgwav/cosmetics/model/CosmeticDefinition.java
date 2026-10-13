@@ -32,8 +32,28 @@ public record CosmeticDefinition(
      *                   has its own mostly-transparent texture
      * @param cubes      the part's boxes
      * @param animations movement applied to the whole part every frame, in order (empty for none)
+     * @param meshes     the part's free-form meshes (empty for none)
      */
-    public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
+    public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
+                       List<Mesh> meshes) {
+        public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
+            this(name, mode, texture, cubes, animations, List.of());
+        }
+    }
+
+    /**
+     * A free-form mesh, already validated and placed in cosmetic space at load time, so baking only
+     * copies it into the vertex buffers.
+     *
+     * @param source    where it came from (a file, or the mesh's place in the cosmetic file), for messages
+     * @param smooth    per-corner normals (smooth shading); otherwise every corner of a face carries
+     *                  the face normal
+     * @param corners   8 floats per face corner: x, y, z in pixels, u, v in texture pixels, nx, ny, nz
+     * @param faceSizes corners per face, 3 or 4, in order
+     * @param triangles triangle count (a quad counts as two), for the per-cosmetic limit
+     */
+    public record Mesh(String source, boolean smooth, float[] corners, int[] faceSizes, int triangles) {
+        public static final int FLOATS_PER_CORNER = 8;
     }
 
     /**

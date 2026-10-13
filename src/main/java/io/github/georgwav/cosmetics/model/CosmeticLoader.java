@@ -1,9 +1,15 @@
 package io.github.georgwav.cosmetics.model;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+//? if >=1.21.11 {
+import net.minecraft.resources.Identifier;
+//?} else {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
 
 import java.io.FileNotFoundException;
 import java.io.Reader;
@@ -13,7 +19,9 @@ import java.util.Map;
 
 /**
  * Loads every {@code assets/<namespace>/cosmetics/*.json} from the active resource packs and bakes it.
- * Cosmetics can use Bedrock geometry models from {@code assets/<namespace>/cosmetic_models/}.
+ * Cosmetics can use Bedrock geometry models from {@code assets/<namespace>/cosmetic_models/} and mesh
+ * files ({@code .obj}, {@code .bbmodel}) by their full location, such as
+ * {@code namespace:models/cosmetic/name.obj}.
  * A broken file is logged and skipped; it never stops the other cosmetics or the game from loading.
  */
 public final class CosmeticLoader {
@@ -41,16 +49,36 @@ public final class CosmeticLoader {
             return resource.openAsReader();
         };
 
+        // Mesh files are opened by their full location when a cosmetic asks for one (the parser has
+        // already checked it's a valid .obj or .bbmodel location), so nothing is scanned up front.
+        // Vanilla only reads .json files under models/, so these never reach the block and item models.
+        CosmeticParser.FileSource files = location -> {
+            //? if >=1.21.11 {
+            Identifier id = Identifier.parse(location);
+            //?} else {
+            /*ResourceLocation id = ResourceLocation.parse(location);
+            *///?}
+            Resource resource = manager.getResource(id).orElse(null);
+            if (resource == null) {
+                throw new FileNotFoundException("no such file in any resource pack");
+            }
+            return resource.open();
+        };
+        int maxMeshTriangles = CosmeticsConfig.get().maxMeshTriangles;
+
         Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();
         // `var`: the key type is ResourceLocation before 1.21.11 and Identifier after.
         for (var entry : manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet()) {
             String path = entry.getKey().getPath();
             String id = entry.getKey().getNamespace() + ":"
                     + path.substring(DIRECTORY.length() + 1, path.length() - SUFFIX.length());
+            String file = "assets/" + entry.getKey().getNamespace() + "/" + path;
+            CosmeticParser.Context context = new CosmeticParser.Context(models, files,
+                    warning -> CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {}", id, file, warning), maxMeshTriangles);
             try (Reader reader = entry.getValue().openAsReader()) {
-                loaded.put(id, CosmeticBaker.bake(CosmeticParser.parse(id, reader, models)));
+                loaded.put(id, CosmeticBaker.bake(CosmeticParser.parse(id, reader, context)));
             } catch (Exception e) {
-                CosmeticsMod.LOGGER.error("Skipping cosmetic '{}': {}", id, e.toString());
+                CosmeticsMod.LOGGER.error("Skipping cosmetic '{}' ({}): {}", id, file, e.toString());
             }
         }
         CosmeticRegistry.replace(loaded);

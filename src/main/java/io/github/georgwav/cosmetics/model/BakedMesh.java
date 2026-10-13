@@ -5,8 +5,8 @@ package io.github.georgwav.cosmetics.model;
  * Positions are already divided by 16 and every per-cube rotation is already applied, so emitting
  * a mesh is one matrix multiply per vertex and nothing else.
  *
- * <p>Layout per vertex: {@code x, y, z, u, v, nx, ny, nz}. Four vertices per quad. All four
- * vertices of a quad share one normal.
+ * <p>Layout per vertex: {@code x, y, z, u, v, nx, ny, nz}. Four vertices per quad. In a layer's main
+ * mesh all four vertices of a quad share one normal; in its smooth mesh each vertex has its own.
  */
 public final class BakedMesh {
     public static final int FLOATS_PER_VERTEX = 8;

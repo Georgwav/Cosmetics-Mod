@@ -57,14 +57,25 @@ public final class BakedCosmetic {
         private final String texture;
         private final BakedMesh mesh;
         private final CosmeticDefinition.Animation[] animations;
+        private final BakedMesh smoothMesh;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
-        Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations) {
+        Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
+              BakedMesh smoothMesh) {
             this.mode = mode;
             this.texture = texture;
             this.mesh = mesh;
             this.animations = animations;
+            this.smoothMesh = smoothMesh;
+        }
+
+        /**
+         * Smooth-shaded mesh geometry (one normal per vertex), drawn with the same render type right after
+         * {@link #mesh()}; null when the layer has none, which is always the case for cubes.
+         */
+        public BakedMesh smoothMesh() {
+            return smoothMesh;
         }
 
         /** Movements applied to this layer every frame, in order; empty for a still layer. */

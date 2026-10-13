@@ -32,25 +32,72 @@ public final class CosmeticBaker {
     private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations) {
     }
 
+    /**
+     * A layer's vertex data: cubes and flat-shaded meshes share one buffer (one normal per quad), and
+     * smooth-shaded meshes go in a second buffer of the same layer (one normal per vertex). Both are
+     * drawn with the layer's one render type, so meshes add no draw calls.
+     */
+    private static final class LayerBuffers {
+        final FloatList flat = new FloatList();
+        FloatList smooth;
+    }
+
     public static BakedCosmetic bake(CosmeticDefinition definition) {
         // One layer per (mode, texture, animation), in draw order: cutout, translucent, emissive.
-        Map<RenderMode, Map<LayerKey, FloatList>> buffers = new EnumMap<>(RenderMode.class);
+        Map<RenderMode, Map<LayerKey, LayerBuffers>> buffers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
-            FloatList out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(new LayerKey(part.texture(), part.animations()), k -> new FloatList());
+            LayerBuffers out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations()), k -> new LayerBuffers());
             for (CosmeticDefinition.Cube cube : part.cubes()) {
-                bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out);
+                bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out.flat);
+            }
+            for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                FloatList target = out.flat;
+                if (mesh.smooth()) {
+                    if (out.smooth == null) {
+                        out.smooth = new FloatList();
+                    }
+                    target = out.smooth;
+                }
+                bakeMesh(mesh, definition.textureWidth(), definition.textureHeight(), target);
             }
         }
         List<BakedCosmetic.Layer> layers = new ArrayList<>();
-        buffers.forEach((mode, byKey) -> byKey.forEach((key, list) -> {
-            BakedMesh mesh = new BakedMesh(list.toArray());
-            if (!mesh.isEmpty()) {
+        buffers.forEach((mode, byKey) -> byKey.forEach((key, lists) -> {
+            BakedMesh mesh = new BakedMesh(lists.flat.toArray());
+            BakedMesh smooth = lists.smooth != null ? new BakedMesh(lists.smooth.toArray()) : null;
+            if (smooth != null && smooth.isEmpty()) {
+                smooth = null;
+            }
+            if (!mesh.isEmpty() || smooth != null) {
                 layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
-                        key.animations().toArray(new CosmeticDefinition.Animation[0])));
+                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth));
             }
         }));
         return new BakedCosmetic(definition, layers);
+    }
+
+    /**
+     * Copies a mesh into quads: a quad as it is, a triangle as a quad whose last vertex repeats (the
+     * vanilla entity render types draw quads). Positions to blocks, UVs to 0..1.
+     */
+    static void bakeMesh(CosmeticDefinition.Mesh mesh, float texW, float texH, FloatList out) {
+        float[] c = mesh.corners();
+        int first = 0;
+        for (int size : mesh.faceSizes()) {
+            for (int i = 0; i < BakedMesh.VERTICES_PER_QUAD; i++) {
+                int o = (first + Math.min(i, size - 1)) * CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+                out.add(c[o] / 16f);
+                out.add(c[o + 1] / 16f);
+                out.add(c[o + 2] / 16f);
+                out.add(c[o + 3] / texW);
+                out.add(c[o + 4] / texH);
+                out.add(c[o + 5]);
+                out.add(c[o + 6]);
+                out.add(c[o + 7]);
+            }
+            first += size;
+        }
     }
 
     static void bakeCube(CosmeticDefinition.Cube cube, float texW, float texH, FloatList out) {

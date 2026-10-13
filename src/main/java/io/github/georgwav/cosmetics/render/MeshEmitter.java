@@ -60,4 +60,47 @@ public final class MeshEmitter {
             }
         }
     }
+
+    /**
+     * Like {@link #emit}, for smooth-shaded mesh geometry: every vertex has its own normal, so each one
+     * is transformed (instead of one per quad). Only layers with smooth meshes call this; cubes never do.
+     */
+    public static void emitSmooth(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color) {
+        var m = pose.pose();
+        var n = pose.normal();
+        float m00 = m.m00(), m01 = m.m01(), m02 = m.m02();
+        float m10 = m.m10(), m11 = m.m11(), m12 = m.m12();
+        float m20 = m.m20(), m21 = m.m21(), m22 = m.m22();
+        float m30 = m.m30(), m31 = m.m31(), m32 = m.m32();
+        float n00 = n.m00(), n01 = n.m01(), n02 = n.m02();
+        float n10 = n.m10(), n11 = n.m11(), n12 = n.m12();
+        float n20 = n.m20(), n21 = n.m21(), n22 = n.m22();
+
+        float[] d = mesh.data();
+        int vertices = mesh.quadCount() * BakedMesh.VERTICES_PER_QUAD;
+        int i = 0;
+        for (int v = 0; v < vertices; v++) {
+            float x = d[i], y = d[i + 1], z = d[i + 2];
+            float lnx = d[i + 5], lny = d[i + 6], lnz = d[i + 7];
+            float nx = n00 * lnx + n10 * lny + n20 * lnz;
+            float ny = n01 * lnx + n11 * lny + n21 * lnz;
+            float nz = n02 * lnx + n12 * lny + n22 * lnz;
+            float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len > 1.0e-6f) {
+                nx /= len;
+                ny /= len;
+                nz /= len;
+            }
+            consumer.addVertex(
+                            m00 * x + m10 * y + m20 * z + m30,
+                            m01 * x + m11 * y + m21 * z + m31,
+                            m02 * x + m12 * y + m22 * z + m32)
+                    .setColor(color)
+                    .setUv(d[i + 3], d[i + 4])
+                    .setOverlay(NO_OVERLAY)
+                    .setLight(light)
+                    .setNormal(nx, ny, nz);
+            i += BakedMesh.FLOATS_PER_VERTEX;
+        }
+    }
 }
