@@ -359,7 +359,8 @@ def stack_info(stack):
 # Fabric Loader's suggested fix when mods need other versions of each other, e.g.
 # "Replace mod 'Sodium' (sodium) 0.9.2+mc26.1.2 with version 0.0.0 or any version between 0.9.1- (inclusive) ..."
 LOADER_REPLACE = re.compile(r"Replace mod '[^']*' \(([^)\s]+)\) (\S+) with (.+)")
-VERSION_NUMBER = re.compile(r"\d+(?:\.\d+)+")
+# A version the loader asks for: "0.9.1" (that version) or "0.6.x" (any 0.6 build).
+WANTED_VERSION = re.compile(r"(\d+(?:\.\d+)+)(\.x)?")
 
 
 def jar_mod_id(jar):
@@ -370,9 +371,13 @@ def jar_mod_id(jar):
         return None
 
 
-def contains_version(text, number):
-    """True if `number` (e.g. 0.9.1) appears in `text` as a whole version, not inside 10.9.12."""
-    return re.search(r"(?<![\d.])" + re.escape(number) + r"(?![\d])(?!\.\d)", text) is not None
+def contains_version(text, number, prefix=False):
+    """
+    True if `number` (e.g. 0.9.1) appears in `text` as a whole version, not inside 10.9.12. With
+    `prefix`, any version starting with it matches (0.6 matches 0.6.13 but not 0.61).
+    """
+    tail = r"\.\d" if prefix else r"(?![\d])(?!\.\d)"
+    return re.search(r"(?<![\d.])" + re.escape(number) + tail, text) is not None
 
 
 def apply_loader_fix(log_text, mods_dir, stack, mc, tried):
@@ -382,7 +387,9 @@ def apply_loader_fix(log_text, mods_dir, stack, mc, tried):
     next older build). Returns a description of the swaps, or None if there was nothing to try.
     """
     swaps = []
-    for mod_id, current, wanted in LOADER_REPLACE.findall(log_text):
+    # The same suggestion appears in both logs; follow it once per mod.
+    suggestions = {mod_id: (current, wanted) for mod_id, current, wanted in LOADER_REPLACE.findall(log_text)}
+    for mod_id, (current, wanted) in suggestions.items():
         jar_name = next((name for name in stack if jar_mod_id(Path(mods_dir) / name) == mod_id), None)
         if jar_name is None:
             continue  # not one of the downloaded mods (e.g. Fabric API or this mod): nothing to swap
@@ -390,9 +397,10 @@ def apply_loader_fix(log_text, mods_dir, stack, mc, tried):
         version = entry["version"]
         tried.add(version["id"])
         builds = modrinth_versions(version["project_id"], mc)
-        numbers = [n.rstrip("-") for n in VERSION_NUMBER.findall(wanted) if n.rstrip("-") != "0.0.0"]
+        wanted_versions = [(n, bool(x)) for n, x in WANTED_VERSION.findall(wanted) if n != "0.0.0"]
         matching = [b for b in builds if b["id"] not in tried
-                    and any(contains_version(b["version_number"], n) for n in numbers)]
+                    and any(contains_version(b["version_number"], n, x) for n, x in wanted_versions)]
+        matching.sort(key=lambda b: b.get("version_type") != "release")  # stable: newest release first
         current_index = next((i for i, b in enumerate(builds) if b["id"] == version["id"]), -1)
         older = [b for b in builds[current_index + 1:] if b["id"] not in tried]
         replacement = (matching or older or [None])[0]

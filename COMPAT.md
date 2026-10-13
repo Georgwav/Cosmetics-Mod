@@ -1,27 +1,54 @@
 # Compatibility matrix
 
 Status values:
-- **CI: pass / fail**: result of the automated in-game run (see [How this is tested](#how-this-is-tested)).
-- **Untested**: no result yet.
+- **CI: pass / fail / n/a**: result of the automated in-game run (see [How this is tested](#how-this-is-tested)).
+  n/a means the other mod has no build for that Minecraft version, or it cannot run in CI's software
+  renderer even without this mod.
 - **Your stack**: verified by hand on the maintainer's own instance. A milestone only counts as done once
   this column is filled in.
 
-> Nothing below has been verified in-game yet. The first CI run fills in the CI column.
-> The "Your stack" column needs the mod list and versions from the real instance.
+> Results below are from CI run 7 (2026-10-13), newest release of each version line, newest builds of
+> each mod from Modrinth (exact versions are in that run's "Test matrix" summary). The "Your stack"
+> column still needs the mod list and versions from the real instance.
 
-| Mod | Version tested | CI | Your stack | Notes |
-|---|---|---|---|---|
-| Sodium | latest per MC version (from Modrinth) | Untested | Untested | Cosmetics go through vanilla vertex consumers, never wrapped, so Sodium's `VertexBufferWriter` fast path applies. No mixins into anything Sodium replaces. |
-| Iris + Complementary Reimagined | latest | Untested | Untested | Vanilla entity render types only, so Iris swaps in its entity programs. Emissive parts use `eyes`, which shaderpacks treat as glowing. Shadows are on by default, with `renderInShadowPass` to turn them off. CI asserts both behaviours. |
-| Iris + BSL | latest | Untested | Untested | Same checks as Complementary. |
-| Voxy | latest | Untested | Untested | We never touch terrain or world rendering, so nothing interacts. |
-| Distant Horizons | latest | Untested | Untested | Same as Voxy. |
-| ImmediatelyFast | latest | Untested | Untested | We use the buffer source / submit collector we are given and never flush or hold consumers. |
-| Entity Culling | latest | Untested | Untested | We are a render layer, so a culled player skips our layer with the rest of the model. Nothing to integrate. |
-| EMF / ETF | latest | Untested | Untested | Cosmetics follow the live transforms of the model's head and body parts, so EMF animations carry them. If a model mod hides or removes those parts, the cosmetic is not drawn. |
-| 3D Skin Layers | latest | Untested | Untested | Hats sit 0.5 px above the outer skin layer so the 3D layer doesn't clip through them. |
-| Figura | latest (Figura, or NoFigura on newer MC) | Untested | Untested | Defaults to DEFER on every slot for players with a Figura avatar. Set a slot to OVERRIDE to draw anyway. |
-| Essential | not in CI | Untested | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected (cape slot DEFER). Other Essential cosmetics simply render alongside ours. |
+## Summary
+
+| Mod | CI | Your stack | Notes |
+|---|---|---|---|
+| Sodium | pass (all 10 version lines) | Untested | Cosmetics go through vanilla vertex consumers, never wrapped, so Sodium's `VertexBufferWriter` fast path applies. No mixins into anything Sodium replaces. |
+| Iris + Complementary Reimagined | pass (all 10) | Untested | Vanilla entity render types only, so Iris swaps in its entity programs. Emissive parts use `eyes`, which shaderpacks treat as glowing. CI checks on every version that cosmetics are drawn in the shadow pass, and that `renderInShadowPass: false` removes them from it (and only from it). |
+| Iris + BSL | pass (all 10) | Untested | Same checks as Complementary. |
+| Voxy | n/a / pending | Untested | No Voxy build for 1.21.1–1.21.5 or 26.3. On 1.21.8 and 1.21.10 Voxy stops at startup because CI's software renderer lacks GLSL 4.60 ("GLSL 4.60 is not supported", inside Voxy's own init). On 1.21.11, 26.1.2 and 26.2 it crashes on joining the world; not yet shown to be independent of this mod. CI now has Mesa report GL 4.6 for this stack and re-runs it without this mod to tell its crashes apart from ours. We never touch terrain or world rendering. |
+| Distant Horizons | pass (all 10) | Untested | Same as Voxy: no terrain hooks. |
+| ImmediatelyFast | pass (all 10, perf stack) | Untested | We use the buffer source / submit collector we are given and never flush or hold consumers. |
+| Entity Culling | pass (all 10, perf stack) | Untested | We are a render layer, so a culled player skips our layer with the rest of the model. Nothing to integrate. |
+| EMF / ETF | pass (all 10) | Untested | Cosmetics follow the live transforms of the model's head and body parts, so EMF animations carry them. If a model mod hides or removes those parts, the cosmetic is not drawn. |
+| 3D Skin Layers | pass (all 10) | Untested | Hats sit 0.5 px above the outer skin layer so the 3D layer doesn't clip through them. |
+| Figura | pass (all 10; NoFigura where Figura has no build) | Untested | Defaults to DEFER on every slot for players with a Figura avatar. Set a slot to OVERRIDE to draw anyway. |
+| Mod Menu | not in CI | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. |
+| Essential | not in CI | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected (cape slot DEFER). Other Essential cosmetics simply render alongside ours. |
+
+## By Minecraft version
+
+Every cell is a real game run: world loaded, cosmetics drawn front and back, all four settings tabs
+opened. Shader stacks also check the Iris shadow pass on and off.
+
+| Minecraft | Vanilla (every release in range) | Sodium + Iris + Complementary | Sodium + Iris + BSL | Sodium + ImmediatelyFast + Entity Culling | Voxy | Distant Horizons | EMF + ETF + 3D Skin Layers | Figura |
+|---|---|---|---|---|---|---|---|---|
+| 1.21.1 (1.21–1.21.1) | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
+| 1.21.3 (1.21.2–1.21.3) | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
+| 1.21.4 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
+| 1.21.5 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
+| 1.21.8 (1.21.6–1.21.8) | pass | pass | pass | pass | n/a (needs GLSL 4.60) | pass | pass | pass |
+| 1.21.10 (1.21.9–1.21.10) | pass | pass | pass | pass | n/a (needs GLSL 4.60) | pass | pass | pass |
+| 1.21.11 | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
+| 26.1.2 (26.1–26.1.2) | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
+| 26.2 | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
+| 26.3 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
+
+Benchmark (50x cosmetic load, CPU time spent in cosmetics per frame, software rendering): 0.12–0.68 ms
+with shaders off and 0.95–2.3 ms with Complementary on, across all versions. At normal 1x load that is
+roughly 0.003–0.014 ms and 0.02–0.05 ms per frame.
 
 ## How the compatibility rules are met
 
