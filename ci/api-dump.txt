@@ -4,3 +4,7 @@
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
+26.3 net.minecraft.client.Minecraft,net.minecraft.client.gui.components.AbstractWidget,net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.GuiGraphics,net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.KeyMapping
+26.2 net.minecraft.client.gui.screens.Screen,net.minecraft.client.gui.screens.inventory.InventoryScreen
+26.1.2 net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.KeyMapping
+1.21.10 net.minecraft.client.KeyMapping,net.minecraft.client.gui.components.AbstractWidget
