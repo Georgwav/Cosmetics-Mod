@@ -16,6 +16,7 @@ import java.util.List;
  * @param parts         geometry, grouped by render mode
  * @param options       which {@link CosmeticOption}s players may change, as a bit set
  * @param defaultColor  RGB tint the cosmetic has until a player picks another (white = the texture's own colours)
+ * @param defaultStyle  style (named skeletal animation) shown until a player picks another, or null for the first
  */
 public record CosmeticDefinition(
         String id,
@@ -26,13 +27,14 @@ public record CosmeticDefinition(
         int textureHeight,
         List<Part> parts,
         int options,
-        int defaultColor
+        int defaultColor,
+        String defaultStyle
 ) {
     public static final int WHITE = 0xFFFFFF;
 
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
-        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE);
+        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null);
     }
 
     /**
@@ -84,9 +86,53 @@ public record CosmeticDefinition(
      * @param corners   8 floats per face corner: x, y, z in pixels, u, v in texture pixels, nx, ny, nz
      * @param faceSizes corners per face, 3 or 4, in order
      * @param triangles triangle count (a quad counts as two), for the per-cosmetic limit
+     * @param rigged    for a skeletal mesh, its rig and geometry (then {@code corners} and {@code faceSizes}
+     *                  are empty); null for a still mesh
      */
-    public record Mesh(String source, boolean smooth, float[] corners, int[] faceSizes, int triangles) {
+    public record Mesh(String source, boolean smooth, float[] corners, int[] faceSizes, int triangles, Rigged rigged) {
         public static final int FLOATS_PER_CORNER = 8;
+
+        public Mesh(String source, boolean smooth, float[] corners, int[] faceSizes, int triangles) {
+            this(source, smooth, corners, faceSizes, triangles, null);
+        }
+    }
+
+    /**
+     * A skeletal mesh split at load time: pieces that follow a single joint, and the rest, which is
+     * skinned on the CPU. Positions are in the mesh file's units; the rig's placement maps them into the
+     * cosmetic.
+     *
+     * @param pieces  rigid geometry per joint
+     * @param skinned vertices weighted to several joints, or null when every triangle is rigid
+     */
+    public record Rigged(MeshRig rig, List<RigidPiece> pieces, SkinnedPiece skinned) {
+    }
+
+    /**
+     * Triangles whose corners all follow one joint, in that joint's space.
+     *
+     * @param corners {@link Mesh#FLOATS_PER_CORNER} floats per corner, three corners per triangle
+     */
+    public record RigidPiece(int joint, float[] corners) {
+        public int triangles() {
+            return corners.length / (3 * Mesh.FLOATS_PER_CORNER);
+        }
+    }
+
+    /**
+     * Vertices skinned from several joints.
+     *
+     * @param weightStart  first weight of each vertex
+     * @param weightCount  number of weights of each vertex
+     * @param weightJoint  joint of each weight
+     * @param weightBias   share of each weight, the shares of a vertex add up to 1
+     * @param weightPos    vertex position in each weight's joint space (3 floats per weight)
+     * @param weightNormal vertex normal in each weight's joint space (3 floats per weight)
+     * @param uvs          texture pixels per vertex (2 floats)
+     * @param triangles    vertex indices, three per triangle
+     */
+    public record SkinnedPiece(int[] weightStart, int[] weightCount, int[] weightJoint, float[] weightBias,
+                               float[] weightPos, float[] weightNormal, float[] uvs, int[] triangles) {
     }
 
     /**

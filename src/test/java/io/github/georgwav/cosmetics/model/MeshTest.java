@@ -1,5 +1,7 @@
 package io.github.georgwav.cosmetics.model;
 
+import com.google.gson.JsonParseException;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -398,7 +400,7 @@ class MeshTest {
         assertError("scale", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"scale\": 0}"));
         assertError("zero length", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"smooth\", \"normals\": [[0,0,0],[0,0,1],[0,0,1]]}"));
         assertError("missing.obj", withMesh("{\"model\": \"test:models/cosmetic/missing.obj\"}"));
-        assertError(".obj or .bbmodel", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
+        assertError(".obj, .md5mesh or .bbmodel", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
         assertError("not both", withMesh("{\"model\": \"test:models/cosmetic/a.obj\", " + tri + ", \"faces\": [[0,1,2]]}"));
         assertError("'cubes', 'meshes' or both", """
                 {"slot": "head", "texture": "test:t.png", "parts": [{"name": "empty"}]}
@@ -467,5 +469,39 @@ class MeshTest {
         float[] out = new float[end - start];
         System.arraycopy(values, start, out, 0, out.length);
         return out;
+    }
+
+    @Test
+    void objGroupsPickFacesAndFlipVKeepsTheFilesV() {
+        String obj = """
+                v 0 0 0
+                v 1 0 0
+                v 1 1 0
+                vt 0 0.25
+                vt 1 0.25
+                vt 1 1
+                o left
+                f 1/1 2/2 3/3
+                o right
+                f 3/3 2/2 1/1
+                f 1/1 3/3 2/2
+                """;
+        Map<String, String> files = Map.of("test:models/w.obj", obj, "test:models/g.obj",
+                obj.replace("o left", "g wing_l").replace("o right", "g wing_r"));
+        assertEquals(2, onlyMesh(parse(withMesh("{\"model\": \"test:models/g.obj\", \"group\": \"wing_r\"}"), files))
+                .faceSizes().length, "g groups work like o objects");
+        assertEquals(1, onlyMesh(parse(withMesh("{\"model\": \"test:models/w.obj\", \"group\": \"LEFT\"}"), files))
+                .faceSizes().length);
+        assertEquals(2, onlyMesh(parse(withMesh("{\"model\": \"test:models/w.obj\", \"group\": \"right\"}"), files))
+                .faceSizes().length);
+        assertEquals(3, onlyMesh(parse(withMesh("{\"model\": \"test:models/w.obj\"}"), files)).faceSizes().length);
+        JsonParseException e = assertThrows(JsonParseException.class,
+                () -> parse(withMesh("{\"model\": \"test:models/w.obj\", \"group\": \"middle\"}"), files));
+        assertTrue(e.getMessage().contains("left, right"), e.getMessage());
+
+        // V 0.25 is 12 px down a 16 px texture normally, 4 px down with flip_v.
+        assertEquals(12f, onlyMesh(parse(withMesh("{\"model\": \"test:models/w.obj\"}"), files)).corners()[4], EPS);
+        assertEquals(4f, onlyMesh(parse(withMesh("{\"model\": \"test:models/w.obj\", \"flip_v\": true}"), files))
+                .corners()[4], EPS);
     }
 }

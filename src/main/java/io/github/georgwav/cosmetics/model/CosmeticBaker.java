@@ -46,6 +46,8 @@ public final class CosmeticBaker {
     public static BakedCosmetic bake(CosmeticDefinition definition) {
         // One layer per (mode, texture, animation), in draw order: cutout, translucent, emissive.
         Map<RenderMode, Map<LayerKey, LayerBuffers>> buffers = new EnumMap<>(RenderMode.class);
+        // Skeletal meshes: a layer per joint piece (it moves with its joint) and one for the skinned rest.
+        Map<RenderMode, List<BakedCosmetic.Layer>> rigLayers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             LayerBuffers out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
                     .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation(), part.tinted()),
@@ -59,6 +61,11 @@ public final class CosmeticBaker {
                 bakeCube(cube, definition.textureWidth(), texH, out.flat);
             }
             for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                if (mesh.rigged() != null) {
+                    rigLayers.computeIfAbsent(part.mode(), m -> new ArrayList<>())
+                            .addAll(bakeRig(part, mesh, definition.textureWidth(), texH));
+                    continue;
+                }
                 FloatList target = out.flat;
                 if (mesh.smooth()) {
                     if (out.smooth == null) {
@@ -70,19 +77,88 @@ public final class CosmeticBaker {
             }
         }
         List<BakedCosmetic.Layer> layers = new ArrayList<>();
-        buffers.forEach((mode, byKey) -> byKey.forEach((key, lists) -> {
-            BakedMesh mesh = new BakedMesh(lists.flat.toArray());
-            BakedMesh smooth = lists.smooth != null ? new BakedMesh(lists.smooth.toArray()) : null;
-            if (smooth != null && smooth.isEmpty()) {
-                smooth = null;
+        for (RenderMode mode : RenderMode.values()) {
+            buffers.getOrDefault(mode, Map.of()).forEach((key, lists) -> {
+                BakedMesh mesh = new BakedMesh(lists.flat.toArray());
+                BakedMesh smooth = lists.smooth != null ? new BakedMesh(lists.smooth.toArray()) : null;
+                if (smooth != null && smooth.isEmpty()) {
+                    smooth = null;
+                }
+                if (!mesh.isEmpty() || smooth != null) {
+                    TextureFrames frames = key.textureAnimation() != null ? new TextureFrames(key.textureAnimation()) : null;
+                    layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
+                            key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames, key.tinted()));
+                }
+            });
+            layers.addAll(rigLayers.getOrDefault(mode, List.of()));
+        }
+        String[] styles = CosmeticParser.styles(definition.parts()).toArray(new String[0]);
+        for (BakedCosmetic.Layer layer : layers) {
+            if (layer.rig() != null) {
+                layer.rig().bindStyles(styles);
             }
-            if (!mesh.isEmpty() || smooth != null) {
-                TextureFrames frames = key.textureAnimation() != null ? new TextureFrames(key.textureAnimation()) : null;
-                layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
-                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames, key.tinted()));
+        }
+        return new BakedCosmetic(definition, layers, styles);
+    }
+
+    /**
+     * Layers of one skeletal mesh. Positions stay in the mesh file's units (the rig's placement and joint
+     * transforms are applied on the pose stack when drawing); UVs go to 0..1.
+     */
+    private static List<BakedCosmetic.Layer> bakeRig(CosmeticDefinition.Part part, CosmeticDefinition.Mesh mesh,
+                                                     float texW, float texH) {
+        CosmeticDefinition.Rigged rigged = mesh.rigged();
+        CosmeticDefinition.Animation[] animations = part.animations().toArray(new CosmeticDefinition.Animation[0]);
+        BakedMesh empty = new BakedMesh(new float[0]);
+        int stride = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        List<BakedCosmetic.Layer> layers = new ArrayList<>();
+        for (CosmeticDefinition.RigidPiece piece : rigged.pieces()) {
+            float[] c = piece.corners();
+            FloatList out = new FloatList();
+            for (int t = 0; t < piece.triangles(); t++) {
+                for (int i = 0; i < BakedMesh.VERTICES_PER_QUAD; i++) {
+                    int o = (t * 3 + Math.min(i, 2)) * stride;
+                    out.add(c[o]);
+                    out.add(c[o + 1]);
+                    out.add(c[o + 2]);
+                    out.add(c[o + 3] / texW);
+                    out.add(c[o + 4] / texH);
+                    out.add(c[o + 5]);
+                    out.add(c[o + 6]);
+                    out.add(c[o + 7]);
+                }
             }
-        }));
-        return new BakedCosmetic(definition, layers);
+            BakedMesh baked = new BakedMesh(out.toArray());
+            layers.add(new BakedCosmetic.Layer(part.mode(), part.texture(), mesh.smooth() ? empty : baked, animations,
+                    mesh.smooth() ? baked : null, frames(part), part.tinted(), rigged.rig(), piece.joint(), null));
+        }
+        CosmeticDefinition.SkinnedPiece skinned = rigged.skinned();
+        if (skinned != null) {
+            int triangles = skinned.triangles().length / 3;
+            int[] slotVertex = new int[triangles * BakedMesh.VERTICES_PER_QUAD];
+            float[] data = new float[slotVertex.length * BakedMesh.FLOATS_PER_VERTEX];
+            for (int t = 0; t < triangles; t++) {
+                for (int i = 0; i < BakedMesh.VERTICES_PER_QUAD; i++) {
+                    int slot = t * BakedMesh.VERTICES_PER_QUAD + i;
+                    int v = skinned.triangles()[t * 3 + Math.min(i, 2)];
+                    slotVertex[slot] = v;
+                    int o = slot * BakedMesh.FLOATS_PER_VERTEX;
+                    data[o + 3] = skinned.uvs()[v * 2] / texW;
+                    data[o + 4] = skinned.uvs()[v * 2 + 1] / texH;
+                    data[o + 6] = 1f;
+                }
+            }
+            SkinnedMesh skin = new SkinnedMesh(rigged.rig(), skinned.weightStart(), skinned.weightCount(),
+                    skinned.weightJoint(), skinned.weightBias(), skinned.weightPos(), skinned.weightNormal(), slotVertex,
+                    new BakedMesh(data));
+            layers.add(new BakedCosmetic.Layer(part.mode(), part.texture(), empty, animations, null, frames(part),
+                    part.tinted(), rigged.rig(), -1, skin));
+        }
+        return layers;
+    }
+
+    private static TextureFrames frames(CosmeticDefinition.Part part) {
+        return part.textureAnimation() != null ? new TextureFrames(part.textureAnimation()) : null;
     }
 
     /**

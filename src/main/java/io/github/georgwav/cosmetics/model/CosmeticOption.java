@@ -21,7 +21,9 @@ public enum CosmeticOption {
     /** Turn its glowing parts off. */
     GLOW,
     /** Turn its animation off or change its speed. */
-    ANIMATION;
+    ANIMATION,
+    /** Pick one of its styles (its skeletal meshes' named animations). */
+    STYLE;
 
     /** Every option allowed. */
     public static final int ALL = (1 << values().length) - 1;

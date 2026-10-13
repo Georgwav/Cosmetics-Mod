@@ -68,9 +68,9 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame) {
+                     int frame, int clip, float clipTime) {
         VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), poseStack.last(), consumer, light, color);
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -124,9 +124,9 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame) {
+                     int frame, int clip, float clipTime) {
         VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), poseStack.last(), consumer, light, color);
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -160,7 +160,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame) {
+                     int frame, int clip, float clipTime) {
         String id = cosmetic.id();
         float vOffset = vOffset(layer, frame);
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
@@ -170,7 +170,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             }
             long start = RenderStats.TIMING ? System.nanoTime() : 0L;
             try {
-                MeshEmitter.emitLayer(layer, vOffset, pose, consumer, light, color);
+                // A skinned layer is skinned here, when its vertices are written, for the clip time it was
+                // submitted with.
+                MeshEmitter.emitLayer(layer, vOffset, clip, clipTime, pose, consumer, light, color);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }

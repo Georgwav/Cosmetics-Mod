@@ -10,17 +10,27 @@ import java.util.Map;
 /**
  * Reads Wavefront OBJ geometry: {@code v}, {@code vt}, {@code vn} and {@code f} (triangles, quads and
  * larger polygons, which {@link MeshBuilder} fans out), with 1-based and negative (relative) indices
- * and every corner form ({@code v}, {@code v/vt}, {@code v//vn}, {@code v/vt/vn}). Groups, objects,
- * smoothing groups and materials are ignored: shading and texture come from the cosmetic file.
+ * and every corner form ({@code v}, {@code v/vt}, {@code v//vn}, {@code v/vt/vn}). Objects ({@code o})
+ * and groups ({@code g}) can pick which faces to read; smoothing groups and materials are ignored:
+ * shading and texture come from the cosmetic file.
  *
  * <p>Coordinates are taken as cosmetic-space pixels (+Y down, -Z front). OBJ texture coordinates run
- * 0..1 with V pointing up; they become texture pixels with V pointing down.
+ * 0..1 with V pointing up; they become texture pixels with V pointing down (or, with {@code flipV},
+ * are taken as already pointing down).
  */
 final class ObjParser {
     private ObjParser() {
     }
 
     static MeshBuilder.Raw parse(String text, String file, float texW, float texH) {
+        return parse(text, file, texW, texH, false, null);
+    }
+
+    /**
+     * @param flipV  the file's V already points down
+     * @param group  only read faces under this {@code o} or {@code g} name (case-insensitive), or null for all
+     */
+    static MeshBuilder.Raw parse(String text, String file, float texW, float texH, boolean flipV, String group) {
         List<float[]> positions = new ArrayList<>();
         List<float[]> uvs = new ArrayList<>();
         List<float[]> normals = new ArrayList<>();
@@ -31,6 +41,9 @@ final class ObjParser {
         boolean sawFaceWithoutNormals = false;
         List<Integer> faceLines = new ArrayList<>();
         List<int[][]> faceRefs = new ArrayList<>();
+        String object = "";
+        String groupName = "";
+        java.util.Set<String> names = new java.util.TreeSet<>();
 
         String[] lines = text.split("\r?\n|\r", -1);
         for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -56,13 +69,24 @@ final class ObjParser {
                     // Exporters round to 1.0001 and the like; pull those back onto the texture.
                     float u = Math.max(0f, Math.min(1f, t[0]));
                     float v = Math.max(0f, Math.min(1f, t[1]));
-                    uvs.add(new float[]{u * texW, (1f - v) * texH});
+                    uvs.add(new float[]{u * texW, (flipV ? v : 1f - v) * texH});
                 }
                 case "vn" -> {
                     normals.add(numbers(tokens, 3, where, "vn"));
                     sawNormals = true;
                 }
+                case "o" -> {
+                    object = tokens.length > 1 ? line.substring(1).strip() : "";
+                    names.add(object);
+                }
+                case "g" -> {
+                    groupName = tokens.length > 1 ? line.substring(1).strip() : "";
+                    names.add(groupName);
+                }
                 case "f" -> {
+                    if (group != null && !group.equalsIgnoreCase(object) && !group.equalsIgnoreCase(groupName)) {
+                        continue;
+                    }
                     if (tokens.length < 4) {
                         throw new JsonParseException(where + ": a face needs at least 3 vertices");
                     }
@@ -82,6 +106,10 @@ final class ObjParser {
             }
         }
         if (faceRefs.isEmpty()) {
+            if (group != null) {
+                throw new JsonParseException(file + ": no faces in object or group '" + group + "' (it has "
+                        + (names.isEmpty() ? "none" : String.join(", ", names)) + ")");
+            }
             throw new JsonParseException(file + ": no faces");
         }
         boolean useNormals = sawNormals && !sawFaceWithoutNormals;

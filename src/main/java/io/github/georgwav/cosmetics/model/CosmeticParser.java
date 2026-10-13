@@ -46,6 +46,8 @@ public final class CosmeticParser {
     /** Largest mesh files read, in bytes. */
     static final int MAX_OBJ_BYTES = 4 << 20;
     static final int MAX_BBMODEL_BYTES = 16 << 20;
+    static final int MAX_MD5MESH_BYTES = 8 << 20;
+    static final int MAX_MD5ANIM_BYTES = 16 << 20;
 
     /**
      * Everything a cosmetic file may need besides itself.
@@ -173,8 +175,35 @@ public final class CosmeticParser {
         int options = json.has("options") ? parseOptions(json.get("options")) : CosmeticOption.ALL;
         int defaultColor = json.has("default_color") ? color(json.get("default_color"), "default_color")
                 : CosmeticDefinition.WHITE;
+        String defaultStyle = null;
+        if (json.has("default_style")) {
+            defaultStyle = json.get("default_style").getAsString();
+            if (!styles(parts).contains(defaultStyle)) {
+                throw new JsonParseException("default_style '" + defaultStyle + "' is not one of the cosmetic's styles "
+                        + styles(parts));
+            }
+        }
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor);
+                options, defaultColor, defaultStyle);
+    }
+
+    /** The names of every skeletal animation in the cosmetic, in the order they first appear. */
+    static List<String> styles(List<CosmeticDefinition.Part> parts) {
+        List<String> styles = new ArrayList<>();
+        for (CosmeticDefinition.Part part : parts) {
+            for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                if (mesh.rigged() == null) {
+                    continue;
+                }
+                MeshRig rig = mesh.rigged().rig();
+                for (int c = 0; c < rig.clipCount(); c++) {
+                    if (!styles.contains(rig.clip(c).name())) {
+                        styles.add(rig.clip(c).name());
+                    }
+                }
+            }
+        }
+        return styles;
     }
 
     /** {@code {"rainbow": false, "size": false}}: options left out stay allowed. */
@@ -192,7 +221,7 @@ public final class CosmeticParser {
             }
             if (option == null) {
                 throw new JsonParseException("options: unknown option '" + entry.getKey() + "' (known: tint, rainbow, "
-                        + "saturation, size, position, glow, animation)");
+                        + "saturation, size, position, glow, animation, style)");
             }
             if (!bool(entry.getValue(), "options." + entry.getKey())) {
                 options &= ~option.bit();
@@ -249,6 +278,7 @@ public final class CosmeticParser {
                 json.has("rotation") ? floats(json.get("rotation"), 3, where + ".rotation") : new float[3],
                 json.has("offset") ? floats(json.get("offset"), 3, where + ".offset") : new float[3]);
 
+        boolean flipV = json.has("flip_v") && bool(json.get("flip_v"), where + ".flip_v");
         MeshBuilder.Raw raw;
         String source;
         if (json.has("model")) {
@@ -256,13 +286,24 @@ public final class CosmeticParser {
                 throw new JsonParseException(where + ": use either 'model' or inline 'vertices'/'uvs'/'faces', not both");
             }
             String location = qualifyFile(namespace, json.get("model").getAsString(), where);
+            if (!location.endsWith(".obj") && json.has("group")) {
+                throw new JsonParseException(where + ": 'group' only applies to .obj files");
+            }
+            if (!location.endsWith(".md5mesh") && (json.has("bone_animation") || json.has("bone_animations")
+                    || json.has("submesh") || json.has("winding"))) {
+                throw new JsonParseException(where + ": 'bone_animation(s)', 'submesh' and 'winding' only apply to "
+                        + ".md5mesh files");
+            }
             if (location.endsWith(".obj")) {
-                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH);
+                String group = json.has("group") ? json.get("group").getAsString() : null;
+                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH, flipV, group);
+            } else if (location.endsWith(".md5mesh")) {
+                return md5Mesh(json, where, namespace, location, flipV, placement, smooth, texW, texH, context);
             } else if (location.endsWith(".bbmodel")) {
                 raw = BbmodelParser.parse(readText(context.files(), location, MAX_BBMODEL_BYTES), location, texW, texH,
                         context.warnings());
             } else {
-                throw new JsonParseException(where + ": model must be a .obj or .bbmodel file");
+                throw new JsonParseException(where + ": model must be a .obj, .md5mesh or .bbmodel file");
             }
             source = location;
         } else {
@@ -270,6 +311,74 @@ public final class CosmeticParser {
             source = where;
         }
         return MeshBuilder.build(raw, placement, smooth, texW, texH, source, context.warnings());
+    }
+
+    /**
+     * An {@code .md5mesh}: a still mesh in its bind pose, or with {@code "bone_animation"} (one) or
+     * {@code "bone_animations"} (several, by name) a skeletal mesh played from {@code .md5anim} files.
+     */
+    private static CosmeticDefinition.Mesh md5Mesh(JsonObject json, String where, String namespace, String location,
+                                                   boolean flipV, MeshBuilder.Placement placement, boolean smooth,
+                                                   int texW, int texH, Context context) {
+        Md5Parser.MeshFile file = Md5Parser.parseMesh(readText(context.files(), location, MAX_MD5MESH_BYTES), location);
+        RigBuilder.Winding winding = json.has("winding")
+                ? RigBuilder.Winding.byId(json.get("winding").getAsString(), where) : RigBuilder.Winding.AUTO;
+        String submesh = json.has("submesh") ? json.get("submesh").getAsString() : null;
+        RigBuilder.Options options = new RigBuilder.Options(submesh, flipV, winding, placement, smooth, texW, texH);
+        if (json.has("bone_animation") && json.has("bone_animations")) {
+            throw new JsonParseException(where + ": use 'bone_animation' or 'bone_animations', not both");
+        }
+        List<RigBuilder.NamedAnim> anims = new ArrayList<>();
+        if (json.has("bone_animation")) {
+            anims.add(boneAnimation(DEFAULT_CLIP, json.get("bone_animation"), where + ".bone_animation", namespace, context));
+        } else if (json.has("bone_animations")) {
+            if (!json.get("bone_animations").isJsonObject() || json.getAsJsonObject("bone_animations").isEmpty()) {
+                throw new JsonParseException(where + ".bone_animations must map names to animations");
+            }
+            for (var entry : json.getAsJsonObject("bone_animations").entrySet()) {
+                if (!entry.getKey().matches("[a-z0-9_.-]+")) {
+                    throw new JsonParseException(where + ".bone_animations: name '" + entry.getKey()
+                            + "' may only use a-z, 0-9, _, . and -");
+                }
+                anims.add(boneAnimation(entry.getKey(), entry.getValue(), where + ".bone_animations." + entry.getKey(),
+                        namespace, context));
+            }
+        }
+        if (anims.isEmpty()) {
+            return RigBuilder.still(file, options, location, context.warnings());
+        }
+        return RigBuilder.rigged(file, anims, options, location, context.warnings());
+    }
+
+    /** Name of the clip given with {@code "bone_animation"}. */
+    static final String DEFAULT_CLIP = "default";
+
+    /** {@code {"file": "ns:path.md5anim", "loop": true, "speed": 1}}, or just the file location. */
+    private static RigBuilder.NamedAnim boneAnimation(String name, JsonElement element, String where, String namespace,
+                                                      Context context) {
+        JsonObject json;
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            json = new JsonObject();
+            json.add("file", element);
+        } else if (element.isJsonObject()) {
+            json = element.getAsJsonObject();
+        } else {
+            throw new JsonParseException(where + " must be an .md5anim location or an object with a 'file'");
+        }
+        if (!json.has("file")) {
+            throw new JsonParseException(where + " needs a 'file' (an .md5anim)");
+        }
+        String location = qualifyFile(namespace, json.get("file").getAsString(), where);
+        if (!location.endsWith(".md5anim")) {
+            throw new JsonParseException(where + ".file must be an .md5anim file");
+        }
+        boolean loop = !json.has("loop") || bool(json.get("loop"), where + ".loop");
+        float speed = number(json, "speed", 1f, where);
+        if (!(speed > 0f && speed <= 100f)) {
+            throw new JsonParseException(where + ".speed must be above 0 and at most 100");
+        }
+        Md5Parser.AnimFile anim = Md5Parser.parseAnim(readText(context.files(), location, MAX_MD5ANIM_BYTES), location);
+        return new RigBuilder.NamedAnim(name, anim, loop, speed, location);
     }
 
     /** {@code vertices}, {@code uvs} (texture pixels) and optional {@code normals} are parallel arrays. */

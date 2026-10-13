@@ -58,6 +58,8 @@ roughly 0.003–0.009 ms and 0.014–0.042 ms per frame.
 | Cache geometry, emit through vanilla vertex consumers | JSON is baked once into flat float arrays (`BakedMesh`). Drawing pushes them into the vanilla `VertexConsumer`: from the buffer source before 1.21.9, and through `SubmitNodeCollector.submitCustomGeometry` from 1.21.9 on. No custom buffers. |
 | Emissive parts | `mode: "emissive"` uses the vanilla `eyes` render type. |
 | Free-form meshes | Inline, OBJ and Blockbench meshes are baked at load into the same float layout as cubes. Flat-shaded meshes share the cubes' buffer and draw call; smooth-shaded ones are written right after them into the same vertex consumer with per-vertex normals. Same render types and consumers, so Sodium, Iris (including the shadow pass) and ImmediatelyFast see nothing new. |
+| Animated textures | A vertical-strip frame is a V offset written with the vertices; a frame file is just another vanilla entity render type for its texture. No texture uploads, no custom atlas. |
+| Skeletal (MD5) meshes | Split at load into rigid pieces per joint and a CPU-skinned rest. Rigid pieces are drawn with their joint's transform pushed on the pose stack; skinned vertices are written from a buffer made at load. Same render types and vertex consumers as every other layer, so the Iris shadow pass and batching treat them the same. |
 | Iris shadow pass | Cosmetics are drawn in the shadow pass by default. `renderInShadowPass: false` skips them there for FPS. Iris is detected through its public API, by reflection, in an isolated class. |
 | No terrain/world rendering | The mod has no hooks into terrain, chunks or the level renderer at all. |
 | Respect other mods' culling | Nothing is forced to render. A skipped entity skips our layer. |

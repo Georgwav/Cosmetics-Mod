@@ -25,6 +25,8 @@
   "cosmeticsmod.screen.detail.back": "<  Back to wardrobe",
   "cosmeticsmod.screen.detail.wear": "Wear it",
   "cosmeticsmod.screen.detail.reset": "Reset this cosmetic",
+  "cosmeticsmod.screen.section.style": "Style",
+  "cosmeticsmod.screen.style": "Style",
   "cosmeticsmod.screen.section.color": "Colour",
   "cosmeticsmod.screen.section.shape": "Size and position",
   "cosmeticsmod.screen.section.effects": "Effects",

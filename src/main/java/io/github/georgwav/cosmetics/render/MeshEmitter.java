@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.BakedMesh;
+import io.github.georgwav.cosmetics.model.SkinnedMesh;
 
 /**
  * Pushes a {@link BakedMesh} into a vanilla {@link VertexConsumer}. This is the only place vertices
@@ -20,11 +21,22 @@ public final class MeshEmitter {
     }
 
     /**
-     * Emits all of a layer's geometry: the main mesh, then the smooth-shaded mesh if it has one.
-     * {@code vOffset} is non-zero only while a texture animated as a vertical strip shows a later frame.
+     * Emits all of a layer's geometry: the main mesh, then the smooth-shaded mesh if it has one, or for a
+     * skinned layer its geometry skinned for {@code clip} at {@code clipTime}. {@code vOffset} is non-zero
+     * only while a texture animated as a vertical strip shows a later frame.
      */
-    public static void emitLayer(BakedCosmetic.Layer layer, float vOffset, PoseStack.Pose pose, VertexConsumer consumer,
-                                 int light, int color) {
+    public static void emitLayer(BakedCosmetic.Layer layer, float vOffset, int clip, float clipTime, PoseStack.Pose pose,
+                                 VertexConsumer consumer, int light, int color) {
+        SkinnedMesh skin = layer.skin();
+        if (skin != null) {
+            BakedMesh skinned = skin.update(clip, clipTime);
+            if (vOffset == 0f) {
+                emitSmooth(skinned, pose, consumer, light, color);
+            } else {
+                emitFrame(skinned, pose, consumer, light, color, vOffset);
+            }
+            return;
+        }
         BakedMesh smooth = layer.smoothMesh();
         if (vOffset == 0f) {
             emit(layer.mesh(), pose, consumer, light, color);

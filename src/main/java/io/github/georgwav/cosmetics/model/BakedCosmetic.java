@@ -13,12 +13,42 @@ public final class BakedCosmetic {
 
     private final boolean emissive;
     private final boolean animated;
+    private final String[] styles;
+    private final int defaultStyle;
+    // Last style looked up by name (render thread), so the per-frame lookup is one reference compare.
+    private String lastStyleName;
+    private int lastStyle;
 
-    BakedCosmetic(CosmeticDefinition definition, List<Layer> layers) {
+    BakedCosmetic(CosmeticDefinition definition, List<Layer> layers, String[] styles) {
         this.definition = definition;
         this.layers = layers.toArray(new Layer[0]);
         this.emissive = layers.stream().anyMatch(l -> l.mode() == RenderMode.EMISSIVE);
-        this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null);
+        this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null
+                || (l.rig() != null && l.rig().animated()));
+        this.styles = styles;
+        int index = definition.defaultStyle() != null ? java.util.Arrays.asList(styles).indexOf(definition.defaultStyle()) : 0;
+        this.defaultStyle = Math.max(0, index);
+        this.lastStyle = defaultStyle;
+    }
+
+    /** Names of the cosmetic's styles (its skeletal animations); empty when it has none. */
+    public String[] styles() {
+        return styles;
+    }
+
+    public int defaultStyle() {
+        return defaultStyle;
+    }
+
+    /** Index of a style by name; the default style for null or a name the cosmetic doesn't have. */
+    public int styleIndex(String name) {
+        if (name == lastStyleName) {
+            return lastStyle;
+        }
+        int index = name == null ? -1 : java.util.Arrays.asList(styles).indexOf(name);
+        lastStyleName = name;
+        lastStyle = index >= 0 ? index : defaultStyle;
+        return lastStyle;
     }
 
     /** Whether players may change this option (otherwise it is hidden and has no effect). */
@@ -70,11 +100,20 @@ public final class BakedCosmetic {
         private final BakedMesh smoothMesh;
         private final TextureFrames textureFrames;
         private final boolean tinted;
+        private final MeshRig rig;
+        private final int joint;
+        private final SkinnedMesh skin;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
         Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
               BakedMesh smoothMesh, TextureFrames textureFrames, boolean tinted) {
+            this(mode, texture, mesh, animations, smoothMesh, textureFrames, tinted, null, -1, null);
+        }
+
+        Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
+              BakedMesh smoothMesh, TextureFrames textureFrames, boolean tinted, MeshRig rig, int joint,
+              SkinnedMesh skin) {
             this.mode = mode;
             this.texture = texture;
             this.mesh = mesh;
@@ -82,6 +121,24 @@ public final class BakedCosmetic {
             this.smoothMesh = smoothMesh;
             this.textureFrames = textureFrames;
             this.tinted = tinted;
+            this.rig = rig;
+            this.joint = joint;
+            this.skin = skin;
+        }
+
+        /** The skeleton this layer's geometry belongs to, or null for still geometry. */
+        public MeshRig rig() {
+            return rig;
+        }
+
+        /** The joint this layer's geometry follows rigidly, or -1 (still geometry, or the skinned layer). */
+        public int joint() {
+            return joint;
+        }
+
+        /** Geometry skinned from several joints, drawn instead of {@link #mesh()}; null for every other layer. */
+        public SkinnedMesh skin() {
+            return skin;
         }
 
         /** Takes the cosmetic's tint colour; otherwise it is always drawn in the texture's own colours. */

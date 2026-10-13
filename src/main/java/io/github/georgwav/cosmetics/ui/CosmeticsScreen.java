@@ -276,6 +276,15 @@ public final class CosmeticsScreen extends Screen {
                 () -> config.localEquipped().contains(id), on -> setEquipped(id, on)));
 
         // Only the options this cosmetic allows; the others keep the creator's setting and aren't shown.
+        String[] styles = cosmetic.styles();
+        if (styles.length > 1 && cosmetic.allows(CosmeticOption.STYLE)) {
+            String defaultStyle = styles[cosmetic.defaultStyle()];
+            section("section.style");
+            add(new Rows.Cycle<>(listX, 0, listW, t("style"), List.of(styles),
+                    () -> styles[cosmetic.styleIndex(config.options(id).style)],
+                    v -> config.editOptions(id).style = v.equals(defaultStyle) ? null : v,
+                    CosmeticsScreen::styleName));
+        }
         boolean tint = cosmetic.allows(CosmeticOption.TINT);
         boolean rainbow = cosmetic.allows(CosmeticOption.RAINBOW);
         boolean saturation = cosmetic.allows(CosmeticOption.SATURATION);
@@ -352,6 +361,12 @@ public final class CosmeticsScreen extends Screen {
             config.resetOptions(id);
             rebuildWidgets();
         }));
+    }
+
+    /** {@code curved} becomes {@code Curved}, {@code soft_wave} becomes {@code Soft wave}. */
+    private static String styleName(String style) {
+        String words = style.replace('_', ' ').replace('-', ' ');
+        return words.isEmpty() ? style : Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
     private static String times(double value) {

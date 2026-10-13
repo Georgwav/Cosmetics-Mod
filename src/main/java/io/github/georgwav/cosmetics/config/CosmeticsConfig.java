@@ -115,13 +115,15 @@ public final class CosmeticsConfig {
         public boolean animate = true;
         /** Animation speed multiplier, 0.1..3. */
         public float animationSpeed = 1.0f;
+        /** Which of the cosmetic's styles (named skeletal animations) to show, or null for its default. */
+        public String style = null;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
                     && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
-                    && animate == d.animate && animationSpeed == d.animationSpeed;
+                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null;
         }
 
         void sanitize() {
