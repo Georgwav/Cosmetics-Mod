@@ -8,6 +8,7 @@ import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.compat.iris.IrisCompat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
@@ -50,10 +51,12 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, EMOTE_WHEEL, EMOTE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, EMOTE_WHEEL, EMOTE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
+    /** Ticks the player blocks with a shield, with the mod on and then off. */
+    private static final int SHIELD_TICKS = 80;
     /** Ticks an emote plays during the emote check. */
     private static final int EMOTE_TICKS = 100;
     /** Ticks the elytra emote plays while gliding. */
@@ -167,15 +170,44 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back");
                     if (smoke) {
-                        // The emote wheel, then an emote on the player.
+                        // A plain held shield, blocking, with the mod on but nothing of it showing (only a cape,
+                        // behind), then with the mod off: the two screenshots must show the same shield.
                         client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-                        wheelFramesAtStart = EmoteWheelScreen.framesRendered;
-                        ScreenOpener.open(new EmoteWheelScreen(false));
-                        enter(Phase.EMOTE_WHEEL);
-                        writeMarker("ui_emote_wheel");
+                        CosmeticsConfig config = CosmeticsConfig.get();
+                        for (CosmeticSlot slot : CosmeticSlot.values()) {
+                            config.slotVisible.put(slot, slot == CosmeticSlot.CAPE);
+                        }
+                        client.options.keyUse.setDown(true);
+                        enter(Phase.SHIELD_ON);
                     } else {
                         startShadersOrFinish();
                     }
+                }
+            }
+            case SHIELD_ON -> {
+                client.options.keyUse.setDown(true);
+                if (ticks >= SHIELD_TICKS) {
+                    JsonObject shield = new JsonObject();
+                    shield.addProperty("blocking", client.player.isUsingItem());
+                    phases.add("shield", shield);
+                    CosmeticsConfig.get().enabled = false;
+                    enter(Phase.SHIELD_OFF);
+                }
+            }
+            case SHIELD_OFF -> {
+                client.options.keyUse.setDown(true);
+                if (ticks >= SHIELD_TICKS) {
+                    client.options.keyUse.setDown(false);
+                    CosmeticsConfig config = CosmeticsConfig.get();
+                    config.enabled = true;
+                    for (CosmeticSlot slot : CosmeticSlot.values()) {
+                        config.slotVisible.put(slot, true);
+                    }
+                    // The emote wheel, then an emote on the player.
+                    wheelFramesAtStart = EmoteWheelScreen.framesRendered;
+                    ScreenOpener.open(new EmoteWheelScreen(false));
+                    enter(Phase.EMOTE_WHEEL);
+                    writeMarker("ui_emote_wheel");
                 }
             }
             case EMOTE_WHEEL -> {

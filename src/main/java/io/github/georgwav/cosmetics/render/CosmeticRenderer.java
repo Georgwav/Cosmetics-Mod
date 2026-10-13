@@ -304,7 +304,8 @@ public final class CosmeticRenderer {
      * cosmetics in a held slot that this item takes (a shield cosmetic for a shield).
      */
     public static BakedCosmetic heldFor(java.util.UUID player, boolean local, CosmeticSlot slot) {
-        if (player == null || !CosmeticsConfig.get().enabled) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        if (player == null || !config.enabled || !config.slotVisible(slot)) {
             return null;
         }
         for (BakedCosmetic cosmetic : EquippedCosmetics.forPlayer(player, local)) {
