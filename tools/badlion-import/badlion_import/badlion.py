@@ -49,7 +49,7 @@ class Cosmetic:
     @property
     def model_name(self) -> str | None:
         model = self.raw.get("modelName")
-        return model if isinstance(model, str) and model else None
+        return model.strip() or None if isinstance(model, str) else None
 
     @property
     def animated(self) -> bool:

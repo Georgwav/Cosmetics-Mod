@@ -29,6 +29,13 @@ public final class CosmeticsConfig {
     // ---------------------------------------------------------------- general
 
     /** Master switch. */
+    /**
+     * Which defaults the file was written with, for one-time changes to them (0 = before this field):
+     * 2 made capes override the vanilla cape.
+     */
+    public int configVersion;
+    static final int CONFIG_VERSION = 2;
+
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
     public boolean showOwnCosmetics = true;
@@ -72,8 +79,9 @@ public final class CosmeticsConfig {
     // ---------------------------------------------------------------- compatibility
 
     /**
-     * What happens when another mod already uses a slot for a player. Everything defaults to
-     * {@link SlotPriority#DEFER}: we never override another mod's cape or model unless you say so.
+     * What happens when another mod already uses a slot for a player. Capes default to
+     * {@link SlotPriority#OVERRIDE} (a cape you put on replaces the vanilla one); everything else to
+     * {@link SlotPriority#DEFER}: we never override another mod's model unless you say so.
      */
     public Map<CosmeticSlot, SlotPriority> slotPriority = defaultPriorities();
     /** Players with a Figura avatar don't get our cosmetics in DEFER slots. */
@@ -86,6 +94,9 @@ public final class CosmeticsConfig {
      * playing on this client. Values are cosmetic ids like {@code "cosmeticsmod:top_hat"}.
      */
     public Map<String, List<String>> equipped = defaultEquipped();
+
+    /** Saved outfits: a name and the cosmetic ids it puts on, in the order they were saved. */
+    public Map<String, List<String>> outfits = new LinkedHashMap<>();
 
     /** Your settings for individual cosmetics (colour, size, position, glow, animation), keyed by cosmetic id. */
     public Map<String, CosmeticOptions> cosmeticOptions = new LinkedHashMap<>();
@@ -148,7 +159,7 @@ public final class CosmeticsConfig {
 
     public SlotPriority priority(CosmeticSlot slot) {
         SlotPriority priority = slotPriority.get(slot);
-        return priority != null ? priority : SlotPriority.DEFER;
+        return priority != null ? priority : defaultPriority(slot);
     }
 
     public boolean slotVisible(CosmeticSlot slot) {
@@ -173,6 +184,33 @@ public final class CosmeticsConfig {
     }
 
     /** The local player's equipped cosmetic ids (mutable; call {@code EquippedCosmetics.invalidate()} after changes). */
+    /** Saves what the local player wears as a new outfit named "Outfit N" and returns its name. */
+    public String saveOutfit(String namePrefix) {
+        int n = 1;
+        while (outfits.containsKey(namePrefix + " " + n)) {
+            n++;
+        }
+        String name = namePrefix + " " + n;
+        outfits.put(name, new ArrayList<>(localEquipped()));
+        return name;
+    }
+
+    /** Puts on exactly the cosmetics of an outfit (what you wore before comes off). */
+    public void wearOutfit(String name) {
+        List<String> ids = outfits.get(name);
+        if (ids != null) {
+            List<String> wearing = localEquipped();
+            wearing.clear();
+            wearing.addAll(ids);
+        }
+    }
+
+    /** Whether the local player wears exactly this outfit (in any order). */
+    public boolean wearsOutfit(String name) {
+        List<String> ids = outfits.get(name);
+        return ids != null && new java.util.HashSet<>(ids).equals(new java.util.HashSet<>(localEquipped()));
+    }
+
     public List<String> localEquipped() {
         return equipped.computeIfAbsent("local", k -> new ArrayList<>());
     }
@@ -244,14 +282,24 @@ public final class CosmeticsConfig {
         }
         slotVisible.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            slotPriority.putIfAbsent(slot, SlotPriority.DEFER);
+            slotPriority.putIfAbsent(slot, defaultPriority(slot));
             slotVisible.putIfAbsent(slot, true);
         }
+        if (configVersion < 2) {
+            // Files from before capes overrode the vanilla cape by default still say DEFER for them.
+            slotPriority.put(CosmeticSlot.CAPE, SlotPriority.OVERRIDE);
+        }
+        configVersion = CONFIG_VERSION;
         if (equipped == null) {
             equipped = new LinkedHashMap<>();
         }
         equipped.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         equipped.values().forEach(list -> list.removeIf(id -> id == null));
+        if (outfits == null) {
+            outfits = new LinkedHashMap<>();
+        }
+        outfits.entrySet().removeIf(e -> e.getKey() == null || e.getKey().isBlank() || e.getValue() == null);
+        outfits.values().forEach(list -> list.removeIf(id -> id == null));
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }
@@ -275,9 +323,14 @@ public final class CosmeticsConfig {
     private static Map<CosmeticSlot, SlotPriority> defaultPriorities() {
         Map<CosmeticSlot, SlotPriority> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, SlotPriority.DEFER);
+            map.put(slot, defaultPriority(slot));
         }
         return map;
+    }
+
+    /** Capes replace the vanilla cape by default: wearing one of ours and seeing the vanilla one makes no sense. */
+    static SlotPriority defaultPriority(CosmeticSlot slot) {
+        return slot == CosmeticSlot.CAPE ? SlotPriority.OVERRIDE : SlotPriority.DEFER;
     }
 
     private static Map<CosmeticSlot, Boolean> defaultVisibility() {

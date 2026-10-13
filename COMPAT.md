@@ -25,8 +25,8 @@ Status values:
 | EMF / ETF | pass (all 10) | Untested | Cosmetics follow the live transforms of the model's head and body parts, so EMF animations carry them. If a model mod hides or removes those parts, the cosmetic is not drawn. |
 | 3D Skin Layers | pass (all 10) | Untested | Hats sit 0.5 px above the outer skin layer so the 3D layer doesn't clip through them. |
 | Figura | pass (all 10; NoFigura where Figura has no build) | Untested | Defaults to DEFER on every slot for players with a Figura avatar. Set a slot to OVERRIDE to draw anyway. |
-| Mod Menu | not in CI | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. |
-| Essential | not in CI | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected (cape slot DEFER). Other Essential cosmetics simply render alongside ours. |
+| Mod Menu | pass (all 10, Mod Menu 11.0.5 to 21.0.0) | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. CI opens Mod Menu's list and the screen Mod Menu gets for this mod's "Configure" button, and checks that it draws. |
+| Essential | not in CI | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected; set the cape slot to DEFER to keep them over ours. Other Essential cosmetics simply render alongside ours. |
 
 ## By Minecraft version
 
@@ -66,7 +66,7 @@ roughly 0.003–0.009 ms and 0.014–0.042 ms per frame.
 | Fabric API over mixins; no `@Overwrite`/`@Redirect` | The mod currently has **zero mixins**. The layer, cape override, resource reload and test hooks are all Fabric API events. |
 | Only hard dependency is Fabric API | `fabric.mod.json` depends on `fabric-api` and nothing else. |
 | Isolated compat classes | `compat/Compat` checks `FabricLoader.isModLoaded` and only then touches `compat/iris/IrisCompat` or `compat/figura/FiguraCompat`. Those use method handles resolved once, so a missing or changed mod can't cause classloading errors. |
-| Never override another mod's cape/model unless enabled | `slotPriority` in the config: every slot defaults to `DEFER`. `OVERRIDE` on the cape slot hides the vanilla cape (via Fabric's `ALLOW_CAPE_RENDER`) only for players wearing one of our capes. |
+| Never override another mod's model unless enabled | `slotPriority` in the config: every slot except the cape defaults to `DEFER`. The cape slot defaults to `OVERRIDE`, which hides the vanilla cape (via Fabric's `ALLOW_CAPE_RENDER`) only for players wearing one of our capes; set it to `DEFER` to keep vanilla and other mods' capes instead. |
 | Crash containment | `RenderGuard`: an exception while drawing a cosmetic disables that cosmetic, logs it once, and the game continues. This also covers deferred drawing on 1.21.9+. F3+T re-enables. |
 
 ## How this is tested

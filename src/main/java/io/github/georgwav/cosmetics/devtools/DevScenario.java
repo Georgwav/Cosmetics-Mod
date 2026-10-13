@@ -16,6 +16,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,6 +29,7 @@ import java.util.List;
  * Off unless started with {@code -Dcosmeticsmod.smokeTest=true} or {@code -Dcosmeticsmod.benchmark=true}.
  *
  * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
+ * every page of the settings screen (and, with Mod Menu, the screen its "Configure" button opens),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
  * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
  * in the game directory, a PASSED/FAILED line goes to the log, and the game quits.
@@ -38,7 +40,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SETTINGS_UI, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -57,6 +59,8 @@ public final class DevScenario {
     private int ticks;
     private int uiTab;
     private int uiFramesAtTabStart;
+    /** The settings page the UI check has open. */
+    private CosmeticsScreen uiScreen;
     private long phaseStart;
     private boolean finished;
 
@@ -151,14 +155,35 @@ public final class DevScenario {
                     if (frames <= 0) {
                         failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
                     }
+                    // Switching tabs and resizing the window rebuild the page; its list must stay at the top.
+                    if (uiScreen != null && !uiScreen.rebuildKeepsListAtTop()) {
+                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab)
+                                + "' started its list lower after being rebuilt");
+                    }
                     uiTab++;
                     if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
                         openSettingsTab(client);
                         writeMarker("ui_" + CosmeticsScreen.testPageName(uiTab));
+                    } else if (FabricLoader.getInstance().isModLoaded("modmenu")) {
+                        openThroughModMenu();
+                        enter(Phase.MOD_MENU);
+                        writeMarker("ui_modmenu");
                     } else {
                         ScreenOpener.open(null);
                         startShadersOrFinish();
                     }
+                }
+            }
+            case MOD_MENU -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    JsonObject ui = phases.getAsJsonObject("settings_ui");
+                    ui.addProperty("modmenu", frames);
+                    if (uiScreen != null && frames <= 0) {
+                        failures.add("the settings screen opened from Mod Menu never rendered");
+                    }
+                    ScreenOpener.open(null);
+                    startShadersOrFinish();
                 }
             }
             case SHADERS_WARMUP -> {
@@ -199,7 +224,34 @@ public final class DevScenario {
 
     private void openSettingsTab(Minecraft client) {
         uiFramesAtTabStart = CosmeticsScreen.framesRendered;
-        ScreenOpener.open(CosmeticsScreen.testPage(uiTab));
+        uiScreen = CosmeticsScreen.testPage(uiTab);
+        ScreenOpener.open(uiScreen);
+    }
+
+    /**
+     * Opens the settings screen the way Mod Menu's "Configure" button does: Mod Menu's list, then the screen
+     * Mod Menu gets from this mod's "modmenu" entrypoint.
+     */
+    private void openThroughModMenu() {
+        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
+        uiScreen = null;
+        try {
+            Screen modList = (Screen) Class.forName("com.terraformersmc.modmenu.gui.ModsScreen")
+                    .getConstructor(Screen.class).newInstance((Screen) null);
+            Object screen = Class.forName("com.terraformersmc.modmenu.ModMenu")
+                    .getMethod("getConfigScreen", String.class, Screen.class)
+                    .invoke(null, CosmeticsMod.MOD_ID, modList);
+            if (screen instanceof CosmeticsScreen ours) {
+                uiScreen = ours;
+                ScreenOpener.open(ours);
+            } else {
+                failures.add("Mod Menu has no settings screen for this mod (got " + screen + ")");
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
+            CosmeticsMod.LOGGER.error("Opening the settings screen through Mod Menu failed", cause);
+            failures.add("opening the settings screen through Mod Menu failed: " + cause);
+        }
     }
 
     private void startShadersOrFinish() {

@@ -3,7 +3,8 @@ name: CI
 # What runs when (this is a private repo, so Actions minutes are budgeted):
 # - every push:         build + unit tests for all Minecraft versions, then the real game on EVERY supported
 #                       Minecraft release (1.21 ... 26.3) with the mod's in-game smoke test.
-# - weekly, manually, on main, or a commit message containing [compat]:
+# - weekly, manually, on main, or a commit message containing [compat] ([compat=modmenu,figura] runs only
+#   those stacks of ci/compat-sets.json, without the benchmark):
 #                       also the compat matrix (Sodium, Iris + Complementary/BSL, Voxy, Distant Horizons,
 #                       ImmediatelyFast, Entity Culling, EMF/ETF, 3D Skin Layers, Figura) and the benchmark
 #                       (shaders off and on).
@@ -84,6 +85,42 @@ jobs:
         run: python -m pip install --quiet ".[test]"
       - name: Unit tests
         run: python -m pytest -q
+
+  importer-pack:
+    # The importer's output read by the mod's real parser: packs converted from the synthetic fixtures (never
+    # Badlion files) must load without warnings and bake, with textures the size their cosmetics say.
+    name: Badlion importer packs load in the mod
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - name: Convert the synthetic fixtures
+        working-directory: tools/badlion-import
+        run: |
+          python -m pip install --quiet ".[test]"
+          python -m tests.make_packs "$RUNNER_TEMP/import"
+      - name: Load every cosmetic of both packs with the mod's parser
+        run: |
+          report=versions/1.21.11/build/test-results/test/TEST-io.github.georgwav.cosmetics.model.ImportedPackTest.xml
+          for pack in pack calibration; do
+            ./gradlew :1.21.11:test --tests 'io.github.georgwav.cosmetics.model.ImportedPackTest' \
+              "-Pcosmetics.validatePack=$RUNNER_TEMP/import/$pack"
+            # A skipped test would pass silently: make sure it really ran.
+            grep -q 'tests="1" skipped="0" failures="0" errors="0"' "$report" \
+              || { echo "::error::ImportedPackTest didn't run on $pack"; cat "$report"; exit 1; }
+          done
 
   personal-build:
     # The -Pcosmetics.bundleDir path of build.gradle, with a tiny pack made up right here (never the real
@@ -182,7 +219,8 @@ jobs:
       ${{ !cancelled() && (github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && inputs.compat)
       || github.ref == 'refs/heads/main'
-      || contains(github.event.head_commit.message, '[compat]')) }}
+      || contains(github.event.head_commit.message, '[compat]')
+      || contains(github.event.head_commit.message, '[compat=')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
@@ -209,7 +247,16 @@ jobs:
           key: mc-${{ matrix.node }}-${{ hashFiles('ci/versions.json', 'gradle.properties') }}
           restore-keys: mc-${{ matrix.node }}-
       - name: Run the game with each compat mod stack, then the benchmark
-        run: python3 ci/mcci.py compat --node "${{ matrix.node }}" --benchmark
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          # [compat=a,b] runs only those stacks (no benchmark); [compat] runs all of them.
+          sets=$(printf '%s' "$MESSAGE" | grep -oE '\[compat=[a-z0-9,-]+\]' | head -1 | sed -E 's/^\[compat=|\]$//g' || true)
+          if [ -n "$sets" ]; then
+            python3 ci/mcci.py compat --node "${{ matrix.node }}" --sets "$sets"
+          else
+            python3 ci/mcci.py compat --node "${{ matrix.node }}" --benchmark
+          fi
       - name: Upload logs and screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

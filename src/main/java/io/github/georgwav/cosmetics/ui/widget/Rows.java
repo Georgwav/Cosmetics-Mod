@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.widget;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.Theme;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /** The row widgets of the settings screen: one label on the left, one control on the right. */
@@ -329,6 +331,142 @@ public final class Rows {
         @Override
         protected void pressed(double mouseX, double mouseY) {
             action.run();
+        }
+    }
+
+    /** A category in a side bar: its name, how many it holds, and an accent bar when it's the open one. */
+    public static final class SideTab extends FlatWidget {
+        private final String label;
+        private final IntSupplier count;
+        private final BooleanSupplier selected;
+        private final Runnable action;
+
+        public SideTab(int x, int y, int width, int height, String label, IntSupplier count, BooleanSupplier selected,
+                       Runnable action) {
+            super(x, y, width, height, Component.literal(label));
+            this.label = label;
+            this.count = count;
+            this.selected = selected;
+            this.action = action;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            boolean on = selected.getAsBoolean();
+            if (on || hovered) {
+                rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
+            }
+            if (on) {
+                rect(g, getX(), getY(), 2, getHeight(), Theme.ACCENT);
+            }
+            int ty = textY(this, font);
+            int n = count.getAsInt();
+            String number = n >= 0 ? String.valueOf(n) : "";
+            textRight(g, font, number, getX() + getWidth() - 5, ty, Theme.TEXT_FAINT);
+            text(g, font, fit(font, label, getWidth() - 16 - font.width(number)), getX() + 8, ty,
+                    on || hovered ? Theme.TEXT : Theme.TEXT_DIM);
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            action.run();
+        }
+    }
+
+    /** A label, a faint detail, and a few small buttons at the right end, each with its own action. */
+    public static final class Actions extends FlatWidget {
+        private static final int GAP = 4;
+        private final String label;
+        private final Supplier<String> detail;
+        private final List<String> names;
+        private final List<Runnable> actions;
+
+        public Actions(int x, int y, int width, String label, Supplier<String> detail, List<String> names,
+                       List<Runnable> actions) {
+            super(x, y, width, Theme.ROW_HEIGHT, Component.literal(label));
+            this.label = label;
+            this.detail = detail;
+            this.names = names;
+            this.actions = actions;
+        }
+
+        /** Left edge of each button, then the right edge of the last. */
+        private int[] edges(Font font) {
+            int[] edges = new int[names.size() + 1];
+            int right = getX() + getWidth() - 4;
+            edges[names.size()] = right;
+            for (int i = names.size() - 1; i >= 0; i--) {
+                right -= font.width(names.get(i)) + 10;
+                edges[i] = right;
+                right -= GAP;
+            }
+            return edges;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            if (hovered) {
+                rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
+            }
+            int ty = textY(this, font);
+            int[] edges = edges(font);
+            String shown = fit(font, label, edges[0] - getX() - 16);
+            text(g, font, shown, getX() + 6, ty, Theme.TEXT);
+            String extra = detail.get();
+            int detailX = getX() + 12 + font.width(shown);
+            if (extra != null && !extra.isEmpty() && edges[0] - 8 - detailX > 20) {
+                text(g, font, fit(font, extra, edges[0] - 8 - detailX), detailX, ty, Theme.TEXT_FAINT);
+            }
+            for (int i = 0; i < names.size(); i++) {
+                int left = edges[i];
+                int right = i + 1 < names.size() ? edges[i + 1] - GAP : edges[names.size()];
+                boolean over = hovered && mouseX >= left && mouseX < right;
+                rect(g, left, getY() + 3, right - left, getHeight() - 6, over ? Theme.TRACK_HOVER : Theme.TRACK);
+                g.centeredText(font, names.get(i), (left + right) / 2, ty, over ? Theme.ACCENT_HOVER : Theme.TEXT);
+            }
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            int[] edges = edges(net.minecraft.client.Minecraft.getInstance().font);
+            for (int i = 0; i < names.size(); i++) {
+                int right = i + 1 < names.size() ? edges[i + 1] - GAP : edges[names.size()];
+                if (mouseX >= edges[i] && mouseX < right) {
+                    actions.get(i).run();
+                    return;
+                }
+            }
+        }
+    }
+
+    /** An invisible area that reports how far the mouse moved sideways while held, e.g. to turn the preview. */
+    public static final class DragArea extends FlatWidget {
+        private final DoubleConsumer onDrag;
+        private double lastX;
+
+        public DragArea(int x, int y, int width, int height, DoubleConsumer onDrag) {
+            super(x, y, width, height, Component.empty());
+            this.onDrag = onDrag;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+        }
+
+        @Override
+        public void playDownSound(SoundManager sounds) {
+            // Grabbing the preview isn't a button press.
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            lastX = mouseX;
+        }
+
+        @Override
+        protected void dragged(double mouseX, double mouseY) {
+            onDrag.accept(mouseX - lastX);
+            lastX = mouseX;
         }
     }
 }

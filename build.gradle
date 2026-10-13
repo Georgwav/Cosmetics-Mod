@@ -66,6 +66,13 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // -Pcosmetics.validatePack=<folder>: ImportedPackTest loads every cosmetic of that resource pack.
+    def validatePack = findProperty('cosmetics.validatePack')
+    if (validatePack) {
+        systemProperty 'cosmetics.validatePack', validatePack
+        inputs.property('validatePack', validatePack)
+        outputs.upToDateWhen { false }
+    }
 }
 
 processResources {
@@ -126,7 +133,9 @@ tasks.named('build') {
 
 // Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
 // prints the public and protected API of those classes exactly as this version's Minecraft has it.
-// An entry ending in .* (e.g. net.fabricmc.fabric.api.client.command.v2.*) lists that package's classes.
+// An entry ending in .* (e.g. net.fabricmc.fabric.api.client.command.v2.*) lists that package's classes; one
+// starting with ! also prints private members and bytecode (to see what a method calls); ?text lists the
+// resource files whose path contains the text.
 tasks.register('dumpApi') {
     group = 'help'
     def classes = providers.gradleProperty('dumpClasses').orElse('')
@@ -135,7 +144,17 @@ tasks.register('dumpApi') {
         def javap = ToolProvider.findFirst('javap').orElseThrow()
         classes.get().split(',').collect { it.trim() }.findAll { !it.isEmpty() }.each { name ->
             println "===== ${mcVersion} ${name} ====="
-            if (name.endsWith('.*')) {
+            if (name.startsWith('?')) {
+                // Resource paths in the game's jars containing the text (any case).
+                def needle = name.substring(1).toLowerCase()
+                classpath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { file ->
+                    new java.util.zip.ZipFile(file).withCloseable { zip ->
+                        zip.entries().collect { it.name }
+                                .findAll { !it.endsWith('.class') && it.toLowerCase().contains(needle) }
+                                .each { println "${it}    (${file.name})" }
+                    }
+                }
+            } else if (name.endsWith('.*')) {
                 def prefix = name[0..-3].replace('.', '/') + '/'
                 classpath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { file ->
                     new java.util.zip.ZipFile(file).withCloseable { zip ->
@@ -144,6 +163,8 @@ tasks.register('dumpApi') {
                                 .each { println "${it[0..-7].replace('/', '.')}    (${file.name})" }
                     }
                 }
+            } else if (name.startsWith('!')) {
+                javap.run(System.out, System.err, '-p', '-c', '-cp', classpath.asPath, name.substring(1))
             } else {
                 javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name)
             }

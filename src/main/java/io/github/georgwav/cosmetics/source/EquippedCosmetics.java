@@ -27,10 +27,29 @@ public final class EquippedCosmetics {
     private static int configVersion;
     private static int cachedConfigVersion = -1;
 
+    /** A cosmetic the settings screen shows on you while you point at it (trying it on), or null. */
+    private static String previewId;
+    /** When the screen last asked for the preview; it lapses on its own if the screen stops asking. */
+    private static long previewTouched;
+    private static final long PREVIEW_LAPSE_NANOS = 500_000_000L;
+
     /** Test/benchmark switch: every player wears every loaded cosmetic. */
     private static final boolean EQUIP_ALL = Boolean.getBoolean(CosmeticsMod.MOD_ID + ".equipAll");
 
     private EquippedCosmetics() {
+    }
+
+    /**
+     * Shows {@code id} on the local player in place of what they wear in its slot, without equipping it;
+     * null stops. The settings screen calls this every frame while something is pointed at, and the preview
+     * lapses half a second after the last call, so it can't stay on by accident.
+     */
+    public static void preview(String id) {
+        previewTouched = System.nanoTime();
+        if (!java.util.Objects.equals(id, previewId)) {
+            previewId = id;
+            localCache = null;
+        }
     }
 
     /** Call after changing {@link CosmeticsConfig#equipped}. */
@@ -47,8 +66,12 @@ public final class EquippedCosmetics {
             cachedConfigVersion = configVersion;
         }
         if (local) {
+            if (previewId != null && System.nanoTime() - previewTouched > PREVIEW_LAPSE_NANOS) {
+                previewId = null;
+                localCache = null;
+            }
             if (localCache == null) {
-                localCache = resolve(player.toString(), "local");
+                localCache = withPreview(resolve(player.toString(), "local"));
             }
             return localCache;
         }
@@ -62,6 +85,22 @@ public final class EquippedCosmetics {
             CACHE.put(player, cached);
         }
         return cached;
+    }
+
+    /** What the local player wears with the preview (if any) in place of the cosmetics in its slot. */
+    private static BakedCosmetic[] withPreview(BakedCosmetic[] worn) {
+        BakedCosmetic shown = previewId != null && !EQUIP_ALL ? CosmeticRegistry.get(previewId) : null;
+        if (shown == null) {
+            return worn;
+        }
+        List<BakedCosmetic> result = new ArrayList<>(worn.length + 1);
+        for (BakedCosmetic cosmetic : worn) {
+            if (cosmetic.slot() != shown.slot()) {
+                result.add(cosmetic);
+            }
+        }
+        result.add(shown);
+        return result.toArray(NONE);
     }
 
     private static BakedCosmetic[] resolve(String uuidKey, String aliasKey) {
