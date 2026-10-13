@@ -100,6 +100,40 @@ repaired on load.
   - To work on another version, run the Stonecutter "Set active project" task for it, and switch back to 1.21.11
     before committing.
 
+### Personal builds (your own cosmetics pack inside the jar)
+
+For your own use only: bundle a resource pack, such as the one the [Badlion importer](tools/badlion-import/README.md)
+writes into your private `cosmetics-personal` repository, into the mod jar.
+
+```
+./gradlew build -Pcosmetics.bundleDir=../cosmetics-personal/packs/badlion-import
+```
+
+- The pack's `assets/` folder is copied into the jar, where the mod finds `assets/<ns>/cosmetics/*.json` like its
+  own cosmetics. The path is relative to this repository's root, or absolute.
+- The jars are named `cosmeticsmod-<v>+mc<minecraft>-personal.jar`.
+- A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
+- Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
+  checks this mechanism with a tiny made-up pack.
+
+**In GitHub Actions**, the manual "Personal release" workflow (`.github/workflows/personal-release.yml`) builds every
+Minecraft version with the pack and publishes the `-personal` jars as a release of this repository. It refuses to
+run unless this repository is private (its releases are private too), runs no tests, keeps Gradle's output out of
+the log and never saves caches. It needs one secret, `PERSONAL_PACK_TOKEN`:
+
+1. On GitHub: your avatar → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained
+   tokens** → **Generate new token**.
+2. Name it (for example `cosmetics-personal read`), pick an expiration, and set **Resource owner** to `Georgwav`.
+3. **Repository access** → **Only select repositories** → `Georgwav/cosmetics-personal`.
+4. **Permissions** → **Repository permissions** → **Contents**: **Read-only** (Metadata read-only is added
+   automatically). Nothing else.
+5. **Generate token** and copy it.
+6. In this repository: **Settings** → **Secrets and variables** → **Actions** → **New repository secret**, name
+   `PERSONAL_PACK_TOKEN`, paste the token, **Add secret**.
+
+Then **Actions** → **Personal release** → **Run workflow** (inputs: the pack folder, default `packs/badlion-import`,
+and the `cosmetics-personal` branch, default `main`). The jars appear under **Releases**.
+
 ### Porting to a new Minecraft version
 
 1. Add the version to `settings.gradle.kts`, `versions/<v>/gradle.properties` and `ci/versions.json`.

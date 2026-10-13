@@ -38,6 +38,7 @@ data[0-9][0-9].jar
 /input/
 /packs/
 /personal-pack/
+/.personal-pack/
 import-report.txt
 .badlion-import-state.json
 tools/badlion-import/input/

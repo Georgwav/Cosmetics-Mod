@@ -10,6 +10,7 @@ name: CI
 # - a commit message containing [bench]: A/B benchmark of this commit against main (built from main here) on
 #                       1.21.11 and 26.3, same scene, alternating runs; medians and ranges in the job summary.
 # - a commit message containing [api-dump]: prints Minecraft class APIs listed in ci/api-dump.txt.
+# Normal CI never reads the private cosmetics pack; only personal-release.yml (manual) does.
 on:
   push:
   workflow_dispatch:
@@ -83,6 +84,47 @@ jobs:
         run: python -m pip install --quiet ".[test]"
       - name: Unit tests
         run: python -m pytest -q
+
+  personal-build:
+    # The -Pcosmetics.bundleDir path of build.gradle, with a tiny pack made up right here (never the real
+    # one, which only the manual personal-release workflow reads): the jar gets the pack's files and the
+    # -personal name, and a pack file that clashes with one of the mod's own fails the build.
+    name: Personal build check (synthetic pack)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - name: Make a synthetic pack
+        run: |
+          pack="$RUNNER_TEMP/pack/assets/synthetic"
+          mkdir -p "$pack/cosmetics" "$pack/textures/cosmetic"
+          cp src/main/resources/assets/cosmeticsmod/textures/cosmetic/halo.png "$pack/textures/cosmetic/box.png"
+          echo '{"slot":"head","texture":"synthetic:textures/cosmetic/box.png","parts":[{"cubes":[{"from":[-1,-10,-1],"to":[1,-8,1],"uv":[0,0]}]}]}' > "$pack/cosmetics/box.json"
+      - name: Build 1.21.11 with it
+        run: ./gradlew :1.21.11:collectJar -x test --no-build-cache "-Pcosmetics.bundleDir=$RUNNER_TEMP/pack"
+      - name: The jar is named -personal and holds the pack
+        run: |
+          jar=$(ls build/libs/*+mc1.21.11-personal.jar)
+          unzip -l "$jar" | grep -q 'assets/synthetic/cosmetics/box.json'
+          unzip -l "$jar" | grep -q 'assets/cosmeticsmod/cosmetics/top_hat.json'
+          echo "OK: $jar"
+      - name: A pack file that clashes with the mod's own fails the build
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack/assets/cosmeticsmod/cosmetics"
+          cp src/main/resources/assets/cosmeticsmod/cosmetics/top_hat.json "$RUNNER_TEMP/pack/assets/cosmeticsmod/cosmetics/"
+          if ./gradlew :1.21.11:processResources --no-build-cache -q "-Pcosmetics.bundleDir=$RUNNER_TEMP/pack"; then
+            echo "::error::A clashing pack file was copied over the mod's own"
+            exit 1
+          fi
 
   runtime:
     name: In-game ${{ matrix.node }}
