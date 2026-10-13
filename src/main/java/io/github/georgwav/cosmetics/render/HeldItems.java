@@ -102,8 +102,8 @@ public final class HeldItems {
         }
         BakedCosmetic cosmetic = CosmeticRegistry.get(tag.cosmetic());
         return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(),
-                (pose, c, layer, l, color, frame, clip, clipTime) ->
-                        CosmeticsLayer.submit(collector, pose, c, layer, l, color, frame, clip, clipTime));
+                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+                        CosmeticsLayer.submit(collector, pose, c, layer, l, color, frame, clip, clipTime, cloth));
     }
     //?} elif >=1.21.4 {
     /*// Draws the cosmetic a shield was tagged with; false (draw the vanilla shield) when there is none.
@@ -114,8 +114,8 @@ public final class HeldItems {
         }
         BakedCosmetic cosmetic = CosmeticRegistry.get(tag.cosmetic());
         return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(),
-                (pose, c, layer, l, color, frame, clip, clipTime) ->
-                        CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime));
+                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+                        CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
     }
     *///?} else {
     /*// Draws the shield cosmetic of the player holding the shield being drawn; false (draw the vanilla shield)
@@ -123,8 +123,8 @@ public final class HeldItems {
     public static boolean drawShield(PoseStack poseStack, MultiBufferSource buffers, int light) {
         BakedCosmetic cosmetic = shield();
         return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, holderLocal,
-                (pose, c, layer, l, color, frame, clip, clipTime) ->
-                        CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime));
+                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+                        CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
     }
     *///?}
 }

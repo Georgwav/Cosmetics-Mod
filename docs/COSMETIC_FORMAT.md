@@ -28,7 +28,7 @@ stops the game or the other cosmetics.
 
 | Key | Required | Meaning |
 |---|---|---|
-| `slot` | yes | `head`, `face`, `body`, `back`, `cape` or `shield`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
+| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `aura`, `pet`, `arm` or `feet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
 | `parts` | yes, unless `model` is set | One or more parts. |
@@ -65,6 +65,12 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 - **Body anchor**: the body spans `[-4, 0, -2]` to `[4, 12, 2]`.
 - **`cape` slot**: before your cubes are drawn, the anchor is moved 2 px behind the body and swings exactly like the
   vanilla cape. Model capes like the vanilla cape cube, `from [-5, 0, -1] to [5, 16, 0]`, with the vanilla 64x32 cape layout.
+- **`pet` slot**: the pet sits on the wearer's left shoulder: model it standing on the origin, which is the top of
+  that shoulder (body space `[6, 0, 0]`), growing upwards (-Y).
+- **`arm` slot**: on the left arm (`"sides": "right"` or `"both"` to change it), the origin halfway down the arm; the
+  arm spans `[-2, -6, -2]` to `[2, 6, 2]` around it.
+- **`feet` slot**: on both legs (`"sides"` as above), modelled standing on the origin, the sole; the leg spans
+  `[-2, -12, -2]` to `[2, 0, 2]` above it.
 - **`shield` slot**: drawn instead of the vanilla shield while the player holds one (either hand, first and third
   person), in the vanilla shield model's space: its plate spans `[-6, -11, -2]` to `[6, 11, -1]` with the front facing
   -Z, and its handle `[-1, -3, -1]` to `[1, 3, 5]`. Shields in the inventory and on the ground stay vanilla.
@@ -437,6 +443,53 @@ the texture coordinates or swaps the texture, so it costs nothing extra to draw.
 - Texture animation follows the cosmetic's animation settings: off shows the first frame, and the speed
   setting speeds it up or slows it down.
 - Frame times are whole milliseconds, 1 to 600 000.
+
+## Particles
+
+Any cosmetic can give off particles: an aura, a trail behind a cape, sparkles from wings. A cosmetic in the
+`aura` slot can be particles alone, with no `parts` and no `texture`:
+
+```json
+{
+  "slot": "aura",
+  "name": "Ember Aura",
+  "particles": {
+    "texture": "cosmeticsmod:ember",
+    "rate": 14,
+    "lifetime": [0.8, 1.6],
+    "origin": [0, 2, 0],
+    "area": [6, 2, 6],
+    "velocity": [0, 14, 0],
+    "size": [2.5, 0.5],
+    "colors": ["#FF7A1A", "#FFE066"],
+    "glow": true
+  }
+}
+```
+
+`particles` is one emitter or a list of them. The particles go into the game's particle engine, so they stay in the
+world when the player moves on (a trail), work with shaders and are drawn like vanilla particles. Distances are in
+pixels and directions are the player's, turned with their body: +X to their right, +Y **up**, +Z behind them.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `texture` / `textures` | required | Particle texture(s). `ns:name` is the file `assets/ns/textures/particle/name.png` (any resource pack, vanilla too: `minecraft:heart`, `minecraft:flame`, ...). With several, a particle steps through them over its life. White textures take the `colors` best. |
+| `rate` | `10` | Particles per second (up to 200). |
+| `lifetime` | `[1, 2]` | Seconds, a number or `[shortest, longest]`. |
+| `origin` | `[0, 16, 0]` | Centre of the area particles start in, from the feet. |
+| `area` | `[6, 12, 6]` | Half size of that area (a box). |
+| `velocity` | `[0, 8, 0]` | Starting speed, pixels per second. |
+| `spread` | `[2, 2, 2]` | Random extra starting speed, up to this either way. |
+| `gravity` | `0` | Pull downwards, pixels per second squared (negative lifts). |
+| `drag` | `0` | Share of its speed a particle loses per second (0 to 1). |
+| `size` | `[2, 2]` | Size at birth and at death, pixels. |
+| `alpha` | `[1, 0]` | Opacity at birth and at death (0 to 1). |
+| `color` / `colors` | white | Tint(s); each particle picks one. |
+| `glow` | `false` | Full bright, ignoring the light around it. |
+| `spin` | `0` | Greatest turn, degrees per second, either way. |
+| `when` | `always` | `always`, `moving` (a trail) or `still`. |
+
+Players can turn particles off, set how many there are, and hide their own in first person (Display page).
 
 ## Player settings
 

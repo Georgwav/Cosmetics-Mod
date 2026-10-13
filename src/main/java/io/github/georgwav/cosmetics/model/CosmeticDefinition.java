@@ -18,6 +18,8 @@ import java.util.List;
  * @param defaultColor  RGB tint the cosmetic has until a player picks another (white = the texture's own colours)
  * @param defaultStyle  style (named skeletal animation) shown until a player picks another, or null for the first
  * @param wings         wing behaviour (flapping with movement), or null
+ * @param particles     particles the cosmetic gives off around its player (an aura, a trail); empty for none
+ * @param sides         for arm and feet cosmetics, which limbs: {@link #LEFT}, {@link #RIGHT} or both
  */
 public record CosmeticDefinition(
         String id,
@@ -30,13 +32,59 @@ public record CosmeticDefinition(
         int options,
         int defaultColor,
         String defaultStyle,
-        Wings wings
+        Wings wings,
+        List<ParticleEmitter> particles,
+        int sides
 ) {
     public static final int WHITE = 0xFFFFFF;
+    public static final int LEFT = 1;
+    public static final int RIGHT = 2;
 
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
-        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null);
+        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
+                slot.defaultSides());
+    }
+
+    /**
+     * Particles given off around the player: an aura, a cape's trail, sparkles from wings. They live in the world
+     * like vanilla particles (they stay behind when the player moves). Distances are in pixels (1/16 block) and
+     * directions are the player's, turned with the body: +X to the player's right, +Y up, +Z behind them.
+     *
+     * @param sprites    particle textures, one per stage of the particle's life (a single one for a still image).
+     *                   A sprite {@code ns:name} is the file {@code assets/ns/textures/particle/name.png}, so vanilla
+     *                   ones ({@code minecraft:heart}, {@code minecraft:flame}, ...) work too
+     * @param rate       particles per second
+     * @param minLife    shortest life, seconds
+     * @param maxLife    longest life, seconds
+     * @param origin     centre of the area particles start in, from the feet
+     * @param area       half size of that area (a box)
+     * @param velocity   starting speed, pixels per second
+     * @param spread     random extra starting speed, up to this either way, pixels per second
+     * @param gravity    pull downwards, pixels per second squared (negative lifts)
+     * @param drag       share of its speed a particle loses per second (0 keeps it, 1 stops it)
+     * @param startSize  size at birth, pixels
+     * @param endSize    size at the end of its life, pixels
+     * @param startAlpha opacity at birth (0 to 1)
+     * @param endAlpha   opacity at the end of its life
+     * @param colors     RGB tints, one picked per particle (white keeps the texture's colours)
+     * @param glow       drawn full bright, ignoring the light around it
+     * @param spin       greatest turn, degrees per second either way
+     * @param when       when the player gives particles off
+     */
+    public record ParticleEmitter(List<String> sprites, float rate, float minLife, float maxLife, float[] origin,
+                                  float[] area, float[] velocity, float[] spread, float gravity, float drag,
+                                  float startSize, float endSize, float startAlpha, float endAlpha, int[] colors,
+                                  boolean glow, float spin, ParticleTrigger when) {
+    }
+
+    /** When an emitter gives particles off. */
+    public enum ParticleTrigger {
+        ALWAYS, MOVING, STILL;
+
+        public boolean active(boolean moving) {
+            return this == ALWAYS || (this == MOVING) == moving;
+        }
     }
 
     /**

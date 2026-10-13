@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.Cloth;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -58,7 +59,8 @@ import java.util.NoSuchElementException;
             fillCapeSway(info, player, partialTick);
             this.buffers = bufferSource;
             PlayerModel<AbstractClientPlayer> model = getParentModel();
-            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body, this);
+            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body,
+                    new ModelPart[]{model.leftArm, model.rightArm, model.leftLeg, model.rightLeg}, this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -68,8 +70,8 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime, cloth);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -113,7 +115,7 @@ import java.util.NoSuchElementException;
             info.capeLean2 = state.capeLean2;
             this.buffers = bufferSource;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), this);
+            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -123,8 +125,8 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime, cloth);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -148,7 +150,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             info.capeLean2 = state.capeLean2;
             this.collector = nodeCollector;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), this);
+            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -158,13 +160,13 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        submit(collector, poseStack, cosmetic, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        submit(collector, poseStack, cosmetic, layer, light, color, frame, clip, clipTime, cloth);
     }
 
     // Hands one layer to the collector; also used for held items (see HeldItems).
     static void submit(SubmitNodeCollector collector, PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer,
-                       int light, int color, int frame, int clip, float clipTime) {
+                       int light, int color, int frame, int clip, float clipTime, Cloth.Shape cloth) {
         String id = cosmetic.id();
         float vOffset = vOffset(layer, frame);
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
@@ -176,7 +178,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             try {
                 // A skinned layer is skinned here, when its vertices are written, for the clip time it was
                 // submitted with.
-                MeshEmitter.emitLayer(layer, vOffset, clip, clipTime, pose, consumer, light, color);
+                MeshEmitter.emitLayer(layer, vOffset, clip, clipTime, pose, consumer, light, color, cloth);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }
@@ -190,9 +192,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     //? if <1.21.9 {
     /*// Draws one layer into a buffer source; also used for held items (see HeldItems).
     static void drawToBuffers(MultiBufferSource buffers, PoseStack poseStack, BakedCosmetic.Layer layer, int light,
-                              int color, int frame, int clip, float clipTime) {
+                              int color, int frame, int clip, float clipTime, Cloth.Shape cloth) {
         VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color, cloth);
     }
     *///?}
 
@@ -239,6 +241,11 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     }
 
     //? if >=1.21.2 {
+    private static ModelPart[] limbs(ModelPart root) {
+        return new ModelPart[]{child(root, "left_arm"), child(root, "right_arm"), child(root, "left_leg"),
+                child(root, "right_leg")};
+    }
+
     private static ModelPart child(ModelPart root, String name) {
         try {
             return root.getChild(name);

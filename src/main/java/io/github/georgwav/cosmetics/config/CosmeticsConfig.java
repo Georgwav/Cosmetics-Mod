@@ -54,6 +54,12 @@ public final class CosmeticsConfig {
     public boolean capePhysics = true;
     /** How strongly capes react to movement, 0..2 (1 = vanilla). */
     public float capeSwing = 1.0f;
+    /** Particle cosmetics (auras, trails) give off particles. */
+    public boolean particles = true;
+    /** How many particles, 0..2 (1 = as the cosmetic says). */
+    public float particleDensity = 1.0f;
+    /** Your own particles while you're in first person (off keeps them out of your view). */
+    public boolean ownParticlesInFirstPerson = true;
     /** Draw glowing (emissive) parts. */
     public boolean emissiveParts = true;
     /** Draw see-through (translucent) parts. */
@@ -128,13 +134,15 @@ public final class CosmeticsConfig {
         public float animationSpeed = 1.0f;
         /** Which of the cosmetic's styles (named skeletal animations) to show, or null for its default. */
         public String style = null;
+        /** For a flat cape: draw it as cloth that bends and ripples (Lunar's "cloth cloak") instead of a board. */
+        public boolean cloth = false;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
                     && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
-                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null;
+                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth;
         }
 
         void sanitize() {
@@ -226,6 +234,9 @@ public final class CosmeticsConfig {
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         capePhysics = defaults.capePhysics;
         capeSwing = defaults.capeSwing;
+        particles = defaults.particles;
+        particleDensity = defaults.particleDensity;
+        ownParticlesInFirstPerson = defaults.ownParticlesInFirstPerson;
         emissiveParts = defaults.emissiveParts;
         translucentParts = defaults.translucentParts;
         maxRenderDistance = defaults.maxRenderDistance;
@@ -304,6 +315,7 @@ public final class CosmeticsConfig {
             capeSwing = 1.0f;
         }
         capeSwing = Math.max(0f, Math.min(2f, capeSwing));
+        particleDensity = Float.isFinite(particleDensity) ? Math.max(0f, Math.min(2f, particleDensity)) : 1.0f;
         maxRenderDistance = Math.max(0, Math.min(512, maxRenderDistance));
         shadowDistance = Math.max(0, Math.min(512, shadowDistance));
         maxMeshTriangles = Math.max(1_000, Math.min(200_000, maxMeshTriangles));

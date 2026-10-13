@@ -109,6 +109,8 @@ public final class BakedCosmetic {
         private final int joint;
         private final SkinnedMesh skin;
         private final CosmeticDefinition.WingPart wing;
+        private Cloth.Mesh clothMesh;
+        private Cloth.Mesh clothSmoothMesh;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
@@ -182,6 +184,22 @@ public final class BakedCosmetic {
 
         public String texture() {
             return texture;
+        }
+
+        /** This layer split into strips for cloth cloaks; made on first use (render thread only). */
+        public Cloth.Mesh clothMesh() {
+            if (clothMesh == null) {
+                clothMesh = Cloth.prepare(mesh);
+            }
+            return clothMesh;
+        }
+
+        /** The smooth-shaded mesh split for cloth cloaks, or null when the layer has none. */
+        public Cloth.Mesh clothSmoothMesh() {
+            if (clothSmoothMesh == null && smoothMesh != null) {
+                clothSmoothMesh = Cloth.prepare(smoothMesh);
+            }
+            return clothSmoothMesh;
         }
 
         public BakedMesh mesh() {

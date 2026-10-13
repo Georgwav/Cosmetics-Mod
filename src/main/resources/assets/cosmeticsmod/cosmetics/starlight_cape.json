@@ -18,5 +18,19 @@
         { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0], "inflate": 0.02 }
       ]
     }
-  ]
+  ],
+  "particles": {
+    "texture": "cosmeticsmod:sparkle",
+    "when": "moving",
+    "rate": 12,
+    "lifetime": [0.5, 1],
+    "origin": [0, 10, 4],
+    "area": [4, 6, 1],
+    "velocity": [0, -2, 4],
+    "spread": [2, 2, 2],
+    "size": [2, 0.5],
+    "alpha": [1, 0],
+    "colors": ["#9FD8FF", "#FFFFFF", "#D9B8FF"],
+    "glow": true
+  }
 }

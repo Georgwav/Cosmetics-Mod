@@ -1,0 +1,16 @@
+{
+  "slot": "pet",
+  "name": "Pocket Slime",
+  "texture": "cosmeticsmod:textures/cosmetic/pocket_slime.png",
+  "texture_size": [16, 8],
+  "parts": [
+    {
+      "name": "slime",
+      "mode": "translucent",
+      "animation": { "type": "bob", "axis": "y", "amplitude": 0.4, "speed": 0.7 },
+      "cubes": [
+        { "from": [-2, -4, -2], "to": [2, 0, 2], "uv": [0, 0] }
+      ]
+    }
+  ]
+}

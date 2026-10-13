@@ -21,10 +21,23 @@ public enum CosmeticSlot {
      * Shields. Drawn in place of a held shield, in the vanilla shield model's space: the plate spans
      * x -6..6, y -11..11, z -2..-1, its front facing -Z.
      */
-    SHIELD(Anchor.HELD);
+    SHIELD(Anchor.HELD),
+    /** Auras: particles around the player, usually without a model. */
+    AURA(Anchor.BODY),
+    /** Pets: sit on the wearer's left shoulder; modelled standing on the origin, which is the top of that shoulder. */
+    PET(Anchor.BODY),
+    /** Armbands, bracelets: on an arm (the left one unless the cosmetic says), the origin halfway down it. */
+    ARM(Anchor.ARMS),
+    /** Boots, anklets: on both legs (unless the cosmetic says), modelled standing on the origin, the sole. */
+    FEET(Anchor.LEGS);
 
-    /** HELD: drawn in place of a held item rather than on the player model. */
-    public enum Anchor { HEAD, BODY, HELD }
+    /** HELD: drawn in place of a held item rather than on the player model. ARMS, LEGS: on one or both limbs. */
+    public enum Anchor { HEAD, BODY, HELD, ARMS, LEGS }
+
+    /** Which limbs a cosmetic in this slot goes on unless it says: bit 1 the left one, bit 2 the right one. */
+    public int defaultSides() {
+        return this == ARM ? CosmeticDefinition.LEFT : CosmeticDefinition.LEFT | CosmeticDefinition.RIGHT;
+    }
 
     private final Anchor anchor;
 

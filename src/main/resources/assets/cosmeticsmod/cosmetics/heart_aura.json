@@ -1,0 +1,15 @@
+{
+  "slot": "aura",
+  "name": "Heart Aura",
+  "particles": {
+    "texture": "minecraft:heart",
+    "rate": 2,
+    "lifetime": [1.2, 2],
+    "origin": [0, 20, 0],
+    "area": [8, 10, 8],
+    "velocity": [0, 6, 0],
+    "spread": [1, 1, 1],
+    "size": [3, 3],
+    "alpha": [1, 0]
+  }
+}

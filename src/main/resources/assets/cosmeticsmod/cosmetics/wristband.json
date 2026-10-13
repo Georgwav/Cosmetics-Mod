@@ -1,0 +1,13 @@
+{
+  "slot": "arm",
+  "texture": "cosmeticsmod:textures/cosmetic/wristband.png",
+  "texture_size": [32, 16],
+  "parts": [
+    {
+      "name": "band",
+      "cubes": [
+        { "from": [-2.5, 3, -2.5], "to": [2.5, 5, 2.5], "uv": [0, 0] }
+      ]
+    }
+  ]
+}

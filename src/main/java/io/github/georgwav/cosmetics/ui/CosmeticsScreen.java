@@ -43,7 +43,7 @@ public final class CosmeticsScreen extends Screen {
 
     /** The wardrobe's categories, in the side bar's order. */
     private enum View {
-        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, OUTFITS;
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, OUTFITS;
 
         boolean includes(BakedCosmetic cosmetic, List<String> wearing) {
             return switch (this) {
@@ -56,6 +56,9 @@ public final class CosmeticsScreen extends Screen {
                 case BODY -> cosmetic.slot() == CosmeticSlot.BODY;
                 case BACK -> cosmetic.slot() == CosmeticSlot.BACK && cosmetic.wings() == null;
                 case SHIELDS -> cosmetic.slot() == CosmeticSlot.SHIELD;
+                case AURAS -> cosmetic.slot() == CosmeticSlot.AURA;
+                case PETS -> cosmetic.slot() == CosmeticSlot.PET;
+                case LIMBS -> cosmetic.slot() == CosmeticSlot.ARM || cosmetic.slot() == CosmeticSlot.FEET;
                 case OUTFITS -> false;
             };
         }
@@ -558,8 +561,15 @@ public final class CosmeticsScreen extends Screen {
 
         boolean glow = cosmetic.hasEmissive() && cosmetic.allows(CosmeticOption.GLOW);
         boolean animation = cosmetic.hasAnimation() && cosmetic.allows(CosmeticOption.ANIMATION);
-        if (glow || animation) {
+        // Cloth needs a flat cape: one with a layer that isn't skeletal (those wave by themselves).
+        boolean cloth = cosmetic.slot() == CosmeticSlot.CAPE
+                && java.util.Arrays.stream(cosmetic.layers()).anyMatch(l -> l.rig() == null);
+        if (glow || animation || cloth) {
             section("section.effects");
+        }
+        if (cloth) {
+            add(new Rows.Toggle(listX, 0, listW, t("cloth"), config.capePhysics ? null : t("cloth.physics_off"),
+                    () -> config.options(id).cloth, v -> config.editOptions(id).cloth = v));
         }
         if (glow) {
             add(new Rows.Toggle(listX, 0, listW, t("glow"), config.emissiveParts ? null : t("glow.off_globally"),
@@ -615,6 +625,12 @@ public final class CosmeticsScreen extends Screen {
         toggle("cape_physics", () -> c.capePhysics, v -> c.capePhysics = v);
         add(new Rows.Slider(listX, 0, listW, t("cape_swing"), 0, 2, 0.1,
                 () -> c.capeSwing, v -> c.capeSwing = (float) v, v -> Math.round(v * 100) + "%"));
+
+        section("section.particles");
+        toggle("particles", () -> c.particles, v -> c.particles = v);
+        add(new Rows.Slider(listX, 0, listW, t("particle_density"), 0, 2, 0.1,
+                () -> c.particleDensity, v -> c.particleDensity = (float) v, v -> Math.round(v * 100) + "%"));
+        toggle("own_particles_first_person", () -> c.ownParticlesInFirstPerson, v -> c.ownParticlesInFirstPerson = v);
     }
 
     private void buildPerformance() {

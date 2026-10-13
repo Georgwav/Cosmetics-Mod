@@ -3,7 +3,7 @@ name: CI
 # What runs when (this is a private repo, so Actions minutes are budgeted):
 # - every push:         build + unit tests for all Minecraft versions, then the real game on EVERY supported
 #                       Minecraft release (1.21 ... 26.3) with the mod's in-game smoke test.
-# - weekly, manually, on main, or a commit message containing [compat] ([compat=modmenu,figura] runs only
+# - weekly, manually, or a commit message containing [compat] ([compat=modmenu,figura] runs only
 #   those stacks of ci/compat-sets.json, without the benchmark):
 #                       also the compat matrix (Sodium, Iris + Complementary/BSL, Voxy, Distant Horizons,
 #                       ImmediatelyFast, Entity Culling, EMF/ETF, 3D Skin Layers, Figura) and the benchmark
@@ -218,7 +218,6 @@ jobs:
     if: >-
       ${{ !cancelled() && (github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && inputs.compat)
-      || github.ref == 'refs/heads/main'
       || contains(github.event.head_commit.message, '[compat]')
       || contains(github.event.head_commit.message, '[compat=')) }}
     runs-on: ubuntu-24.04

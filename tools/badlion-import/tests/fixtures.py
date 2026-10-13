@@ -198,7 +198,11 @@ IMPORT_COSMETICS = {
                             "sneakZOffset": 1, "armorOffset": 1.5, "wingTranslate": False}}],
     "BACK": [{"cosmeticId": 4, "name": "Hiker Pack", "hasModel": True, "modelName": "pack", "transparent": True,
               "defaultColor": {"r": 255, "g": 128, "b": 0}}],
-    "PET": [{"cosmeticId": 5, "name": "Dragon", "hasModel": True, "modelName": "dragon"}],
+    "PET": [{"cosmeticId": 5, "name": "Dragon", "hasModel": True, "modelName": "dragon",
+             "petData": {"onHead": False, "lighting": True, "culled": False, "smooth": True}}],
+    "PLAYER_PET": [{"cosmeticId": 1, "name": "Mini Me", "hasModel": False}],
+    "BOOTS": [{"cosmeticId": 2, "name": "Fire Boots", "hasModel": True, "modelName": "fire_boots"}],
+    "ARM_BAND": [{"cosmeticId": 1, "name": "Fire Fist", "hasModel": True, "modelName": "fire_fist"}],
     # Capes naming a model models.json doesn't have, or a blank one: Badlion draws its built-in cloak.
     "CAPE": [{"cosmeticId": 11, "name": "Old Cloak", "hasModel": True, "modelName": "cloak"},
              {"cosmeticId": 12, "name": "Blank Model", "hasModel": True, "modelName": " "}],
@@ -209,6 +213,9 @@ IMPORT_MODELS = {
     "BACK": {"pack": {"scale": 2.0, "translation": {"x": 0, "y": -1, "z": 0}, "applyChroma": False,
                       "flipUVs": True, "md5format": False}},
     "SHIELD": {"roundshield": {"scale": 1.5, "md5format": False, "flipUVs": False}},
+    "PET": {"dragon": {"scale": 0, "md5format": True, "flipUVs": False}},
+    "BOOTS": {"fire_boots": {"scale": 0, "md5format": False, "flipUVs": False}},
+    "ARM_BAND": {"fire_fist": {"scale": 0, "md5format": False, "flipUVs": False}},
 }
 
 
@@ -224,6 +231,13 @@ def import_files() -> dict:
         T + "shield/models/roundshield.obj": HAT_OBJ.encode(),
         T + "hat/1/glow.avif": avif_still((16, 16), color=(250, 250, 120, 255)),
         T + "pet/pet_5.avif": avif_still((8, 8)),
+        T + "boots/boots_2.avif": avif_still((16, 16)),
+        T + "boots/models/fire_boots.obj": HAT_OBJ.encode(),
+        T + "armband/armband_1.avif": avif_still((16, 16)),
+        T + "armband/models/fire_fist.obj": HAT_OBJ.encode(),
+        T + "pet/models/dragon/dragon.md5mesh": CAPE_MD5MESH.encode(),
+        T + "pet/models/dragon/shoulder.md5anim": md5anim().encode(),
+        T + "pet/models/dragon/air.md5anim": md5anim(3).encode(),
         T + "cloak/cloak_11.avif": avif_still((64, 32)),
         T + "cloak/cloak_12.avif": avif_still((64, 32)),
     }

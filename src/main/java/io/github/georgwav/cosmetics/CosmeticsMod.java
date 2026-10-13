@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics;
 
+import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
@@ -32,6 +33,7 @@ public final class CosmeticsMod implements ClientModInitializer {
                 ScreenOpener.requestOpen();
             }
             ScreenOpener.tick();
+            AuraParticles.tick(client);
         });
         DevScenario.init();
     }

@@ -51,7 +51,17 @@ class BundledCosmeticsTest {
                 }
             }
             BakedCosmetic cosmetic = CosmeticBaker.bake(definition);
-            assertTrue(cosmetic.layers().length > 0, id + " has no geometry");
+            assertTrue(cosmetic.layers().length > 0 || !definition.particles().isEmpty(), id + " has no geometry or particles");
+            for (CosmeticDefinition.ParticleEmitter emitter : definition.particles()) {
+                for (String sprite : emitter.sprites()) {
+                    String namespace = sprite.substring(0, sprite.indexOf(':'));
+                    if (!namespace.equals("minecraft")) {
+                        Path png = assets.resolve(namespace).resolve("textures/particle/"
+                                + sprite.substring(sprite.indexOf(':') + 1) + ".png");
+                        assertTrue(Files.exists(png), id + " uses a particle texture that doesn't exist: " + png);
+                    }
+                }
+            }
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                 String texture = layer.texture();
                 String namespace = texture.substring(0, texture.indexOf(':'));
