@@ -6,10 +6,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Parses cosmetic JSON files. See {@code docs/COSMETIC_FORMAT.md} for the format.
@@ -18,15 +21,33 @@ public final class CosmeticParser {
     private CosmeticParser() {
     }
 
+    /** Opens a model file referenced by a cosmetic ({@code namespace:path}, without the file extension). */
+    @FunctionalInterface
+    public interface ModelSource {
+        Reader open(String modelId) throws IOException;
+    }
+
+    private static final ModelSource NO_MODELS = modelId -> {
+        throw new IOException("model files are not available here");
+    };
+
     public static CosmeticDefinition parse(String id, Reader reader) {
+        return parse(id, reader, NO_MODELS);
+    }
+
+    public static CosmeticDefinition parse(String id, Reader reader, ModelSource models) {
         JsonElement root = JsonParser.parseReader(reader);
         if (!root.isJsonObject()) {
             throw new JsonParseException("Cosmetic " + id + " must be a JSON object");
         }
-        return parse(id, root.getAsJsonObject());
+        return parse(id, root.getAsJsonObject(), models);
     }
 
     public static CosmeticDefinition parse(String id, JsonObject json) {
+        return parse(id, json, NO_MODELS);
+    }
+
+    public static CosmeticDefinition parse(String id, JsonObject json, ModelSource models) {
         String namespace = id.substring(0, id.indexOf(':'));
         CosmeticSlot slot = CosmeticSlot.byId(requireString(json, "slot"));
         String texture = qualify(namespace, requireString(json, "texture"));
@@ -43,7 +64,14 @@ public final class CosmeticParser {
         List<CosmeticDefinition.Animation> defaultAnimations = json.has("animation")
                 ? parseAnimations(json.get("animation"), "animation") : List.of();
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
-        JsonArray partsJson = requireArray(json, "parts");
+        if (json.has("model")) {
+            BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models);
+            parts.addAll(model.parts());
+            if (!json.has("texture_size")) {
+                textureSize = new int[]{model.textureWidth(), model.textureHeight()};
+            }
+        }
+        JsonArray partsJson = json.has("model") && !json.has("parts") ? new JsonArray() : requireArray(json, "parts");
         for (int i = 0; i < partsJson.size(); i++) {
             JsonObject partJson = partsJson.get(i).getAsJsonObject();
             String name = partJson.has("name") ? partJson.get("name").getAsString() : "part" + i;
@@ -63,6 +91,50 @@ public final class CosmeticParser {
         }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+    }
+
+    /**
+     * A Bedrock geometry model ({@code "model": "namespace:name"} is
+     * {@code assets/namespace/cosmetic_models/name.geo.json}) plus per-bone settings from {@code "bones"}.
+     */
+    private static BedrockGeometry.Model loadModel(JsonObject json, String namespace, String texture,
+                                                   List<CosmeticDefinition.Animation> defaultAnimations,
+                                                   ModelSource models) {
+        String modelId = json.get("model").getAsString();
+        if (modelId.indexOf(':') < 0) {
+            modelId = namespace + ":" + modelId;
+        }
+        JsonElement geometry;
+        try (Reader reader = models.open(modelId)) {
+            geometry = JsonParser.parseReader(reader);
+        } catch (IOException e) {
+            throw new JsonParseException("Can't read model '" + modelId + "': " + e.getMessage());
+        }
+        if (!geometry.isJsonObject()) {
+            throw new JsonParseException("Model '" + modelId + "' must be a JSON object");
+        }
+
+        Map<String, RenderMode> modes = new HashMap<>();
+        Map<String, List<CosmeticDefinition.Animation>> animations = new HashMap<>();
+        Map<String, String> textures = new HashMap<>();
+        if (json.has("bones")) {
+            JsonObject bones = json.getAsJsonObject("bones");
+            for (String bone : bones.keySet()) {
+                JsonObject settings = bones.getAsJsonObject(bone);
+                String key = bone.toLowerCase(Locale.ROOT);
+                if (settings.has("mode")) {
+                    modes.put(key, RenderMode.byId(settings.get("mode").getAsString()));
+                }
+                if (settings.has("texture")) {
+                    textures.put(key, qualify(namespace, settings.get("texture").getAsString()));
+                }
+                if (settings.has("animation")) {
+                    animations.put(key, parseAnimations(settings.get("animation"), "bones." + bone + ".animation"));
+                }
+            }
+        }
+        return BedrockGeometry.convert(geometry.getAsJsonObject(), "model '" + modelId + "'", texture,
+                new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations);
     }
 
     /** {@code cosmeticsmod:top_hat} becomes {@code Top Hat}. */

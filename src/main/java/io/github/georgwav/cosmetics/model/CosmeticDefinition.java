@@ -84,8 +84,10 @@ public record CosmeticDefinition(
      * @param boxUv    vanilla box-UV origin {@code [u, v]}, or {@code null} when {@code faces} is used
      * @param faces    per-face UV rectangles {@code [u1, v1, u2, v2]} indexed by {@link Face#ordinal()};
      *                 a {@code null} entry hides that face. {@code null} when box UV is used.
-     * @param pivot    rotation origin in pixels
-     * @param rotation rotation in degrees around X, Y, Z (applied Z, then Y, then X like vanilla)
+     * @param pivot     rotation origin in pixels
+     * @param rotation  rotation in degrees around X, Y, Z (applied Z, then Y, then X like vanilla)
+     * @param transform optional full placement {@code [m00..m22 row-major, tx, ty, tz]} in pixels, used
+     *                  instead of {@code pivot}/{@code rotation} (imported models with nested rotations)
      */
     public record Cube(
             float[] from,
@@ -95,8 +97,13 @@ public record CosmeticDefinition(
             float[] boxUv,
             float[][] faces,
             float[] pivot,
-            float[] rotation
+            float[] rotation,
+            float[] transform
     ) {
+        public Cube(float[] from, float[] to, float inflate, boolean mirror, float[] boxUv, float[][] faces,
+                    float[] pivot, float[] rotation) {
+            this(from, to, inflate, mirror, boxUv, faces, pivot, rotation, null);
+        }
     }
 
     /** Face order used by per-face UVs. */

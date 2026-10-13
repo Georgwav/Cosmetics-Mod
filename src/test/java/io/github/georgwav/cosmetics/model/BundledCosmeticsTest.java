@@ -30,8 +30,11 @@ class BundledCosmeticsTest {
             String name = file.getFileName().toString();
             String id = "cosmeticsmod:" + name.substring(0, name.length() - ".json".length());
             BakedCosmetic cosmetic;
+            CosmeticParser.ModelSource models = modelId -> Files.newBufferedReader(assets
+                    .resolve(modelId.substring(0, modelId.indexOf(':')))
+                    .resolve("cosmetic_models/" + modelId.substring(modelId.indexOf(':') + 1) + ".geo.json"));
             try (Reader reader = Files.newBufferedReader(file)) {
-                cosmetic = CosmeticBaker.bake(CosmeticParser.parse(id, reader));
+                cosmetic = CosmeticBaker.bake(CosmeticParser.parse(id, reader, models));
             }
             assertTrue(cosmetic.layers().length > 0, id + " has no geometry");
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {

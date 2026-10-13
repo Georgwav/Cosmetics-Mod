@@ -31,7 +31,9 @@ stops the game or the other cosmetics.
 | `slot` | yes | `head`, `face`, `body`, `back` or `cape`. Decides the anchor (head or body) and which per-slot priority setting applies. |
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
-| `parts` | yes | One or more parts. |
+| `parts` | yes, unless `model` is set | One or more parts. |
+| `model` | no | A Blockbench / Bedrock model to use instead of (or as well as) `parts`. See [Blockbench models](#blockbench-models). |
+| `bones` | no | Per-bone settings for `model`. |
 | `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
 
 ## Parts
@@ -63,6 +65,52 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 | `mirror` | no | Mirrors UVs on X (vanilla `mirror`). |
 | `pivot` | no | Rotation origin in pixels. Default `[0, 0, 0]`. |
 | `rotation` | no | Degrees around X, Y, Z, applied in vanilla order: X, then Y, then Z. |
+
+## Blockbench models
+
+Instead of writing cubes by hand, model the cosmetic in [Blockbench](https://www.blockbench.net/):
+
+1. Create a **Bedrock Entity** model. Add the player as a reference (for example, start from the player
+   template or import a Bedrock player model) and build the cosmetic where it should sit on the player.
+2. Paint the texture in Blockbench and save it as a PNG in your resource pack, for example
+   `assets/<ns>/textures/cosmetic/crown.png`.
+3. **File → Export → Export Bedrock Geometry** to `assets/<ns>/cosmetic_models/crown.geo.json`. The folder
+   is `cosmetic_models`, not `models`: vanilla reads everything under `models` as block and item models.
+4. Add `assets/<ns>/cosmetics/crown.json`:
+
+```json
+{
+  "name": "Royal Crown",
+  "slot": "head",
+  "texture": "<ns>:textures/cosmetic/crown.png",
+  "model": "<ns>:crown",
+  "bones": {
+    "gems": { "mode": "emissive" }
+  }
+}
+```
+
+The bundled `cosmeticsmod:crown` is made exactly like this.
+
+- **Placement**: the model keeps the position you gave it relative to the player. The head and body anchors
+  both pivot at the neck (24 px up), so cosmetics follow head turns and body movement. For the `cape`
+  slot, build the cape relative to the top center of the back.
+- **Supported**: bones with parents, pivots and rotations, cube pivots and rotations, `inflate`, `mirror`,
+  box UV and per-face UV. Texture size comes from the model's `texture_width` / `texture_height`.
+- **Not used**: Bedrock animations, locators and `poly_mesh`. Use [Animation](#animation) instead.
+
+`bones` keys are bone names (case-insensitive):
+
+| Key | Meaning |
+|---|---|
+| `mode` | `cutout`, `translucent` or `emissive` for that bone's cubes. |
+| `texture` | Another texture for that bone, for example a glow overlay. Same texture size. |
+| `animation` | Movement for that bone. `spin` and `swing` turn around the bone's pivot unless you give a `pivot`. |
+
+Bones are converted to the Java entity model axes: `x` and `z` stay, `y` becomes `24 - y`, rotations
+`[x, y, z]` become `[-x, y, -z]`, and the `up` and `down` faces swap. This is the same relationship the
+vanilla Bedrock and Java player models have, so a model lines up with the player the way it did in
+Blockbench.
 
 ## Animation
 

@@ -80,8 +80,7 @@ public final class CosmeticBaker {
         };
 
         float[][] uvs = cube.boxUv() != null ? boxUv(cube) : cube.faces();
-        float[] rotation = rotationMatrix(cube.rotation());
-        float[] pivot = cube.pivot();
+        float[] affine = cube.transform() != null ? cube.transform() : affine(rotationMatrix(cube.rotation()), cube.pivot());
 
         for (int face = 0; face < 6; face++) {
             float[] uv = uvs[face];
@@ -100,13 +99,13 @@ public final class CosmeticBaker {
                 order = new int[]{3, 2, 1, 0};
                 normal[0] = -normal[0];
             }
-            float[] n = rotate(rotation, normal[0], normal[1], normal[2]);
+            float[] n = rotate(affine, normal[0], normal[1], normal[2]);
             for (int i : order) {
                 float[] p = c[faceCorners[face][i]];
-                float[] r = rotate(rotation, p[0] - pivot[0], p[1] - pivot[1], p[2] - pivot[2]);
-                out.add((r[0] + pivot[0]) / 16f);
-                out.add((r[1] + pivot[1]) / 16f);
-                out.add((r[2] + pivot[2]) / 16f);
+                float[] r = rotate(affine, p[0], p[1], p[2]);
+                out.add((r[0] + affine[9]) / 16f);
+                out.add((r[1] + affine[10]) / 16f);
+                out.add((r[2] + affine[11]) / 16f);
                 out.add(quadUv[i][0]);
                 out.add(quadUv[i][1]);
                 out.add(n[0]);
@@ -161,6 +160,34 @@ public final class CosmeticBaker {
         };
     }
 
+    /** Rotation {@code m} around {@code pivot} as {@code [m00..m22, tx, ty, tz]}: p' = m p + t. */
+    static float[] affine(float[] m, float[] pivot) {
+        float[] r = rotate(m, pivot[0], pivot[1], pivot[2]);
+        float[] a = new float[12];
+        System.arraycopy(m, 0, a, 0, 9);
+        a[9] = pivot[0] - r[0];
+        a[10] = pivot[1] - r[1];
+        a[11] = pivot[2] - r[2];
+        return a;
+    }
+
+    /** {@code outer} applied after {@code inner}, both {@code [m00..m22, tx, ty, tz]}. */
+    static float[] compose(float[] outer, float[] inner) {
+        float[] a = new float[12];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                a[row * 3 + col] = outer[row * 3] * inner[col] + outer[row * 3 + 1] * inner[3 + col]
+                        + outer[row * 3 + 2] * inner[6 + col];
+            }
+        }
+        float[] t = rotate(outer, inner[9], inner[10], inner[11]);
+        a[9] = t[0] + outer[9];
+        a[10] = t[1] + outer[10];
+        a[11] = t[2] + outer[11];
+        return a;
+    }
+
+    /** Multiplies the 3x3 part of {@code m} (the first 9 entries, row-major) with a vector. */
     static float[] rotate(float[] m, float x, float y, float z) {
         return new float[]{
                 m[0] * x + m[1] * y + m[2] * z,

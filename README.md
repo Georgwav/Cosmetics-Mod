@@ -50,9 +50,10 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:halo` (glowing, slowly spins and bobs)
   - `cosmeticsmod:explorer_backpack`
   - `cosmeticsmod:feather_wings` (flapping)
+  - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
-- **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. See
-  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
+- **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`, written by hand or modelled in
+  Blockbench (Bedrock Entity, exported as `.geo.json`). See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
 
 ### Config file (`config/cosmeticsmod.json`)
 
