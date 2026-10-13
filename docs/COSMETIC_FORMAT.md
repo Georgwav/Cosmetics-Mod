@@ -35,6 +35,11 @@ stops the game or the other cosmetics.
 | `model` | no | A Blockbench / Bedrock model to use instead of (or as well as) `parts`. See [Blockbench models](#blockbench-models). |
 | `bones` | no | Per-bone settings for `model`. |
 | `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
+| `texture_animation` | no | Flip-book animation of `texture`, for every part drawn with it. See [Animated textures](#animated-textures). |
+| `options` | no | Which settings players may change on the cosmetic's page. See [Player settings](#player-settings). |
+| `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
+| `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
+| `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts
 
@@ -46,6 +51,10 @@ stops the game or the other cosmetics.
 | `cubes` | one of `cubes`/`meshes` | The part's boxes. |
 | `meshes` | one of `cubes`/`meshes` | The part's free-form meshes. See [Meshes](#meshes). A part can have both. |
 | `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
+| `texture_animation` | no | Flip-book animation of this part's texture; overrides the cosmetic's. See [Animated textures](#animated-textures). |
+| `wing` | no | `"left"` or `"right"`: this part is one of the cosmetic's [wings](#wings). |
+| `wing_pivot` | no | Where that wing turns, in pixels. Default `[0, 0, 0]`. |
+| `tint` | no | `false` keeps this part in its texture's own colours whatever tint, rainbow or default colour is chosen. Default `true`. Use it to colour one layer of a cosmetic and leave the rest as painted. |
 
 ## Cubes
 
@@ -133,6 +142,10 @@ either `model` or inline geometry in one mesh, not both.
     texture pixels. They must stay within 0 to 1 (textures don't repeat).
   - `vn` normals are used for smooth shading when every face has them.
   - Materials, groups and smoothing groups are ignored: the texture and shading come from the cosmetic file.
+  - `"group": "<name>"` reads only the faces under that `o` (object) or `g` (group) name, so one file can
+    hold several pieces, for example a left and a right wing.
+- **MD5** (`.md5mesh`, up to 8 MiB): a skinned mesh, optionally animated with `.md5anim` files. See
+  [Skeletal meshes (MD5)](#skeletal-meshes-md5).
 - **Blockbench project** (`.bbmodel`, up to 16 MiB):
   - Reads the project's **mesh** elements, including their rotation and their groups' rotations. Cube
     elements are skipped with a warning; export those as a [Bedrock model](#blockbench-models) instead.
@@ -162,6 +175,7 @@ These apply to inline and file meshes, in this order: `mirror`, `scale`, `rotati
 | `rotation` | `[0, 0, 0]` | Degrees around X, Y, Z, applied X, then Y, then Z (like cubes). |
 | `offset` | `[0, 0, 0]` | Moves the mesh, in pixels. |
 | `shading` | `flat` | `flat`: one normal per face, like cubes. `smooth`: normals per vertex, from the file's normals if it has them, otherwise averaged from the faces around each vertex (larger faces count more). Smooth shading shows on `cutout` and `translucent` parts; `emissive` parts aren't lit, so it changes nothing there. |
+| `flip_v` | `false` | For `.obj` and `.md5mesh` files: the file's texture V runs the other way (for OBJ: already downwards; for MD5: upwards). |
 
 A mirror or negative scale also turns the faces around, so they still face outwards.
 
@@ -192,6 +206,111 @@ number of cube faces:
 - a triangle costs as much as a quad, so prefer quads where you can.
 
 Cosmetics without meshes draw exactly as before.
+
+## Skeletal meshes (MD5)
+
+An `.md5mesh` (id Software's MD5 format, version 10) holds joints and meshes whose vertices hang off weighted
+joints; `.md5anim` files move the joints. Use one like any mesh file:
+
+```json
+"meshes": [
+  {
+    "model": "<ns>:models/cosmetic/cloak/cloak.md5mesh",
+    "scale": [1, -1, 1],
+    "shading": "smooth",
+    "bone_animations": {
+      "rect":    "<ns>:models/cosmetic/cloak/rect.md5anim",
+      "curved":  "<ns>:models/cosmetic/cloak/curved.md5anim",
+      "dynamic": { "file": "<ns>:models/cosmetic/cloak/dynamic.md5anim", "speed": 1.5 }
+    }
+  }
+]
+```
+
+- **Without an animation** the mesh is drawn in its bind pose and costs exactly what an OBJ with the same
+  triangles costs.
+- **`bone_animation`** plays one animation: `{ "file": "...md5anim", "loop": true, "speed": 1 }`, or just the
+  file's location.
+- **`bone_animations`** maps names (`a-z`, `0-9`, `_`, `.`, `-`) to animations written the same way. The names
+  are the cosmetic's [styles](#styles): the player picks one on the cosmetic's page, and every skeletal mesh
+  in the cosmetic plays its animation of that name (or its first, if it has none by that name).
+- `loop` (default `true`): `false` plays once and holds the last frame. `speed` (default `1`, up to `100`)
+  multiplies the file's frame rate. Frames are blended smoothly. The cosmetic's animation setting turns the
+  animation off (first frame) or changes its speed.
+- **`submesh`**: an `.md5mesh` can hold several meshes (`mesh { shader "..." }` blocks). By default all are
+  used; `submesh` picks one by its shader name, the last part of that name with or without its extension, or
+  its index (`"0"`). Use one part per submesh to give each its own texture or mode.
+- **`winding`**: `auto` (default) works out which way a closed mesh's triangles face from its volume, and takes
+  open meshes (such as a flat cape) as clockwise, the id Tech convention. `cw` or `ccw` says which way the
+  file's triangles turn when seen from outside, if `auto` guesses wrong (the cosmetic looks lit from inside).
+- Placement keys (`mirror`, `scale`, `rotation`, `pivot`, `offset`) and `flip_v` work as for other meshes;
+  units are the file's own, so `scale` turns them into pixels.
+- MD5 files have no normals: `smooth` shading averages them from the faces, `flat` uses one per face.
+- Joints of every `.md5anim` must match the `.md5mesh` (same names, same parents, same order). A mismatch is
+  an error naming the joint.
+
+**Performance.** All the work happens once, when the files load: animations are turned into absolute joint
+transforms per frame, and the mesh is split by how its vertices are weighted.
+- Triangles whose corners all follow one joint become that joint's rigid piece. Drawing it is one joint
+  transform on the pose stack, then the normal vertex path.
+- Only the remaining triangles (corners shared between joints) are skinned on the CPU each frame, into a
+  buffer made at load time. Nothing is allocated per frame.
+- Mesh triangles count towards `maxMeshTriangles` like any other mesh.
+
+## Wings
+
+`wings` makes a cosmetic's wings flap with what the player does: slowly while standing, faster while
+walking or running, fastest while flying (creative flight or gliding with an elytra), and folded while
+sneaking. Changes blend smoothly, so the wings never jump when the player starts or stops.
+
+```json
+{
+  "slot": "back",
+  "texture": "<ns>:textures/cosmetic/wings.png",
+  "wings": {
+    "axis": "y",
+    "base": -25,
+    "idle":     { "amplitude": 6, "speed": 0.4 },
+    "moving":   { "amplitude": 18, "speed": 1.2 },
+    "flying":   { "base": -10, "amplitude": 30, "speed": 2.5 },
+    "sneaking": { "base": -45, "amplitude": 3, "speed": 0.3 },
+    "sneak_offset": [0, 1, 0],
+    "armor_offset": [0, 0, 1]
+  },
+  "parts": [
+    { "name": "left_wing",  "wing": "left",  "wing_pivot": [1, 0, 3],  "cubes": [ ... ] },
+    { "name": "right_wing", "wing": "right", "wing_pivot": [-1, 0, 3], "cubes": [ ... ] }
+  ]
+}
+```
+
+This is the bundled `cosmeticsmod:glider_wings`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `axis` | `y` | Axis the wings turn around (model axes). |
+| `base` | `0` | Resting angle in degrees for every state that doesn't set its own (sneaking defaults to 10° less). |
+| `idle`, `moving`, `flying`, `sneaking` | see below | Each `{ "base": degrees, "amplitude": degrees, "speed": flaps per second }`. |
+| `offset` | `[0, 0, 0]` | Pixels the whole cosmetic moves. |
+| `sneak_offset` | `[0, 0, 0]` | Pixels added while sneaking (blended in). |
+| `armor_offset` | `[0, 0, 0]` | Pixels added while something other than an elytra is worn in the chest slot. |
+| `spread` | `0` | Pixels each wing moves outwards, sideways. |
+
+Defaults per state: `idle` 6° at 0.35 flaps per second, `moving` 18° at 1, `flying` 32° at 2, `sneaking` 3° at 0.25.
+"Moving" is reached at about sprinting speed; slower walking blends between `idle` and `moving`.
+
+- The angle is `base + amplitude × sin(flap)`. The left wing turns by it around `axis` by the right-hand rule
+  (around Y, from the back towards the player's left side); the right wing turns the opposite way, each
+  around its own `wing_pivot`.
+- Skeletal meshes in a cosmetic with `wings` play one loop of their animation per flap, so baked-in flapping
+  speeds up and slows down too.
+- Flapping follows the cosmetic's animation setting: off holds the resting angle.
+
+## Styles
+
+A cosmetic's styles are the names of its skeletal meshes' `bone_animations`, in the order they first appear.
+With two or more, its page in game gets a **Style** setting (unless `options` has `"style": false`).
+`default_style` names the one shown until a player picks another.
 
 ## Blockbench models
 
@@ -274,6 +393,83 @@ The bundled wings flap out of step, because each wing swings the opposite way ar
 | `phase` | no | Offset into the cycle, 0 to 1, so parts can move out of step. |
 
 Players can turn animation off, or change its speed, for each cosmetic on its settings page.
+
+## Animated textures
+
+A texture can flip through frames like a flip-book. The geometry stays as it is; each frame only moves
+the texture coordinates or swaps the texture, so it costs nothing extra to draw.
+
+**All frames in one image**, stacked top to bottom. `texture_size` describes one frame, and the image is
+`frames` times as tall. A 64x32 cape with 4 frames is a 64x128 PNG:
+
+```json
+{
+  "slot": "cape",
+  "texture": "<ns>:textures/cosmetic/ember_cape.png",
+  "texture_size": [64, 32],
+  "texture_animation": { "frames": 4, "frame_times": [120, 80, 80, 120] },
+  "parts": [ { "cubes": [ { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0] } ] } ]
+}
+```
+
+**One file per frame**, all the same size:
+
+```json
+"texture_animation": {
+  "textures": ["<ns>:textures/cosmetic/flag_0.png", "<ns>:textures/cosmetic/flag_1.png"],
+  "frame_time": 100
+}
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `frames` | yes, unless `textures` is set | Number of frames, 1 to 1024. With `textures` it may be left out; if given it must match. |
+| `textures` | no | One texture per frame, shown instead of the part's `texture`. Without it, the frames are a vertical strip in the part's texture. |
+| `frame_time` | no | How long every frame shows, in milliseconds. Default `100`. |
+| `frame_times` | no | How long each frame shows, in milliseconds, one entry per frame. Overrides `frame_time`. |
+
+- The cosmetic's `texture_animation` applies to every part drawn with the cosmetic's own `texture`, including
+  the bones of a [Blockbench model](#blockbench-models). Parts with their own `texture` (such as a glow overlay)
+  stay still unless they set their own `texture_animation`.
+- Texture animation follows the cosmetic's animation settings: off shows the first frame, and the speed
+  setting speeds it up or slows it down.
+- Frame times are whole milliseconds, 1 to 600 000.
+
+## Player settings
+
+Each cosmetic has its own settings page in game. By default it offers everything; `options` turns settings
+off for one cosmetic. A setting that is off is hidden on the page and ignored when drawing (even if
+`config/cosmeticsmod.json` still has a value for it), so the cosmetic looks the way its creator set it:
+
+```json
+"options": { "rainbow": false, "saturation": false, "size": false }
+```
+
+| Key | Setting | When off |
+|---|---|---|
+| `tint` | Tint colour | The `default_color` is used. |
+| `rainbow` | Rainbow and its speed | No rainbow. |
+| `saturation` | How strong the tint or rainbow colour is (0 to 100 %) | Full strength. |
+| `size` | Size | Normal size. |
+| `position` | Move sideways, up, forward | Where the creator put it. |
+| `glow` | Glow on or off (only shown when the cosmetic has `emissive` parts) | Always glows. |
+| `animation` | Animation on or off and its speed (only shown when something moves or a texture is animated) | Always animated, at normal speed. |
+| `style` | Which [style](#styles) shows (only when the cosmetic has two or more) | The `default_style`. |
+
+Options left out stay allowed. A coloured cosmetic with a fixed look except for one layer:
+
+```json
+{
+  "slot": "back",
+  "texture": "<ns>:textures/cosmetic/banner.png",
+  "default_color": "#3366CC",
+  "options": { "rainbow": false },
+  "parts": [
+    { "name": "pole", "tint": false, "cubes": [ ... ] },
+    { "name": "cloth", "cubes": [ ... ] }
+  ]
+}
+```
 
 ## Equipping
 

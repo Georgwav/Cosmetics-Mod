@@ -1,0 +1,32 @@
+{
+  "slot": "back",
+  "name": "Wind Pennant",
+  "texture": "cosmeticsmod:textures/cosmetic/pennant.png",
+  "texture_size": [16, 16],
+  "default_color": "#E04848",
+  "default_style": "wave",
+  "parts": [
+    {
+      "name": "pole",
+      "tint": false,
+      "meshes": [
+        { "model": "cosmeticsmod:models/cosmetic/pennant/pennant.md5mesh", "submesh": "pole", "winding": "ccw" }
+      ]
+    },
+    {
+      "name": "flag",
+      "meshes": [
+        {
+          "model": "cosmeticsmod:models/cosmetic/pennant/pennant.md5mesh",
+          "submesh": "flag",
+          "winding": "ccw",
+          "shading": "smooth",
+          "bone_animations": {
+            "wave": "cosmeticsmod:models/cosmetic/pennant/wave.md5anim",
+            "calm": "cosmeticsmod:models/cosmetic/pennant/calm.md5anim"
+          }
+        }
+      ]
+    }
+  ]
+}

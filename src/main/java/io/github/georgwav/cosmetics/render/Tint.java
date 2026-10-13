@@ -1,19 +1,66 @@
 package io.github.georgwav.cosmetics.render;
 
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.CosmeticDefinition;
+import io.github.georgwav.cosmetics.model.CosmeticOption;
 
 /** The colour a cosmetic is tinted with. Plain maths, no Minecraft types, so it is unit-tested. */
 public final class Tint {
+    /** Saturation of the rainbow at full strength. */
+    static final float RAINBOW_SATURATION = 0.65f;
+
     private Tint() {
     }
 
-    /** ARGB tint: the chosen colour, or a slow trip around the colour wheel. */
+    /** ARGB tint for a cosmetic that allows every option and has no default colour of its own. */
     public static int argb(CosmeticsConfig.CosmeticOptions options, double seconds) {
-        if (!options.rainbow) {
-            return 0xFF000000 | options.color;
+        return argb(options, CosmeticOption.ALL, CosmeticDefinition.WHITE, seconds);
+    }
+
+    /** ARGB tint for a cosmetic, honouring which colour options it allows. */
+    public static int argb(CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic, double seconds) {
+        return argb(options, cosmetic.definition().options(), cosmetic.defaultColor(), seconds);
+    }
+
+    /**
+     * The player's colour (or the cosmetic's default), or a slow trip around the colour wheel, then made
+     * paler by the saturation setting. Options the cosmetic doesn't allow are ignored.
+     */
+    static int argb(CosmeticsConfig.CosmeticOptions options, int allowed, int defaultColor, double seconds) {
+        float saturation = (allowed & CosmeticOption.SATURATION.bit()) != 0 ? options.saturation : 1f;
+        if (options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0) {
+            double hue = seconds * options.rainbowSpeed / 10.0;
+            return 0xFF000000 | hsvToRgb((float) (hue - Math.floor(hue)), RAINBOW_SATURATION * saturation, 1f);
         }
-        double hue = seconds * options.rainbowSpeed / 10.0;
-        return 0xFF000000 | hsvToRgb((float) (hue - Math.floor(hue)), 0.65f, 1f);
+        int rgb = options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0 ? options.color : defaultColor;
+        if (saturation < 1f) {
+            rgb = desaturate(rgb, saturation);
+        }
+        return 0xFF000000 | rgb;
+    }
+
+    /** Scales an RGB colour's saturation (HSV) by {@code factor}, keeping its hue and brightness. */
+    static int desaturate(int rgb, float factor) {
+        float r = (rgb >> 16 & 0xFF) / 255f;
+        float g = (rgb >> 8 & 0xFF) / 255f;
+        float b = (rgb & 0xFF) / 255f;
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        if (max <= 0f || max == min) {
+            return rgb & 0xFFFFFF;
+        }
+        float delta = max - min;
+        float hue;
+        if (max == r) {
+            hue = ((g - b) / delta) / 6f;
+        } else if (max == g) {
+            hue = ((b - r) / delta + 2f) / 6f;
+        } else {
+            hue = ((r - g) / delta + 4f) / 6f;
+        }
+        hue -= (float) Math.floor(hue);
+        return hsvToRgb(hue, delta / max * factor, max);
     }
 
     /** RGB for a hue in [0, 1), saturation and value in [0, 1]. */

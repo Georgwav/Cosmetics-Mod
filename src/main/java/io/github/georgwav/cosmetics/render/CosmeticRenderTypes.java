@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.render;
 
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.RenderMode;
+import io.github.georgwav.cosmetics.model.TextureFrames;
 //? if >=1.21.11 {
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -25,6 +26,20 @@ public final class CosmeticRenderTypes {
         if (cached == null) {
             cached = create(layer.texture(), layer.mode());
             layer.renderType = cached;
+        }
+        return (RenderType) cached;
+    }
+
+    /** The render type for one frame of the layer; frames with their own texture each have their own. */
+    public static RenderType get(BakedCosmetic.Layer layer, int frame) {
+        TextureFrames frames = layer.textureFrames();
+        if (frames == null || frames.strip()) {
+            return get(layer);
+        }
+        Object cached = frames.renderTypes[frame];
+        if (cached == null) {
+            cached = create(frames.texture(frame), layer.mode());
+            frames.renderTypes[frame] = cached;
         }
         return (RenderType) cached;
     }

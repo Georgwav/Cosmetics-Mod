@@ -1,0 +1,116 @@
+name: Personal release
+
+# Builds every Minecraft version with your private cosmetics pack (Georgwav/cosmetics-personal) bundled into
+# the jars, and publishes the "-personal" jars as a release of this repository. Releases of a private
+# repository are private too.
+#
+# - Manual only, and it stops at once unless this repository is private.
+# - The pack is checked out with PERSONAL_PACK_TOKEN: a fine-grained token with read-only Contents access to
+#   Georgwav/cosmetics-personal and nothing else (see README.md, "Personal builds").
+# - No unit tests or game runs, and Gradle runs quietly: nothing from the pack is printed to the log.
+# - Caches are only read, never saved, and the build cache is off, so nothing from the pack reaches the
+#   caches normal CI uses. Normal CI (ci.yml) never touches the pack.
+on:
+  workflow_dispatch:
+    inputs:
+      pack:
+        description: Pack folder inside cosmetics-personal
+        default: packs/badlion-import
+        required: true
+      ref:
+        description: Branch, tag or commit of cosmetics-personal
+        default: main
+        required: true
+
+permissions:
+  contents: write # create the release
+
+concurrency:
+  group: personal-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release personal jars
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Refuse to run unless this repository is private
+        if: ${{ github.event.repository.private != true }}
+        run: |
+          echo "::error::This repository is public. Personal jars bundle your private cosmetics and are only built and released from a private repository."
+          exit 1
+
+      - name: Check the pack token is set
+        env:
+          TOKEN: ${{ secrets.PERSONAL_PACK_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::The PERSONAL_PACK_TOKEN secret is not set (see README.md, Personal builds)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Check out the private pack
+        uses: actions/checkout@v4
+        with:
+          repository: Georgwav/cosmetics-personal
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.PERSONAL_PACK_TOKEN }}
+          path: .personal-pack
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check the pack folder
+        env:
+          PACK: ${{ inputs.pack }}
+        run: |
+          case "$PACK" in
+            /*|*..*) echo "::error::The pack folder must be a path inside cosmetics-personal."; exit 1 ;;
+          esac
+          if [ ! -d ".personal-pack/$PACK/assets" ]; then
+            echo "::error::cosmetics-personal has no $PACK/assets folder."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Restore what normal CI cached (Minecraft, Loom), but never save: the outputs contain the pack.
+          cache-read-only: true
+
+      - name: Build every Minecraft version with the pack bundled
+        env:
+          PACK: ${{ inputs.pack }}
+        run: |
+          # Gradle's output stays in a file: an error could name files from the pack.
+          if ! ./gradlew collectJar --no-build-cache --quiet "-Pcosmetics.bundleDir=.personal-pack/$PACK" > "$RUNNER_TEMP/gradle.log" 2>&1; then
+            echo "::error::The build failed. Lines that could name pack files are left out below; build locally with -Pcosmetics.bundleDir to see everything."
+            grep -v -e 'personal-pack' -e 'assets/' "$RUNNER_TEMP/gradle.log" | tail -n 40 || true
+            exit 1
+          fi
+
+      - name: Publish a private release with the personal jars
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACK_REF: ${{ inputs.ref }}
+        run: |
+          shopt -s nullglob
+          jars=(build/libs/*-personal.jar)
+          if [ ${#jars[@]} -eq 0 ]; then
+            echo "::error::No -personal jars were built."
+            exit 1
+          fi
+          tag="personal-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$tag" "${jars[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "Personal build $(date -u +%Y-%m-%d)" \
+            --notes "Personal jars with the cosmetics-personal pack bundled (pack ref: $PACK_REF, mod commit: $GITHUB_SHA). For your own use only."
+          echo "Released ${#jars[@]} jars as $tag" >> "$GITHUB_STEP_SUMMARY"

@@ -46,6 +46,8 @@ public final class CosmeticParser {
     /** Largest mesh files read, in bytes. */
     static final int MAX_OBJ_BYTES = 4 << 20;
     static final int MAX_BBMODEL_BYTES = 16 << 20;
+    static final int MAX_MD5MESH_BYTES = 8 << 20;
+    static final int MAX_MD5ANIM_BYTES = 16 << 20;
 
     /**
      * Everything a cosmetic file may need besides itself.
@@ -101,10 +103,16 @@ public final class CosmeticParser {
         // A cosmetic-level animation applies to every part that doesn't set its own.
         List<CosmeticDefinition.Animation> defaultAnimations = json.has("animation")
                 ? parseAnimations(json.get("animation"), "animation") : List.of();
+        // A cosmetic-level texture animation applies to every part drawn with the cosmetic's own texture.
+        CosmeticDefinition.TextureAnimation textureAnimation = json.has("texture_animation")
+                ? parseTextureAnimation(json.get("texture_animation"), namespace, "texture_animation") : null;
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
         if (json.has("model")) {
             BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models);
-            parts.addAll(model.parts());
+            for (CosmeticDefinition.Part part : model.parts()) {
+                parts.add(textureAnimation != null && part.texture().equals(texture)
+                        ? part.withTextureAnimation(textureAnimation) : part);
+            }
             if (!json.has("texture_size")) {
                 textureSize = new int[]{model.textureWidth(), model.textureHeight()};
             }
@@ -139,7 +147,29 @@ public final class CosmeticParser {
             }
             List<CosmeticDefinition.Animation> animations = partJson.has("animation")
                     ? parseAnimations(partJson.get("animation"), name + ".animation") : defaultAnimations;
-            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations, List.copyOf(meshes)));
+            CosmeticDefinition.TextureAnimation partTextureAnimation;
+            if (partJson.has("texture_animation")) {
+                partTextureAnimation = parseTextureAnimation(partJson.get("texture_animation"), namespace,
+                        name + ".texture_animation");
+            } else {
+                partTextureAnimation = partTexture.equals(texture) ? textureAnimation : null;
+            }
+            boolean tinted = !partJson.has("tint") || bool(partJson.get("tint"), name + ".tint");
+            CosmeticDefinition.WingPart wing = null;
+            if (partJson.has("wing")) {
+                int side = switch (partJson.get("wing").getAsString()) {
+                    case "left" -> 1;
+                    case "right" -> -1;
+                    default -> throw new JsonParseException(name + ".wing must be 'left' or 'right'");
+                };
+                float[] pivot = partJson.has("wing_pivot") ? floats(partJson.get("wing_pivot"), 3, name + ".wing_pivot")
+                        : new float[3];
+                wing = new CosmeticDefinition.WingPart(side, pivot[0], pivot[1], pivot[2]);
+            } else if (partJson.has("wing_pivot")) {
+                throw new JsonParseException(name + ": 'wing_pivot' needs 'wing'");
+            }
+            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations,
+                    List.copyOf(meshes), partTextureAnimation, tinted, wing));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
@@ -155,7 +185,135 @@ public final class CosmeticParser {
                     + context.maxMeshTriangles() + " (maxMeshTriangles in config/cosmeticsmod.json)");
         }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
-        return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+        int options = json.has("options") ? parseOptions(json.get("options")) : CosmeticOption.ALL;
+        int defaultColor = json.has("default_color") ? color(json.get("default_color"), "default_color")
+                : CosmeticDefinition.WHITE;
+        String defaultStyle = null;
+        if (json.has("default_style")) {
+            defaultStyle = json.get("default_style").getAsString();
+            if (!styles(parts).contains(defaultStyle)) {
+                throw new JsonParseException("default_style '" + defaultStyle + "' is not one of the cosmetic's styles "
+                        + styles(parts));
+            }
+        }
+        CosmeticDefinition.Wings wings = json.has("wings") ? parseWings(json.get("wings")) : null;
+        return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
+                options, defaultColor, defaultStyle, wings);
+    }
+
+    /** Defaults for each state when a cosmetic doesn't set them: base angle, amplitude, flaps per second. */
+    static final CosmeticDefinition.WingState WING_IDLE = new CosmeticDefinition.WingState(0f, 6f, 0.35f);
+    static final CosmeticDefinition.WingState WING_MOVING = new CosmeticDefinition.WingState(0f, 18f, 1.0f);
+    static final CosmeticDefinition.WingState WING_FLYING = new CosmeticDefinition.WingState(0f, 32f, 2.0f);
+    static final CosmeticDefinition.WingState WING_SNEAKING = new CosmeticDefinition.WingState(-10f, 3f, 0.25f);
+
+    private static CosmeticDefinition.Wings parseWings(JsonElement element) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException("wings must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        String axisName = json.has("axis") ? json.get("axis").getAsString().toLowerCase(Locale.ROOT) : "y";
+        int axis = switch (axisName) {
+            case "x" -> 0;
+            case "y" -> 1;
+            case "z" -> 2;
+            default -> throw new JsonParseException("wings.axis must be x, y or z");
+        };
+        // "base" sets the resting angle of every state that doesn't set its own.
+        Float base = json.has("base") ? number(json, "base", 0f, "wings") : null;
+        return new CosmeticDefinition.Wings(axis,
+                wingState(json, "idle", WING_IDLE, base),
+                wingState(json, "moving", WING_MOVING, base),
+                wingState(json, "flying", WING_FLYING, base),
+                wingState(json, "sneaking", WING_SNEAKING, base == null ? null : base + WING_SNEAKING.base()),
+                json.has("offset") ? floats(json.get("offset"), 3, "wings.offset") : new float[3],
+                json.has("sneak_offset") ? floats(json.get("sneak_offset"), 3, "wings.sneak_offset") : new float[3],
+                json.has("armor_offset") ? floats(json.get("armor_offset"), 3, "wings.armor_offset") : new float[3],
+                number(json, "spread", 0f, "wings"));
+    }
+
+    private static CosmeticDefinition.WingState wingState(JsonObject wings, String key, CosmeticDefinition.WingState fallback,
+                                                          Float base) {
+        float defaultBase = base != null ? base : fallback.base();
+        if (!wings.has(key)) {
+            return new CosmeticDefinition.WingState(defaultBase, fallback.amplitude(), fallback.speed());
+        }
+        if (!wings.get(key).isJsonObject()) {
+            throw new JsonParseException("wings." + key + " must be an object like {\"amplitude\": 20, \"speed\": 1}");
+        }
+        JsonObject json = wings.getAsJsonObject(key);
+        float speed = number(json, "speed", fallback.speed(), "wings." + key);
+        if (speed < 0f || speed > 20f) {
+            throw new JsonParseException("wings." + key + ".speed must be 0 to 20 flaps per second");
+        }
+        return new CosmeticDefinition.WingState(number(json, "base", defaultBase, "wings." + key),
+                number(json, "amplitude", fallback.amplitude(), "wings." + key), speed);
+    }
+
+    /** The names of every skeletal animation in the cosmetic, in the order they first appear. */
+    static List<String> styles(List<CosmeticDefinition.Part> parts) {
+        List<String> styles = new ArrayList<>();
+        for (CosmeticDefinition.Part part : parts) {
+            for (CosmeticDefinition.Mesh mesh : part.meshes()) {
+                if (mesh.rigged() == null) {
+                    continue;
+                }
+                MeshRig rig = mesh.rigged().rig();
+                for (int c = 0; c < rig.clipCount(); c++) {
+                    if (!styles.contains(rig.clip(c).name())) {
+                        styles.add(rig.clip(c).name());
+                    }
+                }
+            }
+        }
+        return styles;
+    }
+
+    /** {@code {"rainbow": false, "size": false}}: options left out stay allowed. */
+    private static int parseOptions(JsonElement element) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException("options must be an object like {\"rainbow\": false}");
+        }
+        int options = CosmeticOption.ALL;
+        for (var entry : element.getAsJsonObject().entrySet()) {
+            CosmeticOption option = null;
+            for (CosmeticOption candidate : CosmeticOption.values()) {
+                if (candidate.id().equals(entry.getKey())) {
+                    option = candidate;
+                }
+            }
+            if (option == null) {
+                throw new JsonParseException("options: unknown option '" + entry.getKey() + "' (known: tint, rainbow, "
+                        + "saturation, size, position, glow, animation, style)");
+            }
+            if (!bool(entry.getValue(), "options." + entry.getKey())) {
+                options &= ~option.bit();
+            }
+        }
+        return options;
+    }
+
+    /** {@code "#RRGGBB"} or a number. */
+    static int color(JsonElement element, String where) {
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            String text = element.getAsString();
+            if (text.matches("#[0-9a-fA-F]{6}")) {
+                return Integer.parseInt(text.substring(1), 16);
+            }
+        } else if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
+            double value = element.getAsDouble();
+            if (value == Math.rint(value) && value >= 0 && value <= 0xFFFFFF) {
+                return (int) value;
+            }
+        }
+        throw new JsonParseException(where + " must be a colour like \"#FF8800\" or a number from 0 to 16777215");
+    }
+
+    private static boolean bool(JsonElement element, String where) {
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isBoolean()) {
+            throw new JsonParseException(where + " must be true or false");
+        }
+        return element.getAsBoolean();
     }
 
     /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} / {@code .bbmodel} file. */
@@ -183,6 +341,7 @@ public final class CosmeticParser {
                 json.has("rotation") ? floats(json.get("rotation"), 3, where + ".rotation") : new float[3],
                 json.has("offset") ? floats(json.get("offset"), 3, where + ".offset") : new float[3]);
 
+        boolean flipV = json.has("flip_v") && bool(json.get("flip_v"), where + ".flip_v");
         MeshBuilder.Raw raw;
         String source;
         if (json.has("model")) {
@@ -190,13 +349,24 @@ public final class CosmeticParser {
                 throw new JsonParseException(where + ": use either 'model' or inline 'vertices'/'uvs'/'faces', not both");
             }
             String location = qualifyFile(namespace, json.get("model").getAsString(), where);
+            if (!location.endsWith(".obj") && json.has("group")) {
+                throw new JsonParseException(where + ": 'group' only applies to .obj files");
+            }
+            if (!location.endsWith(".md5mesh") && (json.has("bone_animation") || json.has("bone_animations")
+                    || json.has("submesh") || json.has("winding"))) {
+                throw new JsonParseException(where + ": 'bone_animation(s)', 'submesh' and 'winding' only apply to "
+                        + ".md5mesh files");
+            }
             if (location.endsWith(".obj")) {
-                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH);
+                String group = json.has("group") ? json.get("group").getAsString() : null;
+                raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH, flipV, group);
+            } else if (location.endsWith(".md5mesh")) {
+                return md5Mesh(json, where, namespace, location, flipV, placement, smooth, texW, texH, context);
             } else if (location.endsWith(".bbmodel")) {
                 raw = BbmodelParser.parse(readText(context.files(), location, MAX_BBMODEL_BYTES), location, texW, texH,
                         context.warnings());
             } else {
-                throw new JsonParseException(where + ": model must be a .obj or .bbmodel file");
+                throw new JsonParseException(where + ": model must be a .obj, .md5mesh or .bbmodel file");
             }
             source = location;
         } else {
@@ -204,6 +374,74 @@ public final class CosmeticParser {
             source = where;
         }
         return MeshBuilder.build(raw, placement, smooth, texW, texH, source, context.warnings());
+    }
+
+    /**
+     * An {@code .md5mesh}: a still mesh in its bind pose, or with {@code "bone_animation"} (one) or
+     * {@code "bone_animations"} (several, by name) a skeletal mesh played from {@code .md5anim} files.
+     */
+    private static CosmeticDefinition.Mesh md5Mesh(JsonObject json, String where, String namespace, String location,
+                                                   boolean flipV, MeshBuilder.Placement placement, boolean smooth,
+                                                   int texW, int texH, Context context) {
+        Md5Parser.MeshFile file = Md5Parser.parseMesh(readText(context.files(), location, MAX_MD5MESH_BYTES), location);
+        RigBuilder.Winding winding = json.has("winding")
+                ? RigBuilder.Winding.byId(json.get("winding").getAsString(), where) : RigBuilder.Winding.AUTO;
+        String submesh = json.has("submesh") ? json.get("submesh").getAsString() : null;
+        RigBuilder.Options options = new RigBuilder.Options(submesh, flipV, winding, placement, smooth, texW, texH);
+        if (json.has("bone_animation") && json.has("bone_animations")) {
+            throw new JsonParseException(where + ": use 'bone_animation' or 'bone_animations', not both");
+        }
+        List<RigBuilder.NamedAnim> anims = new ArrayList<>();
+        if (json.has("bone_animation")) {
+            anims.add(boneAnimation(DEFAULT_CLIP, json.get("bone_animation"), where + ".bone_animation", namespace, context));
+        } else if (json.has("bone_animations")) {
+            if (!json.get("bone_animations").isJsonObject() || json.getAsJsonObject("bone_animations").isEmpty()) {
+                throw new JsonParseException(where + ".bone_animations must map names to animations");
+            }
+            for (var entry : json.getAsJsonObject("bone_animations").entrySet()) {
+                if (!entry.getKey().matches("[a-z0-9_.-]+")) {
+                    throw new JsonParseException(where + ".bone_animations: name '" + entry.getKey()
+                            + "' may only use a-z, 0-9, _, . and -");
+                }
+                anims.add(boneAnimation(entry.getKey(), entry.getValue(), where + ".bone_animations." + entry.getKey(),
+                        namespace, context));
+            }
+        }
+        if (anims.isEmpty()) {
+            return RigBuilder.still(file, options, location, context.warnings());
+        }
+        return RigBuilder.rigged(file, anims, options, location, context.warnings());
+    }
+
+    /** Name of the clip given with {@code "bone_animation"}. */
+    static final String DEFAULT_CLIP = "default";
+
+    /** {@code {"file": "ns:path.md5anim", "loop": true, "speed": 1}}, or just the file location. */
+    private static RigBuilder.NamedAnim boneAnimation(String name, JsonElement element, String where, String namespace,
+                                                      Context context) {
+        JsonObject json;
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            json = new JsonObject();
+            json.add("file", element);
+        } else if (element.isJsonObject()) {
+            json = element.getAsJsonObject();
+        } else {
+            throw new JsonParseException(where + " must be an .md5anim location or an object with a 'file'");
+        }
+        if (!json.has("file")) {
+            throw new JsonParseException(where + " needs a 'file' (an .md5anim)");
+        }
+        String location = qualifyFile(namespace, json.get("file").getAsString(), where);
+        if (!location.endsWith(".md5anim")) {
+            throw new JsonParseException(where + ".file must be an .md5anim file");
+        }
+        boolean loop = !json.has("loop") || bool(json.get("loop"), where + ".loop");
+        float speed = number(json, "speed", 1f, where);
+        if (!(speed > 0f && speed <= 100f)) {
+            throw new JsonParseException(where + ".speed must be above 0 and at most 100");
+        }
+        Md5Parser.AnimFile anim = Md5Parser.parseAnim(readText(context.files(), location, MAX_MD5ANIM_BYTES), location);
+        return new RigBuilder.NamedAnim(name, anim, loop, speed, location);
     }
 
     /** {@code vertices}, {@code uvs} (texture pixels) and optional {@code normals} are parallel arrays. */
@@ -313,6 +551,85 @@ public final class CosmeticParser {
         }
         return BedrockGeometry.convert(geometry.getAsJsonObject(), "model '" + modelId + "'", texture,
                 new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations);
+    }
+
+    /** Most frames a texture animation may have. */
+    static final int MAX_TEXTURE_FRAMES = 1024;
+
+    /**
+     * {@code {"frames": 8, "frame_time": 100}} for a vertical strip, optionally with per-frame
+     * {@code "frame_times"}, or {@code "textures": [...]} for one file per frame.
+     */
+    private static CosmeticDefinition.TextureAnimation parseTextureAnimation(JsonElement element, String namespace,
+                                                                             String where) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException(where + " must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        List<String> textures = null;
+        if (json.has("textures")) {
+            JsonArray array = requireArray(json, "textures");
+            List<String> list = new ArrayList<>();
+            for (JsonElement entry : array) {
+                if (!entry.isJsonPrimitive()) {
+                    throw new JsonParseException(where + ".textures must list texture locations");
+                }
+                list.add(qualify(namespace, entry.getAsString()));
+            }
+            textures = List.copyOf(list);
+        }
+        int frames;
+        if (json.has("frames")) {
+            frames = wholeNumber(json.get("frames"), where + ".frames");
+            if (textures != null && frames != textures.size()) {
+                throw new JsonParseException(where + ": frames is " + frames + " but " + textures.size()
+                        + " textures are listed");
+            }
+        } else if (textures != null) {
+            frames = textures.size();
+        } else {
+            throw new JsonParseException(where + " needs 'frames' (a vertical strip) or 'textures' (one file per frame)");
+        }
+        if (frames < 1 || frames > MAX_TEXTURE_FRAMES) {
+            throw new JsonParseException(where + ": frames must be 1 to " + MAX_TEXTURE_FRAMES);
+        }
+        List<Integer> times = new ArrayList<>();
+        if (json.has("frame_times")) {
+            JsonArray array = requireArray(json, "frame_times");
+            if (array.size() != frames) {
+                throw new JsonParseException(where + ".frame_times needs one entry per frame (" + frames + " frames, "
+                        + array.size() + " entries)");
+            }
+            for (int i = 0; i < array.size(); i++) {
+                times.add(frameTime(array.get(i), where + ".frame_times[" + i + "]"));
+            }
+        } else {
+            int time = json.has("frame_time") ? frameTime(json.get("frame_time"), where + ".frame_time") : 100;
+            for (int i = 0; i < frames; i++) {
+                times.add(time);
+            }
+        }
+        return new CosmeticDefinition.TextureAnimation(frames, List.copyOf(times), textures);
+    }
+
+    /** A frame's duration: whole milliseconds, 1 ms to 10 minutes. */
+    private static int frameTime(JsonElement element, String where) {
+        int millis = wholeNumber(element, where);
+        if (millis < 1 || millis > 600_000) {
+            throw new JsonParseException(where + " must be 1 to 600000 milliseconds");
+        }
+        return millis;
+    }
+
+    private static int wholeNumber(JsonElement element, String where) {
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            throw new JsonParseException(where + " must be a whole number");
+        }
+        double value = element.getAsDouble();
+        if (value != Math.rint(value) || Math.abs(value) > Integer.MAX_VALUE) {
+            throw new JsonParseException(where + " must be a whole number");
+        }
+        return (int) value;
     }
 
     /** {@code cosmeticsmod:top_hat} becomes {@code Top Hat}. */

@@ -6,8 +6,11 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
+import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
+import io.github.georgwav.cosmetics.model.MeshRig;
 import io.github.georgwav.cosmetics.model.RenderMode;
+import io.github.georgwav.cosmetics.model.TextureFrames;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.model.geom.ModelPart;
 import org.joml.Quaternionf;
@@ -21,9 +24,21 @@ import org.joml.Quaternionf;
 public final class CosmeticRenderer {
     /** Receives one layer of a cosmetic at the pose stack's current pose. */
     public interface Sink {
-        /** @param color ARGB tint for every vertex (white = the texture's own colours) */
-        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color);
+        /**
+         * @param color    ARGB tint for every vertex (white = the texture's own colours)
+         * @param frame    which frame of the layer's texture animation shows (0 when it has none)
+         * @param clip     for a skinned layer, which of its rig's clips plays
+         * @param clipTime for a skinned layer, seconds into that clip
+         */
+        void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color, int frame,
+                  int clip, float clipTime);
     }
+
+    /** Colour for layers that keep the texture's own colours. */
+    private static final int WHITE = 0xFFFFFFFF;
+
+    /** Reused for joint and placement rotations. Render thread only. */
+    private static final Quaternionf ROTATION = new Quaternionf();
 
     /** Animation clock start; animations and the rainbow tint read seconds since then. */
     private static final long START_NANOS = System.nanoTime();
@@ -54,7 +69,8 @@ public final class CosmeticRenderer {
             return;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
-        double seconds = (System.nanoTime() - START_NANOS) / 1.0e9;
+        long now = System.nanoTime();
+        double seconds = (now - START_NANOS) / 1.0e9;
         if (info.local && !shadowPass) {
             RenderStats.localPlayerFrames++;
         }
@@ -95,26 +111,67 @@ public final class CosmeticRenderer {
                     applyCapeSway(poseStack, info, config);
                 }
                 CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
-                applyPlacement(poseStack, options);
-                int color = Tint.argb(options, seconds);
+                applyPlacement(poseStack, options, cosmetic);
+                int color = Tint.argb(options, cosmetic, seconds);
+                // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
+                boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+                boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+                float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+                int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+                CosmeticDefinition.Wings wings = cosmetic.wings();
+                float wingAngle = 0f;
+                double wingPhase = 0.0;
+                if (wings != null) {
+                    WingMotion.Pose wing = WingMotion.pose(info.uuid, info.moveSpeed, info.sneaking, info.flying, wings, now);
+                    wingAngle = animate ? wing.angle : wing.base;
+                    wingPhase = animate ? wing.phase : 0.0;
+                    applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
+                }
                 for (BakedCosmetic.Layer layer : cosmetic.layers()) {
-                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && options.glow))
+                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
                             || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
                         continue;
                     }
                     int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
-                    boolean moving = options.animate && layer.animations().length > 0;
-                    if (moving) {
-                        poseStack.pushPose();
-                        for (CosmeticDefinition.Animation animation : layer.animations()) {
-                            applyAnimation(poseStack, animation, animation.valueAt(seconds, options.animationSpeed));
+                    int layerColor = layer.tinted() ? color : WHITE;
+                    TextureFrames frames = layer.textureFrames();
+                    int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
+                    // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
+                    // the rest of the player) still sees the stack it expects.
+                    int pushes = 0;
+                    try {
+                        if (animate && layer.animations().length > 0) {
+                            poseStack.pushPose();
+                            pushes++;
+                            for (CosmeticDefinition.Animation animation : layer.animations()) {
+                                applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
+                            }
                         }
-                    }
-                    for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                        sink.draw(poseStack, cosmetic, layer, light, color);
-                    }
-                    if (moving) {
-                        poseStack.popPose();
+                        CosmeticDefinition.WingPart wingPart = layer.wing();
+                        if (wingPart != null && wings != null) {
+                            poseStack.pushPose();
+                            pushes++;
+                            applyWing(poseStack, wings, wingPart, wingAngle);
+                        }
+                        MeshRig rig = layer.rig();
+                        int clip = 0;
+                        float clipTime = 0f;
+                        if (rig != null) {
+                            clip = rig.clipForStyle(style);
+                            // With wings, a skeletal mesh plays one loop of its clip per flap.
+                            clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
+                                    : rig.clipTime(clip, seconds, animate ? animationSpeed : 0f);
+                            poseStack.pushPose();
+                            pushes++;
+                            applyRig(poseStack, rig, layer.joint(), clip, clipTime);
+                        }
+                        for (int copy = 0; copy < RenderStats.COPIES; copy++) {
+                            sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime);
+                        }
+                    } finally {
+                        for (; pushes > 0; pushes--) {
+                            poseStack.popPose();
+                        }
                     }
                     RenderStats.meshesDrawn++;
                     if (shadowPass) {
@@ -132,13 +189,74 @@ public final class CosmeticRenderer {
         }
     }
 
-    /** The user's per-cosmetic offset and size, around the anchor's pivot. */
-    private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options) {
-        if (options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f) {
+    /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */
+    private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options,
+                                       BakedCosmetic cosmetic) {
+        if ((options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f)
+                && cosmetic.allows(CosmeticOption.POSITION)) {
             poseStack.translate(options.offsetX / 16f, options.offsetY / 16f, options.offsetZ / 16f);
         }
-        if (options.scale != 1f) {
+        if (options.scale != 1f && cosmetic.allows(CosmeticOption.SIZE)) {
             poseStack.scale(options.scale, options.scale, options.scale);
+        }
+    }
+
+    /** The wings' offsets: always, blended in while sneaking, and while a chestplate is worn. */
+    private static void applyWingOffsets(PoseStack poseStack, CosmeticDefinition.Wings wings, float sneak, boolean armor) {
+        float[] o = wings.offset();
+        float[] s = wings.sneakOffset();
+        float[] a = wings.armorOffset();
+        float x = o[0] + s[0] * sneak + (armor ? a[0] : 0f);
+        float y = o[1] + s[1] * sneak + (armor ? a[1] : 0f);
+        float z = o[2] + s[2] * sneak + (armor ? a[2] : 0f);
+        if (x != 0f || y != 0f || z != 0f) {
+            poseStack.translate(x / 16f, y / 16f, z / 16f);
+        }
+    }
+
+    /**
+     * Turns one wing around its pivot: the left wing by {@code angle} around the wing axis (right-hand
+     * rule), the right wing the other way, after moving each sideways by the spread.
+     */
+    private static void applyWing(PoseStack poseStack, CosmeticDefinition.Wings wings, CosmeticDefinition.WingPart wing,
+                                  float angle) {
+        float spread = wing.side() * wings.spread() / 16f;
+        float px = wing.pivotX() / 16f;
+        float py = wing.pivotY() / 16f;
+        float pz = wing.pivotZ() / 16f;
+        float radians = (float) Math.toRadians(angle * wing.side());
+        poseStack.translate(px + spread, py, pz);
+        rotate(poseStack, switch (wings.axis()) {
+            case 0 -> ROTATION.rotationX(radians);
+            case 2 -> ROTATION.rotationZ(radians);
+            default -> ROTATION.rotationY(radians);
+        });
+        poseStack.translate(-px, -py, -pz);
+    }
+
+    /**
+     * Places a skeletal mesh: pixels, then its placement (offset, rotation around the pivot, scale), then
+     * for a rigid piece its joint's current transform. Skinned geometry is already in the rig's space.
+     */
+    private static void applyRig(PoseStack poseStack, MeshRig rig, int joint, int clip, float clipTime) {
+        poseStack.scale(1f / 16f, 1f / 16f, 1f / 16f);
+        float[] offset = rig.offset();
+        float[] pivot = rig.pivot();
+        float[] q = rig.rotation();
+        poseStack.translate(offset[0] + pivot[0], offset[1] + pivot[1], offset[2] + pivot[2]);
+        if (q[3] != 1f) {
+            rotate(poseStack, ROTATION.set(q[0], q[1], q[2], q[3]));
+        }
+        poseStack.translate(-pivot[0], -pivot[1], -pivot[2]);
+        float[] scale = rig.scale();
+        if (scale[0] != 1f || scale[1] != 1f || scale[2] != 1f) {
+            poseStack.scale(scale[0], scale[1], scale[2]);
+        }
+        if (joint >= 0) {
+            float[] joints = rig.evaluate(clip, clipTime);
+            int o = joint * 7;
+            poseStack.translate(joints[o], joints[o + 1], joints[o + 2]);
+            rotate(poseStack, ROTATION.set(joints[o + 3], joints[o + 4], joints[o + 5], joints[o + 6]));
         }
     }
 

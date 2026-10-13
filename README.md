@@ -35,7 +35,7 @@ It is a flat, minimal screen with a live preview of your player and four tabs:
 
 | Tab | What's there |
 |---|---|
-| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), size, move sideways / up / forward, glow on or off, animation on or off and its speed, and a reset. |
+| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), and a reset. A cosmetic can leave some of these out. |
 | Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength. |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
@@ -50,12 +50,16 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:halo` (glowing, slowly spins and bobs)
   - `cosmeticsmod:explorer_backpack`
   - `cosmeticsmod:feather_wings` (flapping)
+  - `cosmeticsmod:glider_wings` (flap faster when moving or flying, fold when sneaking)
   - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
   - `cosmeticsmod:orbit_ring` (a smooth-shaded gold ring from an OBJ mesh, circling the head)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
+  - `cosmeticsmod:ember_cape` (an animated texture)
+  - `cosmeticsmod:wind_pennant` (a skeletal MD5 flag with two styles, "wave" and "calm")
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
-  model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), or use an `.obj`
-  from Blender. See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
+  model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), use an `.obj`
+  from Blender, or an animated `.md5mesh` with `.md5anim` files. See
+  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
 
 ### Config file (`config/cosmeticsmod.json`)
 
@@ -78,7 +82,7 @@ repaired on load.
 | `slotPriority` | all `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original), `rainbow`, `rainbowSpeed` (0.1 to 5), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3). Only cosmetics you changed are listed. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default). Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 
 ## Building
 
@@ -95,6 +99,40 @@ repaired on load.
   - The committed sources are written for **1.21.11**, so that is the version your IDE sees.
   - To work on another version, run the Stonecutter "Set active project" task for it, and switch back to 1.21.11
     before committing.
+
+### Personal builds (your own cosmetics pack inside the jar)
+
+For your own use only: bundle a resource pack, such as the one the [Badlion importer](tools/badlion-import/README.md)
+writes into your private `cosmetics-personal` repository, into the mod jar.
+
+```
+./gradlew build -Pcosmetics.bundleDir=../cosmetics-personal/packs/badlion-import
+```
+
+- The pack's `assets/` folder is copied into the jar, where the mod finds `assets/<ns>/cosmetics/*.json` like its
+  own cosmetics. The path is relative to this repository's root, or absolute.
+- The jars are named `cosmeticsmod-<v>+mc<minecraft>-personal.jar`.
+- A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
+- Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
+  checks this mechanism with a tiny made-up pack.
+
+**In GitHub Actions**, the manual "Personal release" workflow (`.github/workflows/personal-release.yml`) builds every
+Minecraft version with the pack and publishes the `-personal` jars as a release of this repository. It refuses to
+run unless this repository is private (its releases are private too), runs no tests, keeps Gradle's output out of
+the log and never saves caches. It needs one secret, `PERSONAL_PACK_TOKEN`:
+
+1. On GitHub: your avatar → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained
+   tokens** → **Generate new token**.
+2. Name it (for example `cosmetics-personal read`), pick an expiration, and set **Resource owner** to `Georgwav`.
+3. **Repository access** → **Only select repositories** → `Georgwav/cosmetics-personal`.
+4. **Permissions** → **Repository permissions** → **Contents**: **Read-only** (Metadata read-only is added
+   automatically). Nothing else.
+5. **Generate token** and copy it.
+6. In this repository: **Settings** → **Secrets and variables** → **Actions** → **New repository secret**, name
+   `PERSONAL_PACK_TOKEN`, paste the token, **Add secret**.
+
+Then **Actions** → **Personal release** → **Run workflow** (inputs: the pack folder, default `packs/badlion-import`,
+and the `cosmetics-personal` branch, default `main`). The jars appear under **Releases**.
 
 ### Porting to a new Minecraft version
 

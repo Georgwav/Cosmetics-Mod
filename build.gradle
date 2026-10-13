@@ -93,6 +93,27 @@ tasks.named('sourcesJar') {
 // The jar players install: remapped to intermediary on 1.21.x, the plain jar on 26.x.
 def modJar = tasks.named(unobfuscated ? 'jar' : 'remapJar')
 
+// Personal builds: -Pcosmetics.bundleDir=<pack folder> (relative to this repository's root, or absolute)
+// copies that resource pack's assets/ into this jar, which the mod's loader reads like its own cosmetics,
+// and names the jar "...-personal.jar". Only for that build; without the property nothing changes.
+def bundleDir = providers.gradleProperty('cosmetics.bundleDir').orNull
+if (bundleDir) {
+    def bundleAssets = new File(rootProject.file(bundleDir), 'assets')
+    if (!bundleAssets.isDirectory()) {
+        throw new GradleException("cosmetics.bundleDir: ${bundleAssets} is not a folder (point it at a resource pack)")
+    }
+    processResources {
+        from(bundleAssets) {
+            into 'assets'
+            // A pack file at the same path as one of the mod's own is a mistake, not something to overwrite.
+            duplicatesStrategy = DuplicatesStrategy.FAIL
+        }
+    }
+    modJar.configure {
+        archiveClassifier.set('personal')
+    }
+}
+
 // Copies every version's jar into <root>/build/libs so CI and releases find them in one place.
 tasks.register('collectJar', Copy) {
     group = 'build'

@@ -4,7 +4,9 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticLoader;
+import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.render.RenderGuard;
@@ -263,7 +265,7 @@ public final class CosmeticsScreen extends Screen {
         return index >= 0 ? t("color." + COLOR_NAMES.get(index)) : String.format("#%06X", rgb);
     }
 
-    /** One cosmetic's page: wear it, colour, size and position, glow and animation. */
+    /** One cosmetic's page: wear it, then whichever of colour, size and position, glow and animation it allows. */
     private void buildDetail(BakedCosmetic cosmetic) {
         CosmeticsConfig config = CosmeticsConfig.get();
         String id = cosmetic.id();
@@ -273,35 +275,80 @@ public final class CosmeticsScreen extends Screen {
         add(new Rows.Toggle(listX, 0, listW, t("detail.wear"), null,
                 () -> config.localEquipped().contains(id), on -> setEquipped(id, on)));
 
-        section("section.color");
-        add(new Rows.Cycle<>(listX, 0, listW, t("color"), COLORS,
-                () -> config.options(id).color, v -> config.editOptions(id).color = v, CosmeticsScreen::colorName)
-                .withSwatch(rgb -> 0xFF000000 | rgb));
-        add(new Rows.Toggle(listX, 0, listW, t("rainbow"), null,
-                () -> config.options(id).rainbow, v -> config.editOptions(id).rainbow = v));
-        add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
-                () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
-                CosmeticsScreen::times));
+        // Only the options this cosmetic allows; the others keep the creator's setting and aren't shown.
+        String[] styles = cosmetic.styles();
+        if (styles.length > 1 && cosmetic.allows(CosmeticOption.STYLE)) {
+            String defaultStyle = styles[cosmetic.defaultStyle()];
+            section("section.style");
+            add(new Rows.Cycle<>(listX, 0, listW, t("style"), List.of(styles),
+                    () -> styles[cosmetic.styleIndex(config.options(id).style)],
+                    v -> config.editOptions(id).style = v.equals(defaultStyle) ? null : v,
+                    CosmeticsScreen::styleName));
+        }
+        boolean tint = cosmetic.allows(CosmeticOption.TINT);
+        boolean rainbow = cosmetic.allows(CosmeticOption.RAINBOW);
+        boolean saturation = cosmetic.allows(CosmeticOption.SATURATION);
+        if (tint || rainbow || saturation) {
+            section("section.color");
+        }
+        if (tint) {
+            int defaultColor = cosmetic.defaultColor();
+            List<Integer> colors = new ArrayList<>(COLORS);
+            if (!colors.contains(defaultColor)) {
+                colors.add(0, defaultColor);
+            }
+            add(new Rows.Cycle<>(listX, 0, listW, t("color"), colors,
+                    () -> {
+                        Integer color = config.options(id).color;
+                        return color != null ? color : defaultColor;
+                    },
+                    // Picking the cosmetic's own colour goes back to following it.
+                    v -> config.editOptions(id).color = v == defaultColor ? null : v,
+                    v -> v == defaultColor && v != CosmeticDefinition.WHITE ? t("color.default") : colorName(v))
+                    .withSwatch(rgb -> 0xFF000000 | rgb));
+        }
+        if (rainbow) {
+            add(new Rows.Toggle(listX, 0, listW, t("rainbow"), null,
+                    () -> config.options(id).rainbow, v -> config.editOptions(id).rainbow = v));
+            add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
+                    () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
+                    CosmeticsScreen::times));
+        }
+        if (saturation) {
+            add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,
+                    () -> config.options(id).saturation, v -> config.editOptions(id).saturation = (float) v,
+                    v -> Math.round(v * 100) + "%"));
+        }
 
-        section("section.shape");
-        add(new Rows.Slider(listX, 0, listW, t("size"), 0.5, 1.5, 0.05,
-                () -> config.options(id).scale, v -> config.editOptions(id).scale = (float) v,
-                v -> Math.round(v * 100) + "%"));
-        add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,
-                () -> config.options(id).offsetX, v -> config.editOptions(id).offsetX = (float) v, CosmeticsScreen::pixels));
-        add(new Rows.Slider(listX, 0, listW, t("offset_y"), -8, 8, 0.5,
-                () -> -config.options(id).offsetY, v -> config.editOptions(id).offsetY = (float) -v, CosmeticsScreen::pixels));
-        add(new Rows.Slider(listX, 0, listW, t("offset_z"), -8, 8, 0.5,
-                () -> -config.options(id).offsetZ, v -> config.editOptions(id).offsetZ = (float) -v, CosmeticsScreen::pixels));
+        boolean size = cosmetic.allows(CosmeticOption.SIZE);
+        boolean position = cosmetic.allows(CosmeticOption.POSITION);
+        if (size || position) {
+            section("section.shape");
+        }
+        if (size) {
+            add(new Rows.Slider(listX, 0, listW, t("size"), 0.5, 1.5, 0.05,
+                    () -> config.options(id).scale, v -> config.editOptions(id).scale = (float) v,
+                    v -> Math.round(v * 100) + "%"));
+        }
+        if (position) {
+            add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,
+                    () -> config.options(id).offsetX, v -> config.editOptions(id).offsetX = (float) v, CosmeticsScreen::pixels));
+            add(new Rows.Slider(listX, 0, listW, t("offset_y"), -8, 8, 0.5,
+                    () -> -config.options(id).offsetY, v -> config.editOptions(id).offsetY = (float) -v, CosmeticsScreen::pixels));
+            add(new Rows.Slider(listX, 0, listW, t("offset_z"), -8, 8, 0.5,
+                    () -> -config.options(id).offsetZ, v -> config.editOptions(id).offsetZ = (float) -v, CosmeticsScreen::pixels));
+        }
 
-        if (cosmetic.hasEmissive() || cosmetic.hasAnimation()) {
+        boolean glow = cosmetic.hasEmissive() && cosmetic.allows(CosmeticOption.GLOW);
+        boolean animation = cosmetic.hasAnimation() && cosmetic.allows(CosmeticOption.ANIMATION);
+        if (glow || animation) {
             section("section.effects");
         }
-        if (cosmetic.hasEmissive()) {
+        if (glow) {
             add(new Rows.Toggle(listX, 0, listW, t("glow"), config.emissiveParts ? null : t("glow.off_globally"),
                     () -> config.options(id).glow, v -> config.editOptions(id).glow = v));
         }
-        if (cosmetic.hasAnimation()) {
+        if (animation) {
             add(new Rows.Toggle(listX, 0, listW, t("animation"), null,
                     () -> config.options(id).animate, v -> config.editOptions(id).animate = v));
             add(new Rows.Slider(listX, 0, listW, t("animation_speed"), 0.1, 3, 0.1,
@@ -314,6 +361,12 @@ public final class CosmeticsScreen extends Screen {
             config.resetOptions(id);
             rebuildWidgets();
         }));
+    }
+
+    /** {@code curved} becomes {@code Curved}, {@code soft_wave} becomes {@code Soft wave}. */
+    private static String styleName(String style) {
+        String words = style.replace('_', ' ').replace('-', ' ');
+        return words.isEmpty() ? style : Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
     private static String times(double value) {

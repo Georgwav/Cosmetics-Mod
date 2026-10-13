@@ -1,0 +1,126 @@
+MD5Version 10
+commandline "Wind Pennant for cosmeticsmod"
+numJoints 4
+numMeshes 2
+joints {
+  "root" -1 ( 0 0 0 ) ( 0 0 0 )
+  "flag1" 0 ( 3 -6 3 ) ( 0 0 0 )
+  "flag2" 1 ( 3 -6 7.5 ) ( 0 0 0 )
+  "flag3" 2 ( 3 -6 12 ) ( 0 0 0 )
+}
+mesh {
+  shader "pole"
+  numverts 24
+  vert 0 ( 0 1 ) 0 1
+  vert 1 ( 0.125 1 ) 1 1
+  vert 2 ( 0.125 0 ) 2 1
+  vert 3 ( 0 0 ) 3 1
+  vert 4 ( 0 1 ) 4 1
+  vert 5 ( 0.125 1 ) 5 1
+  vert 6 ( 0.125 0 ) 6 1
+  vert 7 ( 0 0 ) 7 1
+  vert 8 ( 0 1 ) 8 1
+  vert 9 ( 0.125 1 ) 9 1
+  vert 10 ( 0.125 0 ) 10 1
+  vert 11 ( 0 0 ) 11 1
+  vert 12 ( 0 1 ) 12 1
+  vert 13 ( 0.125 1 ) 13 1
+  vert 14 ( 0.125 0 ) 14 1
+  vert 15 ( 0 0 ) 15 1
+  vert 16 ( 0 1 ) 16 1
+  vert 17 ( 0.125 1 ) 17 1
+  vert 18 ( 0.125 0 ) 18 1
+  vert 19 ( 0 0 ) 19 1
+  vert 20 ( 0 1 ) 20 1
+  vert 21 ( 0.125 1 ) 21 1
+  vert 22 ( 0.125 0 ) 22 1
+  vert 23 ( 0 0 ) 23 1
+  numtris 12
+  tri 0 0 1 2
+  tri 1 0 2 3
+  tri 2 4 5 6
+  tri 3 4 6 7
+  tri 4 8 9 10
+  tri 5 8 10 11
+  tri 6 12 13 14
+  tri 7 12 14 15
+  tri 8 16 17 18
+  tri 9 16 18 19
+  tri 10 20 21 22
+  tri 11 20 22 23
+  numweights 24
+  weight 0 0 1 ( 2.5 9 2.5 )
+  weight 1 0 1 ( 3.5 9 2.5 )
+  weight 2 0 1 ( 3.5 -7 2.5 )
+  weight 3 0 1 ( 2.5 -7 2.5 )
+  weight 4 0 1 ( 3.5 9 3.5 )
+  weight 5 0 1 ( 2.5 9 3.5 )
+  weight 6 0 1 ( 2.5 -7 3.5 )
+  weight 7 0 1 ( 3.5 -7 3.5 )
+  weight 8 0 1 ( 2.5 9 3.5 )
+  weight 9 0 1 ( 2.5 9 2.5 )
+  weight 10 0 1 ( 2.5 -7 2.5 )
+  weight 11 0 1 ( 2.5 -7 3.5 )
+  weight 12 0 1 ( 3.5 9 2.5 )
+  weight 13 0 1 ( 3.5 9 3.5 )
+  weight 14 0 1 ( 3.5 -7 3.5 )
+  weight 15 0 1 ( 3.5 -7 2.5 )
+  weight 16 0 1 ( 2.5 -7 2.5 )
+  weight 17 0 1 ( 3.5 -7 2.5 )
+  weight 18 0 1 ( 3.5 -7 3.5 )
+  weight 19 0 1 ( 2.5 -7 3.5 )
+  weight 20 0 1 ( 2.5 9 3.5 )
+  weight 21 0 1 ( 3.5 9 3.5 )
+  weight 22 0 1 ( 3.5 9 2.5 )
+  weight 23 0 1 ( 2.5 9 2.5 )
+}
+mesh {
+  shader "flag"
+  numverts 14
+  vert 0 ( 0.25 0 ) 0 1
+  vert 1 ( 0.25 1 ) 1 1
+  vert 2 ( 0.375 0 ) 2 1
+  vert 3 ( 0.375 1 ) 3 1
+  vert 4 ( 0.5 0 ) 4 2
+  vert 5 ( 0.5 1 ) 6 2
+  vert 6 ( 0.625 0 ) 8 1
+  vert 7 ( 0.625 1 ) 9 1
+  vert 8 ( 0.75 0 ) 10 1
+  vert 9 ( 0.75 1 ) 11 1
+  vert 10 ( 0.875 0 ) 12 2
+  vert 11 ( 0.875 1 ) 14 2
+  vert 12 ( 1 0 ) 16 1
+  vert 13 ( 1 1 ) 17 1
+  numtris 12
+  tri 0 0 1 3
+  tri 1 0 3 2
+  tri 2 2 3 5
+  tri 3 2 5 4
+  tri 4 4 5 7
+  tri 5 4 7 6
+  tri 6 6 7 9
+  tri 7 6 9 8
+  tri 8 8 9 11
+  tri 9 8 11 10
+  tri 10 10 11 13
+  tri 11 10 13 12
+  numweights 18
+  weight 0 1 1 ( 0 0 0 )
+  weight 1 1 1 ( 0 5 0 )
+  weight 2 1 1 ( 0 0 1.5 )
+  weight 3 1 1 ( 0 5 1.5 )
+  weight 4 1 0.5 ( 0 0 3 )
+  weight 5 2 0.5 ( 0 0 -1.5 )
+  weight 6 1 0.5 ( 0 5 3 )
+  weight 7 2 0.5 ( 0 5 -1.5 )
+  weight 8 2 1 ( 0 0 0 )
+  weight 9 2 1 ( 0 5 0 )
+  weight 10 2 1 ( 0 0 1.5 )
+  weight 11 2 1 ( 0 5 1.5 )
+  weight 12 2 0.5 ( 0 0 3 )
+  weight 13 3 0.5 ( 0 0 -1.5 )
+  weight 14 2 0.5 ( 0 5 3 )
+  weight 15 3 0.5 ( 0 5 -1.5 )
+  weight 16 3 1 ( 0 0 0 )
+  weight 17 3 1 ( 0 5 0 )
+}
