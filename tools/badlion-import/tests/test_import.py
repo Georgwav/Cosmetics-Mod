@@ -162,7 +162,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
     assert names == ["back_4_hiker_pack.json", "cape_11_old_cloak.json", "cape_12_blank_model.json",
                      "cape_1_red_cape.json", "cape_2_blue_cape.json", "cape_7_flowing_cape.json",
-                     "hat_1_top_hat.json", "wings_8_bat_wings.json"]
+                     "hat_1_top_hat.json", "shield_3_round_shield.json", "wings_8_bat_wings.json"]
     # Capes without a model: a box like the vanilla cape. A 64 x 32 texture is the vanilla layout.
     cape = cosmetic(out, "cape_1_*.json")
     assert cape["slot"] == "cape" and cape["texture_size"] == [64, 32]
@@ -207,6 +207,13 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert back["texture_size"] == [64, 32]
     obj = (out / "assets/blc_import/models/cosmetic/back/pack.obj").read_text()
     assert "100000" not in obj
+
+    # A shield: in place of the held shield, OBJ axes, centred on the vanilla shield's plate, the model's scale.
+    shield = cosmetic(out, "shield_3_*.json")
+    assert shield["slot"] == "shield"
+    shield_mesh = shield["parts"][0]["meshes"][0]
+    assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
+    assert shield_mesh["scale"] == 1.5 and shield_mesh["offset"] == [0, 0, -1.5]
 
     # Wings: one model, mirrored for the left, flapping through its own animation.
     wings = cosmetic(out, "wings_8_*.json")

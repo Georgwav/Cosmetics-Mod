@@ -56,6 +56,7 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
   - `cosmeticsmod:ember_cape` (an animated texture)
   - `cosmeticsmod:wind_pennant` (a skeletal MD5 flag with two styles, "wave" and "calm")
+  - `cosmeticsmod:knight_shield` (a shield cosmetic: shown instead of the vanilla shield while you hold one)
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
   model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), use an `.obj`
   from Blender, or an animated `.md5mesh` with `.md5anim` files. See
@@ -70,7 +71,7 @@ repaired on load.
 |---|---|---|
 | `enabled` | `true` | Master switch. |
 | `showOwnCosmetics` / `showOtherPlayersCosmetics` | `true` | Whose cosmetics are drawn. |
-| `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`). |
+| `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`). |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |

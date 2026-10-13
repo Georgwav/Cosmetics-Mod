@@ -17,6 +17,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -113,6 +116,9 @@ public final class DevScenario {
             case WAIT_FOR_WORLD -> {
                 if (client.level != null && client.player != null) {
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                    if (smoke) {
+                        giveShield(client);
+                    }
                     enter(Phase.WARMUP);
                 } else if (ticks > 20 * 60 * 5) {
                     failures.add("never entered a world");
@@ -222,6 +228,25 @@ public final class DevScenario {
         }
     }
 
+    /** A shield in the off hand, so the shield cosmetic (equipped with everything else) gets drawn. */
+    private static void giveShield(Minecraft client) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null) {
+            return;
+        }
+        java.util.UUID id = client.player.getUUID();
+        server.execute(() -> {
+            var player = server.getPlayerList().getPlayer(id);
+            if (player != null) {
+                player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
+            }
+        });
+    }
+
+    private static boolean shieldCosmeticLoaded() {
+        return CosmeticRegistry.all().stream().anyMatch(c -> c.slot() == io.github.georgwav.cosmetics.model.CosmeticSlot.SHIELD);
+    }
+
     private void openSettingsTab(Minecraft client) {
         uiFramesAtTabStart = CosmeticsScreen.framesRendered;
         uiScreen = CosmeticsScreen.testPage(uiTab);
@@ -288,6 +313,7 @@ public final class DevScenario {
         p.addProperty("shadowPassMeshes", RenderStats.shadowPassMeshes);
         p.addProperty("skippedShadowPass", RenderStats.skippedShadowPass);
         p.addProperty("deferredToOtherMods", RenderStats.deferredToOtherMods);
+        p.addProperty("heldDrawn", RenderStats.heldDrawn);
         if (RenderStats.TIMING && RenderStats.localPlayerFrames > 0) {
             p.addProperty("cosmeticsMsPerFrame", RenderStats.nanos / 1.0e6 / RenderStats.localPlayerFrames);
         }
@@ -341,6 +367,10 @@ public final class DevScenario {
         if (phases.has("vanilla_back") && meshes("vanilla_back") <= 0) {
             failures.add("the render layer drew nothing in third person (back)");
         }
+        if (phases.has("vanilla_front") && Boolean.getBoolean(PREFIX + "equipAll") && shieldCosmeticLoaded()
+                && held("vanilla_front") + held("vanilla_back") <= 0) {
+            failures.add("the shield cosmetic was never drawn in place of the held shield");
+        }
         if (phases.has("shaders_on") && phases.getAsJsonObject("shaders_on").get("shadowPassMeshes").getAsLong() <= 0) {
             failures.add("cosmetics were not drawn in the Iris shadow pass (they should cast shadows by default)");
         }
@@ -353,6 +383,10 @@ public final class DevScenario {
                 failures.add("cosmetics disappeared from the main pass with renderInShadowPass=false");
             }
         }
+    }
+
+    private long held(String phaseName) {
+        return phases.has(phaseName) ? phases.getAsJsonObject(phaseName).get("heldDrawn").getAsLong() : 0;
     }
 
     private long meshes(String phaseName) {

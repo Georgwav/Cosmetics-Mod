@@ -43,7 +43,7 @@ public final class CosmeticsScreen extends Screen {
 
     /** The wardrobe's categories, in the side bar's order. */
     private enum View {
-        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, OUTFITS;
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, OUTFITS;
 
         boolean includes(BakedCosmetic cosmetic, List<String> wearing) {
             return switch (this) {
@@ -55,6 +55,7 @@ public final class CosmeticsScreen extends Screen {
                 case FACE -> cosmetic.slot() == CosmeticSlot.FACE;
                 case BODY -> cosmetic.slot() == CosmeticSlot.BODY;
                 case BACK -> cosmetic.slot() == CosmeticSlot.BACK && cosmetic.wings() == null;
+                case SHIELDS -> cosmetic.slot() == CosmeticSlot.SHIELD;
                 case OUTFITS -> false;
             };
         }
@@ -635,6 +636,9 @@ public final class CosmeticsScreen extends Screen {
         CosmeticsConfig c = CosmeticsConfig.get();
         section("section.priority");
         for (CosmeticSlot slot : CosmeticSlot.values()) {
+            if (slot.anchor() == CosmeticSlot.Anchor.HELD) {
+                continue; // a held cosmetic replaces the item; no other mod's cosmetic competes for it
+            }
             add(new Rows.Cycle<>(listX, 0, listW, t("slot." + slot.id()), List.of(SlotPriority.values()),
                     () -> c.priority(slot), v -> c.slotPriority.put(slot, v),
                     v -> t("priority." + v.name().toLowerCase(java.util.Locale.ROOT))));

@@ -50,12 +50,14 @@ RULES: dict[str, TypeRule] = {
     "TAIL": TypeRule("back", (0, 12, 0)),
     "CAPE": TypeRule("cape", (0, 0, 0), "cape"),
     "WINGS": TypeRule("back", (0, 4, 2), "wings"),
+    # Shields replace the held vanilla shield; Badlion's shield models are centred on the plate, whose centre
+    # in the vanilla shield model is (0, 0, -1.5).
+    "SHIELD": TypeRule("shield", (0, 0, -1.5)),
 }
 
 UNSUPPORTED: dict[str, str] = {
     "PET": "pets aren't worn on the player",
     "PLAYER_PET": "pets aren't worn on the player",
-    "SHIELD": "held items aren't supported",
     "SWORD": "held items aren't supported",
     "BOW": "held items aren't supported",
     "PROJECTILE": "held items aren't supported",
@@ -580,7 +582,7 @@ class Planner:
         rule = RULES[c.type]
         ts = self.settings.of(c.type)
         mf = self.model_file(mesh_path)
-        for key in ("subModels", "extraModels"):
+        for key in ("subModels", "extraModels", "shieldModelData"):
             if model and model.raw.get(key):
                 notes.append(f"{key} not converted (only the main model is)")
         # The type's setting (or the calibration variant's), turned around for models Badlion flips.

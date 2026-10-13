@@ -202,11 +202,13 @@ IMPORT_COSMETICS = {
     # Capes naming a model models.json doesn't have, or a blank one: Badlion draws its built-in cloak.
     "CAPE": [{"cosmeticId": 11, "name": "Old Cloak", "hasModel": True, "modelName": "cloak"},
              {"cosmeticId": 12, "name": "Blank Model", "hasModel": True, "modelName": " "}],
+    "SHIELD": [{"cosmeticId": 3, "name": "Round Shield", "hasModel": True, "modelName": "roundshield"}],
 }
 IMPORT_MODELS = {
     "WINGS": {"bat_wings": {"scale": 0, "md5format": True, "flipUVs": False}},
     "BACK": {"pack": {"scale": 2.0, "translation": {"x": 0, "y": -1, "z": 0}, "applyChroma": False,
                       "flipUVs": True, "md5format": False}},
+    "SHIELD": {"roundshield": {"scale": 1.5, "md5format": False, "flipUVs": False}},
 }
 
 
@@ -218,6 +220,8 @@ def import_files() -> dict:
         T + "wing/models/bat_wings/rect.md5anim": md5anim().encode(),
         T + "back/back_4.avif": avif_still((600, 300)),
         T + "back/models/pack.obj": BACKPACK_OBJ.encode(),
+        T + "shield/shield_3.avif": avif_still((64, 64)),
+        T + "shield/models/roundshield.obj": HAT_OBJ.encode(),
         T + "hat/1/glow.avif": avif_still((16, 16), color=(250, 250, 120, 255)),
         T + "pet/pet_5.avif": avif_still((8, 8)),
         T + "cloak/cloak_11.avif": avif_still((64, 32)),
