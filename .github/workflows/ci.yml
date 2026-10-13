@@ -62,6 +62,28 @@ jobs:
           name: test-reports
           path: versions/*/build/reports/tests/
 
+  importer:
+    # tools/badlion-import, tested only with synthetic fixtures the tests generate. Never reads Badlion files.
+    name: Badlion importer tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    defaults:
+      run:
+        working-directory: tools/badlion-import
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the importer and pytest
+        run: python -m pip install --quiet ".[test]"
+      - name: Unit tests
+        run: python -m pytest -q
+
   runtime:
     name: In-game ${{ matrix.node }}
     needs: build

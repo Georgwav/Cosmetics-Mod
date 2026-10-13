@@ -43,3 +43,6 @@ import-report.txt
 tools/badlion-import/input/
 tools/badlion-import/output/
 tools/badlion-import/out/
+.venv/
+*.egg-info/
+.pytest_cache/

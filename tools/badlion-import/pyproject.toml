@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "badlion-import"
+version = "0.1.0"
+description = "Converts your own Badlion cosmetics into a resource pack for the Cosmetics mod (personal use)"
+requires-python = ">=3.10"
+# 11.3+ ships AVIF (including image sequences) in its wheels on Windows, macOS and Linux.
+dependencies = ["pillow>=11.3"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+badlion-import = "badlion_import.cli:main"
+
+[tool.setuptools]
+packages = ["badlion_import"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
