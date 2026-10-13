@@ -1,0 +1,26 @@
+{
+  "_comment": "Mod stacks the compat job runs the game with. Mods are Modrinth project slugs; 'a|b' means the first one that has a build for that Minecraft version. Required dependencies are pulled in automatically. A stack is reported as 'n/a' for a Minecraft version when one of its mods has no build for it.",
+  "sodium-iris-complementary": {
+    "mods": ["sodium", "iris"],
+    "shaderpack": "complementary-reimagined"
+  },
+  "sodium-iris-bsl": {
+    "mods": ["sodium", "iris"],
+    "shaderpack": "bsl-shaders"
+  },
+  "perf-stack": {
+    "mods": ["sodium", "immediatelyfast", "entityculling"]
+  },
+  "voxy": {
+    "mods": ["sodium", "voxy"]
+  },
+  "distant-horizons": {
+    "mods": ["distanthorizons"]
+  },
+  "model-mods": {
+    "mods": ["entity-model-features", "entitytexturefeatures", "3dskinlayers"]
+  },
+  "figura": {
+    "mods": ["figura|nofigura"]
+  }
+}

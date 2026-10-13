@@ -1,0 +1,22 @@
+{
+  "slot": "cape",
+  "texture": "cosmeticsmod:textures/cosmetic/starlight_cape.png",
+  "texture_size": [64, 32],
+  "parts": [
+    {
+      "name": "cloth",
+      "mode": "cutout",
+      "cubes": [
+        { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0] }
+      ]
+    },
+    {
+      "name": "emblem",
+      "mode": "emissive",
+      "texture": "cosmeticsmod:textures/cosmetic/starlight_cape_glow.png",
+      "cubes": [
+        { "from": [-5, 0, -1], "to": [5, 16, 0], "uv": [0, 0], "inflate": 0.02 }
+      ]
+    }
+  ]
+}

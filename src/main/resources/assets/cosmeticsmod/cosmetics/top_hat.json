@@ -1,0 +1,15 @@
+{
+  "slot": "head",
+  "texture": "cosmeticsmod:textures/cosmetic/top_hat.png",
+  "texture_size": [64, 32],
+  "parts": [
+    {
+      "name": "hat",
+      "mode": "cutout",
+      "cubes": [
+        { "from": [-6, -9.5, -6], "to": [6, -8.5, 6], "uv": [0, 0] },
+        { "from": [-4, -17.5, -4], "to": [4, -9.5, 4], "uv": [0, 13] }
+      ]
+    }
+  ]
+}

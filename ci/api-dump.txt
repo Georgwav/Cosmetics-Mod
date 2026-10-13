@@ -1,0 +1,6 @@
+# Used by the "api-dump" CI job (runs when a commit message contains [api-dump]).
+# One line per Minecraft build: <version> <comma-separated classes>. Prints `javap -public` for each
+# class as that version's Minecraft (Mojang names) has it. Handy when porting to a new version.
+#
+# Example:
+# 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector

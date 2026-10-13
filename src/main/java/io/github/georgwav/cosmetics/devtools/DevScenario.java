@@ -1,0 +1,264 @@
+package io.github.georgwav.cosmetics.devtools;
+
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.compat.Compat;
+import io.github.georgwav.cosmetics.compat.iris.IrisCompat;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.model.CosmeticRegistry;
+import io.github.georgwav.cosmetics.render.RenderGuard;
+import io.github.georgwav.cosmetics.render.RenderStats;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.CameraType;
+import net.minecraft.client.Minecraft;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Automated in-game scenario used by CI on every Minecraft version, and by the benchmark.
+ * Off unless started with {@code -Dcosmeticsmod.smokeTest=true} or {@code -Dcosmeticsmod.benchmark=true}.
+ *
+ * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
+ * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
+ * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
+ * in the game directory, a PASSED/FAILED line goes to the log, and the game quits.
+ *
+ * <p>Marker files ({@code cosmeticsmod-phase-<name>}) are written as each phase starts so the CI
+ * script can grab a screenshot of the window at the right moment.
+ */
+public final class DevScenario {
+    private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
+
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+
+    private final boolean smoke;
+    private final boolean benchmark;
+    private final int phaseTicks;
+    private final boolean wantShaders;
+    private final boolean expectShaders;
+    private final Path gameDir = FabricLoader.getInstance().getGameDir();
+    private final JsonObject results = new JsonObject();
+    private final JsonObject phases = new JsonObject();
+    private final List<String> failures = new ArrayList<>();
+
+    private Phase phase = Phase.WAIT_FOR_WORLD;
+    private int ticks;
+    private long phaseStart;
+    private boolean finished;
+
+    private DevScenario(boolean smoke, boolean benchmark) {
+        this.smoke = smoke;
+        this.benchmark = benchmark;
+        this.phaseTicks = Integer.getInteger(PREFIX + "phaseTicks", benchmark ? 600 : 200);
+        this.expectShaders = Boolean.getBoolean(PREFIX + "expectShaders");
+        this.wantShaders = Compat.IRIS && (expectShaders || benchmark);
+    }
+
+    public static void init() {
+        boolean smoke = Boolean.getBoolean(PREFIX + "smokeTest");
+        boolean benchmark = RenderStats.TIMING;
+        if (!smoke && !benchmark) {
+            return;
+        }
+        if (!Boolean.getBoolean(PREFIX + "equipAll")) {
+            CosmeticsMod.LOGGER.warn("Dev scenario without -D{}equipAll=true: only cosmetics equipped in the config are drawn", PREFIX);
+        }
+        DevScenario scenario = new DevScenario(smoke, benchmark);
+        CosmeticsMod.LOGGER.info("Dev scenario armed (smokeTest={}, benchmark={}, phaseTicks={}, shaders={})",
+                smoke, benchmark, scenario.phaseTicks, scenario.wantShaders);
+        ClientTickEvents.END_CLIENT_TICK.register(scenario::tick);
+    }
+
+    private void tick(Minecraft client) {
+        if (finished) {
+            return;
+        }
+        ticks++;
+        try {
+            step(client);
+        } catch (RuntimeException | LinkageError e) {
+            CosmeticsMod.LOGGER.error("Dev scenario crashed", e);
+            failures.add("scenario crashed: " + e);
+            finish(client);
+        }
+    }
+
+    private void step(Minecraft client) {
+        switch (phase) {
+            case WAIT_FOR_WORLD -> {
+                if (client.level != null && client.player != null) {
+                    client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                    enter(Phase.WARMUP);
+                } else if (ticks > 20 * 60 * 5) {
+                    failures.add("never entered a world");
+                    finish(client);
+                }
+            }
+            case WARMUP -> {
+                if (ticks >= 100) {
+                    enter(Phase.FRONT);
+                }
+            }
+            case FRONT -> {
+                if (ticks >= phaseTicks) {
+                    record("vanilla_front");
+                    client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                    enter(Phase.BACK);
+                }
+            }
+            case BACK -> {
+                if (ticks >= phaseTicks) {
+                    record("vanilla_back");
+                    if (wantShaders && IrisCompat.setShadersEnabled(true)) {
+                        enter(Phase.SHADERS_WARMUP);
+                    } else {
+                        if (expectShaders) {
+                            failures.add("shaders were expected but Iris could not enable them");
+                        }
+                        enter(Phase.DONE);
+                    }
+                }
+            }
+            case SHADERS_WARMUP -> {
+                // Shaderpacks compile slowly on software rendering; give them time.
+                if (ticks >= 200) {
+                    if (!IrisCompat.isShaderPackInUse()) {
+                        failures.add("Iris reports no shaderpack in use after enabling shaders");
+                        IrisCompat.setShadersEnabled(false);
+                        enter(Phase.DONE);
+                    } else {
+                        enter(Phase.SHADERS_ON);
+                    }
+                }
+            }
+            case SHADERS_ON -> {
+                if (ticks >= phaseTicks) {
+                    record("shaders_on");
+                    if (smoke) {
+                        CosmeticsConfig.get().renderInShadowPass = false;
+                        enter(Phase.SHADOW_SKIP);
+                    } else {
+                        IrisCompat.setShadersEnabled(false);
+                        enter(Phase.DONE);
+                    }
+                }
+            }
+            case SHADOW_SKIP -> {
+                if (ticks >= phaseTicks) {
+                    record("shaders_on_shadow_pass_skipped");
+                    CosmeticsConfig.get().renderInShadowPass = true;
+                    IrisCompat.setShadersEnabled(false);
+                    enter(Phase.DONE);
+                }
+            }
+            case DONE -> finish(client);
+        }
+    }
+
+    private void enter(Phase next) {
+        phase = next;
+        ticks = 0;
+        RenderStats.reset();
+        phaseStart = System.nanoTime();
+        if (next != Phase.DONE) {
+            CosmeticsMod.LOGGER.info("Dev scenario phase: {}", next);
+            writeMarker(next.name().toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
+    private void record(String name) {
+        double seconds = (System.nanoTime() - phaseStart) / 1.0e9;
+        JsonObject p = new JsonObject();
+        p.addProperty("seconds", seconds);
+        p.addProperty("frames", RenderStats.localPlayerFrames);
+        p.addProperty("fps", RenderStats.localPlayerFrames / Math.max(seconds, 1.0e-3));
+        p.addProperty("meshesDrawn", RenderStats.meshesDrawn);
+        p.addProperty("shadowPassMeshes", RenderStats.shadowPassMeshes);
+        p.addProperty("skippedShadowPass", RenderStats.skippedShadowPass);
+        p.addProperty("deferredToOtherMods", RenderStats.deferredToOtherMods);
+        if (RenderStats.TIMING && RenderStats.localPlayerFrames > 0) {
+            p.addProperty("cosmeticsMsPerFrame", RenderStats.nanos / 1.0e6 / RenderStats.localPlayerFrames);
+        }
+        p.addProperty("shaderPackInUse", Compat.IRIS && IrisCompat.isShaderPackInUse());
+        phases.add(name, p);
+        CosmeticsMod.LOGGER.info("Dev scenario {}: {}", name, p);
+    }
+
+    private void finish(Minecraft client) {
+        finished = true;
+        evaluate();
+        results.addProperty("passed", failures.isEmpty());
+        results.addProperty("cosmeticsLoaded", CosmeticRegistry.all().size());
+        results.addProperty("renderFailures", RenderGuard.failureCount());
+        results.addProperty("layerDisabled", RenderGuard.isLayerDisabled());
+        results.addProperty("copies", RenderStats.COPIES);
+        results.add("phases", phases);
+        JsonArray failureList = new JsonArray();
+        failures.forEach(failureList::add);
+        results.add("failures", failureList);
+        String json = new GsonBuilder().setPrettyPrinting().create().toJson(results);
+        try {
+            Files.writeString(gameDir.resolve("cosmeticsmod-results.json"), json);
+        } catch (IOException e) {
+            CosmeticsMod.LOGGER.error("Could not write results", e);
+        }
+        if (failures.isEmpty()) {
+            CosmeticsMod.LOGGER.info("COSMETICS SMOKE TEST PASSED\n{}", json);
+        } else {
+            CosmeticsMod.LOGGER.error("COSMETICS SMOKE TEST FAILED: {}\n{}", failures, json);
+        }
+        if (Boolean.parseBoolean(System.getProperty(PREFIX + "exitWhenDone", "true"))) {
+            client.stop();
+        }
+    }
+
+    private void evaluate() {
+        if (!smoke) {
+            return;
+        }
+        if (CosmeticRegistry.all().isEmpty()) {
+            failures.add("no cosmetics were loaded from resources");
+        }
+        if (RenderGuard.failureCount() > 0) {
+            failures.add(RenderGuard.failureCount() + " render failure(s) were caught; see the log");
+        }
+        long frontMeshes = meshes("vanilla_front");
+        if (phases.has("vanilla_front") && frontMeshes <= 0) {
+            failures.add("the render layer drew nothing in third person (front)");
+        }
+        if (phases.has("vanilla_back") && meshes("vanilla_back") <= 0) {
+            failures.add("the render layer drew nothing in third person (back)");
+        }
+        if (phases.has("shaders_on") && phases.getAsJsonObject("shaders_on").get("shadowPassMeshes").getAsLong() <= 0) {
+            failures.add("cosmetics were not drawn in the Iris shadow pass (they should cast shadows by default)");
+        }
+        if (phases.has("shaders_on_shadow_pass_skipped")) {
+            JsonObject skip = phases.getAsJsonObject("shaders_on_shadow_pass_skipped");
+            if (skip.get("shadowPassMeshes").getAsLong() != 0) {
+                failures.add("cosmetics were still drawn in the shadow pass with renderInShadowPass=false");
+            }
+            if (skip.get("meshesDrawn").getAsLong() <= 0) {
+                failures.add("cosmetics disappeared from the main pass with renderInShadowPass=false");
+            }
+        }
+    }
+
+    private long meshes(String phaseName) {
+        return phases.has(phaseName) ? phases.getAsJsonObject(phaseName).get("meshesDrawn").getAsLong() : 0;
+    }
+
+    private void writeMarker(String name) {
+        try {
+            Files.writeString(gameDir.resolve("cosmeticsmod-phase-" + name), Long.toString(System.currentTimeMillis()));
+        } catch (IOException e) {
+            CosmeticsMod.LOGGER.warn("Could not write phase marker", e);
+        }
+    }
+}

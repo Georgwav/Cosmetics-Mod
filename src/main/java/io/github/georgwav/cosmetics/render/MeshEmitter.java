@@ -1,0 +1,64 @@
+package io.github.georgwav.cosmetics.render;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github.georgwav.cosmetics.model.BakedMesh;
+
+/**
+ * Pushes a {@link BakedMesh} into a vanilla {@link VertexConsumer}. This is the only place vertices
+ * are written: no custom GL buffers, no GL state, no wrapping of the consumer (Sodium requires the
+ * consumer it handed out to be used directly).
+ */
+public final class MeshEmitter {
+    /** {@code LightTexture.FULL_BRIGHT}; a literal because the light class was renamed in 26.x. */
+    public static final int FULL_BRIGHT = 0xF000F0;
+    /** {@code OverlayTexture.NO_OVERLAY}. */
+    public static final int NO_OVERLAY = 10 << 16;
+    public static final int WHITE = 0xFFFFFFFF;
+
+    private MeshEmitter() {
+    }
+
+    public static void emit(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color) {
+        // `var` because these are Matrix4fc/Matrix3fc on newer versions and Matrix4f/Matrix3f on older ones.
+        var m = pose.pose();
+        var n = pose.normal();
+        float m00 = m.m00(), m01 = m.m01(), m02 = m.m02();
+        float m10 = m.m10(), m11 = m.m11(), m12 = m.m12();
+        float m20 = m.m20(), m21 = m.m21(), m22 = m.m22();
+        float m30 = m.m30(), m31 = m.m31(), m32 = m.m32();
+        float n00 = n.m00(), n01 = n.m01(), n02 = n.m02();
+        float n10 = n.m10(), n11 = n.m11(), n12 = n.m12();
+        float n20 = n.m20(), n21 = n.m21(), n22 = n.m22();
+
+        float[] d = mesh.data();
+        int quads = mesh.quadCount();
+        int i = 0;
+        for (int q = 0; q < quads; q++) {
+            // All four vertices of a quad share the normal; transform it once.
+            float lnx = d[i + 5], lny = d[i + 6], lnz = d[i + 7];
+            float nx = n00 * lnx + n10 * lny + n20 * lnz;
+            float ny = n01 * lnx + n11 * lny + n21 * lnz;
+            float nz = n02 * lnx + n12 * lny + n22 * lnz;
+            float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len > 1.0e-6f) {
+                nx /= len;
+                ny /= len;
+                nz /= len;
+            }
+            for (int v = 0; v < BakedMesh.VERTICES_PER_QUAD; v++) {
+                float x = d[i], y = d[i + 1], z = d[i + 2];
+                consumer.addVertex(
+                                m00 * x + m10 * y + m20 * z + m30,
+                                m01 * x + m11 * y + m21 * z + m31,
+                                m02 * x + m12 * y + m22 * z + m32)
+                        .setColor(color)
+                        .setUv(d[i + 3], d[i + 4])
+                        .setOverlay(NO_OVERLAY)
+                        .setLight(light)
+                        .setNormal(nx, ny, nz);
+                i += BakedMesh.FLOATS_PER_VERTEX;
+            }
+        }
+    }
+}

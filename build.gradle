@@ -1,0 +1,102 @@
+import java.util.spi.ToolProvider
+
+// Shared build script. Stonecutter runs it once per Minecraft version listed in settings.gradle.kts,
+// with that version's properties from versions/<version>/gradle.properties.
+
+def mcVersion = stonecutter.current.version
+// 26.1+ ships without obfuscation: plain Loom, no mappings, no remapping, Java 25.
+def unobfuscated = stonecutter.eval(mcVersion, '>=26.1')
+def javaVersion = unobfuscated ? 25 : 21
+
+apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
+
+version = "${property('mod.version')}+mc${mcVersion}"
+group = property('mod.group')
+base.archivesName.set(property('mod.id') as String)
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${property('deps.minecraft')}"
+    if (unobfuscated) {
+        implementation "net.fabricmc:fabric-loader:${property('deps.fabric_loader')}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${property('deps.fabric_api')}"
+    } else {
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${property('deps.fabric_loader')}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${property('deps.fabric_api')}"
+    }
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+loom {
+    runs {
+        client {
+            // Mixin audit in dev: dump every transformed class and verify it, so conflicts with other
+            // mods' mixins show up in .mixin.out/ and in the log.
+            vmArg '-Dmixin.debug.export=true'
+            vmArg '-Dmixin.debug.verify=true'
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(javaVersion)
+    targetCompatibility = JavaVersion.toVersion(javaVersion)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release.set(javaVersion)
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+processResources {
+    def props = [
+            version  : project.version.toString(),
+            minecraft: property('mod.mc_dep').toString(),
+            loader   : property('mod.loader_min').toString(),
+            java     : javaVersion.toString(),
+    ]
+    inputs.properties(props)
+    filesMatching('fabric.mod.json') {
+        expand(props)
+    }
+}
+
+// The jar players install: remapped to intermediary on 1.21.x, the plain jar on 26.x.
+def modJar = tasks.named(unobfuscated ? 'jar' : 'remapJar')
+
+// Copies every version's jar into <root>/build/libs so CI and releases find them in one place.
+tasks.register('collectJar', Copy) {
+    group = 'build'
+    from(modJar.flatMap { it.archiveFile })
+    into(rootProject.layout.buildDirectory.dir('libs'))
+}
+tasks.named('build') {
+    finalizedBy 'collectJar'
+}
+
+// Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
+// prints the public API of those classes exactly as this version's Minecraft has it.
+tasks.register('dumpApi') {
+    group = 'help'
+    def classes = providers.gradleProperty('dumpClasses').orElse('')
+    def classpath = sourceSets.main.compileClasspath
+    doLast {
+        def javap = ToolProvider.findFirst('javap').orElseThrow()
+        classes.get().split(',').findAll { !it.isBlank() }.each { name ->
+            println "===== ${mcVersion} ${name.trim()} ====="
+            javap.run(System.out, System.err, '-public', '-cp', classpath.asPath, name.trim())
+        }
+    }
+}

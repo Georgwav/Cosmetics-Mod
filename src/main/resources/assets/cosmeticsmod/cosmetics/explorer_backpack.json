@@ -1,0 +1,15 @@
+{
+  "slot": "back",
+  "texture": "cosmeticsmod:textures/cosmetic/backpack.png",
+  "texture_size": [32, 32],
+  "parts": [
+    {
+      "name": "pack",
+      "mode": "cutout",
+      "cubes": [
+        { "from": [-3.5, 1, 2.5], "to": [3.5, 10, 5.5], "uv": [0, 0] },
+        { "from": [-2.5, 5, 5.5], "to": [2.5, 9, 6.5], "uv": [0, 12] }
+      ]
+    }
+  ]
+}
