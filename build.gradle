@@ -8,25 +8,33 @@ def mcVersion = stonecutter.current.version
 def unobfuscated = stonecutter.eval(mcVersion, '>=26.1')
 def javaVersion = unobfuscated ? 25 : 21
 
+// Read every property here: inside task closures `property(...)` would resolve against the task.
+def prop = { String key -> project.property(key).toString() }
+def minecraftVersion = prop('deps.minecraft')
+def loaderVersion = prop('deps.fabric_loader')
+def fabricApiVersion = prop('deps.fabric_api')
+def minecraftDependency = prop('mod.mc_dep')
+def loaderMinimum = prop('mod.loader_min')
+
 apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
 
-version = "${property('mod.version')}+mc${mcVersion}"
-group = property('mod.group')
-base.archivesName.set(property('mod.id') as String)
+version = "${prop('mod.version')}+mc${mcVersion}"
+group = prop('mod.group')
+base.archivesName.set(prop('mod.id'))
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${property('deps.minecraft')}"
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
     if (unobfuscated) {
-        implementation "net.fabricmc:fabric-loader:${property('deps.fabric_loader')}"
-        implementation "net.fabricmc.fabric-api:fabric-api:${property('deps.fabric_api')}"
+        implementation "net.fabricmc:fabric-loader:${loaderVersion}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     } else {
         mappings loom.officialMojangMappings()
-        modImplementation "net.fabricmc:fabric-loader:${property('deps.fabric_loader')}"
-        modImplementation "net.fabricmc.fabric-api:fabric-api:${property('deps.fabric_api')}"
+        modImplementation "net.fabricmc:fabric-loader:${loaderVersion}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     }
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
@@ -63,8 +71,8 @@ tasks.named('test') {
 processResources {
     def props = [
             version  : project.version.toString(),
-            minecraft: property('mod.mc_dep').toString(),
-            loader   : property('mod.loader_min').toString(),
+            minecraft: minecraftDependency,
+            loader   : loaderMinimum,
             java     : javaVersion.toString(),
     ]
     inputs.properties(props)
