@@ -99,9 +99,8 @@ public final class EmotePlayer {
         double dx = player.getX() - player.xo;
         double dy = player.getY() - player.yo;
         double dz = player.getZ() - player.zo;
-        return dx * dx + dz * dz > 1.0e-4 || Math.abs(dy) > 0.01 || player.isCrouching() || player.swinging
-                || player.hurtTime > 0 || player.isPassenger() || player.isSwimming() || player.isFallFlying()
-                || player.isSleeping();
+        return dx * dx + dz * dz > 1.0e-4 || Math.abs(dy) > 0.01 || player.isCrouching() || player.hurtTime > 0
+                || player.isPassenger() || player.isSwimming() || player.isFallFlying() || player.isSleeping();
     }
 
     private static void end(Minecraft client) {

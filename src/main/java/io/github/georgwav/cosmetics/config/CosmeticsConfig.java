@@ -71,7 +71,7 @@ public final class CosmeticsConfig {
     public boolean emotes = true;
     /** Where the camera goes while you emote. */
     public EmoteCamera emoteCamera = EmoteCamera.FRONT;
-    /** Walking, jumping, sneaking, attacking or getting hurt stops an emote. */
+    /** Walking, jumping, sneaking or getting hurt stops an emote. */
     public boolean emoteStopOnMove = true;
     /** The emotes on the emote wheel, in order. Empty puts every emote on it. */
     public List<String> emoteWheel = new ArrayList<>();
