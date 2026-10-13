@@ -492,7 +492,8 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     (game_dir / "saves").mkdir()
     (game_dir / "config").mkdir()
     shutil.copytree(inst.world, game_dir / "saves" / "smoke")
-    shutil.copy(mod_jar, game_dir / "mods")
+    if mod_jar:  # None for a control run without this mod
+        shutil.copy(mod_jar, game_dir / "mods")
     shutil.copy(inst.fabric_api[1], game_dir / "mods")
     if extra_mods_dir:
         for jar in Path(extra_mods_dir).glob("*.jar"):
@@ -512,7 +513,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         "-Xmx3G", "-XX:+UseG1GC",
         "-Dmixin.debug.export=true", "-Dmixin.debug.verify=true",
         "-Dcosmeticsmod.equipAll=true",
-        "-Dcosmeticsmod.smokeTest=true" if mode == "smoke" else "-Dcosmeticsmod.benchmark=true",
+        "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else "-Dcosmeticsmod.smokeTest=true",
     ]
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
@@ -545,7 +546,14 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         seen_markers = set()
         timed_out = False
         last_size, last_change = 0, time.time()
+        joined_at = None
         while proc.poll() is None:
+            if mode == "control":
+                if joined_at is None and "joined the game" in log_path.read_text(errors="replace"):
+                    joined_at = time.time()
+                if joined_at is not None and time.time() - joined_at > CONTROL_SURVIVE_SECONDS:
+                    proc.kill()
+                    break
             if time.time() - started > timeout:
                 timed_out = True
                 proc.kill()
@@ -575,6 +583,15 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
             time.sleep(1)
         proc.wait()
 
+    if mode == "control":
+        crash = crash_summary(game_dir)
+        survived = joined_at is not None and not crash and not timed_out
+        LOG(f"[{inst.mc}/{label}] control run without this mod: "
+            + ("ran fine in the world" if survived else "crashed or never reached the world"))
+        for line in crash[:30]:
+            LOG("    " + line[:300])
+        return {"survived": survived, "crash": crash}
+
     summary = evaluate(inst, game_dir, label, mode, timed_out, time.time() - started, shots, mods_info, node)
     if hang_reason:
         summary["passed"] = False
@@ -587,6 +604,11 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         LOG(f"    {phase}: " + ", ".join(f"{k}={v:.3g}" if isinstance(v, float) else f"{k}={v}"
                                        for k, v in stats.items()))
     if not summary["passed"]:
+        crash = crash_summary(game_dir)
+        if crash:
+            LOG("    --- crash report ---")
+            for line in crash:
+                LOG("    " + line[:300])
         # Surface the end of the game log right in the CI output.
         log = game_dir / "logs" / "latest.log"
         if not log.exists():
@@ -596,6 +618,28 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
             for line in log.read_text(errors="replace").splitlines()[-40:]:
                 LOG("    " + line[:300])
     return summary
+
+
+CONTROL_SURVIVE_SECONDS = 40
+
+
+def crash_summary(game_dir, max_lines=40):
+    """The description, exception and "Caused by" chain of the first crash report, or [] if none."""
+    reports = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
+    if not reports:
+        return []
+    lines = reports[0].read_text(errors="replace").splitlines()
+    start = next((i for i, l in enumerate(lines) if l.startswith("Description:")), 0)
+    head = []
+    for line in lines[start:]:
+        if line.startswith("A detailed walkthrough"):
+            break
+        head.append(line)
+    out = head[:max_lines // 2]
+    for i, line in enumerate(head):
+        if line.startswith("Caused by:") and i >= max_lines // 2:
+            out.extend(head[i:i + 4])
+    return out[:max_lines]
 
 
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
@@ -731,8 +775,10 @@ def run_stack(args, inst, jar, mc, label, spec, mode):
                                    mods_info={**stack_info(stack), **pack_info}, node=args.node)
                 game_dir = Path(args.out) / f"{mc}-{label}"
                 conflict = stack_conflict(game_dir)
-                if summary["passed"] or conflict is None:
+                if summary["passed"]:
                     return summary
+                if conflict is None:
+                    return check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary)
                 last_conflict = conflict
                 fix = apply_loader_fix(read_logs(game_dir), mods_dir, stack, mc, tried)
                 if fix is None:
@@ -747,6 +793,27 @@ def run_stack(args, inst, jar, mc, label, spec, mode):
 
 
 MAX_LOADER_FIXES = 4
+
+
+def check_without_this_mod(args, inst, mc, label, mods_dir, shaderpack, summary):
+    """
+    A stack failed for a reason other than a version conflict. Runs the same stack without this mod:
+    if it crashes there too, the failure belongs to the other mods or to CI's software OpenGL, and the
+    stack is reported as n/a with the reason. Otherwise this mod is involved and the failure stands.
+    """
+    control = run_game(inst, None, args.out, label + "-without-cosmeticsmod", mods_dir, shaderpack,
+                       mode="control", timeout=420, node=args.node)
+    game_dir = Path(args.out) / f"{mc}-{label}"
+    if control["survived"]:
+        summary["problems"].append("the same stack without this mod runs fine, so this mod is involved")
+    else:
+        reason = next((l for l in control["crash"] if l.startswith("Description:")), "never reached the world")
+        detail = next((l.strip() for l in control["crash"][1:] if l.strip()), "")
+        summary.update(passed=True, na=True)
+        summary["problems"].insert(0, f"fails without this mod too ({reason} {detail})"[:300])
+        LOG(f"[{mc}/{label}] n/a: the stack fails without this mod as well, so this is not a Cosmetics Mod problem")
+    (game_dir / "summary.json").write_text(json.dumps(summary, indent=2))
+    return summary
 
 
 def read_logs(game_dir):
