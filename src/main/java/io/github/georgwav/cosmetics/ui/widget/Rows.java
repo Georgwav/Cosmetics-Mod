@@ -441,10 +441,17 @@ public final class Rows {
 
     /** An invisible area that reports how far the mouse moved sideways while held, e.g. to turn the preview. */
     public static final class DragArea extends FlatWidget {
-        private final DoubleConsumer onDrag;
-        private double lastX;
+        /** How far the mouse moved while dragging, in GUI pixels. */
+        @FunctionalInterface
+        public interface Drag {
+            void moved(double dx, double dy);
+        }
 
-        public DragArea(int x, int y, int width, int height, DoubleConsumer onDrag) {
+        private final Drag onDrag;
+        private double lastX;
+        private double lastY;
+
+        public DragArea(int x, int y, int width, int height, Drag onDrag) {
             super(x, y, width, height, Component.empty());
             this.onDrag = onDrag;
         }
@@ -461,12 +468,14 @@ public final class Rows {
         @Override
         protected void pressed(double mouseX, double mouseY) {
             lastX = mouseX;
+            lastY = mouseY;
         }
 
         @Override
         protected void dragged(double mouseX, double mouseY) {
-            onDrag.accept(mouseX - lastX);
+            onDrag.moved(mouseX - lastX, mouseY - lastY);
             lastX = mouseX;
+            lastY = mouseY;
         }
     }
 }

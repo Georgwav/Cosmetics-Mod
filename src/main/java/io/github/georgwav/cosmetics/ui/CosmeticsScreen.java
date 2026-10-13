@@ -74,16 +74,15 @@ public final class CosmeticsScreen extends Screen {
 
     private static Tab lastTab = Tab.WARDROBE;
     private static View lastView = View.ALL;
-    /** Rows in one category (the rest are found by searching). */
-    private static final int ROWS_PER_VIEW = 300;
+    /** Most rows one list shows (only so a broken pack can't build a million widgets). */
+    private static final int ROWS_PER_VIEW = 10_000;
     private static final int SIDEBAR_WIDTH = 104;
-    /** How far you turned the preview (degrees), kept while the game runs. */
+    /** How far you turned the preview round and tipped it (degrees), kept while the game runs. */
     private static float previewSpin;
+    private static float previewPitch;
+    private static final float MAX_PREVIEW_PITCH = 80f;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
-    /** Wardrobe rows per slot without a search (the rest are found by searching), and in a search. */
-    private static final int ROWS_PER_SLOT = 60;
-    private static final int ROWS_PER_SLOT_SEARCHING = 200;
     private static final int SEARCH_HEIGHT = 16;
     /** Frames drawn since start; read by the in-game test to prove the screen renders on every version. */
     public static int framesRendered;
@@ -110,6 +109,7 @@ public final class CosmeticsScreen extends Screen {
     private String tryingOn;
     /** The preview's turn as drawn, easing towards {@link #previewSpin} (plus a half turn for back items). */
     private float shownSpin = previewSpin;
+    private float shownPitch = previewPitch;
     private String query = lastQuery;
     /** The wardrobe's search field, when the wardrobe list is showing. */
     private EditBox searchBox;
@@ -196,7 +196,10 @@ public final class CosmeticsScreen extends Screen {
             left += previewW + Theme.PAD;
             int top = py + Theme.HEADER_HEIGHT + 6;
             addChrome(new Rows.DragArea(previewX, top, previewW, py + ph - Theme.FOOTER_HEIGHT - 6 - top,
-                    dx -> previewSpin += (float) dx * 2f));
+                    (dx, dy) -> {
+                        previewSpin += (float) dx * 2f;
+                        previewPitch = Math.max(-MAX_PREVIEW_PITCH, Math.min(MAX_PREVIEW_PITCH, previewPitch - (float) dy * 1.5f));
+                    }));
         }
 
         // Tabs, right-aligned in the header.
@@ -409,7 +412,7 @@ public final class CosmeticsScreen extends Screen {
                     () -> "", Theme.TEXT_DIM));
         } else if (view == View.ALL || view == View.WEARING) {
             // Everything: grouped by slot.
-            int limit = needle.isEmpty() ? ROWS_PER_SLOT : ROWS_PER_SLOT_SEARCHING;
+            int limit = ROWS_PER_VIEW;
             for (CosmeticSlot slot : CosmeticSlot.values()) {
                 List<BakedCosmetic> inSlot = shown.stream().filter(c -> c.slot() == slot).toList();
                 if (inSlot.isEmpty()) {
@@ -885,7 +888,8 @@ public final class CosmeticsScreen extends Screen {
         if (Math.abs(target - shownSpin) < 0.5f) {
             shownSpin = target;
         }
-        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin);
+        shownPitch += (previewPitch - shownPitch) * 0.3f;
+        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
         String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
         g.centeredText(font, fitText(caption, previewW - 8), (x1 + x2) / 2, y2 - font.lineHeight - 4,
                 shown != null ? Theme.ACCENT : Theme.TEXT_FAINT);

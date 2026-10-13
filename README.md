@@ -31,7 +31,8 @@ There are three ways to open it:
 - **Key**: the "Open Cosmetics" key. It is unbound by default so it can't clash with another mod; bind it
   in Options → Controls.
 
-It is a flat, minimal screen with a live preview of your player and four tabs:
+It is a flat, minimal screen with a live preview of your player (drag it to turn and tilt it; your head looks
+at the mouse) and four tabs:
 
 | Tab | What's there |
 |---|---|
@@ -42,6 +43,8 @@ It is a flat, minimal screen with a live preview of your player and four tabs:
 
 The Wardrobe's **Emotes** list plays each emote (you see it in the preview) and picks which ones are on the
 emote wheel.
+
+Players' names move up above their hats, halos and other head cosmetics, so they never overlap.
 
 Changes apply immediately and are saved when the screen closes. "Reset settings" restores defaults but
 keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its own reset.
