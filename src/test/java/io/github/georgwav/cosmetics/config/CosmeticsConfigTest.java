@@ -27,7 +27,7 @@ class CosmeticsConfigTest {
         config.sanitize();
 
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            assertEquals(SlotPriority.DEFER, config.priority(slot));
+            assertEquals(slot == CosmeticSlot.CAPE ? SlotPriority.OVERRIDE : SlotPriority.DEFER, config.priority(slot));
         }
         assertFalse(config.slotVisible(CosmeticSlot.CAPE));
         assertTrue(config.slotVisible(CosmeticSlot.HEAD));
@@ -38,18 +38,35 @@ class CosmeticsConfigTest {
     }
 
     @Test
+    void oldFilesSwitchCapesToOverrideOnceAndKeepLaterChoices() {
+        CosmeticsConfig old = new CosmeticsConfig();
+        old.configVersion = 0;
+        old.slotPriority.put(CosmeticSlot.CAPE, SlotPriority.DEFER);
+        old.sanitize();
+        assertEquals(SlotPriority.OVERRIDE, old.priority(CosmeticSlot.CAPE));
+        assertEquals(CosmeticsConfig.CONFIG_VERSION, old.configVersion);
+
+        // Someone who sets it back to DEFER afterwards keeps that.
+        old.slotPriority.put(CosmeticSlot.CAPE, SlotPriority.DEFER);
+        old.sanitize();
+        assertEquals(SlotPriority.DEFER, old.priority(CosmeticSlot.CAPE));
+    }
+
+    @Test
     void resetKeepsTheWardrobe() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.localEquipped().add("cosmeticsmod:top_hat");
         config.enabled = false;
         config.renderInShadowPass = false;
-        config.slotPriority.put(CosmeticSlot.CAPE, SlotPriority.OVERRIDE);
+        config.slotPriority.put(CosmeticSlot.CAPE, SlotPriority.DEFER);
+        config.slotPriority.put(CosmeticSlot.HEAD, SlotPriority.OVERRIDE);
 
         config.resetSettings();
 
         assertTrue(config.enabled);
         assertTrue(config.renderInShadowPass);
-        assertEquals(SlotPriority.DEFER, config.priority(CosmeticSlot.CAPE));
+        assertEquals(SlotPriority.OVERRIDE, config.priority(CosmeticSlot.CAPE));
+        assertEquals(SlotPriority.DEFER, config.priority(CosmeticSlot.HEAD));
         assertEquals(List.of("cosmeticsmod:top_hat"), config.localEquipped());
     }
 

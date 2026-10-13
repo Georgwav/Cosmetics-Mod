@@ -29,6 +29,13 @@ public final class CosmeticsConfig {
     // ---------------------------------------------------------------- general
 
     /** Master switch. */
+    /**
+     * Which defaults the file was written with, for one-time changes to them (0 = before this field):
+     * 2 made capes override the vanilla cape.
+     */
+    public int configVersion;
+    static final int CONFIG_VERSION = 2;
+
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
     public boolean showOwnCosmetics = true;
@@ -72,8 +79,9 @@ public final class CosmeticsConfig {
     // ---------------------------------------------------------------- compatibility
 
     /**
-     * What happens when another mod already uses a slot for a player. Everything defaults to
-     * {@link SlotPriority#DEFER}: we never override another mod's cape or model unless you say so.
+     * What happens when another mod already uses a slot for a player. Capes default to
+     * {@link SlotPriority#OVERRIDE} (a cape you put on replaces the vanilla one); everything else to
+     * {@link SlotPriority#DEFER}: we never override another mod's model unless you say so.
      */
     public Map<CosmeticSlot, SlotPriority> slotPriority = defaultPriorities();
     /** Players with a Figura avatar don't get our cosmetics in DEFER slots. */
@@ -148,7 +156,7 @@ public final class CosmeticsConfig {
 
     public SlotPriority priority(CosmeticSlot slot) {
         SlotPriority priority = slotPriority.get(slot);
-        return priority != null ? priority : SlotPriority.DEFER;
+        return priority != null ? priority : defaultPriority(slot);
     }
 
     public boolean slotVisible(CosmeticSlot slot) {
@@ -244,9 +252,14 @@ public final class CosmeticsConfig {
         }
         slotVisible.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            slotPriority.putIfAbsent(slot, SlotPriority.DEFER);
+            slotPriority.putIfAbsent(slot, defaultPriority(slot));
             slotVisible.putIfAbsent(slot, true);
         }
+        if (configVersion < 2) {
+            // Files from before capes overrode the vanilla cape by default still say DEFER for them.
+            slotPriority.put(CosmeticSlot.CAPE, SlotPriority.OVERRIDE);
+        }
+        configVersion = CONFIG_VERSION;
         if (equipped == null) {
             equipped = new LinkedHashMap<>();
         }
@@ -275,9 +288,14 @@ public final class CosmeticsConfig {
     private static Map<CosmeticSlot, SlotPriority> defaultPriorities() {
         Map<CosmeticSlot, SlotPriority> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, SlotPriority.DEFER);
+            map.put(slot, defaultPriority(slot));
         }
         return map;
+    }
+
+    /** Capes replace the vanilla cape by default: wearing one of ours and seeing the vanilla one makes no sense. */
+    static SlotPriority defaultPriority(CosmeticSlot slot) {
+        return slot == CosmeticSlot.CAPE ? SlotPriority.OVERRIDE : SlotPriority.DEFER;
     }
 
     private static Map<CosmeticSlot, Boolean> defaultVisibility() {
