@@ -12,6 +12,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,7 +58,74 @@ class MeshTest {
         return definition.parts().get(0).meshes().get(0);
     }
 
+    /** Vertex {@code v} of quad {@code q}: {x, y, z, u, v, nx, ny, nz}. */
+    private static float[] vertex(BakedMesh mesh, int q, int v) {
+        float[] out = new float[BakedMesh.FLOATS_PER_VERTEX];
+        System.arraycopy(mesh.data(), q * BakedMesh.FLOATS_PER_QUAD + v * BakedMesh.FLOATS_PER_VERTEX, out, 0, out.length);
+        return out;
+    }
+
     // ------------------------------------------------------------------ inline meshes
+
+    @Test
+    void inlineMeshKeepsQuadsAndRepeatsTheLastTriangleVertex() {
+        CosmeticDefinition definition = parse(withMesh("""
+                {"vertices": [[0,0,0], [8,0,0], [8,8,0], [0,8,0], [16,0,0]],
+                 "uvs": [[0,0], [8,0], [8,8], [0,8], [16,0]],
+                 "faces": [[3,2,1,0], [1,4,2]]}
+                """));
+        CosmeticDefinition.Mesh mesh = onlyMesh(definition);
+        assertArrayEquals(new int[]{4, 3}, mesh.faceSizes());
+        assertEquals(3, mesh.triangles());
+
+        BakedMesh baked = CosmeticBaker.bake(definition).layers()[0].mesh();
+        assertEquals(2, baked.quadCount());
+        // Positions to blocks, UVs to 0..1.
+        assertArrayEquals(new float[]{0, 8 / 16f, 0, 0, 8 / 16f}, slice(vertex(baked, 0, 0), 5), EPS);
+        // The triangle is a quad whose last vertex repeats its third.
+        assertArrayEquals(vertex(baked, 1, 2), vertex(baked, 1, 3), EPS);
+        assertArrayEquals(new float[]{1, 0, 0}, slice(vertex(baked, 1, 1), 3), EPS);
+    }
+
+    @Test
+    void flatFacesFaceOutwardsLikeCubeFaces() {
+        // The same square as a cube's north face, given in the cube face's own corner order, bakes to
+        // exactly the same quad: same positions, UVs, winding and normal.
+        BakedMesh cube = CosmeticBaker.bake(CosmeticParser.parse("test:c", new StringReader("""
+                {"slot": "head", "texture": "test:t.png", "texture_size": [16, 16],
+                 "parts": [{"cubes": [{"from": [0,0,0], "to": [4,4,4], "faces": {"north": [0,0,4,4]}}]}]}
+                """))).layers()[0].mesh();
+        BakedMesh mesh = CosmeticBaker.bake(parse(withMesh("""
+                {"vertices": [[4,0,0], [0,0,0], [0,4,0], [4,4,0]],
+                 "uvs": [[4,0], [0,0], [0,4], [4,4]],
+                 "faces": [[0,1,2,3]]}
+                """))).layers()[0].mesh();
+        assertArrayEquals(cube.data(), mesh.data(), EPS);
+        assertArrayEquals(new float[]{0, 0, -1}, slice(vertex(mesh, 0, 0), 5, 8), EPS);
+    }
+
+    @Test
+    void cubesAndMeshesShareTheirLayerAndSmoothMeshesGetTheSecondBuffer() {
+        BakedCosmetic cosmetic = CosmeticBaker.bake(parse("""
+                {"slot": "head", "texture": "test:t.png", "texture_size": [16, 16],
+                 "parts": [{"cubes": [{"from": [0,0,0], "to": [1,1,1], "uv": [0,0]}],
+                            "meshes": [{"vertices": [[0,0,0],[1,0,0],[0,1,0]], "uvs": [[0,0],[1,0],[0,1]], "faces": [[0,1,2]]},
+                                       {"shading": "smooth", "vertices": [[0,0,0],[1,0,0],[0,1,0]], "uvs": [[0,0],[1,0],[0,1]], "faces": [[0,1,2]]}]}]}
+                """));
+        assertEquals(1, cosmetic.layers().length); // no extra draw calls
+        BakedCosmetic.Layer layer = cosmetic.layers()[0];
+        assertEquals(7, layer.mesh().quadCount()); // 6 cube faces + 1 flat triangle
+        assertNotNull(layer.smoothMesh());
+        assertEquals(1, layer.smoothMesh().quadCount());
+    }
+
+    @Test
+    void cubeOnlyLayersHaveNoSmoothMesh() {
+        BakedCosmetic cosmetic = CosmeticBaker.bake(CosmeticParser.parse("test:c", new StringReader("""
+                {"slot": "head", "texture": "test:t.png", "parts": [{"cubes": [{"from": [0,0,0], "to": [1,1,1], "uv": [0,0]}]}]}
+                """)));
+        assertNull(cosmetic.layers()[0].smoothMesh());
+    }
 
     @Test
     void placementMirrorsScalesRotatesThenOffsets() {
@@ -69,6 +138,19 @@ class MeshTest {
         float[] c = mesh.corners();
         int stride = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
         assertArrayEquals(new float[]{10, 18, 30}, new float[]{c[2 * stride], c[2 * stride + 1], c[2 * stride + 2]}, 1.0e-4f);
+    }
+
+    @Test
+    void mirroringKeepsFacesPointingOutwards() {
+        String quad = """
+                "vertices": [[4,0,0], [0,0,0], [0,4,0], [4,4,0]], "uvs": [[0,0],[0,0],[0,0],[0,0]], "faces": [[0,1,2,3]]""";
+        float[] plain = slice(vertex(CosmeticBaker.bake(parse(withMesh("{" + quad + "}"))).layers()[0].mesh(), 0, 0), 5, 8);
+        float[] mirrored = slice(vertex(CosmeticBaker.bake(parse(withMesh("{" + quad + ", \"mirror\": true}"))).layers()[0].mesh(), 0, 0), 5, 8);
+        float[] negative = slice(vertex(CosmeticBaker.bake(parse(withMesh("{" + quad + ", \"scale\": [1, -1, 1]}"))).layers()[0].mesh(), 0, 0), 5, 8);
+        // A face in the z = 0 plane keeps facing -Z under an X mirror or a Y flip.
+        assertArrayEquals(new float[]{0, 0, -1}, plain, EPS);
+        assertArrayEquals(new float[]{0, 0, -1}, mirrored, EPS);
+        assertArrayEquals(new float[]{0, 0, -1}, negative, EPS);
     }
 
     // ------------------------------------------------------------------ smooth normals
@@ -111,6 +193,20 @@ class MeshTest {
                 """)));
         // +X rotated 90 degrees around Y is -Z.
         assertArrayEquals(new float[]{0, 0, -1}, normalOf(mesh, 0, 0), EPS);
+    }
+
+    @Test
+    void smoothMeshesUseThePerVertexBuffer() {
+        BakedCosmetic.Layer layer = CosmeticBaker.bake(parse(withMesh("""
+                {"shading": "smooth", "vertices": [[0,0,0],[4,0,0],[0,4,0]], "uvs": [[0,0],[0,0],[0,0]],
+                 "normals": [[0,0,1],[1,0,0],[0,1,0]], "faces": [[0,1,2]]}
+                """))).layers()[0];
+        assertTrue(layer.mesh().isEmpty());
+        BakedMesh smooth = layer.smoothMesh();
+        assertArrayEquals(new float[]{0, 0, 1}, slice(vertex(smooth, 0, 0), 5, 8), EPS);
+        assertArrayEquals(new float[]{1, 0, 0}, slice(vertex(smooth, 0, 1), 5, 8), EPS);
+        assertArrayEquals(new float[]{0, 1, 0}, slice(vertex(smooth, 0, 2), 5, 8), EPS);
+        assertArrayEquals(new float[]{0, 1, 0}, slice(vertex(smooth, 0, 3), 5, 8), EPS);
     }
 
     // ------------------------------------------------------------------ validation
@@ -178,6 +274,10 @@ class MeshTest {
         }
         int o = (first + corner) * CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
         return slice(mesh.corners(), o + 5, o + 8);
+    }
+
+    private static float[] slice(float[] values, int end) {
+        return slice(values, 0, end);
     }
 
     private static float[] slice(float[] values, int start, int end) {
