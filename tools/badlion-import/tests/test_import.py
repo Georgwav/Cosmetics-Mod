@@ -313,3 +313,14 @@ def test_refuses_folders_it_did_not_write(input_folder, tmp_path):
     assert (out / "keep.txt").read_text() == "mine"
     with pytest.raises(LayoutError, match="input folder"):
         refuse_output(input_folder / "out", input_folder)
+
+
+def test_show_prints_the_numbers_of_matching_cosmetics(tmp_path, capsys):
+    source = fixtures.build(tmp_path / "input", for_import=True)
+    assert main(["show", str(source), "--name", "bat"]) == 0
+    out = capsys.readouterr().out
+    assert "=== WINGS 8  Bat Wings" in out
+    assert '"wingData"' in out
+    assert "bounds in the file" in out
+    assert "converted: slot back" in out
+    assert main(["show", str(source), "--name", "no such cosmetic"]) == 1

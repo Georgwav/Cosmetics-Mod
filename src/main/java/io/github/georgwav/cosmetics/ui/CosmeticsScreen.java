@@ -110,6 +110,8 @@ public final class CosmeticsScreen extends Screen {
     /** The preview's turn as drawn, easing towards {@link #previewSpin} (plus a half turn for back items). */
     private float shownSpin = previewSpin;
     private float shownPitch = previewPitch;
+    /** Aura particles around the preview. */
+    private final PreviewParticles previewParticles = new PreviewParticles();
     private String query = lastQuery;
     /** The wardrobe's search field, when the wardrobe list is showing. */
     private EditBox searchBox;
@@ -201,6 +203,15 @@ public final class CosmeticsScreen extends Screen {
                         previewPitch = Math.max(-MAX_PREVIEW_PITCH, Math.min(MAX_PREVIEW_PITCH, previewPitch - (float) dy * 1.5f));
                     }));
         }
+
+        // Back arrow at the left of the header: from a cosmetic's page back to the list, else out of the screen.
+        addChrome(new Rows.Button(px + Theme.PAD - 4, py + 6, 20, Theme.HEADER_HEIGHT - 12, "<", false, () -> {
+            if (detailId != null) {
+                openDetail(null);
+            } else {
+                onClose();
+            }
+        }));
 
         // Tabs, right-aligned in the header.
         int tabRight = px + pw - Theme.PAD + 6;
@@ -640,6 +651,18 @@ public final class CosmeticsScreen extends Screen {
                     CosmeticsScreen::times));
         }
 
+        if (!cosmetic.definition().particles().isEmpty()) {
+            section("section.cosmetic_particles");
+            add(new Rows.Toggle(listX, 0, listW, t("cosmetic_particles"), config.particles ? null : t("particles.off_globally"),
+                    () -> config.options(id).particles, v -> config.editOptions(id).particles = v));
+            add(new Rows.Slider(listX, 0, listW, t("particle_amount"), 0, 3, 0.1,
+                    () -> config.options(id).particleAmount, v -> config.editOptions(id).particleAmount = (float) v,
+                    v -> Math.round(v * 100) + "%"));
+            add(new Rows.Slider(listX, 0, listW, t("particle_size"), 0.25, 3, 0.05,
+                    () -> config.options(id).particleSize, v -> config.editOptions(id).particleSize = (float) v,
+                    v -> Math.round(v * 100) + "%"));
+        }
+
         contentHeight += 4;
         add(new Rows.Button(listX, 0, listW, Theme.ROW_HEIGHT, t("detail.reset"), false, () -> {
             config.resetOptions(id);
@@ -819,7 +842,7 @@ public final class CosmeticsScreen extends Screen {
         g.fill(px, py, px + pw, py + ph, Theme.PANEL);
 
         // Header and footer.
-        g.text(font, title.getString(), px + Theme.PAD, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
+        g.text(font, title.getString(), px + Theme.PAD + 22, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
         g.fill(px, py + Theme.HEADER_HEIGHT, px + pw, py + Theme.HEADER_HEIGHT + 1, Theme.DIVIDER);
         g.fill(px, py + ph - Theme.FOOTER_HEIGHT, px + pw, py + ph - Theme.FOOTER_HEIGHT + 1, Theme.DIVIDER);
         g.text(font, t("hint"), px + Theme.PAD, py + ph - Theme.FOOTER_HEIGHT + (Theme.FOOTER_HEIGHT - font.lineHeight) / 2 + 1,
@@ -890,6 +913,16 @@ public final class CosmeticsScreen extends Screen {
         }
         shownPitch += (previewPitch - shownPitch) * 0.3f;
         g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
+        // The particles of auras, drawn the way the preview turns the player.
+        float bodyYaw = 180f + shownSpin;
+        previewParticles.update(EquippedCosmetics.forPlayer(minecraft.player.getUUID(), true), bodyYaw);
+        float entityScale = minecraft.player.getScale();
+        float feetY = minecraft.player.getBbHeight() / entityScale / 2f + 0.0625f;
+        org.joml.Quaternionf pose = new org.joml.Quaternionf().rotateZ((float) Math.PI)
+                .rotateX((float) Math.toRadians(shownPitch));
+        g.clip(x1, y1, x2, y2);
+        previewParticles.draw(g, (x1 + x2) / 2f, (y1 + 6 + y2 - 18) / 2f, scale, feetY, pose);
+        g.endClip();
         String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
         g.centeredText(font, fitText(caption, previewW - 8), (x1 + x2) / 2, y2 - font.lineHeight - 4,
                 shown != null ? Theme.ACCENT : Theme.TEXT_FAINT);

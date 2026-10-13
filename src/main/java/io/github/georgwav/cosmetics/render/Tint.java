@@ -40,6 +40,20 @@ public final class Tint {
         return 0xFF000000 | rgb;
     }
 
+    /**
+     * The colour (RGB) a cosmetic's particles take when the player gave the cosmetic a colour or rainbow, or null
+     * to keep the particles' own colours (the default, so they look as their creator made them).
+     */
+    public static Integer particleColor(CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic, double seconds) {
+        return particleColor(options, cosmetic.definition().options(), cosmetic.defaultColor(), seconds);
+    }
+
+    static Integer particleColor(CosmeticsConfig.CosmeticOptions options, int allowed, int defaultColor, double seconds) {
+        boolean picked = (options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0)
+                || (options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0);
+        return picked ? argb(options, allowed, defaultColor, seconds) & 0xFFFFFF : null;
+    }
+
     /** Scales an RGB colour's saturation (HSV) by {@code factor}, keeping its hue and brightness. */
     static int desaturate(int rgb, float factor) {
         float r = (rgb >> 16 & 0xFF) / 255f;

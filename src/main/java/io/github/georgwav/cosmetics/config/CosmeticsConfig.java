@@ -155,13 +155,20 @@ public final class CosmeticsConfig {
         public String style = null;
         /** For a flat cape: draw it as cloth that bends and ripples (Lunar's "cloth cloak") instead of a board. */
         public boolean cloth = false;
+        /** Give off this cosmetic's particles (auras, trails). */
+        public boolean particles = true;
+        /** How many of its particles, 0..3 (1 = as made). */
+        public float particleAmount = 1.0f;
+        /** How big its particles are, 0.25..3 (1 = as made). */
+        public float particleSize = 1.0f;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
                     && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
-                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth;
+                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
+                    && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize;
         }
 
         void sanitize() {
@@ -175,6 +182,8 @@ public final class CosmeticsConfig {
             offsetY = clamp(offsetY, -8f, 8f, 0f);
             offsetZ = clamp(offsetZ, -8f, 8f, 0f);
             animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
+            particleAmount = clamp(particleAmount, 0f, 3f, 1f);
+            particleSize = clamp(particleSize, 0.25f, 3f, 1f);
         }
     }
 

@@ -48,6 +48,20 @@ public final class AuraSpawner {
         return whole;
     }
 
+    /**
+     * {@code spawn} as the player set it for this cosmetic: {@code size} times as big, and in {@code color} (RGB)
+     * instead of the emitter's own colours unless that is null.
+     */
+    public static Spawn adjusted(Spawn spawn, float size, Integer color) {
+        if (size == 1f && color == null) {
+            return spawn;
+        }
+        return new Spawn(spawn.x(), spawn.y(), spawn.z(), spawn.vx(), spawn.vy(), spawn.vz(), spawn.lifetime(),
+                spawn.startSize() * size, spawn.endSize() * size, spawn.startAlpha(), spawn.endAlpha(),
+                color != null ? color & 0xFFFFFF : spawn.color(), spawn.spin(), spawn.gravity(), spawn.friction(),
+                spawn.glow(), spawn.sprites());
+    }
+
     /** A new particle from {@code emitter}, for a player whose body faces {@code bodyYaw} (degrees, the game's). */
     public static Spawn spawn(CosmeticDefinition.ParticleEmitter emitter, float bodyYaw, Random random) {
         float[] o = emitter.origin();

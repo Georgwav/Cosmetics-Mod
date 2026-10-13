@@ -1,4 +1,4 @@
-"""Command line: `list`, `inspect` and `import`."""
+"""Command line: `list`, `inspect`, `show` and `import`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, avif, badlion, convert, inspection, pack
+import json
+
+from . import __version__, avif, badlion, convert, inspection, meshes, pack
 from .archive import Archive, LayoutError
 
 TOOL_DIR = Path(__file__).resolve().parent.parent
@@ -116,6 +118,83 @@ def _select(cosmetics, args) -> list:
     return chosen
 
 
+def _compact(value, depth: int = 0):
+    """A definition for printing: long lists cut short, so the output stays pasteable."""
+    if isinstance(value, dict):
+        return {k: _compact(v, depth + 1) for k, v in value.items()}
+    if isinstance(value, list):
+        items = [_compact(v, depth + 1) for v in value[:12]]
+        return items + [f"... {len(value) - 12} more"] if len(value) > 12 else items
+    return value
+
+
+def _fmt(values) -> str:
+    return "[" + ", ".join(f"{v:.2f}" for v in values) + "]"
+
+
+def cmd_show(args) -> int:
+    """Numbers only: what Badlion says about a cosmetic and its model, and what the conversion makes of it."""
+    settings = convert.load_settings(Path(args.settings) if args.settings else None)
+    with Archive(Path(args.input)) as archive:
+        present = archive.present_paths()
+        definitions = badlion.load(archive)
+        planner = convert.Planner(definitions, present, archive.read, settings)
+        chosen = _select(definitions.cosmetics, args)
+        if not chosen:
+            print("No cosmetic matches. Use --name (part of its name), --only TYPE:ID or --types.")
+            return 1
+        limit = args.limit or 10
+        if len(chosen) > limit:
+            print(f"({len(chosen)} match; showing the first {limit}, raise --limit for more)")
+        for c in chosen[:limit]:
+            print(f"=== {c.type} {c.id}  {c.name}")
+            print("definition: " + json.dumps(_compact(c.raw), sort_keys=True))
+            model = definitions.model_of(c) if c.model_name else None
+            if model is not None:
+                print(f"models.json {model.type} {model.name}: " + json.dumps(_compact(model.raw), sort_keys=True))
+            if c.type not in convert.RULES:
+                print(f"not converted: {convert.UNSUPPORTED.get(c.type, 'unknown type')}")
+                print()
+                continue
+            mesh_path, model, problem = planner.mesh_source(c)
+            if problem:
+                print(f"not converted: {problem}")
+            elif mesh_path == convert.BOX_CAPE:
+                print("converted as a box cape (no model of its own)")
+            elif mesh_path:
+                md5 = mesh_path.endswith(".md5mesh")
+                text = planner.text(mesh_path)
+                summary = meshes.summarize_md5mesh(text) if md5 else meshes.summarize_obj(text)
+                print(f"mesh {mesh_path}: {summary.vertices} vertices, {summary.triangles} triangles"
+                      + (f", {summary.joints} joints" if md5 else ""))
+                if summary.bounds:
+                    lo, hi = summary.bounds
+                    print(f"  bounds in the file: min {_fmt(lo)} max {_fmt(hi)} size {_fmt([hi[i] - lo[i] for i in range(3)])}")
+                if summary.uv_bounds:
+                    print(f"  uv bounds: {_fmt(summary.uv_bounds)}")
+                if md5:
+                    anims = planner.animations(mesh_path)[0]
+                    if anims:
+                        print(f"  animations: {', '.join(sorted(anims))}")
+                rule = convert.RULES[c.type]
+                if rule.kind == "pet" and (c.raw.get("petData") or {}).get("onHead") is True:
+                    rule = convert.PET_ON_HEAD
+                place = convert.placement(c, model, md5, rule, settings.of(c.type))
+                print(f"converted: slot {rule.slot}, scale {place.scale:.3f}, rotation {_fmt(place.rotation)}, "
+                      f"offset {_fmt(place.offset)}")
+                if summary.bounds:
+                    # Where the model ends up around its anchor in game: pixels, +Y down, front at -Z.
+                    m = convert.rotation_matrix(place.rotation)
+                    lo, hi = summary.bounds
+                    corners = [[(lo, hi)[(i >> a) & 1][a] for a in range(3)] for i in range(8)]
+                    moved = [[v * place.scale + o for v, o in zip(convert.apply(m, p), place.offset)] for p in corners]
+                    mn = [min(p[a] for p in moved) for a in range(3)]
+                    mx = [max(p[a] for p in moved) for a in range(3)]
+                    print(f"  in game around the {rule.slot} anchor (px, +Y down, front -Z): min {_fmt(mn)} max {_fmt(mx)}")
+            print()
+    return 0
+
+
 def cmd_import(args) -> int:
     problem = avif.check_decoder()
     if problem:
@@ -177,6 +256,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--verbose", action="store_true", help="list every present cosmetic in the summary")
     p.add_argument("--quiet", action="store_true", help="no progress messages")
     p.set_defaults(func=cmd_inspect)
+
+    p = sub.add_parser("show", help="numbers for a few cosmetics: Badlion's definition, the model's size, the "
+                                    "conversion (to paste when something looks wrong)")
+    p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json")
+    p.add_argument("--name", help="cosmetics whose name or model name contains one of these, e.g. \"zickzack v5\"")
+    p.add_argument("--only", help="these cosmetics, as TYPE:ID, e.g. SHIELD:31,WINGS:53")
+    p.add_argument("--types", help="only these types, e.g. SHIELD,WINGS")
+    p.add_argument("--limit", type=int, help="at most this many (default 10)")
+    p.add_argument("--settings", help="JSON file with conversion settings (see the README)")
+    p.set_defaults(func=cmd_show)
 
     p = sub.add_parser("import", help="convert the cosmetics in your jars into a resource pack for the mod")
     p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json")
