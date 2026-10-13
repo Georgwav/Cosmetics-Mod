@@ -70,6 +70,12 @@ UNSUPPORTED: dict[str, str] = {
 
 # Built-in cloak models tried for capes without a modelName, in order of preference on a tie.
 CAPE_CANDIDATES = ("cloak_v2", "cloak_1", "corsair_cloak")
+# The default shape of capes without a modelName: a box like the vanilla cape, textured with the vanilla box
+# layout. Badlion's cape textures are 22 x 23 blocks (704 x 736 at 32 px a block, 352 x 368 at 16): exactly
+# that layout for a cape 10 wide, 22 long and 1 thick, a longer vanilla cape.
+BOX_CAPE = "box"
+BOX_CAPE_WIDTH = 10
+BOX_CAPE_DEPTH = 1
 CAPE_STYLE_ORDER = ("dynamic", "curved", "rect")
 WING_ANIMATION_ORDER = ("flapping", "wings", "animation")
 
@@ -134,7 +140,7 @@ class TypeSettings:
 class Settings:
     max_texture_size: int = 256
     quantize: bool = True
-    cape_model: str | None = None  # path under the texture root, e.g. cloak/models/cloak_1/cloak_1.md5mesh
+    cape_model: str | None = None  # "box" (default) or a cloak under the texture root, e.g. cloak/models/cloak_1/cloak_1.md5mesh
     cape_style: str | None = None  # default style of capes with cloak animations
     types: dict[str, TypeSettings] = field(default_factory=dict)
 
@@ -434,14 +440,28 @@ def glow_texture(cosmetic: badlion.Cosmetic, present: set[str]) -> str | None:
     return path if path in present else None
 
 
-def default_cape_model(present: set[str]) -> str | None:
-    """The built-in cloak to use for capes without a modelName, if the settings don't name one."""
-    root = badlion.TEXTURE_ROOT + "cloak/models/"
-    for name in reversed(CAPE_CANDIDATES):  # LAYOUT.md found corsair_cloak the best UV fit on real capes
-        path = f"{root}{name}/{name}.md5mesh"
-        if path in present:
-            return path
-    return next((p for p in sorted(present) if p.startswith(root) and p.endswith(".md5mesh")), None)
+def box_cape_layout(source_size: tuple[int, int]) -> tuple[int, int, int]:
+    """(layout width, layout height, cape length) in blocks for a cape texture of this size (one frame). A 2:1
+    texture is the vanilla 64 x 32 layout (16 long); anything else is 22 blocks wide like Badlion's capes, and
+    as long as its height says."""
+    w, h = source_size
+    if w == 2 * h:
+        return 64, 32, 16
+    width = 2 * (BOX_CAPE_WIDTH + BOX_CAPE_DEPTH)
+    length = min(64, max(4, round(h * width / w) - BOX_CAPE_DEPTH))
+    return width, length + BOX_CAPE_DEPTH, length
+
+
+def box_faces(size: tuple[float, float, float], scale_u: float, scale_v: float) -> dict[str, list[float]]:
+    """Per-face UVs in pixels of the vanilla box layout (as the mod's `uv` box mode lays it out) at the origin,
+    scaled from blocks to pixels."""
+    dx, dy, dz = size
+    u0, u1, u2, u3, u4, u5 = 0, dz, dz + dx, dz + 2 * dx, 2 * dz + dx, 2 * dz + 2 * dx
+    v0, v1, v2 = 0, dz, dz + dy
+    faces = {"down": (u1, v0, u2, v1), "up": (u2, v1, u3, v0), "north": (u1, v1, u2, v2),
+             "south": (u4, v1, u5, v2), "west": (u0, v1, u1, v2), "east": (u2, v1, u4, v2)}
+    return {k: [round(a * scale_u, 4), round(b * scale_v, 4), round(c * scale_u, 4), round(d * scale_v, 4)]
+            for k, (a, b, c, d) in faces.items()}
 
 
 def cape_model_candidates(present: set[str]) -> list[str]:
@@ -463,9 +483,8 @@ class Planner:
         self._texts: dict[str, str] = {}
         self._anims: dict[str, tuple[dict[str, str], list[str]]] = {}
         self.obj_stats = {"clamped_uvs": 0, "added_uvs": 0}
-        self.cape_model = settings.cape_model and badlion.TEXTURE_ROOT + settings.cape_model
-        if not self.cape_model or self.cape_model not in present:
-            self.cape_model = default_cape_model(present)
+        cloak = settings.cape_model and badlion.TEXTURE_ROOT + settings.cape_model
+        self.cape_model = cloak if settings.cape_model != BOX_CAPE and cloak in present else BOX_CAPE
 
     # -------------------------------------------------------------- files
 
@@ -527,8 +546,8 @@ class Planner:
         rule = RULES[c.type]
         if c.model_name:
             model = self.d.model_of(c)
-            if model is None and rule.kind == "cape" and self.cape_model is not None:
-                # Capes naming a model Badlion doesn't define ("cloak", "cape", ...) get its built-in cloak.
+            if model is None and rule.kind == "cape":
+                # Capes naming a model Badlion doesn't define ("cloak", "cape", ...) get its built-in cape.
                 return self.cape_model, None, None
             if model is None:
                 return None, None, f"model '{c.model_name}' has no models.json entry"
@@ -536,8 +555,6 @@ class Planner:
                 return None, model, f"model '{c.model_name}' is not in your jars"
             return model.mesh_path(), model, None
         if rule.kind == "cape":
-            if self.cape_model is None:
-                return None, None, "no built-in cloak model in your jars"
             return self.cape_model, None, None
         return None, None, "no model (Badlion draws it from the player skin or a built-in model)"
 
@@ -554,13 +571,15 @@ class Planner:
             mesh_path, model, problem = variant["mesh"], None, None
         if problem:
             return Skipped(c, problem)
+        notes = []
+        if c.model_name and model is None and not variant:
+            notes.append(f"model '{c.model_name}' isn't in models.json; uses the built-in cape")
+        if mesh_path == BOX_CAPE:
+            return self.plan_box_cape(c, texture, variant, notes)
 
         rule = RULES[c.type]
         ts = self.settings.of(c.type)
         mf = self.model_file(mesh_path)
-        notes = []
-        if c.model_name and model is None and not variant:
-            notes.append(f"model '{c.model_name}' isn't in models.json; uses the built-in cloak")
         for key in ("subModels", "extraModels"):
             if model and model.raw.get(key):
                 notes.append(f"{key} not converted (only the main model is)")
@@ -665,6 +684,53 @@ class Planner:
 
         return Planned(c, cid, display_name, textures, model_files, build, triangles, notes)
 
+    def plan_box_cape(self, c: badlion.Cosmetic, texture: str, variant: dict | None, notes: list[str]) -> Planned:
+        """A cape without a model of its own: a box like the vanilla cape, swinging with the vanilla cape's
+        physics, its size and UVs from the texture's layout (see BOX_CAPE)."""
+        timing = c.raw.get("animationData") or {}
+        tex_loc = texture_id(c)
+        textures = [TextureJob(texture, tex_loc, timing.get("frameDelay"), bool(timing.get("customFrameDelay", True)))]
+        glow = glow_texture(c, self.present)
+        glow_loc = texture_id(c, "_glow") if glow else None
+        if glow:
+            textures.append(TextureJob(glow, glow_loc, timing.get("frameDelay"),
+                                       bool(timing.get("customFrameDelay", True))))
+        mode = "translucent" if c.raw.get("transparent") is True else "cutout"
+        cid = variant["id"] if variant else badlion.cosmetic_id(c)
+        display_name = variant["name"] if variant else c.name
+
+        def build(converted: dict) -> dict:
+            info = converted[tex_loc]
+            layout_w, layout_h, length = box_cape_layout(info.source_size)
+            fw, fh = info.frame_size
+            size = (BOX_CAPE_WIDTH, length, BOX_CAPE_DEPTH)
+            cube = {"from": [-BOX_CAPE_WIDTH / 2, 0, -BOX_CAPE_DEPTH], "to": [BOX_CAPE_WIDTH / 2, length, 0],
+                    "faces": box_faces(size, fw / layout_w, fh / layout_h)}
+            doc = {"slot": "cape", "name": display_name, "texture": tex_loc, "texture_size": [fw, fh]}
+            animation = texture_animation(info)
+            if animation:
+                doc["texture_animation"] = animation
+            options = options_of(c)
+            if options:
+                doc["options"] = options
+            color = color_of(c.raw.get("defaultColor"))
+            if color:
+                doc["default_color"] = color
+            parts = [{"name": "cape", "mode": mode, "cubes": [cube]}]
+            if glow:
+                glow_info = converted[glow_loc]
+                gw, gh = glow_info.frame_size
+                glow_part = {"name": "glow", "mode": "emissive", "texture": glow_loc,
+                             "cubes": [{**cube, "faces": box_faces(size, gw / layout_w, gh / layout_h)}]}
+                glow_animation = texture_animation(glow_info)
+                if glow_animation:
+                    glow_part["texture_animation"] = glow_animation
+                parts.append(glow_part)
+            doc["parts"] = parts
+            return doc
+
+        return Planned(c, cid, display_name, textures, [], build, 12, notes)
+
 
 def texture_animation(info) -> dict | None:
     if info.frames <= 1:
@@ -712,14 +778,16 @@ def wings_of(c: badlion.Cosmetic, md5: bool, place: Placement) -> dict:
 # ---------------------------------------------------------------------- calibration
 
 def calibration_plan(planner: Planner, cosmetics) -> Plan:
-    """A few cosmetics in every variant worth comparing by eye: each built-in cloak (and both texture V
-    directions) on one cape without a model, and both V directions on one OBJ- and one MD5-based cosmetic of
-    every type."""
+    """A few cosmetics in every variant worth comparing by eye: the box cape and each built-in cloak (in both
+    texture V directions) on one cape without a model, and both V directions on one OBJ- and one MD5-based
+    cosmetic of every type."""
     plan = Plan()
     present = [c for c in cosmetics if c.type in RULES and find_texture(c, planner.present)]
     capes = [c for c in present if c.type == "CAPE" and not c.model_name]
     if capes:
         c = capes[0]
+        plan.planned.append(planner.plan_box_cape(c, find_texture(c, planner.present), {
+            "id": "calib_cape_box", "name": "Calibrate cape: box (vanilla shape)"}, []))
         for mesh in cape_model_candidates(planner.present):
             short = mesh.rsplit("/", 1)[1][:-len(".md5mesh")]
             for flip in (False, True):

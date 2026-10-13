@@ -238,7 +238,8 @@ def build(folder: Path, *, missing_listed=True, for_import=False) -> Path:
     files = {
         0: {
             T + "cloak/cloak_1.avif": avif_still((64, 32), opaque=(0, 0, 0.5, 1)),
-            T + "cloak/cloak_2.avif": avif_still((64, 32), opaque=(0, 0, 0.5, 1), color=(30, 30, 200, 255)),
+            # Badlion's own cape layout: 22 x 23 blocks (here 16 px a block).
+            T + "cloak/cloak_2.avif": avif_still((352, 368), opaque=(0, 0, 0.5, 1), color=(30, 30, 200, 255)),
             T + "cloak/7/cloak_7.avif": avif_sequence([100, 40, 250]),
             T + "cloak/gui/cloak_1_gui.avif": avif_still((8, 8)),
             T + "cloak/models/cloak_v2/cloak_v2.md5mesh": CAPE_MD5MESH.encode(),

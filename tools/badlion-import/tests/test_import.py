@@ -125,6 +125,21 @@ def test_model_files_that_differ_only_in_case_stay_apart():
     assert planner.location_of(badlion.TEXTURE_ROOT + "wing/models/Bat.obj") == upper
 
 
+def test_box_cape_layout_follows_the_texture():
+    assert convert.box_cape_layout((64, 32)) == (64, 32, 16)  # vanilla
+    assert convert.box_cape_layout((704, 736)) == (22, 23, 22)  # Badlion, 32 px a block
+    assert convert.box_cape_layout((704, 735)) == (22, 23, 22)
+    assert convert.box_cape_layout((352, 368)) == (22, 23, 22)
+
+
+def test_box_faces_match_the_mods_box_uv():
+    # CosmeticBaker.boxUv for the vanilla cape cube at uv [0, 0].
+    assert convert.box_faces((10, 16, 1), 1, 1) == {
+        "down": [1, 0, 11, 1], "up": [11, 1, 21, 0], "north": [1, 1, 11, 17],
+        "south": [12, 1, 22, 17], "west": [0, 1, 1, 17], "east": [11, 1, 12, 17]}
+    assert convert.box_faces((10, 22, 1), 32, 32)["north"] == [32, 32, 352, 736]
+
+
 def test_capes_default_to_v_up():
     assert convert.Settings().of("CAPE").flip_v_md5 is True
     assert convert.Settings().of("HAT").flip_v_md5 is False
@@ -148,18 +163,24 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert names == ["back_4_hiker_pack.json", "cape_11_old_cloak.json", "cape_12_blank_model.json",
                      "cape_1_red_cape.json", "cape_2_blue_cape.json", "cape_7_flowing_cape.json",
                      "hat_1_top_hat.json", "wings_8_bat_wings.json"]
-    # A cape naming a model Badlion doesn't define, or a blank one, gets the built-in cloak too.
-    for name in ("cape_11_*.json", "cape_12_*.json"):
-        assert cosmetic(out, name)["parts"][0]["meshes"][0]["model"].endswith("cloak_v2/cloak_v2.md5mesh")
-
-    # Capes without a model: the built-in cloak, its animations as styles, in the vanilla cape's space.
+    # Capes without a model: a box like the vanilla cape. A 64 x 32 texture is the vanilla layout.
     cape = cosmetic(out, "cape_1_*.json")
     assert cape["slot"] == "cape" and cape["texture_size"] == [64, 32]
-    mesh = cape["parts"][0]["meshes"][0]
-    assert mesh["model"] == "blc_import:models/cosmetic/cloak/cloak_v2/cloak_v2.md5mesh"
-    assert same_rotation(mesh["rotation"], [90, 180, 0])
-    assert sorted(mesh["bone_animations"]) == ["curved", "rect"] and cape["default_style"] == "curved"
+    cube = cape["parts"][0]["cubes"][0]
+    assert cube["from"] == [-5, 0, -1] and cube["to"] == [5, 16, 0]
+    assert cube["faces"]["north"] == [1, 1, 11, 17] and cube["faces"]["south"] == [12, 1, 22, 17]
     assert cape["options"] == {"saturation": False}  # chroma allowed, saturation not
+    assert not (out / "assets/blc_import/models/cosmetic/cloak").exists()
+    # Badlion's 22 x 23 layout is a 22 long cape, its UVs scaled to the (downscaled) texture.
+    long = cosmetic(out, "cape_2_*.json")
+    w, h = long["texture_size"]
+    assert (w, h) == (61, 64)
+    cube = long["parts"][0]["cubes"][0]
+    assert cube["to"] == [5, 22, 0]
+    assert cube["faces"]["north"] == [round(w / 22, 4), round(h / 23, 4), round(11 * w / 22, 4), h]
+    # A cape naming a model Badlion doesn't define, or a blank one, gets the box too.
+    for name in ("cape_11_*.json", "cape_12_*.json"):
+        assert cosmetic(out, name)["parts"][0]["cubes"][0]["to"] == [5, 16, 0]
 
     # An animated cape: a strip with the file's own frame times.
     flowing = cosmetic(out, "cape_7_*.json")
@@ -203,7 +224,8 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert "model 'angel' is not in your jars" in report
     assert "pets aren't worn on the player" in report
     assert "1 animation(s) skipped" in report
-    assert "model 'cloak' isn't in models.json; uses the built-in cloak" in report
+    assert "model 'cloak' isn't in models.json; uses the built-in cape" in report
+    assert "Capes without a model are a box like the vanilla cape" in report
     assert "| WINGS | 8 | Bat Wings | `blc_import:wings_8_bat_wings` |" in report
 
 
@@ -236,7 +258,9 @@ def test_calibration_writes_variants_to_compare(input_folder, tmp_path):
     out = tmp_path / "calibration"
     run(input_folder, out, "--calibrate")
     names = sorted(p.stem for p in (out / COSMETICS).iterdir())
+    assert "calib_cape_box" in names
     assert "calib_cape_cloak_v2_v_down" in names and "calib_cape_cloak_v2_v_up" in names
+    assert cosmetic(out, "calib_cape_box.json")["name"] == "Calibrate cape: box (vanilla shape)"
     assert "calib_hat_obj_as_is" in names and "calib_hat_obj_flipped" in names
     assert "calib_wings_md5_as_is" in names
     up = cosmetic(out, "calib_cape_cloak_v2_v_up.json")
@@ -245,13 +269,18 @@ def test_calibration_writes_variants_to_compare(input_folder, tmp_path):
 
 def test_settings_change_the_conversion(input_folder, tmp_path):
     settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"cape_style": "rect", "types": {"HAT": {"offset": [0, -0.5, 0],
-                                                                            "flip_v_obj": True}}}))
+    settings.write_text(json.dumps({"cape_model": "cloak/models/cloak_v2/cloak_v2.md5mesh", "cape_style": "rect",
+                                    "types": {"HAT": {"offset": [0, -0.5, 0], "flip_v_obj": True}}}))
     out = tmp_path / "pack"
     run(input_folder, out, "--settings", str(settings), "--types", "HAT,CAPE")
     hat_mesh = cosmetic(out, "hat_1_*.json")["parts"][0]["meshes"][0]
     assert hat_mesh["offset"] == [0, -1.5, 0] and hat_mesh["flip_v"] is True
-    assert cosmetic(out, "cape_1_*.json")["default_style"] == "rect"
+    # A cloak instead of the box: the vanilla cape's space, its animations as styles.
+    cape = cosmetic(out, "cape_1_*.json")
+    mesh = cape["parts"][0]["meshes"][0]
+    assert mesh["model"] == "blc_import:models/cosmetic/cloak/cloak_v2/cloak_v2.md5mesh"
+    assert same_rotation(mesh["rotation"], [90, 180, 0])
+    assert sorted(mesh["bone_animations"]) == ["curved", "rect"] and cape["default_style"] == "rect"
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"types": {"HAT": {"colour": 1}}}))
     with pytest.raises(ValueError, match="not a setting"):

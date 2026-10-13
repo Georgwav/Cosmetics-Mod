@@ -585,8 +585,10 @@ def layout_markdown(r: Result, archive: Archive) -> str:
     lines += ["", "## Details", ""] + r.layout_details
     if r.cape_model:
         lines += ["## Model for capes without modelName", "",
-                  f"`{r.cape_model[len(badlion.TEXTURE_ROOT):]}`: its UVs overlap the painted area of sample cape "
-                  "textures best (see the scores above). The importer uses it for every cape without a modelName.", ""]
+                  f"`{r.cape_model[len(badlion.TEXTURE_ROOT):]}`: of the built-in cloaks, its UVs overlap the painted "
+                  "area of sample cape textures best (see the scores above). The importer makes capes without a "
+                  "modelName a box like the vanilla cape instead, whose layout the 22 x 23 block textures follow; "
+                  "set `cape_model` to use a cloak.", ""]
     return "\n".join(lines).rstrip() + "\n"
 
 

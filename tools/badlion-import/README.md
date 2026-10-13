@@ -60,9 +60,9 @@ Type, id, name, and whether its texture and model are in your jars (`present`) o
 
 Writes a resource pack of the cosmetics in your jars. Do it in two steps.
 
-**1. Calibrate.** A few of your cosmetics in every variant that can only be judged by eye: each built-in cloak
-model on one cape without a model (and both directions of its texture), and both texture directions on one
-cosmetic of every type:
+**1. Calibrate.** A few of your cosmetics in every variant that can only be judged by eye: one cape without a
+model as the box (the default) and on each built-in cloak model (in both directions of its texture), and both
+texture directions on one cosmetic of every type:
 
 ```powershell
 badlion-import import C:\badlion-input C:\badlion-packs\calibration --calibrate
@@ -101,8 +101,10 @@ triangle limit (raise `maxMeshTriangles` in `config/cosmeticsmod.json` for those
 conversion used.
 
 **What converts:**
-- capes, with Badlion's built-in cloak when they have no model of their own, and its `rect`, `curved` and
-  `dynamic` animations as the cape's styles;
+- capes: those without a model of their own as a box like the vanilla cape, swinging with the vanilla cape
+  physics. Badlion's cape textures are 22 x 23 blocks (704 x 736 or 352 x 368), the vanilla box layout of a
+  cape 10 wide, 22 long and 1 thick. Capes with a model use it, with its `rect`, `curved` and `dynamic`
+  animations as the cape's styles;
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
   flap);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
@@ -130,9 +132,9 @@ Every key is optional:
 }
 ```
 
-- `cape_model`: the built-in cloak for capes without a model, as the path under Badlion's texture folder (the
-  calibration names them). Default: the best UV fit `inspect` found, `corsair_cloak` when present.
-- `cape_style`: the cape style shown first (`rect`, `curved` or `dynamic`).
+- `cape_model`: what capes without a model are: `box` (the default), or a built-in cloak as the path under
+  Badlion's texture folder, e.g. `cloak/models/cloak_v2/cloak_v2.md5mesh` (the calibration names them).
+- `cape_style`: the style shown first for capes on a cloak model (`rect`, `curved` or `dynamic`).
 - Per type: `flip_v_obj` and `flip_v_md5` turn the texture's V direction around for that type's OBJ and MD5
   models (the calibration's "flipped" / "V up" variants); `offset` (pixels, the mod's model axes: +Y down,
   -Z front) and `rotation` (degrees) nudge where the type sits; `shading` is `smooth` or `flat`.
