@@ -225,6 +225,13 @@ def test_reimport_reuses_textures_and_removes_what_is_no_longer_selected(input_f
     assert written.textures_reused == 2 and written.textures_converted == 0
 
 
+def test_name_picks_cosmetics_by_name_or_model(input_folder, tmp_path):
+    out = tmp_path / "pack"
+    run(input_folder, out, "--name", "HIKER,bat_w")  # a name and a model name, any case
+    assert sorted(p.name for p in (out / COSMETICS).iterdir()) == ["back_4_hiker_pack.json",
+                                                                   "wings_8_bat_wings.json"]
+
+
 def test_calibration_writes_variants_to_compare(input_folder, tmp_path):
     out = tmp_path / "calibration"
     run(input_folder, out, "--calibrate")

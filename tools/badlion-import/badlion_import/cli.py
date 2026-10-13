@@ -96,8 +96,9 @@ def cmd_inspect(args) -> int:
 
 
 def _select(cosmetics, args) -> list:
-    """The cosmetics the options ask for: --types, --only TYPE:ID,..., --limit per type."""
+    """The cosmetics the options ask for: --types, --only TYPE:ID,..., --name, --limit per type."""
     types = {t.strip().upper() for t in args.types.split(",")} if args.types else None
+    names = [n.strip().lower() for n in args.name.split(",") if n.strip()] if args.name else None
     only = set()
     if args.only:
         for item in args.only.split(","):
@@ -108,6 +109,8 @@ def _select(cosmetics, args) -> list:
         if types and c.type not in types:
             continue
         if only and (c.type, str(c.id)) not in only:
+            continue
+        if names and not any(n in c.name.lower() or n in (c.model_name or "").lower() for n in names):
             continue
         chosen.append(c)
     return chosen
@@ -182,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="write a few cosmetics in every variant to compare in game, instead of everything")
     p.add_argument("--types", help="only these types, e.g. CAPE,WINGS,HAT")
     p.add_argument("--only", help="only these cosmetics, as TYPE:ID, e.g. CAPE:12,HAT:3")
+    p.add_argument("--name", help="only cosmetics whose name or model name contains one of these, e.g. "
+                                  "zickzack,basti (any case)")
     p.add_argument("--limit", type=int, help="at most this many cosmetics per type (for a quick test)")
     p.add_argument("--settings", help="JSON file with conversion settings (see the README)")
     p.add_argument("--max-texture", type=int, help="longest side of a texture frame in pixels (default 256)")

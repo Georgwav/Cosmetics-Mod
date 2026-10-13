@@ -82,6 +82,7 @@ badlion-import import C:\badlion-input C:\badlion-packs\badlion --settings C:\ba
 | `--calibrate` | Only the calibration variants. |
 | `--types CAPE,WINGS` | Only these types. |
 | `--only CAPE:12,HAT:3` | Only these cosmetics (type and Badlion id, as `list` prints them). |
+| `--name zickzack,basti` | Only cosmetics whose name or model name contains one of these words (any case), for example every cosmetic of one creator. Works with `--calibrate` too. |
 | `--limit 5` | At most this many per type, for a quick test. |
 | `--settings file.json` | Conversion settings (below). |
 | `--max-texture 256` | Longest side of a texture frame, in pixels. Badlion's capes are 704×736 with up to 15 frames, so the default keeps a large collection to a sensible size. |
