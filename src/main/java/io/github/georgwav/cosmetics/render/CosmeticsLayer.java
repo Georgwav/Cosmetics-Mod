@@ -69,8 +69,7 @@ import java.util.NoSuchElementException;
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
                      int frame, int clip, float clipTime) {
-        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -125,8 +124,7 @@ import java.util.NoSuchElementException;
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
                      int frame, int clip, float clipTime) {
-        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -161,6 +159,12 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
                      int frame, int clip, float clipTime) {
+        submit(collector, poseStack, cosmetic, layer, light, color, frame, clip, clipTime);
+    }
+
+    // Hands one layer to the collector; also used for held items (see HeldItems).
+    static void submit(SubmitNodeCollector collector, PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer,
+                       int light, int color, int frame, int clip, float clipTime) {
         String id = cosmetic.id();
         float vOffset = vOffset(layer, frame);
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
@@ -182,6 +186,15 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         });
     }
 //?}
+
+    //? if <1.21.9 {
+    /*// Draws one layer into a buffer source; also used for held items (see HeldItems).
+    static void drawToBuffers(MultiBufferSource buffers, PoseStack poseStack, BakedCosmetic.Layer layer, int light,
+                              int color, int frame, int clip, float clipTime) {
+        VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
+    }
+    *///?}
 
     /** V offset of a frame in a vertical-strip texture animation; 0 for every other layer. */
     private static float vOffset(BakedCosmetic.Layer layer, int frame) {

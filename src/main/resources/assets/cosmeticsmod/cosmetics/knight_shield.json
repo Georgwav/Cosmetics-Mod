@@ -1,0 +1,16 @@
+{
+  "slot": "shield",
+  "texture": "cosmeticsmod:textures/cosmetic/knight_shield.png",
+  "texture_size": [64, 64],
+  "parts": [
+    {
+      "name": "shield",
+      "mode": "cutout",
+      "cubes": [
+        { "from": [-6, -11, -2], "to": [6, 11, -1], "uv": [0, 0] },
+        { "from": [-2, -3, -3], "to": [2, 3, -2], "uv": [26, 0] },
+        { "from": [-1, -3, -1], "to": [1, 3, 5], "uv": [0, 23] }
+      ]
+    }
+  ]
+}

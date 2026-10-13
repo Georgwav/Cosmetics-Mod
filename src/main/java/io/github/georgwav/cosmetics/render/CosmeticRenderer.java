@@ -81,6 +81,9 @@ public final class CosmeticRenderer {
                 continue;
             }
             CosmeticSlot slot = cosmetic.slot();
+            if (slot.anchor() == CosmeticSlot.Anchor.HELD) {
+                continue; // drawn in place of the held item (see renderHeld)
+            }
             if (!config.slotVisible(slot)
                     || (slot == CosmeticSlot.CAPE && info.elytra && config.hideCapeWithElytra)
                     || (slot.anchor() == CosmeticSlot.Anchor.HEAD && info.helmet && config.hideHeadwearWithHelmet)) {
@@ -130,57 +133,8 @@ public final class CosmeticRenderer {
                     wingPhase = animate ? wing.phase : 0.0;
                     applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
                 }
-                for (BakedCosmetic.Layer layer : cosmetic.layers()) {
-                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
-                            || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
-                        continue;
-                    }
-                    int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
-                    int layerColor = layer.tinted() ? color : WHITE;
-                    TextureFrames frames = layer.textureFrames();
-                    int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
-                    // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
-                    // the rest of the player) still sees the stack it expects.
-                    int pushes = 0;
-                    try {
-                        if (animate && layer.animations().length > 0) {
-                            poseStack.pushPose();
-                            pushes++;
-                            for (CosmeticDefinition.Animation animation : layer.animations()) {
-                                applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
-                            }
-                        }
-                        CosmeticDefinition.WingPart wingPart = layer.wing();
-                        if (wingPart != null && wings != null) {
-                            poseStack.pushPose();
-                            pushes++;
-                            applyWing(poseStack, wings, wingPart, wingAngle);
-                        }
-                        MeshRig rig = layer.rig();
-                        int clip = 0;
-                        float clipTime = 0f;
-                        if (rig != null) {
-                            clip = rig.clipForStyle(style);
-                            // With wings, a skeletal mesh plays one loop of its clip per flap.
-                            clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
-                                    : rig.clipTime(clip, seconds, animate ? animationSpeed * capeMotion : 0f);
-                            poseStack.pushPose();
-                            pushes++;
-                            applyRig(poseStack, rig, layer.joint(), clip, clipTime);
-                        }
-                        for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                            sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime);
-                        }
-                    } finally {
-                        for (; pushes > 0; pushes--) {
-                            poseStack.popPose();
-                        }
-                    }
-                    RenderStats.meshesDrawn++;
-                    if (shadowPass) {
-                        RenderStats.shadowPassMeshes++;
-                    }
-                }
+                drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
+                        wings, wingAngle, wingPhase, seconds, shadowPass, sink);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(cosmetic.id(), e);
             } finally {
@@ -190,6 +144,123 @@ public final class CosmeticRenderer {
         if (RenderStats.TIMING) {
             RenderStats.nanos += System.nanoTime() - start;
         }
+    }
+
+    /** Draws every layer of one cosmetic at the pose stack's current pose. */
+    private static void drawLayers(PoseStack poseStack, BakedCosmetic cosmetic, int packedLight, int color,
+                                   boolean glow, boolean animate, float animationSpeed, int style, float capeMotion,
+                                   CosmeticDefinition.Wings wings, float wingAngle, double wingPhase, double seconds,
+                                   boolean shadowPass, Sink sink) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        for (BakedCosmetic.Layer layer : cosmetic.layers()) {
+            if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
+                    || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
+                continue;
+            }
+            int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
+            int layerColor = layer.tinted() ? color : WHITE;
+            TextureFrames frames = layer.textureFrames();
+            int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
+            // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
+            // the rest of the player) still sees the stack it expects.
+            int pushes = 0;
+            try {
+                if (animate && layer.animations().length > 0) {
+                    poseStack.pushPose();
+                    pushes++;
+                    for (CosmeticDefinition.Animation animation : layer.animations()) {
+                        applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
+                    }
+                }
+                CosmeticDefinition.WingPart wingPart = layer.wing();
+                if (wingPart != null && wings != null) {
+                    poseStack.pushPose();
+                    pushes++;
+                    applyWing(poseStack, wings, wingPart, wingAngle);
+                }
+                MeshRig rig = layer.rig();
+                int clip = 0;
+                float clipTime = 0f;
+                if (rig != null) {
+                    clip = rig.clipForStyle(style);
+                    // With wings, a skeletal mesh plays one loop of its clip per flap.
+                    clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
+                            : rig.clipTime(clip, seconds, animate ? animationSpeed * capeMotion : 0f);
+                    poseStack.pushPose();
+                    pushes++;
+                    applyRig(poseStack, rig, layer.joint(), clip, clipTime);
+                }
+                for (int copy = 0; copy < RenderStats.COPIES; copy++) {
+                    sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime);
+                }
+            } finally {
+                for (; pushes > 0; pushes--) {
+                    poseStack.popPose();
+                }
+            }
+            RenderStats.meshesDrawn++;
+            if (shadowPass) {
+                RenderStats.shadowPassMeshes++;
+            }
+        }
+    }
+
+    /**
+     * Draws a held cosmetic (a shield) in place of the held item: at the pose stack's current pose, which is
+     * where vanilla would draw the item's model (after the item's display transform), so the cosmetic is built
+     * like the vanilla model of that item. Returns false, drawing nothing, when the cosmetic shouldn't show
+     * (the mod or the slot is off, the player is hidden, or the cosmetic failed before); the caller then
+     * draws the vanilla item.
+     */
+    public static boolean renderHeld(PoseStack poseStack, int packedLight, BakedCosmetic cosmetic, boolean local,
+                                     Sink sink) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        if (!config.enabled || RenderGuard.isLayerDisabled() || RenderGuard.isDisabled(cosmetic.id())
+                || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
+                || !config.slotVisible(cosmetic.slot())) {
+            return false;
+        }
+        long start = RenderStats.TIMING ? System.nanoTime() : 0L;
+        double seconds = (System.nanoTime() - START_NANOS) / 1.0e9;
+        poseStack.pushPose();
+        try {
+            // Item models are drawn upside down and facing back (vanilla scales by 1, -1, -1 here too), so
+            // the cosmetic is modelled in the same space as the vanilla model.
+            poseStack.scale(1f, -1f, -1f);
+            CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+            applyPlacement(poseStack, options, cosmetic);
+            boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+            boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+            float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+            int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+            drawLayers(poseStack, cosmetic, packedLight, Tint.argb(options, cosmetic, seconds), glow, animate,
+                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), sink);
+            RenderStats.heldDrawn++;
+        } catch (RuntimeException | LinkageError e) {
+            RenderGuard.cosmeticFailed(cosmetic.id(), e);
+        } finally {
+            poseStack.popPose();
+        }
+        if (RenderStats.TIMING) {
+            RenderStats.nanos += System.nanoTime() - start;
+        }
+        return true;
+    }
+
+    /**
+     * The held cosmetic that replaces this item for this player, or null: the first one of the player's
+     * cosmetics in a held slot that this item takes (a shield cosmetic for a shield).
+     */
+    public static BakedCosmetic heldFor(java.util.UUID player, boolean local, CosmeticSlot slot) {
+        if (player == null || !CosmeticsConfig.get().enabled) {
+            return null;
+        }
+        for (BakedCosmetic cosmetic : EquippedCosmetics.forPlayer(player, local)) {
+            if (cosmetic.slot() == slot && !RenderGuard.isDisabled(cosmetic.id())) {
+                return cosmetic;
+            }
+        }
+        return null;
     }
 
     /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */

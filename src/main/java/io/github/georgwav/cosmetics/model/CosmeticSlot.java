@@ -16,9 +16,15 @@ public enum CosmeticSlot {
     /** Backpacks, wings. Attached to the body model part. */
     BACK(Anchor.BODY),
     /** Capes. Attached to the body and swayed like the vanilla cape. */
-    CAPE(Anchor.BODY);
+    CAPE(Anchor.BODY),
+    /**
+     * Shields. Drawn in place of a held shield, in the vanilla shield model's space: the plate spans
+     * x -6..6, y -11..11, z -2..-1, its front facing -Z.
+     */
+    SHIELD(Anchor.HELD);
 
-    public enum Anchor { HEAD, BODY }
+    /** HELD: drawn in place of a held item rather than on the player model. */
+    public enum Anchor { HEAD, BODY, HELD }
 
     private final Anchor anchor;
 

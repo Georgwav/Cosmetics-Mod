@@ -14,6 +14,7 @@
     "client": ["io.github.georgwav.cosmetics.CosmeticsMod"],
     "modmenu": ["io.github.georgwav.cosmetics.compat.modmenu.ModMenuCompat"]
   },
+  "mixins": ["cosmeticsmod.mixins.json"],
   "depends": {
     "fabricloader": ">=${loader}",
     "fabric-api": "*",

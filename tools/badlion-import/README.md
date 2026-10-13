@@ -108,10 +108,12 @@ conversion used.
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
   flap);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
+- shields: shown instead of the vanilla shield while you hold one, centred on the vanilla shield's plate and
+  scaled by the model's `scale` (Badlion's `shieldModelData` isn't converted);
 - animated textures (as frame strips with their timing), glow layers, see-through cosmetics, default colours,
   and whether Badlion lets the cosmetic be recoloured (chroma, saturation).
 
-Skipped and listed in the report: pets, shields, swords, bows, sprays, auras and nametag decorations, boots and
+Skipped and listed in the report: pets, swords, bows, sprays, auras and nametag decorations, boots and
 armbands (the mod has no arm or leg anchors yet), cosmetics without a model of their own (other than capes),
 and sub-models (only a cosmetic's main model converts).
 

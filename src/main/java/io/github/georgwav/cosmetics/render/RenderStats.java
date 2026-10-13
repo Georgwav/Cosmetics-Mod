@@ -23,6 +23,8 @@ public final class RenderStats {
     public static long deferredToOtherMods;
     /** Player layers skipped in the shadow pass because the user turned shadows off. */
     public static long skippedShadowPass;
+    /** Held items drawn as a cosmetic (a shield cosmetic in place of the shield). */
+    public static long heldDrawn;
     /** Nanoseconds spent in our layer and our vertex emission (benchmark only). */
     public static long nanos;
 
@@ -35,6 +37,7 @@ public final class RenderStats {
         shadowPassMeshes = 0;
         deferredToOtherMods = 0;
         skippedShadowPass = 0;
+        heldDrawn = 0;
         nanos = 0;
     }
 }
