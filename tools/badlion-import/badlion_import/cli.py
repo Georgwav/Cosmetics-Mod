@@ -10,14 +10,22 @@ from . import __version__, avif, badlion, convert, inspection, pack
 from .archive import Archive, LayoutError
 
 TOOL_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_LAYOUT = TOOL_DIR / "LAYOUT.md"
+
+
+def default_layout() -> Path:
+    """tools/badlion-import/LAYOUT.md when the tool runs from its source folder (an editable install); a plain
+    `pip install .` copies it into site-packages, so then the current folder."""
+    if (TOOL_DIR / "pyproject.toml").is_file():
+        return TOOL_DIR / "LAYOUT.md"
+    return Path.cwd() / "LAYOUT.md"
 
 
 def _repo_root() -> Path | None:
-    """This mod's repository, if the tool runs from a clone of it."""
-    for parent in TOOL_DIR.parents:
-        if (parent / "settings.gradle.kts").is_file() and (parent / ".git").exists():
-            return parent
+    """This mod's repository: the clone the tool runs from, or the one the current folder is in."""
+    for start in (TOOL_DIR, Path.cwd().resolve()):
+        for parent in (start, *start.parents):
+            if (parent / "settings.gradle.kts").is_file() and (parent / ".git").exists():
+                return parent
     return None
 
 
@@ -72,7 +80,7 @@ def cmd_inspect(args) -> int:
         print(problem, file=sys.stderr)
         return 2
     input_folder = Path(args.input)
-    layout = Path(args.layout) if args.layout else DEFAULT_LAYOUT
+    layout = Path(args.layout) if args.layout else default_layout()
     refuse_output(layout, input_folder, allow_in_repo=True)
     if args.summary:
         refuse_output(Path(args.summary), input_folder)
@@ -159,7 +167,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("inspect", help="check the input against the expected layout and write LAYOUT.md")
     p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json")
-    p.add_argument("--layout", help=f"where to write LAYOUT.md (default {DEFAULT_LAYOUT})")
+    p.add_argument("--layout", help="where to write LAYOUT.md (default: tools/badlion-import, or the current "
+                                     "folder if the tool was installed without -e)")
     p.add_argument("--summary", help="also write the summary to this file (not inside this repository)")
     p.add_argument("--no-hash", action="store_true", help="don't verify file hashes (faster)")
     p.add_argument("--verbose", action="store_true", help="list every present cosmetic in the summary")

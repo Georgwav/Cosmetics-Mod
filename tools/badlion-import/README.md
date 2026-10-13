@@ -16,10 +16,13 @@ repository. Converted cosmetics never go into this repository, its builds or its
 cd <your clone of Cosmetics-Mod>\tools\badlion-import
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-py -m pip install .
+py -m pip install -e .
 ```
 
-On macOS or Linux, use `python3 -m venv .venv`, `source .venv/bin/activate` and `pip install .`.
+On macOS or Linux, use `python3 -m venv .venv`, `source .venv/bin/activate` and `pip install -e .`.
+
+`-e` (editable) runs the tool from this folder, so a `git pull` updates it with no reinstall, and `inspect` writes
+`LAYOUT.md` here. Without `-e`, `LAYOUT.md` goes to the folder you run it from.
 
 ## Input
 
