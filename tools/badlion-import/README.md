@@ -41,7 +41,9 @@ It checks every rule in the expected layout against your files (archives, defini
 paths, AVIF sequences and their timing, shared and missing models, which built-in cloak model capes
 without a `modelName` use) and:
 - writes `tools/badlion-import/LAYOUT.md`: structure only (key names, JSON types, path patterns, counts,
-  model file names). No asset contents and no cosmetic names, so it can be committed or shared.
+  model file names, model sizes) and the numbers that place each model and cosmetic (`models.json` scale,
+  translation, rotation and sizing; each cosmetic's sizing, wing and pet data, by type and id). No asset
+  contents and no cosmetic names, so it can be shared.
 - prints a summary: cosmetics present per type, which have models, which are animated, missing shared
   models and the cosmetics that need them, and anything that doesn't fit. Add `--verbose` to list every
   present cosmetic, `--summary <file>` to save it (not inside this repository), `--no-hash` to skip the
@@ -126,10 +128,17 @@ conversion used.
 - shields: shown instead of the vanilla shield while you hold one, centred on the vanilla shield's plate and
   scaled by the model's `scale` (Badlion's `shieldModelData` isn't converted);
 - boots (one model on both feet) and armbands (on the left arm);
-- pets: on your left shoulder (or on your head, for pets Badlion puts there), with their `shoulder` and `air`
-  animations as styles (`shoulder` first);
+- pets: on your left shoulder, on your head for pets Badlion puts there, and floating beside you for pets
+  that only have an `air` animation. Their `shoulder` and `air` animations are styles; the mod plays `air`
+  while a pet floats and `shoulder` elsewhere, and you can move any pet in its Wardrobe page;
 - animated textures (as frame strips with their timing), glow layers, see-through cosmetics, default colours,
-  and whether Badlion lets the cosmetic be recoloured (chroma, saturation).
+  and whether Badlion lets the cosmetic be recoloured (chroma, saturation);
+- what each counts as when you wear one of a kind at a time (Badlion's type: a hat, ears, a mask, ...), so
+  putting on new wings takes off the old ones but not your backpack;
+- each model's texture direction: when the model's texture coordinates, read the other way up, land clearly
+  more on painted pixels than on see-through ones, the import turns them around (listed in the report's
+  notes). This is what makes a model show as a few scattered pixels when it's wrong.
+- sizing (`sizingData`): the cosmetic's own, else its model's in `models.json`.
 
 Skipped and listed in the report: player pets, swords, bows, sprays, auras and nametag decorations, cosmetics
 without a model of their own (other than capes), and sub-models (only a cosmetic's main model converts).
@@ -144,6 +153,7 @@ Every key is optional:
   "quantize": true,
   "cape_model": "cloak/models/cloak_1/cloak_1.md5mesh",
   "cape_style": "dynamic",
+  "fit_texture_direction": true,
   "types": {
     "CAPE": { "flip_v_md5": true },
     "HAT":  { "flip_v_obj": true, "offset": [0, -0.5, 0] }
@@ -154,6 +164,8 @@ Every key is optional:
 - `cape_model`: what capes without a model are: `box` (the default), or a built-in cloak as the path under
   Badlion's texture folder, e.g. `cloak/models/cloak_v2/cloak_v2.md5mesh` (the calibration names them).
 - `cape_style`: the style shown first for capes on a cloak model (`rect`, `curved` or `dynamic`).
+- `fit_texture_direction`: `false` keeps every model's texture direction as the type's settings say, instead
+  of checking it against the texture.
 - Per type: `flip_v_obj` and `flip_v_md5` turn the texture's V direction around for that type's OBJ and MD5
   models (the calibration's "flipped" / "V up" variants); `offset` (pixels, the mod's model axes: +Y down,
   -Z front) and `rotation` (degrees) nudge where the type sits; `shading` is `smooth` or `flat`.

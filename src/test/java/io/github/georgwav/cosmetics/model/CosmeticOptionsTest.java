@@ -56,6 +56,28 @@ class CosmeticOptionsTest {
     }
 
     @Test
+    void kindIsTheSlotOrWingsUnlessTheFileSaysOtherwise() {
+        String cube = "[{\"cubes\":[" + CUBE + "]}]";
+        assertEquals("head", bake("", cube).kind());
+        assertEquals("ears", bake(",\"kind\":\"Ears\"", cube).kind());
+        BakedCosmetic wings = CosmeticBaker.bake(CosmeticParser.parse("t:w", new StringReader(
+                "{\"slot\":\"back\",\"texture\":\"t:a.png\",\"wings\":{},\"parts\":" + cube + "}")));
+        assertEquals("wings", wings.kind());
+        assertThrows(JsonParseException.class, () -> bake(",\"kind\":\"not ok!\"", cube));
+    }
+
+    @Test
+    void petPositionComesFromTheFile() {
+        String cube = "[{\"cubes\":[" + CUBE + "]}]";
+        assertEquals(PetPosition.LEFT_SHOULDER, bake("", cube).definition().petPosition());
+        assertEquals(PetPosition.FLOATING, bake(",\"pet_position\":\"floating\"", cube).definition().petPosition());
+        assertEquals(PetPosition.HEAD, bake(",\"pet_position\":\"head\"", cube).definition().petPosition());
+        assertThrows(JsonParseException.class, () -> bake(",\"pet_position\":\"tail\"", cube));
+        assertEquals("air", PetPosition.FLOATING.preferredStyle());
+        assertEquals("shoulder", PetPosition.RIGHT_SHOULDER.preferredStyle());
+    }
+
+    @Test
     void badValuesAreRejected() {
         String[] bad = {
                 ",\"options\":{\"chroma\":false}",

@@ -40,6 +40,8 @@ stops the game or the other cosmetics.
 | `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
 | `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
 | `prop` | no | `true`: only shown while an emote that brings it plays (a cloud to ride), and not listed in the Wardrobe. See [Emotes](#emotes). |
+| `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head` or `floating`. See [Slots](#top-level). |
+| `kind` | no | What the cosmetic counts as when players wear one of a kind at a time, e.g. `"hat"` and `"ears"` so a hat and ears can be worn together. Default: `"wings"` for wings, else the slot. See [Equipping](#equipping). |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts
@@ -67,7 +69,10 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 - **`cape` slot**: before your cubes are drawn, the anchor is moved 2 px behind the body and swings exactly like the
   vanilla cape. Model capes like the vanilla cape cube, `from [-5, 0, -1] to [5, 16, 0]`, with the vanilla 64x32 cape layout.
 - **`pet` slot**: the pet sits on the wearer's left shoulder: model it standing on the origin, which is the top of
-  that shoulder (body space `[6, 0, 0]`), growing upwards (-Y).
+  that shoulder (body space `[6, 0, 0]`), growing upwards (-Y). `pet_position` moves it: `right_shoulder` (body
+  `[-6, 0, 0]`), `head` (on top of the head, which it turns with) or `floating` (beside the left shoulder, a little
+  above and behind it, bobbing). Players can move any pet on its Wardrobe page. A pet with a `shoulder` or `air`
+  [style](#styles) plays `air` while floating and `shoulder` elsewhere, unless the player picks a style.
 - **`arm` slot**: on the left arm (`"sides": "right"` or `"both"` to change it), the origin halfway down the arm; the
   arm spans `[-2, -6, -2]` to `[2, 6, 2]` around it.
 - **`feet` slot**: on both legs (`"sides"` as above), modelled standing on the origin, the sole; the leg spans
@@ -540,6 +545,9 @@ In `config/cosmeticsmod.json`:
 ```
 
 `local` is whoever plays on this client. Other keys are player UUIDs.
+
+Putting a cosmetic on in the Wardrobe takes off the one of its `kind` you wore (new wings replace your wings,
+not your backpack), unless "Wear several of one kind" is on in Display (`severalOfAKind` in the config).
 
 ## Emotes
 

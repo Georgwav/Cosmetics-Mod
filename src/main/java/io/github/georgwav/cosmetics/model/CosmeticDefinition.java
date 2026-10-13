@@ -21,6 +21,9 @@ import java.util.List;
  * @param particles     particles the cosmetic gives off around its player (an aura, a trail); empty for none
  * @param sides         for arm and feet cosmetics, which limbs: {@link #LEFT}, {@link #RIGHT} or both
  * @param prop          only shown while an emote that brings it plays (a cloud to ride); not in the Wardrobe
+ * @param petPosition   for a pet, where it sits unless the player moves it
+ * @param kind          what it counts as when a player wears one of a kind at a time ("hat", "ears", ...), or
+ *                      null for its slot (or "wings" for wings)
  */
 public record CosmeticDefinition(
         String id,
@@ -36,7 +39,9 @@ public record CosmeticDefinition(
         Wings wings,
         List<ParticleEmitter> particles,
         int sides,
-        boolean prop
+        boolean prop,
+        PetPosition petPosition,
+        String kind
 ) {
     public static final int WHITE = 0xFFFFFF;
     public static final int LEFT = 1;
@@ -45,7 +50,7 @@ public record CosmeticDefinition(
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
         this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
-                slot.defaultSides(), false);
+                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null);
     }
 
     /**

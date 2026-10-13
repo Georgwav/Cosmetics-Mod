@@ -177,11 +177,12 @@ def cmd_show(args) -> int:
                     if anims:
                         print(f"  animations: {', '.join(sorted(anims))}")
                 rule = convert.RULES[c.type]
-                if rule.kind == "pet" and (c.raw.get("petData") or {}).get("onHead") is True:
-                    rule = convert.PET_ON_HEAD
                 place = convert.placement(c, model, md5, rule, settings.of(c.type))
-                print(f"converted: slot {rule.slot}, scale {place.scale:.3f}, rotation {_fmt(place.rotation)}, "
-                      f"offset {_fmt(place.offset)}")
+                print(f"converted: slot {rule.slot}, kind {convert.kind_of(c.type)}, scale {place.scale:.3f}, "
+                      f"rotation {_fmt(place.rotation)}, offset {_fmt(place.offset)}")
+                if rule.kind == "pet":
+                    styles = planner.animations(mesh_path)[0] if md5 else {}
+                    print(f"  pet position: {convert.pet_position(c, styles) or 'left_shoulder'}")
                 if summary.bounds:
                     # Where the model ends up around its anchor in game: pixels, +Y down, front at -Z.
                     m = convert.rotation_matrix(place.rotation)

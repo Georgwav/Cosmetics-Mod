@@ -1,3 +1,4 @@
+import io
 import json
 import math
 
@@ -223,7 +224,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
 
     # A pet on the shoulder, its animations as styles, standing on the shoulder by default.
     pet = cosmetic(out, "pet_5_*.json")
-    assert pet["slot"] == "pet" and pet["default_style"] == "shoulder"
+    assert pet["slot"] == "pet" and pet["default_style"] == "shoulder" and "pet_position" not in pet
     assert sorted(pet["parts"][0]["meshes"][0]["bone_animations"]) == ["air", "shoulder"]
 
     # Wings: one model, mirrored for the left, flapping through its own animation.
@@ -237,6 +238,11 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert wings["wings"]["sneak_offset"] == [0.0, 2.0, 1.0] and wings["wings"]["armor_offset"] == [0, 0, 1.5]
     assert not (out / "assets/blc_import/models/cosmetic/wing/bat_wings/rect.md5anim").exists()
 
+    # Each says what it counts as when one of a kind is worn at a time.
+    assert [cosmetic(out, n)["kind"] for n in ("hat_1_*.json", "back_4_*.json", "wings_8_*.json", "pet_5_*.json",
+                                                "cape_1_*.json", "shield_3_*.json", "boots_2_*.json")] == \
+        ["head", "back", "wings", "pet", "cape", "shield", "feet"]
+
     report = (out / pack.REPORT).read_text(encoding="utf-8")
     assert "texture is not in your jars (not owned)" in report  # CAPE 9
     assert "model 'angel' is not in your jars" in report
@@ -245,6 +251,66 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert "model 'cloak' isn't in models.json; uses the built-in cape" in report
     assert "Capes without a model are a box like the vanilla cape" in report
     assert "| WINGS | 8 | Bat Wings | `blc_import:wings_8_bat_wings` |" in report
+
+
+def test_pets_sit_on_the_head_float_or_stay_on_the_shoulder():
+    def pet(**data):
+        return badlion.Cosmetic("PET", 1, {"name": "P", "petData": data})
+    assert convert.pet_position(pet(onHead=True), {"shoulder": "s"}) == "head"
+    assert convert.pet_position(pet(onHead=False), {"air": "a"}) == "floating"
+    assert convert.pet_position(pet(onHead=False), {"air": "a", "shoulder": "s"}) is None
+    assert convert.pet_position(pet(), {}) is None
+
+
+def test_sizing_comes_from_the_cosmetic_else_its_model():
+    model = badlion.Model("BACK", "pack", {"sizingData": {"scale": 2}})
+    own = badlion.Cosmetic("BACK", 1, {"name": "B", "sizingData": {"scale": 3}})
+    plain = badlion.Cosmetic("BACK", 2, {"name": "C"})
+    assert convert.sizing_of(own, model) == {"scale": 3}
+    assert convert.sizing_of(plain, model) == {"scale": 2}
+    assert convert.sizing_of(plain, None) == {}
+
+
+TOP_HALF = [y < 32 for y in range(64) for _ in range(64)]
+BOTTOM_HALF = [not t for t in TOP_HALF]
+# A quad whose UVs cover half the texture's height: v 0 to 0.5 in the file.
+HALF_OBJ = "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 1 0.5\nvt 0 0.5\nf 1/1 2/2 3/3 4/4\n"
+
+
+def test_texture_fit_turns_v_around_when_the_other_way_lands_on_paint():
+    planner = convert.Planner(None, set(), lambda path: HALF_OBJ.encode(), convert.Settings())
+    # The mod reads OBJ V as pointing up, so v 0 to 0.5 is the image's bottom half.
+    assert planner.fit_flip("m.obj", False, False, BOTTOM_HALF) is False
+    assert planner.fit_flip("m.obj", False, False, TOP_HALF) is True
+    assert planner.fit_flip("m.obj", False, True, TOP_HALF) is True  # already read the right way
+    assert planner.fit_flip("m.obj", False, True, BOTTOM_HALF) is False
+    # A texture painted all over can't tell; no texture information keeps the setting.
+    assert planner.fit_flip("m.obj", False, False, [True] * 4096) is False
+    assert planner.fit_flip("m.obj", False, True, None) is True
+    planner.settings.fit_texture_direction = False
+    assert planner.fit_flip("m.obj", False, False, TOP_HALF) is False
+
+
+def test_texture_fit_reads_md5_v_as_pointing_down():
+    half = fixtures.CAPE_MD5MESH.replace("vert 2 ( 0.5 1 )", "vert 2 ( 0.5 0.5 )").replace("vert 3 ( 0 1 )",
+                                                                                           "vert 3 ( 0 0.5 )")
+    planner = convert.Planner(None, set(), lambda path: half.encode(), convert.Settings())
+    assert planner.fit_flip("m.md5mesh", True, False, TOP_HALF) is False
+    assert planner.fit_flip("m.md5mesh", True, False, BOTTOM_HALF) is True
+
+
+def test_opaque_masks_round_trip_and_come_from_strips():
+    mask = [i % 3 == 0 for i in range(64 * 64)]
+    assert textures.unpack_mask(textures.pack_mask(mask)) == mask
+    assert textures.unpack_mask(None) is None
+    strip = Image.new("RGBA", (16, 32), (0, 0, 0, 0))
+    strip.paste((255, 0, 0, 255), (0, 0, 16, 4))  # frame 0: its top quarter
+    strip.paste((255, 0, 0, 255), (0, 28, 16, 32))  # frame 1: its bottom quarter
+    out = io.BytesIO()
+    strip.save(out, format="PNG")
+    found = textures.mask_from_png(out.getvalue(), 16)
+    rows = [any(found[y * 64:(y + 1) * 64]) for y in range(64)]
+    assert rows[0] and rows[63] and not rows[32]
 
 
 def test_reimport_reuses_textures_and_removes_what_is_no_longer_selected(input_folder, tmp_path):
