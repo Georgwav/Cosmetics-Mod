@@ -199,6 +199,9 @@ IMPORT_COSMETICS = {
     "BACK": [{"cosmeticId": 4, "name": "Hiker Pack", "hasModel": True, "modelName": "pack", "transparent": True,
               "defaultColor": {"r": 255, "g": 128, "b": 0}}],
     "PET": [{"cosmeticId": 5, "name": "Dragon", "hasModel": True, "modelName": "dragon"}],
+    # Capes naming a model models.json doesn't have, or a blank one: Badlion draws its built-in cloak.
+    "CAPE": [{"cosmeticId": 11, "name": "Old Cloak", "hasModel": True, "modelName": "cloak"},
+             {"cosmeticId": 12, "name": "Blank Model", "hasModel": True, "modelName": " "}],
 }
 IMPORT_MODELS = {
     "WINGS": {"bat_wings": {"scale": 0, "md5format": True, "flipUVs": False}},
@@ -217,6 +220,8 @@ def import_files() -> dict:
         T + "back/models/pack.obj": BACKPACK_OBJ.encode(),
         T + "hat/1/glow.avif": avif_still((16, 16), color=(250, 250, 120, 255)),
         T + "pet/pet_5.avif": avif_still((8, 8)),
+        T + "cloak/cloak_11.avif": avif_still((64, 32)),
+        T + "cloak/cloak_12.avif": avif_still((64, 32)),
     }
 
 

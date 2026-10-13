@@ -527,6 +527,9 @@ class Planner:
         rule = RULES[c.type]
         if c.model_name:
             model = self.d.model_of(c)
+            if model is None and rule.kind == "cape" and self.cape_model is not None:
+                # Capes naming a model Badlion doesn't define ("cloak", "cape", ...) get its built-in cloak.
+                return self.cape_model, None, None
             if model is None:
                 return None, None, f"model '{c.model_name}' has no models.json entry"
             if model.mesh_path() not in self.present:
@@ -556,6 +559,8 @@ class Planner:
         ts = self.settings.of(c.type)
         mf = self.model_file(mesh_path)
         notes = []
+        if c.model_name and model is None and not variant:
+            notes.append(f"model '{c.model_name}' isn't in models.json; uses the built-in cloak")
         for key in ("subModels", "extraModels"):
             if model and model.raw.get(key):
                 notes.append(f"{key} not converted (only the main model is)")

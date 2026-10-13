@@ -145,8 +145,12 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     run(input_folder, out, "--max-texture", "64")
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
-    assert names == ["back_4_hiker_pack.json", "cape_1_red_cape.json", "cape_2_blue_cape.json",
-                     "cape_7_flowing_cape.json", "hat_1_top_hat.json", "wings_8_bat_wings.json"]
+    assert names == ["back_4_hiker_pack.json", "cape_11_old_cloak.json", "cape_12_blank_model.json",
+                     "cape_1_red_cape.json", "cape_2_blue_cape.json", "cape_7_flowing_cape.json",
+                     "hat_1_top_hat.json", "wings_8_bat_wings.json"]
+    # A cape naming a model Badlion doesn't define, or a blank one, gets the built-in cloak too.
+    for name in ("cape_11_*.json", "cape_12_*.json"):
+        assert cosmetic(out, name)["parts"][0]["meshes"][0]["model"].endswith("cloak_v2/cloak_v2.md5mesh")
 
     # Capes without a model: the built-in cloak, its animations as styles, in the vanilla cape's space.
     cape = cosmetic(out, "cape_1_*.json")
@@ -199,6 +203,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert "model 'angel' is not in your jars" in report
     assert "pets aren't worn on the player" in report
     assert "1 animation(s) skipped" in report
+    assert "model 'cloak' isn't in models.json; uses the built-in cloak" in report
     assert "| WINGS | 8 | Bat Wings | `blc_import:wings_8_bat_wings` |" in report
 
 
