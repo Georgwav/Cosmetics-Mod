@@ -23,21 +23,56 @@ The only required dependency is Fabric API.
 
 ## Using it
 
-- **Equip cosmetics**: put their ids in `config/cosmeticsmod.json` under `equipped` (see
-  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#equipping)).
-- **Bundled cosmetics**: `cosmeticsmod:top_hat`, `cosmeticsmod:halo` (emissive), `cosmeticsmod:explorer_backpack`
-  and `cosmeticsmod:starlight_cape` (with an emissive emblem).
-- **New cosmetics**: add them from any resource pack, at `assets/<ns>/cosmetics/*.json`. See
+### Settings screen
+
+There are three ways to open it:
+- **Mod Menu**: the "Configure" button, when Mod Menu is installed.
+- **Chat**: type `/cosmetics`.
+- **Key**: the "Open Cosmetics" key. It is unbound by default so it can't clash with another mod; bind it
+  in Options → Controls.
+
+It is a flat, minimal screen with a live preview of your player and four tabs:
+
+| Tab | What's there |
+|---|---|
+| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. |
+| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength. |
+| Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
+| Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
+
+Changes apply immediately and are saved when the screen closes. "Reset settings" restores defaults but
+keeps your wardrobe.
+
+### Cosmetics
+
+- **Bundled**:
+  - `cosmeticsmod:top_hat`
+  - `cosmeticsmod:halo` (glowing)
+  - `cosmeticsmod:explorer_backpack`
+  - `cosmeticsmod:starlight_cape` (with a glowing emblem)
+- **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. See
   [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
 
-### Config (`config/cosmeticsmod.json`)
+### Config file (`config/cosmeticsmod.json`)
+
+Everything on the settings screen is stored here. The file can also be edited by hand; bad values are
+repaired on load.
 
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | `true` | Master switch. |
-| `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Set to `false` to skip them in the shadow pass for FPS. |
-| `slotPriority` | all `DEFER` | Per slot (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`). `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), our cosmetic is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes. |
-| `equipped` | `{"local": []}` | Who wears what. |
+| `showOwnCosmetics` / `showOtherPlayersCosmetics` | `true` | Whose cosmetics are drawn. |
+| `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`). |
+| `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
+| `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
+| `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). |
+| `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
+| `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
+| `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |
+| `shadowDistance` | `32` | Only players within this many blocks cast cosmetic shadows (`0` = no limit). |
+| `slotPriority` | all `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes. |
+| `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
+| `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
 
 ## Building
 

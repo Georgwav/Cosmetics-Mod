@@ -3,7 +3,10 @@ package io.github.georgwav.cosmetics;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
+import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +25,14 @@ public final class CosmeticsMod implements ClientModInitializer {
         VersionHooks.registerReloadListener();
         VersionHooks.registerRenderLayer();
         VersionHooks.registerCapeOverride();
+        VersionHooks.registerCommand();
+        KeyMapping openKey = VersionHooks.registerKeyMapping();
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (openKey.consumeClick()) {
+                ScreenOpener.requestOpen();
+            }
+            ScreenOpener.tick();
+        });
         DevScenario.init();
     }
 }

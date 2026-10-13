@@ -34,11 +34,13 @@ public final class CosmeticRenderer {
     public static void render(PoseStack poseStack, int packedLight, PlayerRenderInfo info,
                               ModelPart root, ModelPart head, ModelPart body, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
-        if (!config.enabled || RenderGuard.isLayerDisabled() || info.uuid == null || info.invisible) {
+        if (!config.enabled || RenderGuard.isLayerDisabled() || info.uuid == null || info.invisible
+                || (info.local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
+                || beyond(info.distanceSq, config.maxRenderDistance)) {
             return;
         }
         boolean shadowPass = Compat.isShadowPass();
-        if (shadowPass && !config.renderInShadowPass) {
+        if (shadowPass && (!config.renderInShadowPass || beyond(info.distanceSq, config.shadowDistance))) {
             RenderStats.skippedShadowPass++;
             return;
         }
@@ -57,12 +59,14 @@ public final class CosmeticRenderer {
                 continue;
             }
             CosmeticSlot slot = cosmetic.slot();
-            if (slot == CosmeticSlot.CAPE && info.elytra) {
+            if (!config.slotVisible(slot)
+                    || (slot == CosmeticSlot.CAPE && info.elytra && config.hideCapeWithElytra)
+                    || (slot.anchor() == CosmeticSlot.Anchor.HEAD && info.helmet && config.hideHeadwearWithHelmet)) {
                 continue;
             }
             if (config.priority(slot) == SlotPriority.DEFER) {
                 if (figura < 0) {
-                    figura = Compat.hasFiguraAvatar(info.uuid) ? 1 : 0;
+                    figura = config.deferToFigura && Compat.hasFiguraAvatar(info.uuid) ? 1 : 0;
                 }
                 if (figura == 1 || (slot == CosmeticSlot.CAPE && info.vanillaCapeVisible)) {
                     RenderStats.deferredToOtherMods++;
@@ -82,9 +86,13 @@ public final class CosmeticRenderer {
                 }
                 anchor.translateAndRotate(poseStack);
                 if (slot == CosmeticSlot.CAPE) {
-                    applyCapeSway(poseStack, info);
+                    applyCapeSway(poseStack, info, config);
                 }
                 for (BakedCosmetic.Layer layer : cosmetic.layers()) {
+                    if ((layer.mode() == RenderMode.EMISSIVE && !config.emissiveParts)
+                            || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
+                        continue;
+                    }
                     int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
                     for (int copy = 0; copy < RenderStats.COPIES; copy++) {
                         sink.draw(poseStack, cosmetic, layer, light);
@@ -105,18 +113,27 @@ public final class CosmeticRenderer {
         }
     }
 
+    /** True if a distance limit (in blocks, 0 = none) excludes something at this squared distance. */
+    private static boolean beyond(double distanceSq, int limit) {
+        return limit > 0 && distanceSq > (double) limit * limit;
+    }
+
     /**
      * Same placement and sway as the vanilla cape: 2px behind the body pivot, then the vanilla rotation
      * sequence driven by the vanilla cape physics values. Cape cosmetics are modelled like the vanilla
      * cape cube ({@code from [-5, 0, -1] to [5, 16, 0]}).
      */
-    private static void applyCapeSway(PoseStack poseStack, PlayerRenderInfo info) {
+    private static void applyCapeSway(PoseStack poseStack, PlayerRenderInfo info, CosmeticsConfig config) {
         poseStack.translate(0.0F, 0.0F, 0.125F);
+        float swing = config.capePhysics ? config.capeSwing : 0.0F;
+        float flap = info.capeFlap * swing;
+        float lean = info.capeLean * swing;
+        float lean2 = info.capeLean2 * swing;
         // X, then Z, then Y, like the vanilla cape.
         Quaternionf rotation = new Quaternionf()
-                .rotationX((float) Math.toRadians(6.0F + info.capeLean / 2.0F + info.capeFlap))
-                .rotateZ((float) Math.toRadians(info.capeLean2 / 2.0F))
-                .rotateY((float) Math.toRadians(180.0F - info.capeLean2 / 2.0F));
+                .rotationX((float) Math.toRadians(6.0F + lean / 2.0F + flap))
+                .rotateZ((float) Math.toRadians(lean2 / 2.0F))
+                .rotateY((float) Math.toRadians(180.0F - lean2 / 2.0F));
         //? if >=26.3 {
         /*poseStack.rotate(rotation);
         *///?} else {

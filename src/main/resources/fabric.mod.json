@@ -11,7 +11,8 @@
   },
   "environment": "client",
   "entrypoints": {
-    "client": ["io.github.georgwav.cosmetics.CosmeticsMod"]
+    "client": ["io.github.georgwav.cosmetics.CosmeticsMod"],
+    "modmenu": ["io.github.georgwav.cosmetics.compat.modmenu.ModMenuCompat"]
   },
   "depends": {
     "fabricloader": ">=${loader}",

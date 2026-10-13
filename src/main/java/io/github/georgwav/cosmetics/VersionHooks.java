@@ -25,9 +25,16 @@ import net.minecraft.resources.Identifier;
 *///?}
 //? if <26.1 {
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 //?} else {
 /*import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityRenderLayerRegistrationCallback;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 *///?}
+import com.mojang.blaze3d.platform.InputConstants;
+import io.github.georgwav.cosmetics.ui.ScreenOpener;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.minecraft.client.KeyMapping;
 
 /**
  * Every registration that goes through a Minecraft or Fabric API that changed between versions.
@@ -76,6 +83,33 @@ final class VersionHooks {
                     || !CosmeticRenderer.shouldHideVanillaCape(entity.getUUID(), entity == Minecraft.getInstance().player);
         });
         //?}
+    }
+
+    /**
+     * "Open Cosmetics" key. Unbound by default so it can never clash with another mod's key; players
+     * bind it in Controls, or use /cosmetics or Mod Menu.
+     */
+    static KeyMapping registerKeyMapping() {
+        int unbound = InputConstants.UNKNOWN.getValue();
+        //? if <1.21.9 {
+        /*KeyMapping key = new KeyMapping("key.cosmeticsmod.open", InputConstants.Type.KEYSYM, unbound, "key.categories.cosmeticsmod");
+        *///?} else {
+        KeyMapping key = new KeyMapping("key.cosmeticsmod.open", InputConstants.Type.KEYSYM, unbound, KeyMapping.Category.MISC);
+        //?}
+        //? if <26.1 {
+        return KeyBindingHelper.registerKeyBinding(key);
+        //?} else {
+        /*return KeyMappingHelper.registerKeyMapping(key);
+        *///?}
+    }
+
+    /** {@code /cosmetics} opens the settings screen. */
+    static void registerCommand() {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommandManager.literal("cosmetics").executes(context -> {
+                    ScreenOpener.requestOpen();
+                    return 1;
+                })));
     }
 
     /** Loads cosmetics from resource packs on startup and on every F3+T. */

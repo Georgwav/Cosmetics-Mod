@@ -10,6 +10,8 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
+import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
+import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
@@ -36,7 +38,10 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SETTINGS_UI, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+
+    /** Ticks each settings tab stays open during the UI check. */
+    private static final int UI_TAB_TICKS = 60;
 
     private final boolean smoke;
     private final boolean benchmark;
@@ -50,6 +55,8 @@ public final class DevScenario {
 
     private Phase phase = Phase.WAIT_FOR_WORLD;
     private int ticks;
+    private int uiTab;
+    private int uiFramesAtTabStart;
     private long phaseStart;
     private boolean finished;
 
@@ -116,13 +123,33 @@ public final class DevScenario {
             case BACK -> {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back");
-                    if (wantShaders && IrisCompat.setShadersEnabled(true)) {
-                        enter(Phase.SHADERS_WARMUP);
+                    if (smoke) {
+                        // Open every tab of the settings screen to prove the UI works on this version.
+                        uiTab = 0;
+                        openSettingsTab(client);
+                        enter(Phase.SETTINGS_UI);
+                        writeMarker("ui_" + CosmeticsScreen.tabName(0));
                     } else {
-                        if (expectShaders) {
-                            failures.add("shaders were expected but Iris could not enable them");
-                        }
-                        enter(Phase.DONE);
+                        startShadersOrFinish();
+                    }
+                }
+            }
+            case SETTINGS_UI -> {
+                if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
+                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    JsonObject ui = phases.has("settings_ui") ? phases.getAsJsonObject("settings_ui") : new JsonObject();
+                    ui.addProperty(CosmeticsScreen.tabName(uiTab), frames);
+                    phases.add("settings_ui", ui);
+                    if (frames <= 0) {
+                        failures.add("settings screen tab '" + CosmeticsScreen.tabName(uiTab) + "' never rendered");
+                    }
+                    uiTab++;
+                    if (uiTab < CosmeticsScreen.TAB_COUNT) {
+                        openSettingsTab(client);
+                        writeMarker("ui_" + CosmeticsScreen.tabName(uiTab));
+                    } else {
+                        ScreenOpener.open(null);
+                        startShadersOrFinish();
                     }
                 }
             }
@@ -162,6 +189,22 @@ public final class DevScenario {
         }
     }
 
+    private void openSettingsTab(Minecraft client) {
+        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
+        ScreenOpener.open(new CosmeticsScreen(null, uiTab));
+    }
+
+    private void startShadersOrFinish() {
+        if (wantShaders && IrisCompat.setShadersEnabled(true)) {
+            enter(Phase.SHADERS_WARMUP);
+        } else {
+            if (expectShaders) {
+                failures.add("shaders were expected but Iris could not enable them");
+            }
+            enter(Phase.DONE);
+        }
+    }
+
     private void enter(Phase next) {
         phase = next;
         ticks = 0;
@@ -169,7 +212,9 @@ public final class DevScenario {
         phaseStart = System.nanoTime();
         if (next != Phase.DONE) {
             CosmeticsMod.LOGGER.info("Dev scenario phase: {}", next);
-            writeMarker(next.name().toLowerCase(java.util.Locale.ROOT));
+            if (next != Phase.SETTINGS_UI) {
+                writeMarker(next.name().toLowerCase(java.util.Locale.ROOT));
+            }
         }
     }
 

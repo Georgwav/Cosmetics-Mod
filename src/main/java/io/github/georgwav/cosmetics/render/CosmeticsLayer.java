@@ -196,6 +196,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         //?}
         info.vanillaCapeVisible = hasCape && player.isModelPartShown(PlayerModelPart.CAPE);
         info.elytra = player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA);
+        info.helmet = !player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
+        var self = Minecraft.getInstance().player;
+        info.distanceSq = info.local || self == null ? 0.0 : player.distanceToSqr(self);
         return true;
     }
 

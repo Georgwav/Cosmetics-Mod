@@ -20,6 +20,10 @@ public final class BakedCosmetic {
         return definition.id();
     }
 
+    public String name() {
+        return definition.name();
+    }
+
     public CosmeticSlot slot() {
         return definition.slot();
     }

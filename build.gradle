@@ -81,6 +81,15 @@ processResources {
     }
 }
 
+// Compile-time stand-ins for Mod Menu's API (src/main/java/com/terraformersmc): never shipped, the
+// real classes come from Mod Menu when it's installed.
+tasks.named('jar') {
+    exclude 'com/terraformersmc/**'
+}
+tasks.named('sourcesJar') {
+    exclude 'com/terraformersmc/**'
+}
+
 // The jar players install: remapped to intermediary on 1.21.x, the plain jar on 26.x.
 def modJar = tasks.named(unobfuscated ? 'jar' : 'remapJar')
 

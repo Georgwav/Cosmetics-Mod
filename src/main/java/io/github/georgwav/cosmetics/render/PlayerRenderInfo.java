@@ -16,6 +16,10 @@ public final class PlayerRenderInfo {
     public boolean vanillaCapeVisible;
     /** Wearing an elytra: capes are hidden like vanilla does. */
     public boolean elytra;
+    /** Something is worn in the head slot (helmet, pumpkin, skull...). */
+    public boolean helmet;
+    /** Squared distance to the local player, in blocks. */
+    public double distanceSq;
     /** Vanilla cape sway, in degrees; the same inputs the vanilla cape uses. */
     public float capeFlap;
     public float capeLean;
@@ -27,6 +31,8 @@ public final class PlayerRenderInfo {
         invisible = false;
         vanillaCapeVisible = false;
         elytra = false;
+        helmet = false;
+        distanceSq = 0;
         capeFlap = 0;
         capeLean = 0;
         capeLean2 = 0;

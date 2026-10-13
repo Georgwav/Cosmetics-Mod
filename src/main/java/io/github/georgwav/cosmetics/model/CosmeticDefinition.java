@@ -8,6 +8,7 @@ import java.util.List;
  * same axes as vanilla entity models (+Y is down, -Z is the front of the player).
  *
  * @param id            {@code namespace:path} of the JSON file, e.g. {@code cosmeticsmod:top_hat}
+ * @param name          display name (the JSON "name", or derived from the file name)
  * @param slot          where the cosmetic attaches
  * @param texture       default texture location ({@code namespace:path/to/texture.png}) for parts
  * @param textureWidth  texture width in pixels used for UV maths
@@ -16,6 +17,7 @@ import java.util.List;
  */
 public record CosmeticDefinition(
         String id,
+        String name,
         CosmeticSlot slot,
         String texture,
         int textureWidth,

@@ -56,7 +56,25 @@ public final class CosmeticParser {
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
         }
-        return new CosmeticDefinition(id, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+        String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
+        return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+    }
+
+    /** {@code cosmeticsmod:top_hat} becomes {@code Top Hat}. */
+    static String prettify(String id) {
+        String path = id.substring(id.indexOf(':') + 1);
+        path = path.substring(path.lastIndexOf('/') + 1);
+        StringBuilder out = new StringBuilder();
+        for (String word : path.split("[_\\-]+")) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return out.length() > 0 ? out.toString() : id;
     }
 
     private static CosmeticDefinition.Cube parseCube(JsonObject json, String where) {

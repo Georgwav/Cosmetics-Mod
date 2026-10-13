@@ -142,4 +142,14 @@ class CosmeticBakerTest {
                 {"slot": "head", "texture": "test:t.png", "parts": [{"cubes": [{"from": [0,0,0], "to": [1,1,1]}]}]}
                 """));
     }
+
+    @Test
+    void namesComeFromJsonOrTheFileName() {
+        assertEquals("Top Hat", CosmeticParser.prettify("cosmeticsmod:top_hat"));
+        assertEquals("Wings", CosmeticParser.prettify("pack:seasonal/wings"));
+        assertEquals("Fancy Hat", bake("""
+                {"name": "Fancy Hat", "slot": "head", "texture": "test:t.png",
+                 "parts": [{"cubes": [{"from": [0,0,0], "to": [1,1,1], "uv": [0,0]}]}]}
+                """).name());
+    }
 }

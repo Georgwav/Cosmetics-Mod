@@ -265,7 +265,8 @@ def read_root_property(key):
 
 # --------------------------------------------------------------------------------------------- Modrinth
 
-def modrinth_version(project, mc=None, loader="fabric"):
+def modrinth_version(project, mc=None, loader="fabric", prerelease=False):
+    """Newest version of a project for a Minecraft version; releases first unless prerelease is True."""
     params = {"loaders": json.dumps([loader])}
     if mc:
         params["game_versions"] = json.dumps([mc])
@@ -276,8 +277,17 @@ def modrinth_version(project, mc=None, loader="fabric"):
         return None
     if not versions:
         return None
+    if prerelease:
+        return versions[0]
     releases = [v for v in versions if v.get("version_type") == "release"]
     return (releases or versions)[0]
+
+
+def modrinth_version_by_id(version_id):
+    try:
+        return json.loads(fetch(f"{MODRINTH}/version/{version_id}"))
+    except IOError:
+        return None
 
 
 def modrinth_download(version, dest_dir):
@@ -288,30 +298,54 @@ def modrinth_download(version, dest_dir):
     return dest
 
 
-def fetch_stack(mods, mc, dest_dir):
-    """Downloads a mod stack plus required dependencies. Returns ({slug: version}, missing)."""
-    got, missing, seen = {}, [], set()
+def fetch_stack(mods, mc, dest_dir, prerelease=False):
+    """
+    Downloads a mod stack plus its required dependencies. Returns ({name: version}, missing).
+
+    Versions are resolved first and downloaded at the end, so a dependency that a mod pins to an exact
+    version (Modrinth "version_id", e.g. Iris pinning its Sodium) wins over the newest one.
+    """
+    chosen, names, missing = {}, {}, []
+    pins = {}
     queue = list(mods)
     while queue:
         spec = queue.pop(0)
         version, name = None, spec
         for name in spec.split("|"):
-            version = modrinth_version(name, mc)
+            version = modrinth_version(name, mc, prerelease=prerelease)
             if version:
                 break
         if version is None:
             missing.append(spec)
             continue
-        if version["project_id"] in seen or version["project_id"] in SKIP_PROJECTS:
+        project = version["project_id"]
+        if project in chosen or project in SKIP_PROJECTS:
             continue
-        seen.add(version["project_id"])
-        modrinth_download(version, dest_dir)
-        got[name] = version["version_number"]
+        chosen[project] = version
+        names[project] = name
         for dep in version.get("dependencies", []):
-            if dep.get("dependency_type") == "required" and dep.get("project_id") \
-                    and dep["project_id"] not in seen and dep["project_id"] not in SKIP_PROJECTS:
-                queue.append(dep["project_id"])
+            dep_project = dep.get("project_id")
+            if dep.get("dependency_type") != "required" or dep_project in SKIP_PROJECTS:
+                continue
+            if dep.get("version_id"):
+                pinned = modrinth_version_by_id(dep["version_id"])
+                if pinned and mc in pinned.get("game_versions", [mc]):
+                    pins[pinned["project_id"]] = pinned
+                    dep_project = pinned["project_id"]
+            if dep_project and dep_project not in chosen:
+                queue.append(dep_project)
+    for project, pinned in pins.items():
+        if project not in SKIP_PROJECTS:
+            chosen[project] = pinned
+            names.setdefault(project, project)
+    got = {}
+    for project, version in chosen.items():
+        modrinth_download(version, dest_dir)
+        got[names[project]] = version["version_number"]
     return got, missing
+
+
+INCOMPATIBLE_STACK = "Incompatible mods found"
 
 
 # --------------------------------------------------------------------------------------------- display
@@ -470,9 +504,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 break
             for marker in game_dir.glob("cosmeticsmod-phase-*"):
                 phase = marker.name[len("cosmeticsmod-phase-"):]
-                if phase not in seen_markers and phase in ("front", "back", "shaders_on"):
+                if phase not in seen_markers and (phase in ("front", "back", "shaders_on") or phase.startswith("ui_")):
                     seen_markers.add(phase)
-                    time.sleep(4)  # let the phase settle (camera switch, shader compile)
+                    time.sleep(1 if phase.startswith("ui_") else 4)  # let the phase settle
                     png = game_dir / f"screenshot-{phase}.png"
                     if display.screenshot(png):
                         shots.append(png.name)
@@ -598,12 +632,26 @@ def cmd_compat(args):
     inst = Instance(mc, java_for(info["java"]), args.cache)
     failures = 0
     for name in selected:
-        spec = sets[name]
-        mods_dir = Path(args.cache) / "stacks" / mc / name
+        summary = run_stack(args, inst, jar, mc, name, sets[name], "smoke")
+        failures += not summary["passed"]
+    if args.benchmark:
+        run_stack(args, inst, jar, mc, "benchmark", sets["sodium-iris-complementary"], "benchmark")
+    return 1 if failures else 0
+
+
+def run_stack(args, inst, jar, mc, label, spec, mode):
+    """
+    Runs the game with one mod stack. Tries the newest releases first; if Fabric says those versions
+    don't work together (a problem between the other mods, not this one), retries with the newest
+    builds including betas, and reports n/a if that doesn't resolve either.
+    """
+    last_conflict = None
+    for prerelease in (False, True):
+        mods_dir = Path(args.cache) / "stacks" / mc / (label + ("-pre" if prerelease else ""))
         shutil.rmtree(mods_dir, ignore_errors=True)
         mods_dir.mkdir(parents=True)
         try:
-            got, missing = fetch_stack(spec["mods"], mc, mods_dir)
+            got, missing = fetch_stack(spec["mods"], mc, mods_dir, prerelease=prerelease)
             shaderpack = None
             if spec.get("shaderpack"):
                 pack = modrinth_version(spec["shaderpack"], None, loader="iris")
@@ -613,37 +661,43 @@ def cmd_compat(args):
                     shaderpack = modrinth_download(pack, Path(args.cache) / "shaderpacks")
                     got[spec["shaderpack"]] = pack["version_number"]
             if missing:
-                write_na(args, mc, name, got, missing)
-                continue
-            summary = run_game(inst, jar, args.out, name, mods_dir, shaderpack, mods_info=got, node=args.node)
+                return write_na(args, mc, label, got, missing)
+            summary = run_game(inst, jar, args.out, label, mods_dir, shaderpack, mode=mode,
+                               mods_info=got, node=args.node)
         except Exception as e:  # noqa: BLE001
-            summary = setup_failure(args, mc, name, "smoke", e)
-        failures += not summary["passed"]
-    if args.benchmark:
-        for name in ("sodium-iris-complementary",):
-            spec = sets[name]
-            mods_dir = Path(args.cache) / "stacks" / mc / name
-            try:
-                got, missing = fetch_stack(spec["mods"], mc, mods_dir)
-                pack = modrinth_version(spec["shaderpack"], None, loader="iris")
-                if missing or pack is None:
-                    write_na(args, mc, "benchmark", got, missing or [spec["shaderpack"]])
-                    continue
-                shaderpack = modrinth_download(pack, Path(args.cache) / "shaderpacks")
-                run_game(inst, jar, args.out, "benchmark", mods_dir, shaderpack, mode="benchmark",
-                         mods_info=got, node=args.node)
-            except Exception as e:  # noqa: BLE001
-                setup_failure(args, mc, "benchmark", "benchmark", e)
-    return 1 if failures else 0
+            return setup_failure(args, mc, label, mode, e)
+        conflict = stack_conflict(Path(args.out) / f"{mc}-{label}")
+        if summary["passed"] or conflict is None:
+            return summary
+        last_conflict = conflict
+        LOG(f"[{mc}/{label}] the other mods' versions conflict with each other; retrying with newest betas")
+    return write_na(args, mc, label, got, [], reason=f"newest builds of these mods conflict with each other: {last_conflict}")
 
 
-def write_na(args, mc, label, got, missing):
+def stack_conflict(game_dir):
+    """The loader's incompatibility message if the stack failed between other mods, else None."""
+    for log in (game_dir / "logs" / "latest.log", game_dir / "stdout.log"):
+        if not log.exists():
+            continue
+        text = log.read_text(errors="replace")
+        if INCOMPATIBLE_STACK not in text:
+            continue
+        details = [line.strip() for line in text.splitlines() if line.strip().startswith("- ")]
+        if any("cosmeticsmod" in line.lower() or "cosmetics mod" in line.lower() for line in details):
+            return None  # this mod is part of the problem: a real failure
+        return details[0][:200] if details else INCOMPATIBLE_STACK
+    return None
+
+
+def write_na(args, mc, label, got, missing, reason=None):
     game_dir = Path(args.out) / f"{mc}-{label}"
     game_dir.mkdir(parents=True, exist_ok=True)
+    reason = reason or f"no build for {mc}: {', '.join(missing)}"
     summary = {"mc": mc, "node": args.node, "label": label, "mode": "smoke", "mods": got, "passed": True,
-               "na": True, "problems": [f"no build for {mc}: {', '.join(missing)}"], "phases": {}, "screenshots": []}
+               "na": True, "problems": [reason], "phases": {}, "screenshots": []}
     (game_dir / "summary.json").write_text(json.dumps(summary, indent=2))
-    LOG(f"[{mc}/{label}] n/a: no build of {', '.join(missing)}")
+    LOG(f"[{mc}/{label}] n/a: {reason}")
+    return summary
 
 
 def setup_failure(args, mc, label, mode, error):

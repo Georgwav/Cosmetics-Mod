@@ -33,20 +33,38 @@ public final class Compat {
         return IRIS && IrisCompat.isRenderingShadowPass();
     }
 
+    /** True if Iris is installed and a shaderpack is currently active. */
+    public static boolean isShaderPackActive() {
+        return IRIS && IrisCompat.isShaderPackInUse();
+    }
+
     /** True if a Figura avatar is active for this player (it may hide or replace the vanilla model). */
     public static boolean hasFiguraAvatar(UUID player) {
         return FIGURA && FiguraCompat.hasAvatar(player);
     }
 
+    /** Mods that matter for cosmetics, by mod id, with a display name. */
+    private static final String[][] TRACKED = {
+            {"sodium", "Sodium"}, {"iris", "Iris"}, {"voxy", "Voxy"}, {"distanthorizons", "Distant Horizons"},
+            {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "Entity Culling"},
+            {"entity_model_features", "Entity Model Features"}, {"entity_texture_features", "Entity Texture Features"},
+            {"skinlayers3d", "3D Skin Layers"}, {"figura", "Figura"}, {"essential", "Essential"},
+            {"modmenu", "Mod Menu"},
+    };
+
+    /** Installed tracked mods: display name to version. Used by the log and the settings screen. */
+    public static Map<String, String> detectedMods() {
+        Map<String, String> found = new LinkedHashMap<>();
+        for (String[] mod : TRACKED) {
+            FabricLoader.getInstance().getModContainer(mod[0]).ifPresent(container ->
+                    found.put(mod[1], container.getMetadata().getVersion().getFriendlyString()));
+        }
+        return found;
+    }
+
     public static void logEnvironment() {
         // Not used for behaviour, only to make bug reports and the compat matrix easier to fill in.
-        Map<String, String> found = new LinkedHashMap<>();
-        for (String id : new String[]{"sodium", "iris", "voxy", "distanthorizons", "immediatelyfast",
-                "entityculling", "entity_model_features", "entity_texture_features", "skinlayers3d",
-                "figura", "essential"}) {
-            FabricLoader.getInstance().getModContainer(id).ifPresent(mod ->
-                    found.put(id, mod.getMetadata().getVersion().getFriendlyString()));
-        }
+        Map<String, String> found = detectedMods();
         CosmeticsMod.LOGGER.info("Detected mods relevant to cosmetics compatibility: {}", found.isEmpty() ? "none" : found);
     }
 }
