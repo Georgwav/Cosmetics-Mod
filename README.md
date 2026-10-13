@@ -36,7 +36,7 @@ at the mouse) and four tabs:
 
 | Tab | What's there |
 |---|---|
-| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), particles (on or off, amount, size) for auras and other cosmetics with particles, and a reset. A cosmetic can leave some of these out. |
+| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), particles (on or off, amount, size) for auras and other cosmetics with particles, where a pet sits (left or right shoulder, on your head, or floating beside you), and a reset. Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack) unless "Wear several of one kind" is on in Display. A cosmetic can leave some of these out. |
 | Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
@@ -106,6 +106,7 @@ repaired on load.
 | `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
 | `emoteWheel` / `elytraEmoteWheel` | `[]` | The emote ids on the emote wheel and on the elytra wheel (opened while gliding), in order. Empty puts every emote on the emote wheel, and the emotes made for flying on the elytra wheel. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
+| `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
@@ -116,7 +117,7 @@ repaired on load.
 | `slotPriority` | `CAPE` `OVERRIDE`, the rest `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes, so a cape you put on is the one you see. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 
 ## Building
 

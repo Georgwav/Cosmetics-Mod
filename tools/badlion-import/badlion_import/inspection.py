@@ -271,6 +271,7 @@ def _definitions(archive: Archive, d: badlion.Definitions, r: Result) -> None:
     r.layout_details.append("")
     for t, name in undefined:
         r.misfits.append(f"{t} model '{name}' is used by cosmetics but has no models.json entry")
+    _placement_values(d, r)
 
     if d.example_text is None:
         r.check(s, "example.json is a commented schema example", UNCHECKED, "example.json not found")
@@ -289,6 +290,46 @@ def _definitions(archive: Archive, d: badlion.Definitions, r: Result) -> None:
             except json.JSONDecodeError as e:
                 r.check(s, "example.json is a commented schema example", PARTLY,
                         f"still not JSON without comments ({e.msg} at line {e.lineno})")
+
+
+PLACEMENT_MODEL_KEYS = ("scale", "translation", "rotation", "sizingData")
+OTHER_MODEL_KEYS = ("shieldModelData", "subModels", "extraModels", "animationProperties", "animationData")
+PLACEMENT_COSMETIC_KEYS = ("sizingData", "wingData", "petData")
+
+
+def _cell(value, limit: int = 160) -> str:
+    import json
+
+    if value is None:
+        return ""
+    text = json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return (text if len(text) <= limit else text[:limit - 1] + "…").replace("|", "/")
+
+
+def _placement_values(d: badlion.Definitions, r: Result) -> None:
+    """The numbers that place each model and cosmetic (scale, offsets, rotations), for checking the conversion."""
+    r.layout_details.append("### Placement values per model (models.json, models cosmetics use)\n")
+    r.layout_details.append("| Model | Cosmetics | md5 | flipUVs | " + " | ".join(PLACEMENT_MODEL_KEYS)
+                            + " | other |\n|" + "---|" * (len(PLACEMENT_MODEL_KEYS) + 5))
+    for (t, name), model in sorted(d.models.items()):
+        if not model.users:
+            continue
+        raw = model.raw
+        other = {k: raw[k] for k in OTHER_MODEL_KEYS if k in raw}
+        r.layout_details.append(f"| `{t}/{name}` | {len(model.users)} | {'yes' if model.md5 else ''} | "
+                                f"{'yes' if raw.get('flipUVs') is True else ''} | "
+                                + " | ".join(_cell(raw.get(k), 60) for k in PLACEMENT_MODEL_KEYS)
+                                + f" | {_cell(other, 300)} |")
+    r.layout_details.append("")
+    r.layout_details.append("### Placement values per cosmetic (cosmetics.json, ones that have any)\n")
+    r.layout_details.append("| Cosmetic | Model | " + " | ".join(PLACEMENT_COSMETIC_KEYS) + " |\n|"
+                            + "---|" * (len(PLACEMENT_COSMETIC_KEYS) + 2))
+    for c in sorted(d.cosmetics, key=lambda c: (c.type, str(c.id))):
+        if not any(isinstance(c.raw.get(k), dict) for k in PLACEMENT_COSMETIC_KEYS):
+            continue
+        r.layout_details.append(f"| {c.type} {c.id} | `{c.model_name or ''}` | "
+                                + " | ".join(_cell(c.raw.get(k), 200) for k in PLACEMENT_COSMETIC_KEYS) + " |")
+    r.layout_details.append("")
 
 
 # ---------------------------------------------------------------------- textures

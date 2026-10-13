@@ -83,8 +83,13 @@ def write(plan: convert.Plan, planner: convert.Planner, archive: Archive, output
         key = _source_key(archive, job.source, job, settings)
         entry = cached.get(location)
         if entry and entry.get("key") == key and target.is_file():
+            opaque = textures.unpack_mask(entry.get("opaque"))
+            if opaque is None:  # written by an older version: read it from the PNG
+                opaque = textures.mask_from_png(target.read_bytes(), entry["frame_size"][1])
+                entry = {**entry, "opaque": textures.pack_mask(opaque)}
+                cached[location] = entry
             infos[location] = textures.Converted(b"", tuple(entry["frame_size"]), entry["frames"],
-                                                 entry["frame_times"], tuple(entry["source_size"]))
+                                                 entry["frame_times"], tuple(entry["source_size"]), opaque)
             result.textures_reused += 1
             written_files.add(target)
         else:
@@ -109,7 +114,8 @@ def write(plan: convert.Plan, planner: convert.Planner, archive: Archive, output
                     written_files.add(target)
                     infos[location] = info
                     new_cache[location] = {"key": key, "frame_size": list(info.frame_size), "frames": info.frames,
-                                           "frame_times": info.frame_times, "source_size": list(info.source_size)}
+                                           "frame_times": info.frame_times, "source_size": list(info.source_size),
+                                           "opaque": textures.pack_mask(info.opaque)}
                     result.textures_converted += 1
                 done += len(batch)
                 if len(todo) > batch_size:
@@ -189,6 +195,9 @@ def report(plan: convert.Plan, written: Written, planner: convert.Planner, setti
         lines.append(f"| {t} | {slot} | {by_type.get(t, 0)} | {skipped_by_type.get(t, 0)} |")
     lines += ["", f"Textures: {written.textures_converted} converted, {written.textures_reused} unchanged since the "
                   f"last run (max {settings.max_texture_size} px, {'256 colours' if settings.quantize else 'full colour'})."]
+    if planner.flipped_by_fit:
+        lines.append("Texture direction turned around to fit the texture (see Notes): "
+                     + ", ".join(f"{t} {n}" for t, n in sorted(planner.flipped_by_fit.items())) + ".")
     if planner.obj_stats["clamped_uvs"] or planner.obj_stats["added_uvs"]:
         lines.append(f"OBJ fixes: {planner.obj_stats['clamped_uvs']} texture coordinates outside 0..1 clamped, "
                      f"{planner.obj_stats['added_uvs']} faces without texture coordinates given one.")

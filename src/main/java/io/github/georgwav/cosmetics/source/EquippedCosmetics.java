@@ -99,8 +99,8 @@ public final class EquippedCosmetics {
     }
 
     /**
-     * What the local player wears with the preview (if any) in place of the cosmetics in its slot, and the props
-     * of the emote they play.
+     * What the local player wears with the preview (if any) in place of the cosmetic of its kind (on top, if
+     * several of a kind are allowed), and the props of the emote they play.
      */
     private static BakedCosmetic[] withPreview(BakedCosmetic[] worn) {
         BakedCosmetic shown = previewId != null && !EQUIP_ALL ? CosmeticRegistry.get(previewId) : null;
@@ -108,8 +108,9 @@ public final class EquippedCosmetics {
             return worn;
         }
         List<BakedCosmetic> result = new ArrayList<>(worn.length + 1 + emoteProps.size());
+        boolean several = CosmeticsConfig.get().severalOfAKind;
         for (BakedCosmetic cosmetic : worn) {
-            if (shown == null || cosmetic.slot() != shown.slot()) {
+            if (shown == null || (cosmetic != shown && (several || !cosmetic.kind().equals(shown.kind())))) {
                 result.add(cosmetic);
             }
         }

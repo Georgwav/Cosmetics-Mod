@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
+import io.github.georgwav.cosmetics.model.PetPosition;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -69,12 +70,15 @@ public final class NameTags {
         float above = 0f; // blocks above the top of the head
         for (BakedCosmetic cosmetic : EquippedCosmetics.forPlayer(player.getUUID(), local)) {
             CosmeticSlot slot = cosmetic.slot();
-            if (slot.anchor() != CosmeticSlot.Anchor.HEAD || !config.slotVisible(slot)
+            CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+            // Pets on the head stand on its top, 8 px above the anchor of the other head cosmetics.
+            boolean headPet = slot == CosmeticSlot.PET
+                    && CosmeticRenderer.petPosition(cosmetic, options) == PetPosition.HEAD;
+            if ((slot.anchor() != CosmeticSlot.Anchor.HEAD && !headPet) || !config.slotVisible(slot)
                     || RenderGuard.isDisabled(cosmetic.id())) {
                 continue;
             }
-            CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
-            float reach = cosmetic.reachUp() * options.scale - options.offsetY / 16f;
+            float reach = cosmetic.reachUp() * options.scale - options.offsetY / 16f + (headPet ? HEAD_HEIGHT : 0f);
             above = Math.max(above, reach - HEAD_HEIGHT);
         }
         return Math.max(0f, above * MODEL_SCALE * player.getScale() - VANILLA_GAP + MARGIN);

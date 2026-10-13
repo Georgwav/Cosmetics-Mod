@@ -77,6 +77,22 @@ class CosmeticsConfigTest {
     }
 
     @Test
+    void wearingOneOfAKindTakesOffTheOtherOfThatKind() {
+        java.util.Map<String, String> kinds = java.util.Map.of("a:wings1", "wings", "a:wings2", "wings",
+                "a:backpack", "back", "a:hat", "head");
+        List<String> wearing = new java.util.ArrayList<>(List.of("a:wings1", "a:backpack", "a:gone"));
+        CosmeticsConfig.wear(wearing, "a:wings2", true, kinds::get, false);
+        assertEquals(List.of("a:backpack", "a:gone", "a:wings2"), wearing, "new wings replace the old, not a backpack");
+        CosmeticsConfig.wear(wearing, "a:wings1", true, kinds::get, true);
+        assertEquals(List.of("a:backpack", "a:gone", "a:wings2", "a:wings1"), wearing, "several allowed");
+        CosmeticsConfig.wear(wearing, "a:wings2", false, kinds::get, false);
+        assertEquals(List.of("a:backpack", "a:gone", "a:wings1"), wearing);
+        CosmeticsConfig.wear(wearing, "a:hat", true, kinds::get, false);
+        CosmeticsConfig.wear(wearing, "a:hat", true, kinds::get, false);
+        assertEquals(List.of("a:backpack", "a:gone", "a:wings1", "a:hat"), wearing, "putting on twice keeps one");
+    }
+
+    @Test
     void sanitizeRepairsOutfits() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.outfits = null;

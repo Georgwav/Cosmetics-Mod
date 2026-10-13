@@ -9,6 +9,7 @@ import io.github.georgwav.cosmetics.model.Cloth;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
+import io.github.georgwav.cosmetics.model.PetPosition;
 import io.github.georgwav.cosmetics.model.MeshRig;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.model.TextureFrames;
@@ -102,8 +103,10 @@ public final class CosmeticRenderer {
                 }
             }
             int sides = cosmetic.definition().sides();
+            CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+            PetPosition pet = slot == CosmeticSlot.PET ? petPosition(cosmetic, options) : null;
             for (int part = 0; part < 2; part++) {
-                ModelPart anchor = switch (slot.anchor()) {
+                ModelPart anchor = pet == PetPosition.HEAD ? (part == 0 ? head : null) : switch (slot.anchor()) {
                     case HEAD -> part == 0 ? head : null;
                     case ARMS -> (sides & (part == 0 ? CosmeticDefinition.LEFT : CosmeticDefinition.RIGHT)) != 0
                             ? limbs[part] : null;
@@ -125,15 +128,13 @@ public final class CosmeticRenderer {
                     if (slot == CosmeticSlot.CAPE) {
                         applyCapeSway(poseStack, info, config);
                     } else if (slot == CosmeticSlot.PET) {
-                        // The top of the left shoulder (+X is the wearer's left).
-                        poseStack.translate(6f / 16f, 0f, 0f);
+                        placePet(poseStack, pet, seconds);
                     } else if (slot == CosmeticSlot.FEET) {
                         poseStack.translate(0f, 12f / 16f, 0f); // the sole: legs hang 12 px from the hip
                     } else if (slot == CosmeticSlot.ARM) {
                         // The middle of the arm: it spans -2 to 10 px down, and its box sits 1 px outwards of the pivot.
                         poseStack.translate((part == 0 ? 1f : -1f) / 16f, 4f / 16f, 0f);
                     }
-                    CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
                     applyPlacement(poseStack, options, cosmetic);
                     int color = Tint.argb(options, cosmetic, seconds);
                     // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
@@ -141,6 +142,13 @@ public final class CosmeticRenderer {
                     boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
                     float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
                     int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+                    if (pet != null && (options.style == null || !cosmetic.allows(CosmeticOption.STYLE))) {
+                        // A pet plays the animation for where it is (floating: "air"), when it has one.
+                        int fitting = cosmetic.styleNamed(pet.preferredStyle());
+                        if (fitting >= 0) {
+                            style = fitting;
+                        }
+                    }
                     // Capes also follow the cape settings: a skeletal cape's own waving stops with cape physics off
                     // (or no swing) and speeds up or slows down with the swing strength.
                     float capeMotion = slot == CosmeticSlot.CAPE ? (config.capePhysics ? config.capeSwing : 0f) : 1f;
@@ -290,6 +298,28 @@ public final class CosmeticRenderer {
             }
         }
         return null;
+    }
+
+    /** Where a pet sits: the player's choice, else where its creator put it. */
+    public static PetPosition petPosition(BakedCosmetic cosmetic, CosmeticsConfig.CosmeticOptions options) {
+        return options.petPosition != null ? options.petPosition : cosmetic.definition().petPosition();
+    }
+
+    /**
+     * Moves from the pet's anchor (the body, or the head for {@link PetPosition#HEAD}) to where it stands: the
+     * top of a shoulder (+X is the wearer's left), the top of the head, or floating beside the shoulder, a little
+     * behind it, bobbing gently.
+     */
+    private static void placePet(PoseStack poseStack, PetPosition pet, double seconds) {
+        switch (pet) {
+            case RIGHT_SHOULDER -> poseStack.translate(-6f / 16f, 0f, 0f);
+            case HEAD -> poseStack.translate(0f, -8f / 16f, 0f);
+            case FLOATING -> {
+                float bob = (float) Math.sin(seconds * Math.PI * 0.8) * 0.8f;
+                poseStack.translate(12f / 16f, (-7f + bob) / 16f, 5f / 16f);
+            }
+            default -> poseStack.translate(6f / 16f, 0f, 0f);
+        }
     }
 
     /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */

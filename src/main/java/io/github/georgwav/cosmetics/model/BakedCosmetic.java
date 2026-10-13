@@ -42,6 +42,11 @@ public final class BakedCosmetic {
         return defaultStyle;
     }
 
+    /** Index of the style called {@code name}, or -1 when the cosmetic has none by that name. */
+    public int styleNamed(String name) {
+        return java.util.Arrays.asList(styles).indexOf(name);
+    }
+
     /** Index of a style by name; the default style for null or a name the cosmetic doesn't have. */
     public int styleIndex(String name) {
         if (name == lastStyleName) {
@@ -88,6 +93,18 @@ public final class BakedCosmetic {
 
     public CosmeticSlot slot() {
         return definition.slot();
+    }
+
+    /**
+     * What it counts as when a player wears one of a kind at a time: the cosmetic's own kind, else "wings" for
+     * wings, else its slot. New wings replace old wings, but not a backpack.
+     */
+    public String kind() {
+        String kind = definition.kind();
+        if (kind != null) {
+            return kind;
+        }
+        return definition.wings() != null ? "wings" : definition.slot().id();
     }
 
     public CosmeticDefinition definition() {

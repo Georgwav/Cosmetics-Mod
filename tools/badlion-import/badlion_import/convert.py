@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -53,14 +54,23 @@ RULES: dict[str, TypeRule] = {
     # Shields replace the held vanilla shield; Badlion's shield models are centred on the plate, whose centre
     # in the vanilla shield model is (0, 0, -1.5).
     "SHIELD": TypeRule("shield", (0, 0, -1.5)),
-    # Pets stand on the left shoulder (the mod's pet slot origin); with petData.onHead, on top of the head.
+    # Pets stand on the left shoulder (the mod's pet slot origin); with petData.onHead, on top of the head (the
+    # mod's head pet position), and pets with only an "air" animation float (see pet_position).
     "PET": TypeRule("pet", (0, 0, 0), "pet"),
     # Boots stand on their sole (the mod's feet slot origin), one model drawn on both legs; armbands sit halfway
     # down the arm.
     "BOOTS": TypeRule("feet", (0, 0, 0)),
     "ARM_BAND": TypeRule("arm", (0, 0, 0)),
 }
-PET_ON_HEAD = TypeRule("head", (0, -8, 0), "pet")
+
+# What each type counts as in the mod when one of a kind is worn at a time: the mod's own names where they
+# match (a Badlion hat and a bundled hat replace each other), Badlion's type otherwise (ears go with a hat).
+KINDS = {"HAT": "head", "MASK": "face", "BACK": "back", "CAPE": "cape", "WINGS": "wings", "SHIELD": "shield",
+         "PET": "pet", "BOOTS": "feet", "ARM_BAND": "arm"}
+
+
+def kind_of(cosmetic_type: str) -> str:
+    return KINDS.get(cosmetic_type, cosmetic_type.lower())
 
 UNSUPPORTED: dict[str, str] = {
     "PLAYER_PET": "player pets aren't supported",
@@ -149,6 +159,7 @@ class Settings:
     quantize: bool = True
     cape_model: str | None = None  # "box" (default) or a cloak under the texture root, e.g. cloak/models/cloak_1/cloak_1.md5mesh
     cape_style: str | None = None  # default style of capes with cloak animations
+    fit_texture_direction: bool = True  # pick each model's texture V direction by where its texture is painted
     types: dict[str, TypeSettings] = field(default_factory=dict)
 
     def of(self, cosmetic_type: str) -> TypeSettings:
@@ -168,7 +179,7 @@ def load_settings(path: Path | None) -> Settings:
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected a JSON object")
-    for key in ("max_texture_size", "quantize", "cape_model", "cape_style"):
+    for key in ("max_texture_size", "quantize", "cape_model", "cape_style", "fit_texture_direction"):
         if key in raw:
             setattr(s, key, raw[key])
     for t, values in (raw.get("types") or {}).items():
@@ -363,6 +374,52 @@ class Placement:
         return keys
 
 
+def sizing_of(cosmetic: badlion.Cosmetic, model: badlion.Model | None) -> dict:
+    """Badlion's sizingData (scale and offsets): the cosmetic's own, else its model's in models.json."""
+    for raw in (cosmetic.raw, model.raw if model else {}):
+        if isinstance(raw.get("sizingData"), dict):
+            return raw["sizingData"]
+    return {}
+
+
+def pet_position(cosmetic: badlion.Cosmetic, styles) -> str | None:
+    """Where a pet sits in the mod: on the head with petData.onHead, floating when it only has an "air"
+    animation, else on the shoulder (None, the mod's default)."""
+    if (cosmetic.raw.get("petData") or {}).get("onHead") is True:
+        return "head"
+    if "air" in styles and "shoulder" not in styles:
+        return "floating"
+    return None
+
+
+# ---------------------------------------------------------------------- texture fit
+
+FIT_GRID = 64
+MAX_FIT_TRIANGLES = 6000
+# The other V direction is used when it lands this much more of the model on painted pixels.
+FIT_MARGIN = 0.15
+# Textures this opaque can't tell the directions apart.
+FIT_MAX_OPAQUE = 0.95
+
+
+def precision(covered: list[bool], opaque: list[bool]) -> float:
+    """How much of what the model's UVs cover is painted (not see-through) in the texture."""
+    hits = total = 0
+    for c, o in zip(covered, opaque):
+        if c:
+            total += 1
+            hits += o
+    return hits / total if total else 0.0
+
+
+def fits_other_way(covered_as_is: list[bool], covered_flipped: list[bool], opaque: list[bool]) -> bool:
+    """Whether the texture's V direction should be turned around: the model's UVs, read the other way, land
+    clearly more on painted pixels. A texture that is (nearly) all painted can't tell, so it stays."""
+    if not opaque or sum(opaque) > FIT_MAX_OPAQUE * len(opaque):
+        return False
+    return precision(covered_flipped, opaque) > precision(covered_as_is, opaque) + FIT_MARGIN
+
+
 def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool, rule: TypeRule,
               ts: TypeSettings) -> Placement:
     """The model's Badlion transform (scale, rotation, translation, the cosmetic's sizing) followed by the axis
@@ -374,7 +431,7 @@ def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool
     own = rotation_matrix(vector(model.raw.get("rotation"))) if model and model.raw.get("rotation") else None
     total = multiply(extra, multiply(convert, own) if own else convert)
 
-    sizing = cosmetic.raw.get("sizingData") if isinstance(cosmetic.raw.get("sizingData"), dict) else {}
+    sizing = sizing_of(cosmetic, model)
     s = model_scale(model)
     sizing_scale = sizing.get("scale")
     if isinstance(sizing_scale, (int, float)) and not isinstance(sizing_scale, bool) and sizing_scale > 0:
@@ -489,6 +546,8 @@ class Planner:
         self._locations: dict[str, str] = {}  # pack location -> source, to keep case-only differences apart
         self._texts: dict[str, str] = {}
         self._anims: dict[str, tuple[dict[str, str], list[str]]] = {}
+        self._coverage: dict[tuple[str, bool], list[bool]] = {}
+        self.flipped_by_fit: Counter = Counter()
         self.obj_stats = {"clamped_uvs": 0, "added_uvs": 0}
         cloak = settings.cape_model and badlion.TEXTURE_ROOT + settings.cape_model
         self.cape_model = cloak if settings.cape_model != BOX_CAPE and cloak in present else BOX_CAPE
@@ -515,6 +574,29 @@ class Planner:
             found = ModelFile(path, self.location_of(path), md5, triangles)
             self._models[path] = found
         return found
+
+    def coverage(self, mesh_path: str, file_v_down: bool) -> list[bool]:
+        """The FIT_GRID cells of a texture the model's UVs cover, reading the file's V as pointing down (or up)."""
+        key = (mesh_path, file_v_down)
+        if key not in self._coverage:
+            text = self.text(mesh_path)
+            summary = meshes.summarize_md5mesh(text) if mesh_path.endswith(".md5mesh") else meshes.summarize_obj(text)
+            triangles = summary.uv_triangles
+            if len(triangles) > MAX_FIT_TRIANGLES:  # an even sample is enough to see where the UVs land
+                step = len(triangles) / MAX_FIT_TRIANGLES
+                triangles = [triangles[int(i * step)] for i in range(MAX_FIT_TRIANGLES)]
+            self._coverage[key] = meshes.uv_coverage(triangles, FIT_GRID, FIT_GRID, not file_v_down)
+        return self._coverage[key]
+
+    def fit_flip(self, mesh_path: str, md5: bool, flip: bool, opaque: list[bool] | None) -> bool:
+        """The mesh's flip_v after checking the texture: turned around when the other direction fits it clearly
+        better. The mod reads OBJ V as pointing up and MD5 V as pointing down; flip_v turns either around."""
+        if not opaque or not self.settings.fit_texture_direction:
+            return flip
+        v_down = md5 != flip  # how the mod reads the file's V with this flip
+        if fits_other_way(self.coverage(mesh_path, v_down), self.coverage(mesh_path, not v_down), opaque):
+            return not flip
+        return flip
 
     def animations(self, mesh_path: str) -> tuple[dict[str, str], list[str]]:
         """name -> pack location of the .md5anim files next to an .md5mesh that fit it, and the ones that don't."""
@@ -585,8 +667,6 @@ class Planner:
             return self.plan_box_cape(c, texture, variant, notes)
 
         rule = RULES[c.type]
-        if rule.kind == "pet" and (c.raw.get("petData") or {}).get("onHead") is True:
-            rule = PET_ON_HEAD
         ts = self.settings.of(c.type)
         mf = self.model_file(mesh_path)
         for key in ("subModels", "extraModels", "shieldModelData"):
@@ -598,11 +678,11 @@ class Planner:
             flip = variant["flip"]
         if model and model.raw.get("flipUVs") is True:
             flip = not flip
+        # The texture decides when it clearly fits the other way; not for calibration variants, which test both.
+        fit = not (variant and "flip" in variant)
         place = placement(c, model, mf.md5, rule, ts)
 
         mesh = {"model": mf.location, "shading": ts.shading, **place.mesh_keys()}
-        if flip:
-            mesh["flip_v"] = True
         styles: dict[str, str] = {}
         if mf.md5:
             styles, dropped = self.animations(mesh_path)
@@ -633,7 +713,19 @@ class Planner:
 
         def build(converted: dict) -> dict:
             info = converted[tex_loc]
-            doc = {"slot": rule.slot, "name": display_name, "texture": tex_loc, "texture_size": list(info.frame_size)}
+            mesh.pop("flip_v", None)
+            fitted = self.fit_flip(mesh_path, mf.md5, flip, info.opaque) if fit else flip
+            if fitted != flip:
+                self.flipped_by_fit[cosmetic_type] += 1
+                notes.append("texture V direction turned around: the model's UVs fit the texture better that way")
+            if fitted:
+                mesh["flip_v"] = True
+            doc = {"slot": rule.slot, "name": display_name, "kind": kind_of(cosmetic_type),
+                   "texture": tex_loc, "texture_size": list(info.frame_size)}
+            if rule.kind == "pet":
+                position = pet_position(c, styles)
+                if position:
+                    doc["pet_position"] = position
             animation = texture_animation(info)
             if animation:
                 doc["texture_animation"] = animation
@@ -718,7 +810,8 @@ class Planner:
             size = (BOX_CAPE_WIDTH, length, BOX_CAPE_DEPTH)
             cube = {"from": [-BOX_CAPE_WIDTH / 2, 0, -BOX_CAPE_DEPTH], "to": [BOX_CAPE_WIDTH / 2, length, 0],
                     "faces": box_faces(size, fw / layout_w, fh / layout_h)}
-            doc = {"slot": "cape", "name": display_name, "texture": tex_loc, "texture_size": [fw, fh]}
+            doc = {"slot": "cape", "name": display_name, "kind": kind_of("CAPE"), "texture": tex_loc,
+                   "texture_size": [fw, fh]}
             animation = texture_animation(info)
             if animation:
                 doc["texture_animation"] = animation

@@ -12,6 +12,8 @@ import io.github.georgwav.cosmetics.model.CosmeticLoader;
 import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
+import io.github.georgwav.cosmetics.model.PetPosition;
+import io.github.georgwav.cosmetics.render.CosmeticRenderer;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
@@ -533,11 +535,11 @@ public final class CosmeticsScreen extends Screen {
     }
 
     private static void setEquipped(String id, boolean on) {
-        List<String> equipped = CosmeticsConfig.get().localEquipped();
-        equipped.remove(id);
-        if (on) {
-            equipped.add(id);
-        }
+        CosmeticsConfig config = CosmeticsConfig.get();
+        CosmeticsConfig.wear(config.localEquipped(), id, on, other -> {
+            BakedCosmetic cosmetic = CosmeticRegistry.get(other);
+            return cosmetic != null ? cosmetic.kind() : null;
+        }, config.severalOfAKind);
         EquippedCosmetics.invalidate();
     }
 
@@ -564,6 +566,14 @@ public final class CosmeticsScreen extends Screen {
                     () -> styles[cosmetic.styleIndex(config.options(id).style)],
                     v -> config.editOptions(id).style = v.equals(defaultStyle) ? null : v,
                     CosmeticsScreen::styleName));
+        }
+        if (cosmetic.slot() == CosmeticSlot.PET) {
+            PetPosition defaultPosition = cosmetic.definition().petPosition();
+            section("section.pet");
+            add(new Rows.Cycle<>(listX, 0, listW, t("pet_position"), List.of(PetPosition.values()),
+                    () -> CosmeticRenderer.petPosition(cosmetic, config.options(id)),
+                    v -> config.editOptions(id).petPosition = v == defaultPosition ? null : v,
+                    v -> t("pet_position." + v.name().toLowerCase(Locale.ROOT))));
         }
         boolean tint = cosmetic.allows(CosmeticOption.TINT);
         boolean rainbow = cosmetic.allows(CosmeticOption.RAINBOW);
@@ -683,6 +693,7 @@ public final class CosmeticsScreen extends Screen {
         toggle("enabled", () -> c.enabled, v -> c.enabled = v);
         toggle("show_own", () -> c.showOwnCosmetics, v -> c.showOwnCosmetics = v);
         toggle("show_others", () -> c.showOtherPlayersCosmetics, v -> c.showOtherPlayersCosmetics = v);
+        toggle("several_of_a_kind", () -> c.severalOfAKind, v -> c.severalOfAKind = v);
 
         section("section.slots");
         for (CosmeticSlot slot : CosmeticSlot.values()) {

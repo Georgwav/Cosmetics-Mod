@@ -213,8 +213,23 @@ public final class CosmeticParser {
         }
         // A prop is only shown while an emote that brings it plays; the Wardrobe doesn't list it.
         boolean prop = json.has("prop") && bool(json.get("prop"), "prop");
+        PetPosition petPosition = PetPosition.LEFT_SHOULDER;
+        if (json.has("pet_position")) {
+            petPosition = PetPosition.byName(json.get("pet_position").getAsString());
+            if (petPosition == null) {
+                throw new JsonParseException("pet_position must be left_shoulder, right_shoulder, head or floating");
+            }
+        }
+        // What it counts as when you wear one at a time ("hat", "ears", ...); by default its slot, or "wings".
+        String kind = null;
+        if (json.has("kind")) {
+            kind = json.get("kind").getAsString().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!kind.matches("[a-z0-9_]{1,32}")) {
+                throw new JsonParseException("kind must be 1 to 32 letters, digits or _");
+            }
+        }
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings, particles, sides, prop);
+                options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind);
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */

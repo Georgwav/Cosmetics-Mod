@@ -48,6 +48,11 @@ public final class CosmeticsConfig {
     public Map<CosmeticSlot, Boolean> slotVisible = defaultVisibility();
     /** Hide hats and face cosmetics while a helmet or other head item is worn. */
     public boolean hideHeadwearWithHelmet = true;
+    /**
+     * Wear several cosmetics of one kind (two hats, two pairs of wings) at once. Off, as in other clients:
+     * putting one on takes off the one of its kind you wore.
+     */
+    public boolean severalOfAKind = false;
     /** Hide capes while an elytra is worn, like the vanilla cape. */
     public boolean hideCapeWithElytra = true;
     /** Capes sway with movement like the vanilla cape. Off: they hang still. */
@@ -161,6 +166,8 @@ public final class CosmeticsConfig {
         public float particleAmount = 1.0f;
         /** How big its particles are, 0.25..3 (1 = as made). */
         public float particleSize = 1.0f;
+        /** For a pet: where it sits, or null for where its creator put it. */
+        public io.github.georgwav.cosmetics.model.PetPosition petPosition = null;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
@@ -168,7 +175,8 @@ public final class CosmeticsConfig {
                     && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
-                    && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize;
+                    && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
+                    && petPosition == null;
         }
 
         void sanitize() {
@@ -251,6 +259,23 @@ public final class CosmeticsConfig {
         return equipped.computeIfAbsent("local", k -> new ArrayList<>());
     }
 
+    /**
+     * Puts {@code id} on (or takes it off) in {@code wearing}. Unless several of a kind are allowed, putting it on
+     * takes off the others of its kind ({@code kindOf} gives an id's kind, or null for one that isn't loaded).
+     */
+    public static void wear(List<String> wearing, String id, boolean on, java.util.function.Function<String, String> kindOf,
+                            boolean severalOfAKind) {
+        wearing.remove(id);
+        if (!on) {
+            return;
+        }
+        String kind = kindOf.apply(id);
+        if (!severalOfAKind && kind != null) {
+            wearing.removeIf(other -> kind.equals(kindOf.apply(other)));
+        }
+        wearing.add(id);
+    }
+
     /** Puts every setting except the wardrobe (what you wear and how each cosmetic looks) back to its default. */
     public void resetSettings() {
         CosmeticsConfig defaults = new CosmeticsConfig();
@@ -259,6 +284,7 @@ public final class CosmeticsConfig {
         showOtherPlayersCosmetics = defaults.showOtherPlayersCosmetics;
         slotVisible = defaultVisibility();
         hideHeadwearWithHelmet = defaults.hideHeadwearWithHelmet;
+        severalOfAKind = defaults.severalOfAKind;
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         capePhysics = defaults.capePhysics;
         capeSwing = defaults.capeSwing;
