@@ -47,5 +47,10 @@
     "mods": [
       "figura|nofigura"
     ]
+  },
+  "modmenu": {
+    "mods": [
+      "modmenu"
+    ]
   }
 }
