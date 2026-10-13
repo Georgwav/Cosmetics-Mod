@@ -25,7 +25,7 @@ Status values:
 | EMF / ETF | pass (all 10) | Untested | Cosmetics follow the live transforms of the model's head and body parts, so EMF animations carry them. If a model mod hides or removes those parts, the cosmetic is not drawn. |
 | 3D Skin Layers | pass (all 10) | Untested | Hats sit 0.5 px above the outer skin layer so the 3D layer doesn't clip through them. |
 | Figura | pass (all 10; NoFigura where Figura has no build) | Untested | Defaults to DEFER on every slot for players with a Figura avatar. Set a slot to OVERRIDE to draw anyway. |
-| Mod Menu | first run pending (stack `modmenu`) | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. CI opens Mod Menu's list and the screen Mod Menu gets for this mod's "Configure" button, and checks that it draws. |
+| Mod Menu | pass (all 10, Mod Menu 11.0.5 to 21.0.0) | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. CI opens Mod Menu's list and the screen Mod Menu gets for this mod's "Configure" button, and checks that it draws. |
 | Essential | not in CI | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected; set the cape slot to DEFER to keep them over ours. Other Essential cosmetics simply render alongside ours. |
 
 ## By Minecraft version
