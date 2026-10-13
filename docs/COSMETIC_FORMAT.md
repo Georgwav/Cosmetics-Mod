@@ -107,10 +107,15 @@ The bundled `cosmeticsmod:crown` is made exactly like this.
 | `texture` | Another texture for that bone, for example a glow overlay. Same texture size. |
 | `animation` | Movement for that bone. `spin` and `swing` turn around the bone's pivot unless you give a `pivot`. |
 
-Bones are converted to the Java entity model axes: `x` and `z` stay, `y` becomes `24 - y`, rotations
-`[x, y, z]` become `[-x, y, -z]`, and the `up` and `down` faces swap. This is the same relationship the
-vanilla Bedrock and Java player models have, so a model lines up with the player the way it did in
-Blockbench.
+Bones are converted to the Java entity model axes the same way Blockbench converts between its
+Bedrock and Java entity formats:
+- `x` and `z` stay, and `y` becomes `24 - y`;
+- rotations stay as they are;
+- per-face UVs move to the matching faces (Bedrock's `up`/`down` are our top/bottom, and its `east`/`west`
+  are our west/east).
+
+So a model lines up with the player the way it did in Blockbench, and the vanilla Bedrock player model
+converts to exactly the Java one.
 
 ## Animation
 

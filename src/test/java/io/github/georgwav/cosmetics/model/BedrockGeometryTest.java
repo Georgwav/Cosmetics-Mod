@@ -64,13 +64,13 @@ class BedrockGeometryTest {
     }
 
     @Test
-    void rotationsFlipWithTheYAxis() {
-        // Bedrock [x, y, z] degrees is [-x, y, -z] for us; spinning around Y keeps its sign.
+    void rotationsCarryOverUnchanged() {
+        // Blockbench: Bedrock -> internal negates X/Y rotation, internal -> Java entity negates X/Y again.
         CosmeticDefinition.Cube cube = onlyCube(convert("""
                 [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [1, 1, 1], "uv": [0, 0],
                                           "pivot": [0, 24, 0], "rotation": [10, 20, 30]}]}]
                 """));
-        float[] expected = CosmeticBaker.rotationMatrix(new float[]{-10, 20, -30});
+        float[] expected = CosmeticBaker.rotationMatrix(new float[]{10, 20, 30});
         for (int i = 0; i < 9; i++) {
             assertEquals(expected[i], cube.transform()[i], EPS);
         }
@@ -92,16 +92,46 @@ class BedrockGeometryTest {
     }
 
     @Test
-    void topAndBottomFacesSwap() {
+    void facesMapLikeBlockbenchDoes() {
         CosmeticDefinition.Cube cube = onlyCube(convert("""
                 [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [2, 2, 2],
                   "uv": {"up": {"uv": [0, 0], "uv_size": [2, 2]}, "down": {"uv": [4, 4], "uv_size": [2, -2]},
-                         "north": {"uv": [8, 0], "uv_size": [2, 2]}}}]}]
+                         "north": {"uv": [8, 0], "uv_size": [2, 2]},
+                         "east": {"uv": [12, 0], "uv_size": [2, 2]}, "west": {"uv": [16, 0], "uv_size": [2, 2]}}}]}]
                 """));
         assertArrayEquals(new float[]{0, 0, 2, 2}, cube.faces()[CosmeticDefinition.Face.DOWN.ordinal()], EPS);
         assertArrayEquals(new float[]{4, 4, 6, 2}, cube.faces()[CosmeticDefinition.Face.UP.ordinal()], EPS);
         assertArrayEquals(new float[]{8, 0, 10, 2}, cube.faces()[CosmeticDefinition.Face.NORTH.ordinal()], EPS);
+        assertArrayEquals(new float[]{12, 0, 14, 2}, cube.faces()[CosmeticDefinition.Face.WEST.ordinal()], EPS);
+        assertArrayEquals(new float[]{16, 0, 18, 2}, cube.faces()[CosmeticDefinition.Face.EAST.ordinal()], EPS);
         assertEquals(null, cube.faces()[CosmeticDefinition.Face.SOUTH.ordinal()]);
+    }
+
+    @Test
+    void perFaceUvsMatchTheBoxUvLayoutOfTheSameCube() {
+        // Blockbench writes a box-UV cube's faces into per-face UVs like this when exporting Bedrock
+        // (its box layout, with up/down stored corner-swapped). Imported, it must equal our box UV.
+        float u = 4, v = 2, dx = 3, dy = 5, dz = 2;
+        CosmeticDefinition.Cube perFace = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [3, 5, 2], "uv": {
+                  "east":  {"uv": [4, 4],  "uv_size": [2, 5]},
+                  "west":  {"uv": [9, 4],  "uv_size": [2, 5]},
+                  "north": {"uv": [6, 4],  "uv_size": [3, 5]},
+                  "south": {"uv": [11, 4], "uv_size": [3, 5]},
+                  "up":    {"uv": [6, 2],  "uv_size": [3, 2]},
+                  "down":  {"uv": [9, 4],  "uv_size": [3, -2]}}}]}]
+                """));
+        CosmeticDefinition.Cube box = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [3, 5, 2], "uv": [4, 2]}]}]
+                """));
+        BakedMesh fromFaces = CosmeticBaker.bake(definition(perFace)).layers()[0].mesh();
+        BakedMesh fromBox = CosmeticBaker.bake(definition(box)).layers()[0].mesh();
+        assertArrayEquals(fromBox.data(), fromFaces.data(), EPS);
+    }
+
+    private static CosmeticDefinition definition(CosmeticDefinition.Cube cube) {
+        return new CosmeticDefinition("t:c", "C", CosmeticSlot.HEAD, "t:t.png", 64, 64,
+                List.of(new CosmeticDefinition.Part("p", RenderMode.CUTOUT, "t:t.png", List.of(cube), List.of())));
     }
 
     @Test

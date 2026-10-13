@@ -16,11 +16,16 @@ import java.util.Map;
  * and turns its bones into cosmetic parts.
  *
  * <p>Bedrock models are measured from the player's feet with +Y up; ours are measured from the anchor
- * pivot (the neck, 24 px up) with +Y down, like vanilla Java entity models. X and Z are the same in
- * both. So a point maps to {@code (x, 24 - y, z)}, which is how the vanilla Bedrock player model lines
- * up with the Java one (the Bedrock head {@code origin [-4, 24, -4], size 8} is the Java head
- * {@code addBox(-4, -8, -4, 8, 8, 8)}). Flipping Y turns rotations {@code [x, y, z]} into
- * {@code [-x, y, -z]} and swaps the {@code up} and {@code down} faces.
+ * pivot (the neck, 24 px up) with +Y down, like vanilla Java entity models. The conversion is the one
+ * Blockbench itself does between its Bedrock and Java entity formats (its Bedrock codec mirrors X and
+ * negates X/Y rotations on import, its Java entity export mirrors X and Y and negates X/Y rotations):
+ * <ul>
+ *   <li>a point {@code (x, y, z)} becomes {@code (x, 24 - y, z)} (so the vanilla Bedrock head
+ *       {@code origin [-4, 24, -4], size 8} is the Java head {@code addBox(-4, -8, -4, 8, 8, 8)});</li>
+ *   <li>rotations {@code [x, y, z]} stay as they are;</li>
+ *   <li>per-face UVs: {@code up} goes on our top face (DOWN), {@code down} on our bottom face (UP),
+ *       {@code east} on WEST and {@code west} on EAST, each with the same UV rectangle.</li>
+ * </ul>
  *
  * <p>Pure Java with no Minecraft types, so it is unit-tested without a game instance.
  */
@@ -123,7 +128,7 @@ public final class BedrockGeometry {
     private static float[] rotation(JsonObject json, String where) {
         float[] rotation = json.has("rotation") ? floats(json.get("rotation"), 3, where + ".rotation") : new float[3];
         float[] pivot = json.has("pivot") ? point(floats(json.get("pivot"), 3, where + ".pivot")) : new float[3];
-        return CosmeticBaker.affine(CosmeticBaker.rotationMatrix(new float[]{-rotation[0], rotation[1], -rotation[2]}), pivot);
+        return CosmeticBaker.affine(CosmeticBaker.rotationMatrix(rotation), pivot);
     }
 
     private static CosmeticDefinition.Cube cube(JsonObject json, float[] boneTransform, boolean boneMirror,
@@ -152,8 +157,9 @@ public final class BedrockGeometry {
                 CosmeticDefinition.Face face = switch (name.toLowerCase(Locale.ROOT)) {
                     case "north" -> CosmeticDefinition.Face.NORTH;
                     case "south" -> CosmeticDefinition.Face.SOUTH;
-                    case "east" -> CosmeticDefinition.Face.EAST;
-                    case "west" -> CosmeticDefinition.Face.WEST;
+                    // Bedrock's east/west name the opposite side from Java's (X is mirrored between them).
+                    case "east" -> CosmeticDefinition.Face.WEST;
+                    case "west" -> CosmeticDefinition.Face.EAST;
                     // +Y is flipped, so the top face is our DOWN face and the bottom our UP face.
                     case "up" -> CosmeticDefinition.Face.DOWN;
                     case "down" -> CosmeticDefinition.Face.UP;
