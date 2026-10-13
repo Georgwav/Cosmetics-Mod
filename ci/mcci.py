@@ -463,6 +463,18 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     status = "PASS" if summary["passed"] else "FAIL"
     LOG(f"[{inst.mc}/{label}] {status} in {summary['seconds']:.0f}s"
         + ("" if summary["passed"] else ": " + "; ".join(summary["problems"])))
+    for phase, stats in summary["phases"].items():
+        LOG(f"    {phase}: " + ", ".join(f"{k}={v:.3g}" if isinstance(v, float) else f"{k}={v}"
+                                       for k, v in stats.items()))
+    if not summary["passed"]:
+        # Surface the end of the game log right in the CI output.
+        log = game_dir / "logs" / "latest.log"
+        if not log.exists():
+            log = game_dir / "stdout.log"
+        if log.exists():
+            LOG("    --- last lines of " + log.name + " ---")
+            for line in log.read_text(errors="replace").splitlines()[-40:]:
+                LOG("    " + line[:300])
     return summary
 
 
@@ -531,7 +543,12 @@ def node_info(node):
 
 def cmd_runtime(args):
     info = node_info(args.node)
-    jar = mod_jar_for(args.node, args.jars)
+    try:
+        jar = mod_jar_for(args.node, args.jars)
+    except FileNotFoundError as e:
+        for mc in info["test"]:
+            setup_failure(args, mc, "vanilla", "smoke", f"build failed, no jar ({e})")
+        return 1
     failures = 0
     for mc in info["test"]:
         try:
@@ -545,8 +562,12 @@ def cmd_runtime(args):
 
 def cmd_compat(args):
     info = node_info(args.node)
-    jar = mod_jar_for(args.node, args.jars)
     mc = info["test"][-1]
+    try:
+        jar = mod_jar_for(args.node, args.jars)
+    except FileNotFoundError as e:
+        setup_failure(args, mc, "compat", "smoke", f"build failed, no jar ({e})")
+        return 1
     sets = json.loads((ROOT / "ci" / "compat-sets.json").read_text())
     sets.pop("_comment", None)
     selected = args.sets.split(",") if args.sets else list(sets)

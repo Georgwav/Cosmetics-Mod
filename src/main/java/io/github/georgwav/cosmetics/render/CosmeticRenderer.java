@@ -1,7 +1,6 @@
 package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
@@ -10,6 +9,10 @@ import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.model.geom.ModelPart;
+import org.joml.Quaternionf;
+//? if >=26.3 {
+/*import org.joml.Matrix4f;
+*///?}
 
 /**
  * Version-independent part of the render layer: decides which cosmetics to draw for a player, places
@@ -112,9 +115,16 @@ public final class CosmeticRenderer {
      */
     private static void applyCapeSway(PoseStack poseStack, PlayerRenderInfo info) {
         poseStack.translate(0.0F, 0.0F, 0.125F);
-        poseStack.mulPose(Axis.XP.rotationDegrees(6.0F + info.capeLean / 2.0F + info.capeFlap));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(info.capeLean2 / 2.0F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - info.capeLean2 / 2.0F));
+        // X, then Z, then Y, like the vanilla cape.
+        Quaternionf rotation = new Quaternionf()
+                .rotationX((float) Math.toRadians(6.0F + info.capeLean / 2.0F + info.capeFlap))
+                .rotateZ((float) Math.toRadians(info.capeLean2 / 2.0F))
+                .rotateY((float) Math.toRadians(180.0F - info.capeLean2 / 2.0F));
+        //? if >=26.3 {
+        /*poseStack.mulPose(new Matrix4f().rotation(rotation));
+        *///?} else {
+        poseStack.mulPose(rotation);
+        //?}
     }
 
     /**

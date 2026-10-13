@@ -30,7 +30,15 @@ public final class CosmeticRenderTypes {
     }
 
     private static RenderType create(String texture, RenderMode mode) {
-        //? if >=1.21.11 {
+        //? if >=26.1 {
+        /*Identifier id = Identifier.parse(texture);
+        // 26.1 dropped entityCutoutNoCull. Cosmetics are closed boxes, so the culling variant looks the same.
+        return switch (mode) {
+            case CUTOUT -> RenderTypes.entityCutout(id);
+            case TRANSLUCENT -> RenderTypes.entityTranslucent(id);
+            case EMISSIVE -> RenderTypes.eyes(id);
+        };
+        *///?} elif >=1.21.11 {
         Identifier id = Identifier.parse(texture);
         return switch (mode) {
             case CUTOUT -> RenderTypes.entityCutoutNoCull(id);
