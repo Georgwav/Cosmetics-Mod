@@ -74,16 +74,15 @@ public final class CosmeticsScreen extends Screen {
 
     private static Tab lastTab = Tab.WARDROBE;
     private static View lastView = View.ALL;
-    /** Rows in one category (the rest are found by searching). */
-    private static final int ROWS_PER_VIEW = 300;
+    /** Most rows one list shows (only so a broken pack can't build a million widgets). */
+    private static final int ROWS_PER_VIEW = 10_000;
     private static final int SIDEBAR_WIDTH = 104;
-    /** How far you turned the preview (degrees), kept while the game runs. */
+    /** How far you turned the preview round and tipped it (degrees), kept while the game runs. */
     private static float previewSpin;
+    private static float previewPitch;
+    private static final float MAX_PREVIEW_PITCH = 80f;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
-    /** Wardrobe rows per slot without a search (the rest are found by searching), and in a search. */
-    private static final int ROWS_PER_SLOT = 60;
-    private static final int ROWS_PER_SLOT_SEARCHING = 200;
     private static final int SEARCH_HEIGHT = 16;
     /** Frames drawn since start; read by the in-game test to prove the screen renders on every version. */
     public static int framesRendered;
@@ -110,6 +109,9 @@ public final class CosmeticsScreen extends Screen {
     private String tryingOn;
     /** The preview's turn as drawn, easing towards {@link #previewSpin} (plus a half turn for back items). */
     private float shownSpin = previewSpin;
+    private float shownPitch = previewPitch;
+    /** Aura particles around the preview. */
+    private final PreviewParticles previewParticles = new PreviewParticles();
     private String query = lastQuery;
     /** The wardrobe's search field, when the wardrobe list is showing. */
     private EditBox searchBox;
@@ -196,8 +198,20 @@ public final class CosmeticsScreen extends Screen {
             left += previewW + Theme.PAD;
             int top = py + Theme.HEADER_HEIGHT + 6;
             addChrome(new Rows.DragArea(previewX, top, previewW, py + ph - Theme.FOOTER_HEIGHT - 6 - top,
-                    dx -> previewSpin += (float) dx * 2f));
+                    (dx, dy) -> {
+                        previewSpin += (float) dx * 2f;
+                        previewPitch = Math.max(-MAX_PREVIEW_PITCH, Math.min(MAX_PREVIEW_PITCH, previewPitch - (float) dy * 1.5f));
+                    }));
         }
+
+        // Back arrow at the left of the header: from a cosmetic's page back to the list, else out of the screen.
+        addChrome(new Rows.Button(px + Theme.PAD - 4, py + 6, 20, Theme.HEADER_HEIGHT - 12, "<", false, () -> {
+            if (detailId != null) {
+                openDetail(null);
+            } else {
+                onClose();
+            }
+        }));
 
         // Tabs, right-aligned in the header.
         int tabRight = px + pw - Theme.PAD + 6;
@@ -409,7 +423,7 @@ public final class CosmeticsScreen extends Screen {
                     () -> "", Theme.TEXT_DIM));
         } else if (view == View.ALL || view == View.WEARING) {
             // Everything: grouped by slot.
-            int limit = needle.isEmpty() ? ROWS_PER_SLOT : ROWS_PER_SLOT_SEARCHING;
+            int limit = ROWS_PER_VIEW;
             for (CosmeticSlot slot : CosmeticSlot.values()) {
                 List<BakedCosmetic> inSlot = shown.stream().filter(c -> c.slot() == slot).toList();
                 if (inSlot.isEmpty()) {
@@ -531,14 +545,6 @@ public final class CosmeticsScreen extends Screen {
     private static final List<Integer> COLORS = List.of(
             0xFFFFFF, 0xFF5555, 0xFFAA33, 0xFFFF55, 0x88FF55, 0x33CC66, 0x55FFFF,
             0x5588FF, 0xAA66FF, 0xFF77CC, 0xAAAAAA, 0x444444);
-    private static final List<String> COLOR_NAMES = List.of(
-            "white", "red", "orange", "yellow", "lime", "green", "cyan", "blue", "purple", "pink", "gray", "black");
-
-    private static String colorName(int rgb) {
-        int index = COLORS.indexOf(rgb);
-        return index >= 0 ? t("color." + COLOR_NAMES.get(index)) : String.format("#%06X", rgb);
-    }
-
     /** One cosmetic's page: wear it, then whichever of colour, size and position, glow and animation it allows. */
     private void buildDetail(BakedCosmetic cosmetic) {
         CosmeticsConfig config = CosmeticsConfig.get();
@@ -567,26 +573,27 @@ public final class CosmeticsScreen extends Screen {
         }
         if (tint) {
             int defaultColor = cosmetic.defaultColor();
-            List<Integer> colors = new ArrayList<>(COLORS);
-            if (!colors.contains(defaultColor)) {
-                colors.add(0, defaultColor);
-            }
-            add(new Rows.Cycle<>(listX, 0, listW, t("color"), colors,
+            add(new Rows.ColorPicker(listX, 0, listW,
                     () -> {
                         Integer color = config.options(id).color;
                         return color != null ? color : defaultColor;
                     },
                     // Picking the cosmetic's own colour goes back to following it.
                     v -> config.editOptions(id).color = v == defaultColor ? null : v,
-                    v -> v == defaultColor && v != CosmeticDefinition.WHITE ? t("color.default") : colorName(v))
-                    .withSwatch(rgb -> 0xFF000000 | rgb));
+                    () -> config.editOptions(id).color = null,
+                    COLORS, t("color.default_button")));
         }
         if (rainbow) {
             add(new Rows.Toggle(listX, 0, listW, t("rainbow"), null,
-                    () -> config.options(id).rainbow, v -> config.editOptions(id).rainbow = v));
-            add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
-                    () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
-                    CosmeticsScreen::times));
+                    () -> config.options(id).rainbow, v -> {
+                        config.editOptions(id).rainbow = v;
+                        rebuildWidgets(); // the speed shows only while rainbow is on
+                    }));
+            if (config.options(id).rainbow) {
+                add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
+                        () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
+                        CosmeticsScreen::times));
+            }
         }
         if (saturation) {
             add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,
@@ -635,6 +642,18 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Slider(listX, 0, listW, t("animation_speed"), 0.1, 3, 0.1,
                     () -> config.options(id).animationSpeed, v -> config.editOptions(id).animationSpeed = (float) v,
                     CosmeticsScreen::times));
+        }
+
+        if (!cosmetic.definition().particles().isEmpty()) {
+            section("section.cosmetic_particles");
+            add(new Rows.Toggle(listX, 0, listW, t("cosmetic_particles"), config.particles ? null : t("particles.off_globally"),
+                    () -> config.options(id).particles, v -> config.editOptions(id).particles = v));
+            add(new Rows.Slider(listX, 0, listW, t("particle_amount"), 0, 3, 0.1,
+                    () -> config.options(id).particleAmount, v -> config.editOptions(id).particleAmount = (float) v,
+                    v -> Math.round(v * 100) + "%"));
+            add(new Rows.Slider(listX, 0, listW, t("particle_size"), 0.25, 3, 0.05,
+                    () -> config.options(id).particleSize, v -> config.editOptions(id).particleSize = (float) v,
+                    v -> Math.round(v * 100) + "%"));
         }
 
         contentHeight += 4;
@@ -816,7 +835,7 @@ public final class CosmeticsScreen extends Screen {
         g.fill(px, py, px + pw, py + ph, Theme.PANEL);
 
         // Header and footer.
-        g.text(font, title.getString(), px + Theme.PAD, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
+        g.text(font, title.getString(), px + Theme.PAD + 22, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
         g.fill(px, py + Theme.HEADER_HEIGHT, px + pw, py + Theme.HEADER_HEIGHT + 1, Theme.DIVIDER);
         g.fill(px, py + ph - Theme.FOOTER_HEIGHT, px + pw, py + ph - Theme.FOOTER_HEIGHT + 1, Theme.DIVIDER);
         g.text(font, t("hint"), px + Theme.PAD, py + ph - Theme.FOOTER_HEIGHT + (Theme.FOOTER_HEIGHT - font.lineHeight) / 2 + 1,
@@ -885,7 +904,18 @@ public final class CosmeticsScreen extends Screen {
         if (Math.abs(target - shownSpin) < 0.5f) {
             shownSpin = target;
         }
-        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin);
+        shownPitch += (previewPitch - shownPitch) * 0.3f;
+        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
+        // The particles of auras, drawn the way the preview turns the player.
+        float bodyYaw = 180f + shownSpin;
+        previewParticles.update(EquippedCosmetics.forPlayer(minecraft.player.getUUID(), true), bodyYaw);
+        float entityScale = minecraft.player.getScale();
+        float feetY = minecraft.player.getBbHeight() / entityScale / 2f + 0.0625f;
+        org.joml.Quaternionf pose = new org.joml.Quaternionf().rotateZ((float) Math.PI)
+                .rotateX((float) Math.toRadians(shownPitch));
+        g.clip(x1, y1, x2, y2);
+        previewParticles.draw(g, (x1 + x2) / 2f, (y1 + 6 + y2 - 18) / 2f, scale, feetY, pose);
+        g.endClip();
         String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
         g.centeredText(font, fitText(caption, previewW - 8), (x1 + x2) / 2, y2 - font.lineHeight - 4,
                 shown != null ? Theme.ACCENT : Theme.TEXT_FAINT);

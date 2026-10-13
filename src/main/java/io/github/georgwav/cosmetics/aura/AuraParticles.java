@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.render.RenderGuard;
+import io.github.georgwav.cosmetics.render.Tint;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -40,6 +41,7 @@ public final class AuraParticles {
     /** At most this many per player per tick, whatever the rates. */
     private static final int MAX_PER_TICK = 40;
     private static final Random RANDOM = new Random();
+    private static final long START_NANOS = System.nanoTime();
     /** Per player, per cosmetic emitter: the fraction of a particle carried over to the next tick. */
     private static final Map<UUID, Map<String, float[]>> CARRY = new HashMap<>();
     private static boolean failed;
@@ -92,9 +94,13 @@ public final class AuraParticles {
         int budget = MAX_PER_TICK;
         for (BakedCosmetic cosmetic : cosmetics) {
             List<CosmeticDefinition.ParticleEmitter> emitters = cosmetic.definition().particles();
-            if (emitters.isEmpty() || !config.slotVisible(cosmetic.slot()) || RenderGuard.isDisabled(cosmetic.id())) {
+            CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+            if (emitters.isEmpty() || !options.particles || !config.slotVisible(cosmetic.slot())
+                    || RenderGuard.isDisabled(cosmetic.id())) {
                 continue;
             }
+            // A colour or rainbow the player picked for the cosmetic colours its particles too.
+            Integer color = Tint.particleColor(options, cosmetic, (System.nanoTime() - START_NANOS) / 1.0e9);
             for (int i = 0; i < emitters.size(); i++) {
                 CosmeticDefinition.ParticleEmitter emitter = emitters.get(i);
                 float[] carry = CARRY.computeIfAbsent(player.getUUID(), k -> new HashMap<>())
@@ -103,13 +109,15 @@ public final class AuraParticles {
                     carry[0] = 0f;
                     continue;
                 }
-                int count = AuraSpawner.count(carry, emitter.rate(), 0.05f, config.particleDensity);
+                int count = AuraSpawner.count(carry, emitter.rate(), 0.05f,
+                        config.particleDensity * options.particleAmount);
                 if (count == 0) {
                     continue;
                 }
                 TextureAtlasSprite[] sprites = sprites(client, emitter.sprites());
                 for (int n = 0; n < count && budget > 0 && live < MAX_LIVE; n++, budget--) {
-                    AuraSpawner.Spawn spawn = AuraSpawner.spawn(emitter, player.yBodyRot, RANDOM);
+                    AuraSpawner.Spawn spawn = AuraSpawner.adjusted(AuraSpawner.spawn(emitter, player.yBodyRot, RANDOM),
+                            options.particleSize, color);
                     client.particleEngine.add(new AuraParticle(level, player.getX() + spawn.x(),
                             player.getY() + spawn.y(), player.getZ() + spawn.z(), spawn, sprites));
                     spawned++;

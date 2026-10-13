@@ -68,4 +68,18 @@ class TintTest {
         options.saturation = 0f;
         assertEquals(0xFFFFFFFF, Tint.argb(options, 4.2), "a rainbow without saturation is white");
     }
+
+    @Test
+    void hsvRoundTripsEveryPickerColour() {
+        for (int rgb : new int[]{0xFF0000, 0x00FF00, 0x0000FF, 0x123456, 0xFEDCBA, 0x808080, 0x000000, 0xFFFFFF}) {
+            float[] hsv = Tint.rgbToHsv(rgb);
+            int back = Tint.hsvToRgb(hsv[0], hsv[1], hsv[2]);
+            for (int shift = 0; shift <= 16; shift += 8) {
+                int a = rgb >> shift & 0xFF;
+                int b = back >> shift & 0xFF;
+                org.junit.jupiter.api.Assertions.assertTrue(Math.abs(a - b) <= 1,
+                        String.format("#%06X came back as #%06X", rgb, back));
+            }
+        }
+    }
 }

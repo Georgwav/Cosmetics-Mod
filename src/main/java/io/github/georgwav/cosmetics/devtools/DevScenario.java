@@ -12,6 +12,7 @@ import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
+import io.github.georgwav.cosmetics.render.NameTags;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
@@ -152,6 +153,12 @@ public final class DevScenario {
             case FRONT -> {
                 if (ticks >= phaseTicks) {
                     record("vanilla_front");
+                    // Every cosmetic is worn, the top hat among them, so the name tag must go up.
+                    float lift = NameTags.lift(client.player);
+                    phases.getAsJsonObject("vanilla_front").addProperty("nameTagLift", lift);
+                    if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && lift <= 0f) {
+                        failures.add("head cosmetics didn't raise the name tag");
+                    }
                     client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
                     enter(Phase.BACK);
                 }

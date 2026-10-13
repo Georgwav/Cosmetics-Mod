@@ -45,6 +45,11 @@ public final class Canvas {
         //?}
     }
 
+    /** Rectangle fading from {@code top} to {@code bottom} (ARGB). */
+    public void gradient(int x1, int y1, int x2, int y2, int top, int bottom) {
+        raw.fillGradient(x1, y1, x2, y2, top, bottom);
+    }
+
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {
         //? if >=26.1 {
@@ -68,18 +73,23 @@ public final class Canvas {
     }
 
     /**
-     * The inventory-style entity preview that turns to follow the mouse, turned a further {@code spin} degrees
-     * around its vertical axis so its back can be shown too. Does exactly what vanilla's follow-mouse preview
-     * does on each version (InventoryScreen.renderEntityInInventoryFollowsMouse), with the turn added to the body.
+     * The inventory-style entity preview, turned {@code spin} degrees round its vertical axis and tipped
+     * {@code pitch} degrees towards or away from you (both by dragging). The body stays as turned; only the head
+     * looks at the mouse, while the face is towards you. Built like vanilla's follow-mouse preview on each version
+     * (InventoryScreen.renderEntityInInventoryFollowsMouse).
      */
     public void entityTurned(int x1, int y1, int x2, int y2, int scale, float yOffset, float mouseX, float mouseY,
-                             LivingEntity entity, float spin) {
+                             LivingEntity entity, float spin, float pitch) {
         float centerX = (x1 + x2) / 2f;
         float centerY = (y1 + y2) / 2f;
         float turn = (float) Math.atan((centerX - mouseX) / 40f);
         float tilt = (float) Math.atan((centerY - mouseY) / 40f);
+        // Looking at the mouse fades out as the face turns away from you.
+        float facing = Math.max(0f, (float) Math.cos(Math.toRadians(spin)));
+        float headYaw = turn * 40f * facing;
+        float headPitch = -tilt * 20f * facing;
         Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
-        Quaternionf camera = new Quaternionf().rotateX(tilt * 20f * (float) (Math.PI / 180));
+        Quaternionf camera = new Quaternionf().rotateX((float) Math.toRadians(pitch));
         pose.mul(camera);
         //? if >=26.1 {
         /*EntityRenderState state = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity)
@@ -87,9 +97,9 @@ public final class Canvas {
         state.shadowPieces.clear();
         state.outlineColor = 0;
         if (state instanceof LivingEntityRenderState living) {
-            living.bodyRot = 180f + turn * 20f + spin;
-            living.yRot = turn * 20f;
-            living.xRot = living.pose != Pose.FALL_FLYING ? -tilt * 20f : 0f;
+            living.bodyRot = 180f + spin;
+            living.yRot = headYaw;
+            living.xRot = living.pose != Pose.FALL_FLYING ? headPitch : 0f;
             living.boundingBoxWidth /= living.scale;
             living.boundingBoxHeight /= living.scale;
             living.scale = 1f;
@@ -103,9 +113,9 @@ public final class Canvas {
         state.shadowPieces.clear();
         state.outlineColor = 0;
         if (state instanceof LivingEntityRenderState living) {
-            living.bodyRot = 180f + turn * 20f + spin;
-            living.yRot = turn * 20f;
-            living.xRot = living.pose != Pose.FALL_FLYING ? -tilt * 20f : 0f;
+            living.bodyRot = 180f + spin;
+            living.yRot = headYaw;
+            living.xRot = living.pose != Pose.FALL_FLYING ? headPitch : 0f;
             living.boundingBoxWidth /= living.scale;
             living.boundingBoxHeight /= living.scale;
             living.scale = 1f;
@@ -118,9 +128,9 @@ public final class Canvas {
         float xRot = entity.getXRot();
         float headRotO = entity.yHeadRotO;
         float headRot = entity.yHeadRot;
-        entity.yBodyRot = 180f + turn * 20f + spin;
-        entity.setYRot(180f + turn * 40f + spin);
-        entity.setXRot(-tilt * 20f);
+        entity.yBodyRot = 180f + spin;
+        entity.setYRot(180f + spin + headYaw);
+        entity.setXRot(headPitch);
         entity.yHeadRot = entity.getYRot();
         entity.yHeadRotO = entity.getYRot();
         float entityScale = entity.getScale();
@@ -139,9 +149,9 @@ public final class Canvas {
         float xRot = entity.getXRot();
         float headRotO = entity.yHeadRotO;
         float headRot = entity.yHeadRot;
-        entity.yBodyRot = 180f + turn * 20f + spin;
-        entity.setYRot(180f + turn * 40f + spin);
-        entity.setXRot(-tilt * 20f);
+        entity.yBodyRot = 180f + spin;
+        entity.setYRot(180f + spin + headYaw);
+        entity.setXRot(headPitch);
         entity.yHeadRot = entity.getYRot();
         entity.yHeadRotO = entity.getYRot();
         float entityScale = entity.getScale();

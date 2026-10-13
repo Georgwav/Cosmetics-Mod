@@ -56,6 +56,21 @@ badlion-import list C:\badlion-input --type CAPE --present
 
 Type, id, name, and whether its texture and model are in your jars (`present`) or not (`missing`).
 
+### `show`: the numbers behind a cosmetic
+
+When a converted cosmetic looks wrong (too small, turned the wrong way, in the wrong place), this prints what
+Badlion says about it and what the conversion made of it, to paste into an issue or a chat:
+
+```powershell
+badlion-import show C:\badlion-input --name "zickzack v5"
+badlion-import show C:\badlion-input --types SHIELD --limit 6
+badlion-import show C:\badlion-input --only WINGS:53
+```
+
+For each cosmetic: its definition (sizing, wing, pet and shield data), its `models.json` entry, the model file's
+size and texture area, its animations, and the slot, scale, rotation and offset the conversion uses, with the
+model's box around its anchor in game. Numbers only: no textures or models are printed.
+
 ### `import`
 
 Writes a resource pack of the cosmetics in your jars. Do it in two steps.

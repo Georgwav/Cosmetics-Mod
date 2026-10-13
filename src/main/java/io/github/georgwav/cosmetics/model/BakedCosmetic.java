@@ -18,6 +18,8 @@ public final class BakedCosmetic {
     // Last style looked up by name (render thread), so the per-frame lookup is one reference compare.
     private String lastStyleName;
     private int lastStyle;
+    // Highest point of the geometry (smallest y, blocks), worked out on first use.
+    private float top = Float.NaN;
 
     BakedCosmetic(CosmeticDefinition definition, List<Layer> layers, String[] styles) {
         this.definition = definition;
@@ -90,6 +92,25 @@ public final class BakedCosmetic {
 
     public CosmeticDefinition definition() {
         return definition;
+    }
+
+    /**
+     * How far the cosmetic reaches above its anchor's pivot, in blocks (the geometry's smallest y, negated; +Y is
+     * down), at rest. 0 for a cosmetic with no geometry. Render thread only.
+     */
+    public float reachUp() {
+        if (Float.isNaN(top)) {
+            float min = 0f;
+            for (Layer layer : layers) {
+                BakedMesh mesh = layer.skin() != null ? layer.skin().update(0, 0f) : layer.mesh();
+                float[] data = mesh.data();
+                for (int i = 1; i < data.length; i += BakedMesh.FLOATS_PER_VERTEX) {
+                    min = Math.min(min, data[i]);
+                }
+            }
+            top = min;
+        }
+        return -top;
     }
 
     /** Layers in draw order: cutout, then translucent, then emissive. */

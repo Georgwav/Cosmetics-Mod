@@ -68,24 +68,38 @@ public final class CosmeticLoader {
         };
         int maxMeshTriangles = CosmeticsConfig.get().maxMeshTriangles;
 
-        Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();
+        // Parsed and baked on every core: a pack of thousands of cosmetics would otherwise hold up the loading
+        // screen for a long time. Parsing and baking share no state, and packs are read-only here.
+        long start = System.nanoTime();
         // `var`: the key type is ResourceLocation before 1.21.11 and Identifier after.
-        for (var entry : manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet()) {
+        var entries = new java.util.ArrayList<>(
+                manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet());
+        String[] ids = new String[entries.size()];
+        BakedCosmetic[] baked = new BakedCosmetic[entries.size()];
+        java.util.stream.IntStream.range(0, entries.size()).parallel().forEach(i -> {
+            var entry = entries.get(i);
             String path = entry.getKey().getPath();
             String id = entry.getKey().getNamespace() + ":"
                     + path.substring(DIRECTORY.length() + 1, path.length() - SUFFIX.length());
             String file = "assets/" + entry.getKey().getNamespace() + "/" + path;
+            ids[i] = id;
             CosmeticParser.Context context = new CosmeticParser.Context(models, files,
                     warning -> CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {}", id, file, warning), maxMeshTriangles);
             try (Reader reader = entry.getValue().openAsReader()) {
-                loaded.put(id, CosmeticBaker.bake(CosmeticParser.parse(id, reader, context)));
+                baked[i] = CosmeticBaker.bake(CosmeticParser.parse(id, reader, context));
             } catch (Exception e) {
                 CosmeticsMod.LOGGER.error("Skipping cosmetic '{}' ({}): {}", id, file, e.toString());
+            }
+        });
+        Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();
+        for (int i = 0; i < baked.length; i++) {
+            if (baked[i] != null) {
+                loaded.put(ids[i], baked[i]);
             }
         }
         CosmeticRegistry.replace(loaded);
         RenderGuard.reset();
-        CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s)", loaded.size());
+        CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s) in {} ms", loaded.size(), (System.nanoTime() - start) / 1_000_000);
         Emotes.reload(manager);
     }
 }

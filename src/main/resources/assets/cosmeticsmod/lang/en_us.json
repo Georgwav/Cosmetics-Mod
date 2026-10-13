@@ -66,7 +66,7 @@
   "cosmeticsmod.screen.outfits.update": "Update",
   "cosmeticsmod.screen.outfits.delete": "Delete",
   "cosmeticsmod.screen.preview.trying": "Trying on %s",
-  "cosmeticsmod.screen.preview.drag": "Drag to turn",
+  "cosmeticsmod.screen.preview.drag": "Drag to turn and tilt",
   "cosmeticsmod.screen.cloth": "Cloth cloak",
   "cosmeticsmod.screen.cloth.physics_off": "cape physics is off",
 
@@ -101,6 +101,7 @@
   "cosmeticsmod.screen.offset_z": "Move forward",
   "cosmeticsmod.screen.glow": "Glow",
   "cosmeticsmod.screen.glow.off_globally": "off in Display",
+  "cosmeticsmod.screen.color.default_button": "Default colour",
   "cosmeticsmod.screen.animation": "Animation",
   "cosmeticsmod.screen.animation_speed": "Animation speed",
 
@@ -126,6 +127,11 @@
   "cosmeticsmod.screen.particles": "Particle cosmetics (auras, trails)",
   "cosmeticsmod.screen.particle_density": "Amount",
   "cosmeticsmod.screen.own_particles_first_person": "Your own in first person",
+  "cosmeticsmod.screen.section.cosmetic_particles": "Particles",
+  "cosmeticsmod.screen.cosmetic_particles": "Give off particles",
+  "cosmeticsmod.screen.particles.off_globally": "Particles are off in Display",
+  "cosmeticsmod.screen.particle_amount": "Amount",
+  "cosmeticsmod.screen.particle_size": "Size",
   "cosmeticsmod.screen.section.emotes": "Emotes",
   "cosmeticsmod.screen.emotes_enabled": "Emotes",
   "cosmeticsmod.screen.emote_camera": "Camera while emoting",
