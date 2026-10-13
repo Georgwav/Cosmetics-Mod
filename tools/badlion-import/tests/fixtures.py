@@ -138,9 +138,98 @@ def models_json() -> dict:
     }}
 
 
-def build(folder: Path, *, missing_listed=True) -> Path:
-    """Writes assets.json, data0.jar (textures, models) and data5.jar (definitions) into `folder`."""
+# One wing hanging off a root joint, with a matching flap and a cloak animation that doesn't fit it.
+WING_MD5MESH = """MD5Version 10
+commandline ""
+numJoints 2
+numMeshes 1
+joints {
+  "root" -1 ( 0 0 0 ) ( 0 0 0 )
+  "tip" 0 ( -8 0 0 ) ( 0 0 0 )
+}
+mesh {
+  shader "wing"
+  numverts 3
+  vert 0 ( 0 0 ) 0 1
+  vert 1 ( 1 0 ) 1 1
+  vert 2 ( 0 1 ) 2 1
+  numtris 1
+  tri 0 0 1 2
+  numweights 3
+  weight 0 0 1.0 ( 0 0 4 )
+  weight 1 1 1.0 ( 0 0 0 )
+  weight 2 0 1.0 ( 0 0 -4 )
+}
+"""
+
+
+def wing_md5anim(frames=2) -> str:
+    lines = ["MD5Version 10", 'commandline ""', f"numFrames {frames}", "numJoints 2", "frameRate 30",
+             "numAnimatedComponents 1", "hierarchy {", '  "root" -1 0 0', '  "tip" 0 8 0', "}", "bounds {"]
+    lines += ["  ( -8 -1 -4 ) ( 0 1 4 )"] * frames
+    lines += ["}", "baseframe {", "  ( 0 0 0 ) ( 0 0 0 )", "  ( -8 0 0 ) ( 0 0 0 )", "}"]
+    for f in range(frames):
+        lines += [f"frame {f} {{", f"  {0.2 * f:.3f}", "}"]
+    return "\n".join(lines) + "\n"
+
+
+# A backpack with what real files have: negative indices, texture coordinates far outside 0..1 and a face
+# without any.
+BACKPACK_OBJ = """mtllib pack.mtl
+o pack
+v -4 12 -2
+v 4 12 -2
+v 4 24 -2
+v -4 24 -2
+vt 0 0
+vt 100000 0
+vt 1 1
+vt 0 -0.5
+usemtl skin
+f -4/-4 -3/-3 -2/-2 -1/-1
+f 1 2 3
+"""
+
+# Additions for the import tests, on top of the layout the inspect tests use.
+IMPORT_COSMETICS = {
+    "WINGS": [{"cosmeticId": 8, "name": "Bat Wings", "hasModel": True, "modelName": "bat_wings",
+               "allowChroma": True, "allowSaturation": True,
+               "wingData": {"flapBase": 12.5, "xOffset": 0, "yOffset": 1, "zOffset": 0, "sneakOffset": 2,
+                            "sneakZOffset": 1, "armorOffset": 1.5, "wingTranslate": False}}],
+    "BACK": [{"cosmeticId": 4, "name": "Hiker Pack", "hasModel": True, "modelName": "pack", "transparent": True,
+              "defaultColor": {"r": 255, "g": 128, "b": 0}}],
+    "PET": [{"cosmeticId": 5, "name": "Dragon", "hasModel": True, "modelName": "dragon"}],
+}
+IMPORT_MODELS = {
+    "WINGS": {"bat_wings": {"scale": 0, "md5format": True, "flipUVs": False}},
+    "BACK": {"pack": {"scale": 2.0, "translation": {"x": 0, "y": -1, "z": 0}, "applyChroma": False,
+                      "flipUVs": True, "md5format": False}},
+}
+
+
+def import_files() -> dict:
+    return {
+        T + "wing/wing_8.avif": avif_still((32, 32)),
+        T + "wing/models/bat_wings/bat_wings.md5mesh": WING_MD5MESH.encode(),
+        T + "wing/models/bat_wings/flapping.md5anim": wing_md5anim().encode(),
+        T + "wing/models/bat_wings/rect.md5anim": md5anim().encode(),
+        T + "back/back_4.avif": avif_still((600, 300)),
+        T + "back/models/pack.obj": BACKPACK_OBJ.encode(),
+        T + "hat/1/glow.avif": avif_still((16, 16), color=(250, 250, 120, 255)),
+        T + "pet/pet_5.avif": avif_still((8, 8)),
+    }
+
+
+def build(folder: Path, *, missing_listed=True, for_import=False) -> Path:
+    """Writes assets.json, data0.jar (textures, models) and data5.jar (definitions) into `folder`. With
+    `for_import`, adds the cosmetics and files the import tests need."""
     folder.mkdir(parents=True, exist_ok=True)
+    cosmetics, models = cosmetics_json(), models_json()
+    if for_import:
+        for t, entries in IMPORT_COSMETICS.items():
+            cosmetics["registeredCosmetics"].setdefault(t, []).extend(entries)
+        for t, entries in IMPORT_MODELS.items():
+            models["modelData"].setdefault(t, {}).update(entries)
     files = {
         0: {
             T + "cloak/cloak_1.avif": avif_still((64, 32), opaque=(0, 0, 0.5, 1)),
@@ -158,11 +247,13 @@ def build(folder: Path, *, missing_listed=True) -> Path:
             T + "hat/hat_99_extra.avif": avif_still((8, 8)),
         },
         5: {
-            "blc/cosmetics/cosmetics.json": json.dumps(cosmetics_json()).encode(),
-            "blc/cosmetics/models.json": json.dumps(models_json()).encode(),
+            "blc/cosmetics/cosmetics.json": json.dumps(cosmetics).encode(),
+            "blc/cosmetics/models.json": json.dumps(models).encode(),
             "blc/cosmetics/example.json": EXAMPLE.encode(),
         },
     }
+    if for_import:
+        files[0].update(import_files())
     # Listed in assets.json but trimmed out of the jars: not owned.
     trimmed = {0: {T + "cloak/cloak_9.avif": b"x" * 10, T + "wing/models/angel.obj": b"y" * 10}, 3: {"other/file.bin": b"z"}}
     chunk_data = []
