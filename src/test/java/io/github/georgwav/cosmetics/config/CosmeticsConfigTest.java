@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CosmeticsConfigTest {
@@ -60,6 +61,7 @@ class CosmeticsConfigTest {
         hat.offsetY = Float.NaN;
         hat.color = 0xAB123456;
         hat.animationSpeed = -1f;
+        hat.saturation = 7f;
         config.editOptions("cosmeticsmod:halo"); // untouched: nothing to keep
         config.cosmeticOptions.put(null, new CosmeticsConfig.CosmeticOptions());
 
@@ -70,6 +72,7 @@ class CosmeticsConfigTest {
         assertEquals(0f, config.options("cosmeticsmod:top_hat").offsetY);
         assertEquals(0x123456, config.options("cosmeticsmod:top_hat").color);
         assertEquals(0.1f, config.options("cosmeticsmod:top_hat").animationSpeed);
+        assertEquals(1f, config.options("cosmeticsmod:top_hat").saturation);
         assertTrue(config.options("cosmeticsmod:halo").isDefault());
     }
 
@@ -83,5 +86,17 @@ class CosmeticsConfigTest {
 
         config.resetOptions("cosmeticsmod:halo");
         assertFalse(config.options("cosmeticsmod:halo").rainbow);
+    }
+
+    @Test
+    void colourFollowsTheCosmeticUntilPicked() {
+        CosmeticsConfig config = new CosmeticsConfig();
+        assertNull(config.options("cosmeticsmod:top_hat").color);
+        config.editOptions("cosmeticsmod:top_hat").color = 0xFFFFFF;
+        config.editOptions("cosmeticsmod:halo").saturation = 0.5f;
+        config.sanitize();
+        assertEquals(0xFFFFFF, config.options("cosmeticsmod:top_hat").color, "an explicit white is kept");
+        assertEquals(0.5f, config.options("cosmeticsmod:halo").saturation);
+        assertEquals(2, config.cosmeticOptions.size());
     }
 }

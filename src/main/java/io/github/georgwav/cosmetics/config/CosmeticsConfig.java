@@ -92,12 +92,17 @@ public final class CosmeticsConfig {
 
     /** Settings for one cosmetic. Defaults leave the cosmetic exactly as its creator made it. */
     public static final class CosmeticOptions {
-        /** RGB tint multiplied onto the texture; white keeps the original colours. */
-        public int color = 0xFFFFFF;
+        /**
+         * RGB tint multiplied onto the texture (white keeps the texture's own colours), or null for the
+         * cosmetic's own default colour.
+         */
+        public Integer color = null;
         /** Cycle through the colour wheel instead of using {@link #color}. */
         public boolean rainbow = false;
         /** Rainbow cycles per 10 seconds, 0.1..5. */
         public float rainbowSpeed = 1.0f;
+        /** How strong the tint or rainbow colour is, 0 (none) to 1 (as picked). */
+        public float saturation = 1.0f;
         /** Size, 0.5..1.5. */
         public float scale = 1.0f;
         /** Position offset in pixels, -8..8 (+Y is down, -Z is the front). */
@@ -113,14 +118,18 @@ public final class CosmeticsConfig {
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
-            return color == d.color && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed && scale == d.scale
+            return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
+                    && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed;
         }
 
         void sanitize() {
-            color &= 0xFFFFFF;
+            if (color != null) {
+                color &= 0xFFFFFF;
+            }
             rainbowSpeed = clamp(rainbowSpeed, 0.1f, 5f, 1f);
+            saturation = clamp(saturation, 0f, 1f, 1f);
             scale = clamp(scale, 0.5f, 1.5f, 1f);
             offsetX = clamp(offsetX, -8f, 8f, 0f);
             offsetY = clamp(offsetY, -8f, 8f, 0f);

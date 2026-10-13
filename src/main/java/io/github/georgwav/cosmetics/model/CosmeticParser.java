@@ -152,8 +152,9 @@ public final class CosmeticParser {
             } else {
                 partTextureAnimation = partTexture.equals(texture) ? textureAnimation : null;
             }
+            boolean tinted = !partJson.has("tint") || bool(partJson.get("tint"), name + ".tint");
             parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations,
-                    List.copyOf(meshes), partTextureAnimation));
+                    List.copyOf(meshes), partTextureAnimation, tinted));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
@@ -169,7 +170,58 @@ public final class CosmeticParser {
                     + context.maxMeshTriangles() + " (maxMeshTriangles in config/cosmeticsmod.json)");
         }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
-        return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
+        int options = json.has("options") ? parseOptions(json.get("options")) : CosmeticOption.ALL;
+        int defaultColor = json.has("default_color") ? color(json.get("default_color"), "default_color")
+                : CosmeticDefinition.WHITE;
+        return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
+                options, defaultColor);
+    }
+
+    /** {@code {"rainbow": false, "size": false}}: options left out stay allowed. */
+    private static int parseOptions(JsonElement element) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException("options must be an object like {\"rainbow\": false}");
+        }
+        int options = CosmeticOption.ALL;
+        for (var entry : element.getAsJsonObject().entrySet()) {
+            CosmeticOption option = null;
+            for (CosmeticOption candidate : CosmeticOption.values()) {
+                if (candidate.id().equals(entry.getKey())) {
+                    option = candidate;
+                }
+            }
+            if (option == null) {
+                throw new JsonParseException("options: unknown option '" + entry.getKey() + "' (known: tint, rainbow, "
+                        + "saturation, size, position, glow, animation)");
+            }
+            if (!bool(entry.getValue(), "options." + entry.getKey())) {
+                options &= ~option.bit();
+            }
+        }
+        return options;
+    }
+
+    /** {@code "#RRGGBB"} or a number. */
+    static int color(JsonElement element, String where) {
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            String text = element.getAsString();
+            if (text.matches("#[0-9a-fA-F]{6}")) {
+                return Integer.parseInt(text.substring(1), 16);
+            }
+        } else if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
+            double value = element.getAsDouble();
+            if (value == Math.rint(value) && value >= 0 && value <= 0xFFFFFF) {
+                return (int) value;
+            }
+        }
+        throw new JsonParseException(where + " must be a colour like \"#FF8800\" or a number from 0 to 16777215");
+    }
+
+    private static boolean bool(JsonElement element, String where) {
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isBoolean()) {
+            throw new JsonParseException(where + " must be true or false");
+        }
+        return element.getAsBoolean();
     }
 
     /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} / {@code .bbmodel} file. */

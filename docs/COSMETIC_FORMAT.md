@@ -36,6 +36,8 @@ stops the game or the other cosmetics.
 | `bones` | no | Per-bone settings for `model`. |
 | `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
 | `texture_animation` | no | Flip-book animation of `texture`, for every part drawn with it. See [Animated textures](#animated-textures). |
+| `options` | no | Which settings players may change on the cosmetic's page. See [Player settings](#player-settings). |
+| `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts
 
@@ -48,6 +50,7 @@ stops the game or the other cosmetics.
 | `meshes` | one of `cubes`/`meshes` | The part's free-form meshes. See [Meshes](#meshes). A part can have both. |
 | `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
 | `texture_animation` | no | Flip-book animation of this part's texture; overrides the cosmetic's. See [Animated textures](#animated-textures). |
+| `tint` | no | `false` keeps this part in its texture's own colours whatever tint, rainbow or default colour is chosen. Default `true`. Use it to colour one layer of a cosmetic and leave the rest as painted. |
 
 ## Cubes
 
@@ -317,6 +320,41 @@ the texture coordinates or swaps the texture, so it costs nothing extra to draw.
 - Texture animation follows the cosmetic's animation settings: off shows the first frame, and the speed
   setting speeds it up or slows it down.
 - Frame times are whole milliseconds, 1 to 600 000.
+
+## Player settings
+
+Each cosmetic has its own settings page in game. By default it offers everything; `options` turns settings
+off for one cosmetic. A setting that is off is hidden on the page and ignored when drawing (even if
+`config/cosmeticsmod.json` still has a value for it), so the cosmetic looks the way its creator set it:
+
+```json
+"options": { "rainbow": false, "saturation": false, "size": false }
+```
+
+| Key | Setting | When off |
+|---|---|---|
+| `tint` | Tint colour | The `default_color` is used. |
+| `rainbow` | Rainbow and its speed | No rainbow. |
+| `saturation` | How strong the tint or rainbow colour is (0 to 100 %) | Full strength. |
+| `size` | Size | Normal size. |
+| `position` | Move sideways, up, forward | Where the creator put it. |
+| `glow` | Glow on or off (only shown when the cosmetic has `emissive` parts) | Always glows. |
+| `animation` | Animation on or off and its speed (only shown when something moves or a texture is animated) | Always animated, at normal speed. |
+
+Options left out stay allowed. A coloured cosmetic with a fixed look except for one layer:
+
+```json
+{
+  "slot": "back",
+  "texture": "<ns>:textures/cosmetic/banner.png",
+  "default_color": "#3366CC",
+  "options": { "rainbow": false },
+  "parts": [
+    { "name": "pole", "tint": false, "cubes": [ ... ] },
+    { "name": "cloth", "cubes": [ ... ] }
+  ]
+}
+```
 
 ## Equipping
 

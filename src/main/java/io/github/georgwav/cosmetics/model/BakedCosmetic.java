@@ -21,6 +21,16 @@ public final class BakedCosmetic {
         this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null);
     }
 
+    /** Whether players may change this option (otherwise it is hidden and has no effect). */
+    public boolean allows(CosmeticOption option) {
+        return (definition.options() & option.bit()) != 0;
+    }
+
+    /** RGB tint until a player picks another; white keeps the texture's own colours. */
+    public int defaultColor() {
+        return definition.defaultColor();
+    }
+
     /** Has glowing parts (so the glow setting applies to it). */
     public boolean hasEmissive() {
         return emissive;
@@ -59,17 +69,24 @@ public final class BakedCosmetic {
         private final CosmeticDefinition.Animation[] animations;
         private final BakedMesh smoothMesh;
         private final TextureFrames textureFrames;
+        private final boolean tinted;
         /** The vanilla render type for this layer, created on first use. Render thread only. */
         public Object renderType;
 
         Layer(RenderMode mode, String texture, BakedMesh mesh, CosmeticDefinition.Animation[] animations,
-              BakedMesh smoothMesh, TextureFrames textureFrames) {
+              BakedMesh smoothMesh, TextureFrames textureFrames, boolean tinted) {
             this.mode = mode;
             this.texture = texture;
             this.mesh = mesh;
             this.animations = animations;
             this.smoothMesh = smoothMesh;
             this.textureFrames = textureFrames;
+            this.tinted = tinted;
+        }
+
+        /** Takes the cosmetic's tint colour; otherwise it is always drawn in the texture's own colours. */
+        public boolean tinted() {
+            return tinted;
         }
 
         /** The layer's texture animation, or null when its texture stands still. */

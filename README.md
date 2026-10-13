@@ -35,7 +35,7 @@ It is a flat, minimal screen with a live preview of your player and four tabs:
 
 | Tab | What's there |
 |---|---|
-| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), size, move sideways / up / forward, glow on or off, animation on or off and its speed, and a reset. |
+| Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, and a reset. A cosmetic can leave some of these out. |
 | Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength. |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
@@ -53,6 +53,7 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
   - `cosmeticsmod:orbit_ring` (a smooth-shaded gold ring from an OBJ mesh, circling the head)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
+  - `cosmeticsmod:ember_cape` (an animated texture)
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
   model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), or use an `.obj`
   from Blender. See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
@@ -78,7 +79,7 @@ repaired on load.
 | `slotPriority` | all `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original), `rainbow`, `rainbowSpeed` (0.1 to 5), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3). Only cosmetics you changed are listed. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3). Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 
 ## Building
 

@@ -14,6 +14,8 @@ import java.util.List;
  * @param textureWidth  texture width in pixels used for UV maths
  * @param textureHeight texture height in pixels used for UV maths
  * @param parts         geometry, grouped by render mode
+ * @param options       which {@link CosmeticOption}s players may change, as a bit set
+ * @param defaultColor  RGB tint the cosmetic has until a player picks another (white = the texture's own colours)
  */
 public record CosmeticDefinition(
         String id,
@@ -22,8 +24,16 @@ public record CosmeticDefinition(
         String texture,
         int textureWidth,
         int textureHeight,
-        List<Part> parts
+        List<Part> parts,
+        int options,
+        int defaultColor
 ) {
+    public static final int WHITE = 0xFFFFFF;
+
+    public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
+                              int textureHeight, List<Part> parts) {
+        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE);
+    }
 
     /**
      * @param name       for error messages only
@@ -34,15 +44,17 @@ public record CosmeticDefinition(
      * @param animations movement applied to the whole part every frame, in order (empty for none)
      * @param meshes     the part's free-form meshes (empty for none)
      * @param textureAnimation flip-book animation of the part's texture, or null for a still texture
+     * @param tinted     takes the cosmetic's tint colour; false keeps the texture's own colours whatever the
+     *                   player picks (for example everything except the one coloured layer)
      */
     public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
-                       List<Mesh> meshes, TextureAnimation textureAnimation) {
+                       List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted) {
         public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
-            this(name, mode, texture, cubes, animations, List.of(), null);
+            this(name, mode, texture, cubes, animations, List.of(), null, true);
         }
 
         public Part withTextureAnimation(TextureAnimation animation) {
-            return new Part(name, mode, texture, cubes, animations, meshes, animation);
+            return new Part(name, mode, texture, cubes, animations, meshes, animation, tinted);
         }
     }
 

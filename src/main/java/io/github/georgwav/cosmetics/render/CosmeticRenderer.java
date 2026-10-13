@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
+import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.model.TextureFrames;
@@ -28,6 +29,9 @@ public final class CosmeticRenderer {
          */
         void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color, int frame);
     }
+
+    /** Colour for layers that keep the texture's own colours. */
+    private static final int WHITE = 0xFFFFFFFF;
 
     /** Animation clock start; animations and the rainbow tint read seconds since then. */
     private static final long START_NANOS = System.nanoTime();
@@ -99,25 +103,30 @@ public final class CosmeticRenderer {
                     applyCapeSway(poseStack, info, config);
                 }
                 CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
-                applyPlacement(poseStack, options);
-                int color = Tint.argb(options, seconds);
+                applyPlacement(poseStack, options, cosmetic);
+                int color = Tint.argb(options, cosmetic, seconds);
+                // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
+                boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+                boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+                float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
                 for (BakedCosmetic.Layer layer : cosmetic.layers()) {
-                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && options.glow))
+                    if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
                             || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
                         continue;
                     }
                     int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
+                    int layerColor = layer.tinted() ? color : WHITE;
                     TextureFrames frames = layer.textureFrames();
-                    int frame = frames != null && options.animate ? frames.frameAt(seconds, options.animationSpeed) : 0;
-                    boolean moving = options.animate && layer.animations().length > 0;
+                    int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
+                    boolean moving = animate && layer.animations().length > 0;
                     if (moving) {
                         poseStack.pushPose();
                         for (CosmeticDefinition.Animation animation : layer.animations()) {
-                            applyAnimation(poseStack, animation, animation.valueAt(seconds, options.animationSpeed));
+                            applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
                         }
                     }
                     for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                        sink.draw(poseStack, cosmetic, layer, light, color, frame);
+                        sink.draw(poseStack, cosmetic, layer, light, layerColor, frame);
                     }
                     if (moving) {
                         poseStack.popPose();
@@ -138,12 +147,14 @@ public final class CosmeticRenderer {
         }
     }
 
-    /** The user's per-cosmetic offset and size, around the anchor's pivot. */
-    private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options) {
-        if (options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f) {
+    /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */
+    private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options,
+                                       BakedCosmetic cosmetic) {
+        if ((options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f)
+                && cosmetic.allows(CosmeticOption.POSITION)) {
             poseStack.translate(options.offsetX / 16f, options.offsetY / 16f, options.offsetZ / 16f);
         }
-        if (options.scale != 1f) {
+        if (options.scale != 1f && cosmetic.allows(CosmeticOption.SIZE)) {
             poseStack.scale(options.scale, options.scale, options.scale);
         }
     }

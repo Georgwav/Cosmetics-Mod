@@ -28,9 +28,9 @@ public final class CosmeticBaker {
     private CosmeticBaker() {
     }
 
-    /** Parts that share a mode, texture, movement and texture animation are drawn as one layer. */
+    /** Parts that share a mode, texture, movement, texture animation and tinting are drawn as one layer. */
     private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations,
-                            CosmeticDefinition.TextureAnimation textureAnimation) {
+                            CosmeticDefinition.TextureAnimation textureAnimation, boolean tinted) {
     }
 
     /**
@@ -48,7 +48,7 @@ public final class CosmeticBaker {
         Map<RenderMode, Map<LayerKey, LayerBuffers>> buffers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             LayerBuffers out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation()),
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation(), part.tinted()),
                             k -> new LayerBuffers());
             // UVs address one frame; in a vertical strip that frame is 1/frames of the image's height.
             float texH = definition.textureHeight();
@@ -79,7 +79,7 @@ public final class CosmeticBaker {
             if (!mesh.isEmpty() || smooth != null) {
                 TextureFrames frames = key.textureAnimation() != null ? new TextureFrames(key.textureAnimation()) : null;
                 layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
-                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames));
+                        key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames, key.tinted()));
             }
         }));
         return new BakedCosmetic(definition, layers);
