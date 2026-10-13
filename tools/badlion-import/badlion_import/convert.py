@@ -55,6 +55,10 @@ RULES: dict[str, TypeRule] = {
     "SHIELD": TypeRule("shield", (0, 0, -1.5)),
     # Pets stand on the left shoulder (the mod's pet slot origin); with petData.onHead, on top of the head.
     "PET": TypeRule("pet", (0, 0, 0), "pet"),
+    # Boots stand on their sole (the mod's feet slot origin), one model drawn on both legs; armbands sit halfway
+    # down the arm.
+    "BOOTS": TypeRule("feet", (0, 0, 0)),
+    "ARM_BAND": TypeRule("arm", (0, 0, 0)),
 }
 PET_ON_HEAD = TypeRule("head", (0, -8, 0), "pet")
 
@@ -68,8 +72,6 @@ UNSUPPORTED: dict[str, str] = {
     "BLC_NAMETAG_ICON": "nametag decorations aren't supported",
     "INSIDER_NAMETAG_ICON": "nametag decorations aren't supported",
     "INSIDER_NAMETAG_BORDER": "nametag decorations aren't supported",
-    "BOOTS": "the mod has no leg anchor yet",
-    "ARM_BAND": "the mod has no arm anchor yet",
 }
 
 # Built-in cloak models tried for capes without a modelName, in order of preference on a tie.

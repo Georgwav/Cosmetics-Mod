@@ -52,9 +52,10 @@ public final class CosmeticRenderer {
      * @param root  the parent model's root part, or {@code null} on versions where it carries no transform
      * @param head  the parent model's head part
      * @param body  the parent model's body part
+     * @param limbs the parent model's left arm, right arm, left leg and right leg (any may be null)
      */
     public static void render(PoseStack poseStack, int packedLight, PlayerRenderInfo info,
-                              ModelPart root, ModelPart head, ModelPart body, Sink sink) {
+                              ModelPart root, ModelPart head, ModelPart body, ModelPart[] limbs, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || info.uuid == null || info.invisible
                 || (info.local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
@@ -100,55 +101,70 @@ public final class CosmeticRenderer {
                     continue;
                 }
             }
-            ModelPart anchor = slot.anchor() == CosmeticSlot.Anchor.HEAD ? head : body;
-            // A hidden anchor means something (a first-person body mod, Figura, EMF) hid that body part.
-            if (anchor == null || !anchor.visible || (root != null && !root.visible)) {
-                continue;
-            }
+            int sides = cosmetic.definition().sides();
+            for (int part = 0; part < 2; part++) {
+                ModelPart anchor = switch (slot.anchor()) {
+                    case HEAD -> part == 0 ? head : null;
+                    case ARMS -> (sides & (part == 0 ? CosmeticDefinition.LEFT : CosmeticDefinition.RIGHT)) != 0
+                            ? limbs[part] : null;
+                    case LEGS -> (sides & (part == 0 ? CosmeticDefinition.LEFT : CosmeticDefinition.RIGHT)) != 0
+                            ? limbs[2 + part] : null;
+                    default -> part == 0 ? body : null;
+                };
+                // A hidden anchor means something (a first-person body mod, Figura, EMF) hid that body part.
+                if (anchor == null || !anchor.visible || (root != null && !root.visible)) {
+                    continue;
+                }
 
-            poseStack.pushPose();
-            try {
-                if (root != null) {
-                    root.translateAndRotate(poseStack);
+                poseStack.pushPose();
+                try {
+                    if (root != null) {
+                        root.translateAndRotate(poseStack);
+                    }
+                    anchor.translateAndRotate(poseStack);
+                    if (slot == CosmeticSlot.CAPE) {
+                        applyCapeSway(poseStack, info, config);
+                    } else if (slot == CosmeticSlot.PET) {
+                        // The top of the left shoulder (+X is the wearer's left).
+                        poseStack.translate(6f / 16f, 0f, 0f);
+                    } else if (slot == CosmeticSlot.FEET) {
+                        poseStack.translate(0f, 12f / 16f, 0f); // the sole: legs hang 12 px from the hip
+                    } else if (slot == CosmeticSlot.ARM) {
+                        // The middle of the arm: it spans -2 to 10 px down, and its box sits 1 px outwards of the pivot.
+                        poseStack.translate((part == 0 ? 1f : -1f) / 16f, 4f / 16f, 0f);
+                    }
+                    CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+                    applyPlacement(poseStack, options, cosmetic);
+                    int color = Tint.argb(options, cosmetic, seconds);
+                    // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
+                    boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+                    boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+                    float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+                    int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+                    // Capes also follow the cape settings: a skeletal cape's own waving stops with cape physics off
+                    // (or no swing) and speeds up or slows down with the swing strength.
+                    float capeMotion = slot == CosmeticSlot.CAPE ? (config.capePhysics ? config.capeSwing : 0f) : 1f;
+                    CosmeticDefinition.Wings wings = cosmetic.wings();
+                    float wingAngle = 0f;
+                    double wingPhase = 0.0;
+                    if (wings != null) {
+                        WingMotion.Pose wing = WingMotion.pose(info.uuid, info.moveSpeed, info.sneaking, info.flying, wings, now);
+                        wingAngle = animate ? wing.angle : wing.base;
+                        wingPhase = animate ? wing.phase : 0.0;
+                        applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
+                    }
+                    // A flat cape drawn as cloth: blown back by how fast the player moves, rippling, as strong as the
+                    // cape swing setting; still with cape physics off.
+                    float[] cloth = slot == CosmeticSlot.CAPE && options.cloth && config.capePhysics
+                            ? new float[]{Math.min(1f, info.capeLean / 100f), (info.uuid.hashCode() & 0xFFFF) * 1.0e-4f,
+                            config.capeSwing} : null;
+                    drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
+                            wings, wingAngle, wingPhase, seconds, shadowPass, cloth, sink);
+                } catch (RuntimeException | LinkageError e) {
+                    RenderGuard.cosmeticFailed(cosmetic.id(), e);
+                } finally {
+                    poseStack.popPose();
                 }
-                anchor.translateAndRotate(poseStack);
-                if (slot == CosmeticSlot.CAPE) {
-                    applyCapeSway(poseStack, info, config);
-                } else if (slot == CosmeticSlot.PET) {
-                    // The top of the left shoulder (+X is the wearer's left).
-                    poseStack.translate(6f / 16f, 0f, 0f);
-                }
-                CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
-                applyPlacement(poseStack, options, cosmetic);
-                int color = Tint.argb(options, cosmetic, seconds);
-                // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
-                boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
-                boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
-                float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
-                int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
-                // Capes also follow the cape settings: a skeletal cape's own waving stops with cape physics off
-                // (or no swing) and speeds up or slows down with the swing strength.
-                float capeMotion = slot == CosmeticSlot.CAPE ? (config.capePhysics ? config.capeSwing : 0f) : 1f;
-                CosmeticDefinition.Wings wings = cosmetic.wings();
-                float wingAngle = 0f;
-                double wingPhase = 0.0;
-                if (wings != null) {
-                    WingMotion.Pose wing = WingMotion.pose(info.uuid, info.moveSpeed, info.sneaking, info.flying, wings, now);
-                    wingAngle = animate ? wing.angle : wing.base;
-                    wingPhase = animate ? wing.phase : 0.0;
-                    applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
-                }
-                // A flat cape drawn as cloth: blown back by how fast the player moves, rippling, as strong as the
-                // cape swing setting; still with cape physics off.
-                float[] cloth = slot == CosmeticSlot.CAPE && options.cloth && config.capePhysics
-                        ? new float[]{Math.min(1f, info.capeLean / 100f), (info.uuid.hashCode() & 0xFFFF) * 1.0e-4f,
-                        config.capeSwing} : null;
-                drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
-                        wings, wingAngle, wingPhase, seconds, shadowPass, cloth, sink);
-            } catch (RuntimeException | LinkageError e) {
-                RenderGuard.cosmeticFailed(cosmetic.id(), e);
-            } finally {
-                poseStack.popPose();
             }
         }
         if (RenderStats.TIMING) {

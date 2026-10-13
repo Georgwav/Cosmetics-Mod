@@ -160,7 +160,8 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     run(input_folder, out, "--max-texture", "64")
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
-    assert names == ["back_4_hiker_pack.json", "cape_11_old_cloak.json", "cape_12_blank_model.json",
+    assert names == ["arm_band_1_fire_fist.json", "back_4_hiker_pack.json", "boots_2_fire_boots.json",
+                     "cape_11_old_cloak.json", "cape_12_blank_model.json",
                      "cape_1_red_cape.json", "cape_2_blue_cape.json", "cape_7_flowing_cape.json",
                      "hat_1_top_hat.json", "pet_5_dragon.json", "shield_3_round_shield.json",
                      "wings_8_bat_wings.json"]
@@ -215,6 +216,10 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     shield_mesh = shield["parts"][0]["meshes"][0]
     assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
     assert shield_mesh["scale"] == 1.5 and shield_mesh["offset"] == [0, 0, -1.5]
+
+    # Boots on the feet slot (both legs, standing on the sole); armbands (from the armband folder) on an arm.
+    assert cosmetic(out, "boots_2_*.json")["slot"] == "feet"
+    assert cosmetic(out, "arm_band_1_*.json")["slot"] == "arm"
 
     # A pet on the shoulder, its animations as styles, standing on the shoulder by default.
     pet = cosmetic(out, "pet_5_*.json")

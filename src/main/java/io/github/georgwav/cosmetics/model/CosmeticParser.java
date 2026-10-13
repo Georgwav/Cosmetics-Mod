@@ -202,8 +202,17 @@ public final class CosmeticParser {
             }
         }
         CosmeticDefinition.Wings wings = json.has("wings") ? parseWings(json.get("wings")) : null;
+        int sides = slot.defaultSides();
+        if (json.has("sides")) {
+            sides = switch (json.get("sides").getAsString()) {
+                case "left" -> CosmeticDefinition.LEFT;
+                case "right" -> CosmeticDefinition.RIGHT;
+                case "both" -> CosmeticDefinition.LEFT | CosmeticDefinition.RIGHT;
+                default -> throw new JsonParseException("sides must be 'left', 'right' or 'both'");
+            };
+        }
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings, particles);
+                options, defaultColor, defaultStyle, wings, particles, sides);
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */

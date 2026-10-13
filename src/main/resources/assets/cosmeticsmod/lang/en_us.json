@@ -20,6 +20,8 @@
   "cosmeticsmod.screen.slot.shield": "Shields",
   "cosmeticsmod.screen.slot.aura": "Auras",
   "cosmeticsmod.screen.slot.pet": "Pets",
+  "cosmeticsmod.screen.slot.arm": "Arms",
+  "cosmeticsmod.screen.slot.feet": "Feet",
 
   "cosmeticsmod.screen.wardrobe.empty": "No cosmetics loaded. Add some with a resource pack.",
   "cosmeticsmod.screen.wardrobe.note": "Note",
@@ -39,6 +41,7 @@
   "cosmeticsmod.screen.view.shields": "Shields",
   "cosmeticsmod.screen.view.auras": "Auras",
   "cosmeticsmod.screen.view.pets": "Pets",
+  "cosmeticsmod.screen.view.limbs": "Arms & feet",
   "cosmeticsmod.screen.view.outfits": "Outfits",
   "cosmeticsmod.screen.outfits.save": "Save what you're wearing as an outfit",
   "cosmeticsmod.screen.outfits.name": "Outfit",

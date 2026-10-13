@@ -20,7 +20,7 @@ EXAMPLE_JSON = DEFINITIONS + "example.json"
 TEXTURE_ROOT = "assets/minecraft/blc/textures/cosmetics/"
 
 # Texture folder per cosmetic type where it isn't simply the lowercase type.
-FOLDERS = {"CAPE": "cloak", "WINGS": "wing"}
+FOLDERS = {"CAPE": "cloak", "WINGS": "wing", "ARM_BAND": "armband"}
 
 # Fields a cosmetic entry is expected to have, and its optional groups.
 COSMETIC_FIELDS = (

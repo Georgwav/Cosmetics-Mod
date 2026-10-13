@@ -19,6 +19,7 @@ import java.util.List;
  * @param defaultStyle  style (named skeletal animation) shown until a player picks another, or null for the first
  * @param wings         wing behaviour (flapping with movement), or null
  * @param particles     particles the cosmetic gives off around its player (an aura, a trail); empty for none
+ * @param sides         for arm and feet cosmetics, which limbs: {@link #LEFT}, {@link #RIGHT} or both
  */
 public record CosmeticDefinition(
         String id,
@@ -32,13 +33,17 @@ public record CosmeticDefinition(
         int defaultColor,
         String defaultStyle,
         Wings wings,
-        List<ParticleEmitter> particles
+        List<ParticleEmitter> particles,
+        int sides
 ) {
     public static final int WHITE = 0xFFFFFF;
+    public static final int LEFT = 1;
+    public static final int RIGHT = 2;
 
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
-        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of());
+        this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
+                slot.defaultSides());
     }
 
     /**

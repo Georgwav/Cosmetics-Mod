@@ -59,7 +59,8 @@ import java.util.NoSuchElementException;
             fillCapeSway(info, player, partialTick);
             this.buffers = bufferSource;
             PlayerModel<AbstractClientPlayer> model = getParentModel();
-            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body, this);
+            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body,
+                    new ModelPart[]{model.leftArm, model.rightArm, model.leftLeg, model.rightLeg}, this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -114,7 +115,7 @@ import java.util.NoSuchElementException;
             info.capeLean2 = state.capeLean2;
             this.buffers = bufferSource;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), this);
+            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -149,7 +150,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             info.capeLean2 = state.capeLean2;
             this.collector = nodeCollector;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), this);
+            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -240,6 +241,11 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     }
 
     //? if >=1.21.2 {
+    private static ModelPart[] limbs(ModelPart root) {
+        return new ModelPart[]{child(root, "left_arm"), child(root, "right_arm"), child(root, "left_leg"),
+                child(root, "right_leg")};
+    }
+
     private static ModelPart child(ModelPart root, String name) {
         try {
             return root.getChild(name);
