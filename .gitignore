@@ -24,3 +24,7 @@ bin/
 
 # CI runner scratch
 ci/work/
+
+# Python
+__pycache__/
+*.pyc

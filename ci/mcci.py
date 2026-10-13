@@ -48,6 +48,8 @@ SKIP_PROJECTS = {"P7dR8mSH"}
 MIXIN_PROBLEM = re.compile(
     r"Mixin apply (?:for mod \S+ )?failed|InvalidInjectionException|InvalidMixinException|"
     r"MixinTransformerError|Critical injection failure|MixinApplyError|Mixin prepare for mod \S+ failed")
+# Startup failures the game never recovers from (26.2+ tries OpenGL, then Vulkan).
+STARTUP_FATAL = re.compile(r"Failed to create backend \w+")
 OUR_ERROR = re.compile(r"(?:/ERROR|ERROR\]).*CosmeticsMod|CosmeticsMod.*(?:/ERROR|ERROR\])")
 LOG = print
 
@@ -433,18 +435,37 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     cmd = [inst.java, *jvm, "-cp", os.pathsep.join(inst.classpath), inst.fabric["mainClass"], *game]
 
     display = Display.get()
-    env = dict(os.environ, DISPLAY=display.name, LIBGL_ALWAYS_SOFTWARE="1")
+    env = dict(os.environ, DISPLAY=display.name, LIBGL_ALWAYS_SOFTWARE="1",
+               # 26.3+ uses SDL3, whose GLX path finds no matching visual on Xvfb; Mesa's EGL works.
+               # Versions using GLFW ignore these.
+               SDL_VIDEO_DRIVER="x11", SDL_VIDEO_FORCE_EGL="1")
     log_path = game_dir / "stdout.log"
     LOG(f"[{inst.mc}/{label}] launching ({mode})")
     started = time.time()
     shots = []
+    hang_reason = None
     with open(log_path, "w") as log_file:
         proc = subprocess.Popen(cmd, cwd=game_dir, stdout=log_file, stderr=subprocess.STDOUT, env=env)
         seen_markers = set()
         timed_out = False
+        last_size, last_change = 0, time.time()
         while proc.poll() is None:
             if time.time() - started > timeout:
                 timed_out = True
+                proc.kill()
+                break
+            # Fail fast instead of waiting for the timeout: the game blocks on an error dialog when no
+            # render backend can start, and a silent log for minutes means it hung.
+            size = log_path.stat().st_size
+            if size != last_size:
+                last_size, last_change = size, time.time()
+                text = log_path.read_text(errors="replace")
+                if len(STARTUP_FATAL.findall(text)) >= 2 or "Could not create any" in text:
+                    time.sleep(10)
+                    hang_reason = "no render backend could start (see log)"
+            elif time.time() - last_change > 300:
+                hang_reason = "game hung: no log output for 5 minutes"
+            if hang_reason:
                 proc.kill()
                 break
             for marker in game_dir.glob("cosmeticsmod-phase-*"):
@@ -459,6 +480,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         proc.wait()
 
     summary = evaluate(inst, game_dir, label, mode, timed_out, time.time() - started, shots, mods_info, node)
+    if hang_reason:
+        summary["passed"] = False
+        summary["problems"].insert(0, hang_reason)
     (game_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     status = "PASS" if summary["passed"] else "FAIL"
     LOG(f"[{inst.mc}/{label}] {status} in {summary['seconds']:.0f}s"

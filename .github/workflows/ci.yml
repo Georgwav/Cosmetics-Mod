@@ -79,7 +79,7 @@ jobs:
             21
             25
       - name: Install virtual display and software OpenGL
-        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends xvfb x11-apps libgl1-mesa-dri libglx-mesa0
+        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends xvfb x11-apps libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libopengl0
       - uses: actions/download-artifact@v4
         with:
           name: jars
@@ -129,7 +129,7 @@ jobs:
             21
             25
       - name: Install virtual display and software OpenGL
-        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends xvfb x11-apps libgl1-mesa-dri libglx-mesa0
+        run: sudo apt-get update -q && sudo apt-get install -yq --no-install-recommends xvfb x11-apps libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libopengl0
       - uses: actions/download-artifact@v4
         with:
           name: jars
