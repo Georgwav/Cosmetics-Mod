@@ -21,6 +21,9 @@
   "cosmeticsmod.screen.wardrobe.empty": "No cosmetics loaded. Add some with a resource pack.",
   "cosmeticsmod.screen.wardrobe.note": "Note",
   "cosmeticsmod.screen.wardrobe.hidden": "Your cosmetics are hidden (see Display)",
+  "cosmeticsmod.screen.wardrobe.search": "Search cosmetics",
+  "cosmeticsmod.screen.wardrobe.more": "%s more: search to find them",
+  "cosmeticsmod.screen.wardrobe.no_match": "Nothing matches \"%s\"",
 
   "cosmeticsmod.screen.detail.back": "<  Back to wardrobe",
   "cosmeticsmod.screen.detail.wear": "Wear it",

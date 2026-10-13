@@ -57,6 +57,8 @@ public final class DevScenario {
     private int ticks;
     private int uiTab;
     private int uiFramesAtTabStart;
+    /** The settings page the UI check has open. */
+    private CosmeticsScreen uiScreen;
     private long phaseStart;
     private boolean finished;
 
@@ -151,6 +153,11 @@ public final class DevScenario {
                     if (frames <= 0) {
                         failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
                     }
+                    // Switching tabs and resizing the window rebuild the page; its list must stay at the top.
+                    if (uiScreen != null && !uiScreen.rebuildKeepsListAtTop()) {
+                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab)
+                                + "' started its list lower after being rebuilt");
+                    }
                     uiTab++;
                     if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
                         openSettingsTab(client);
@@ -199,7 +206,8 @@ public final class DevScenario {
 
     private void openSettingsTab(Minecraft client) {
         uiFramesAtTabStart = CosmeticsScreen.framesRendered;
-        ScreenOpener.open(CosmeticsScreen.testPage(uiTab));
+        uiScreen = CosmeticsScreen.testPage(uiTab);
+        ScreenOpener.open(uiScreen);
     }
 
     private void startShadersOrFinish() {

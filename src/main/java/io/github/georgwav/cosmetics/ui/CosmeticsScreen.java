@@ -13,6 +13,9 @@ import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
 import io.github.georgwav.cosmetics.ui.widget.Rows;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 //? if >=26.1 {
@@ -24,6 +27,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -38,6 +42,12 @@ public final class CosmeticsScreen extends Screen {
     private enum Tab { WARDROBE, DISPLAY, PERFORMANCE, COMPATIBILITY }
 
     private static Tab lastTab = Tab.WARDROBE;
+    /** The wardrobe search, kept while the game runs. */
+    private static String lastQuery = "";
+    /** Wardrobe rows per slot without a search (the rest are found by searching), and in a search. */
+    private static final int ROWS_PER_SLOT = 60;
+    private static final int ROWS_PER_SLOT_SEARCHING = 200;
+    private static final int SEARCH_HEIGHT = 16;
     /** Frames drawn since start; read by the in-game test to prove the screen renders on every version. */
     public static int framesRendered;
     public static final int TAB_COUNT = Tab.values().length;
@@ -54,6 +64,9 @@ public final class CosmeticsScreen extends Screen {
     private int px, py, pw, ph;
     private int listX, listY, listW, listH;
     private boolean showPreview;
+    private String query = lastQuery;
+    /** The wardrobe's search field, when the wardrobe list is showing. */
+    private EditBox searchBox;
 
     public CosmeticsScreen(Screen parent) {
         super(Component.translatable("cosmeticsmod.screen.title"));
@@ -109,6 +122,8 @@ public final class CosmeticsScreen extends Screen {
         chrome.clear();
         content.clear();
         contentOffsets.clear();
+        contentHeight = 0;
+        searchBox = null;
 
         pw = Math.min(width - 16, 500);
         ph = Math.min(height - 16, 340);
@@ -144,6 +159,17 @@ public final class CosmeticsScreen extends Screen {
         listH = py + ph - Theme.FOOTER_HEIGHT - 6 - listY;
 
         BakedCosmetic detail = detailId != null && tab == Tab.WARDROBE ? CosmeticRegistry.get(detailId) : null;
+        if (tab == Tab.WARDROBE && detail == null && !CosmeticRegistry.all().isEmpty()) {
+            Component hint = Component.translatable("cosmeticsmod.screen.wardrobe.search").withStyle(ChatFormatting.DARK_GRAY);
+            searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
+            searchBox.setMaxLength(64);
+            searchBox.setValue(query);
+            searchBox.setHint(hint);
+            searchBox.setResponder(this::search);
+            addWidget(searchBox);
+            listY += SEARCH_HEIGHT + 4;
+            listH -= SEARCH_HEIGHT + 4;
+        }
         switch (tab) {
             case WARDROBE -> {
                 if (detail != null) {
@@ -168,6 +194,33 @@ public final class CosmeticsScreen extends Screen {
             scroll = 0;
             rebuildWidgets();
         }
+    }
+
+    private void search(String text) {
+        if (text.equals(query)) {
+            return;
+        }
+        query = text;
+        lastQuery = text;
+        // Only the list changes; rebuilding everything would take the focus away from the search field.
+        for (FlatWidget widget : content) {
+            removeWidget(widget);
+        }
+        content.clear();
+        contentOffsets.clear();
+        contentHeight = 0;
+        scroll = 0;
+        buildWardrobe();
+        layoutContent();
+    }
+
+    /**
+     * For the in-game test: rebuilds the widgets as switching tabs or resizing the window does, and says
+     * whether the list still starts at the top.
+     */
+    public boolean rebuildKeepsListAtTop() {
+        rebuildWidgets();
+        return contentOffsets.isEmpty() || contentOffsets.get(0) == 0;
     }
 
     private void openDetail(String cosmeticId) {
@@ -223,25 +276,43 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.empty"), () -> "", Theme.TEXT_DIM));
             return;
         }
-        all.sort(Comparator.comparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
+        // What you wear first, then by name; a search matches names and ids.
+        List<String> wearing = config.localEquipped();
+        all.sort(Comparator.comparing((BakedCosmetic c) -> !wearing.contains(c.id()))
+                .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
+        String needle = query.trim().toLowerCase(Locale.ROOT);
+        int limit = needle.isEmpty() ? ROWS_PER_SLOT : ROWS_PER_SLOT_SEARCHING;
+        boolean any = false;
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            List<BakedCosmetic> inSlot = all.stream().filter(c -> c.slot() == slot).toList();
+            List<BakedCosmetic> inSlot = all.stream().filter(c -> c.slot() == slot && matches(c, needle)).toList();
             if (inSlot.isEmpty()) {
                 continue;
             }
+            any = true;
             section("slot." + slot.id());
-            for (BakedCosmetic cosmetic : inSlot) {
+            for (BakedCosmetic cosmetic : inSlot.subList(0, Math.min(limit, inSlot.size()))) {
                 String id = cosmetic.id();
                 String source = id.startsWith("cosmeticsmod:") ? null : id.substring(0, id.indexOf(':'));
                 add(new Rows.Toggle(listX, 0, listW, cosmetic.name(), source,
                         () -> config.localEquipped().contains(id), on -> setEquipped(id, on))
                         .onEdit(() -> openDetail(id)));
             }
+            if (inSlot.size() > limit) {
+                add(new Rows.Info(listX, 0, listW, t("wardrobe.more", inSlot.size() - limit), () -> "", Theme.TEXT_DIM));
+            }
+        }
+        if (!any) {
+            add(new Rows.Info(listX, 0, listW, t("wardrobe.no_match", query.trim()), () -> "", Theme.TEXT_DIM));
         }
         if (!config.showOwnCosmetics || !config.enabled) {
             section("wardrobe.note");
             add(new Rows.Info(listX, 0, listW, t("wardrobe.hidden"), () -> "", Theme.WARN));
         }
+    }
+
+    private static boolean matches(BakedCosmetic cosmetic, String needle) {
+        return needle.isEmpty() || cosmetic.name().toLowerCase(Locale.ROOT).contains(needle)
+                || cosmetic.id().contains(needle);
     }
 
     private static void setEquipped(String id, boolean on) {
@@ -487,7 +558,7 @@ public final class CosmeticsScreen extends Screen {
         draw(new Canvas(g), mouseX, mouseY, partialTick);
     }
 
-    private static void drawWidget(FlatWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
+    private static void drawWidget(AbstractWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
         widget.extractRenderState(g.raw, mouseX, mouseY, partialTick);
     }
     *///?} else {
@@ -500,7 +571,7 @@ public final class CosmeticsScreen extends Screen {
         draw(new Canvas(g), mouseX, mouseY, partialTick);
     }
 
-    private static void drawWidget(FlatWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
+    private static void drawWidget(AbstractWidget widget, Canvas g, int mouseX, int mouseY, float partialTick) {
         widget.render(g.raw, mouseX, mouseY, partialTick);
     }
     //?}
@@ -539,6 +610,9 @@ public final class CosmeticsScreen extends Screen {
 
         for (FlatWidget widget : chrome) {
             drawWidget(widget, g, mouseX, mouseY, partialTick);
+        }
+        if (searchBox != null) {
+            drawWidget(searchBox, g, mouseX, mouseY, partialTick);
         }
     }
 
