@@ -344,6 +344,43 @@ class MeshTest {
         assertEquals(List.of("a", "b", "d", "c"), BbmodelParser.sortQuad(List.of("a", "b", "d", "c"), ids, square));
     }
 
+    // ------------------------------------------------------------------ docs/COSMETIC_FORMAT.md
+
+    @Test
+    void theDocumentedInlineExampleFacesTheFront() {
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("""
+                {"vertices": [[-2, -10, 0], [2, -10, 0], [2, -14, 0], [-2, -14, 0], [0, -16, 0]],
+                 "uvs":      [[0, 8], [4, 8], [4, 4], [0, 4], [2, 2]],
+                 "faces":    [[0, 1, 2, 3], [3, 2, 4]]}
+                """)));
+        assertArrayEquals(new int[]{4, 3}, mesh.faceSizes());
+        assertArrayEquals(new float[]{0, 0, -1}, normalOf(mesh, 0, 0), EPS);
+        assertArrayEquals(new float[]{0, 0, -1}, normalOf(mesh, 1, 0), EPS);
+        assertTrue(warnings.isEmpty(), warnings.toString());
+    }
+
+    @Test
+    void theDocumentedBlenderPlacementPutsTheNeckOnTheAnchor() {
+        // A Y-up triangle in blocks around the neck (1.5 up), facing the front (-Z) in Blender's export.
+        String obj = """
+                v 0.25 1.5 0
+                v -0.25 1.5 0
+                v 0 1.75 0
+                vt 0 0
+                f 1/1 2/1 3/1
+                """;
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh(
+                "{\"model\": \"test:models/cosmetic/b.obj\", \"scale\": [16, -16, 16], \"offset\": [0, 24, 0]}"),
+                Map.of("test:models/cosmetic/b.obj", obj)));
+        float[] c = mesh.corners();
+        int stride = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        // The Y flip reverses the winding back, so the corners come out in reverse order.
+        assertArrayEquals(new float[]{0, -4, 0}, slice(c, 0, 3), EPS);                  // 0.25 above the neck
+        assertArrayEquals(new float[]{-4, 0, 0}, slice(c, stride, stride + 3), EPS);
+        assertArrayEquals(new float[]{4, 0, 0}, slice(c, 2 * stride, 2 * stride + 3), EPS);
+        assertArrayEquals(new float[]{0, 0, -1}, normalOf(mesh, 0, 0), EPS);           // still facing the front
+    }
+
     // ------------------------------------------------------------------ validation
 
     @Test

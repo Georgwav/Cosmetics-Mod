@@ -43,7 +43,8 @@ stops the game or the other cosmetics.
 | `name` | no | Only used in error messages. |
 | `mode` | no | `cutout` (default): opaque or alpha-tested. `translucent`: alpha-blended. `emissive`: glows, drawn with the vanilla `eyes` render type, which shaderpacks treat as emissive. |
 | `texture` | no | Overrides the cosmetic's texture for this part, for example a mostly transparent glow overlay. Must use the same `texture_size`. |
-| `cubes` | yes | The part's boxes. |
+| `cubes` | one of `cubes`/`meshes` | The part's boxes. |
+| `meshes` | one of `cubes`/`meshes` | The part's free-form meshes. See [Meshes](#meshes). A part can have both. |
 | `animation` | no | Movement for this part only; overrides the cosmetic's `animation`. |
 
 ## Cubes
@@ -65,6 +66,132 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 | `mirror` | no | Mirrors UVs on X (vanilla `mirror`). |
 | `pivot` | no | Rotation origin in pixels. Default `[0, 0, 0]`. |
 | `rotation` | no | Degrees around X, Y, Z, applied in vanilla order: X, then Y, then Z. |
+
+## Meshes
+
+Besides boxes, a part can have free-form meshes: triangles and quads, written inline or loaded from an
+`.obj` file or a Blockbench `.bbmodel` project. They use the same space as cubes (pixels, +Y down, -Z
+front, relative to the anchor's pivot) and work with everything cubes do: `mode`, per-part `texture`,
+`animation`, tint, the size and position settings, and every slot.
+
+```json
+{
+  "slot": "head",
+  "name": "Orbit Ring",
+  "texture": "cosmeticsmod:textures/cosmetic/orbit_ring.png",
+  "texture_size": [32, 16],
+  "animation": { "type": "spin", "axis": "y", "speed": 0.12 },
+  "parts": [
+    {
+      "name": "ring",
+      "meshes": [
+        {
+          "model": "cosmeticsmod:models/cosmetic/orbit_ring.obj",
+          "shading": "smooth",
+          "rotation": [12, 0, -10],
+          "offset": [0, -6.5, 0]
+        }
+      ]
+    }
+  ]
+}
+```
+
+This is the bundled `cosmeticsmod:orbit_ring`.
+
+### Inline meshes
+
+```json
+"meshes": [
+  {
+    "vertices": [[-2, -10, 0], [2, -10, 0], [2, -14, 0], [-2, -14, 0], [0, -16, 0]],
+    "uvs":      [[0, 8], [4, 8], [4, 4], [0, 4], [2, 2]],
+    "faces":    [[0, 1, 2, 3], [3, 2, 4]]
+  }
+]
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `vertices` | yes | `[x, y, z]` in pixels. |
+| `uvs` | yes | `[u, v]` in texture pixels (as `texture_size` counts them), one per vertex. |
+| `faces` | yes | Triangles `[a, b, c]` or quads `[a, b, c, d]` of 0-based vertex indices. List the corners **counter-clockwise as seen from outside**, like the corners of a cube face. |
+| `normals` | no | `[x, y, z]` per vertex, for `"shading": "smooth"`. |
+
+A vertex with a different UV on two faces (a texture seam) is written twice.
+
+### Mesh files
+
+`"model"` names a file in any resource pack by its full location, for example
+`"cosmeticsmod:models/cosmetic/orbit_ring.obj"` for `assets/cosmeticsmod/models/cosmetic/orbit_ring.obj`. Use
+either `model` or inline geometry in one mesh, not both.
+
+- **OBJ** (`.obj`, up to 4 MiB):
+  - Reads `v`, `vt`, `vn` and `f` lines. Faces can be triangles, quads or larger polygons (split into a fan
+    of triangles), with 1-based or negative indices.
+  - Every face corner needs a texture coordinate. OBJ texture coordinates (0 to 1, V up) are converted to
+    texture pixels. They must stay within 0 to 1 (textures don't repeat).
+  - `vn` normals are used for smooth shading when every face has them.
+  - Materials, groups and smoothing groups are ignored: the texture and shading come from the cosmetic file.
+- **Blockbench project** (`.bbmodel`, up to 16 MiB):
+  - Reads the project's **mesh** elements, including their rotation and their groups' rotations. Cube
+    elements are skipped with a warning; export those as a [Bedrock model](#blockbench-models) instead.
+  - Build the mesh where it sits on the player (feet at y = 0), as for Bedrock models. It is converted the
+    way Blockbench's own Java entity export converts: `x` becomes `-x` and `y` becomes `24 - y`.
+  - UVs are scaled from the project's UV resolution to `texture_size`. Faces without a texture are skipped,
+    as Blockbench hides them. The texture is the cosmetic's own: save Blockbench's texture as a PNG in your
+    pack and point `texture` at it.
+
+**From Blender** (or another Y-up tool), export OBJ with UV coordinates and normals, keeping the default
+axes (forward -Z, up Y). Then flip Y with a negative scale and move the model onto the anchor. If 1 Blender
+unit is 1 block and the model sits on a player standing at the origin, the neck is 1.5 blocks (24 px) up:
+
+```json
+{ "model": "<ns>:models/cosmetic/wings.obj", "scale": [16, -16, 16], "offset": [0, 24, 0], "shading": "smooth" }
+```
+
+### Placement and shading
+
+These apply to inline and file meshes, in this order: `mirror`, `scale`, `rotation` around `pivot`, then `offset`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `mirror` | `false` | Mirror on X. |
+| `scale` | `1` | One number, or `[x, y, z]`. Negative values mirror on that axis. |
+| `pivot` | `[0, 0, 0]` | Rotation origin in pixels. |
+| `rotation` | `[0, 0, 0]` | Degrees around X, Y, Z, applied X, then Y, then Z (like cubes). |
+| `offset` | `[0, 0, 0]` | Moves the mesh, in pixels. |
+| `shading` | `flat` | `flat`: one normal per face, like cubes. `smooth`: normals per vertex, from the file's normals if it has them, otherwise averaged from the faces around each vertex (larger faces count more). Smooth shading shows on `cutout` and `translucent` parts; `emissive` parts aren't lit, so it changes nothing there. |
+
+A mirror or negative scale also turns the faces around, so they still face outwards.
+
+### Limits and errors
+
+- **Triangles:** one cosmetic may have up to 20 000 mesh triangles (a quad counts as two). Players can change
+  this with `maxMeshTriangles` in `config/cosmeticsmod.json` (1 000 to 200 000). A cosmetic over the limit
+  isn't loaded, and the log says why.
+- **Errors** skip that cosmetic and log the cosmetic file plus the mesh file and line, or the face. These
+  include:
+  - out-of-range indices;
+  - numbers that aren't finite;
+  - UVs outside the texture;
+  - `uvs` or `normals` lists that don't have one entry per vertex;
+  - a scale of 0;
+  - zero-length normals;
+  - files that are missing or too big.
+- **Faces with no area** are dropped with a warning; the rest of the mesh loads.
+- **Sides drawn:** meshes are drawn from both sides wherever cubes are (`cutout` and `translucent`). `emissive`
+  parts, like emissive cubes, show only the side the corners wind counter-clockwise on.
+
+### Performance
+
+Everything about a mesh is worked out once when it loads. Drawing it then costs about the same as the same
+number of cube faces:
+- flat meshes share a draw call with the part's cubes;
+- smooth meshes use the same draw call with a per-vertex normal;
+- a triangle costs as much as a quad, so prefer quads where you can.
+
+Cosmetics without meshes draw exactly as before.
 
 ## Blockbench models
 
@@ -97,7 +224,8 @@ The bundled `cosmeticsmod:crown` is made exactly like this.
   slot, build the cape relative to the top center of the back.
 - **Supported**: bones with parents, pivots and rotations, cube pivots and rotations, `inflate`, `mirror`,
   box UV and per-face UV. Texture size comes from the model's `texture_width` / `texture_height`.
-- **Not used**: Bedrock animations, locators and `poly_mesh`. Use [Animation](#animation) instead.
+- **Not used**: Bedrock animations, locators and `poly_mesh`. Use [Animation](#animation) instead, and
+  [Meshes](#meshes) for free-form shapes.
 
 `bones` keys are bone names (case-insensitive):
 
