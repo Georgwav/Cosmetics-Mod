@@ -76,7 +76,15 @@ Hold **B** (the "Emote wheel" key in Controls), point at an emote on the wheel a
 one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking or getting hurt stops it, as does
 Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
-- **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit.
+**Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
+emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
+are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud.
+Pick what's on each wheel in Wardrobe → Emotes ("Wheel +/-", "Elytra +/-"). Until you pick, the elytra wheel
+has the emotes made for flying.
+
+- **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
+  plus Cloud Rider (stand on a cloud and surf) and Cloud Sit for flying. Cloud Rider, Cloud Sit, wave, cheer,
+  dance, dab, salute, spin and T-pose are on the elytra wheel.
 - **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
   (Bedrock animation files) and Emotecraft emote files both work. See
   [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes).
@@ -93,7 +101,7 @@ repaired on load.
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`, `AURA`, `PET`, `ARM`, `FEET`). |
 | `particles` / `particleDensity` / `ownParticlesInFirstPerson` | `true` / `1.0` / `true` | Particle cosmetics (auras, trails) on or off, how many (0 to 2), and your own in first person. |
 | `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
-| `emoteWheel` | `[]` | The emote ids on the emote wheel, in order. Empty puts every emote on it. |
+| `emoteWheel` / `elytraEmoteWheel` | `[]` | The emote ids on the emote wheel and on the elytra wheel (opened while gliding), in order. Empty puts every emote on the emote wheel, and the emotes made for flying on the elytra wheel. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |

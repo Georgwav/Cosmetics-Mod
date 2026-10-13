@@ -28,7 +28,8 @@ import java.util.List;
  * The emote wheel (B by default): up to eight emotes in a ring around the middle of the screen. Like Lunar's,
  * hold the key, point at an emote and let go to play it; or tap the key and click one. The scroll wheel turns
  * the page when there are more. Which emotes are on it is picked in the
- * Wardrobe's Emotes list. Drawn with plain fills and text like the settings screen.
+ * Wardrobe's Emotes list. Opened while gliding with an elytra it is the elytra wheel, with its own emotes, which
+ * play until you land. Drawn with plain fills and text like the settings screen.
  */
 public final class EmoteWheelScreen extends Screen {
     private static final int PER_PAGE = 8;
@@ -44,6 +45,8 @@ public final class EmoteWheelScreen extends Screen {
     private static final long TAP_NANOS = 300_000_000L;
 
     private final long openedNanos = System.nanoTime();
+    /** The elytra wheel (opened while gliding). */
+    private final boolean elytra;
     private Slot pointed;
 
     private final List<FlatWidget> widgets = new ArrayList<>();
@@ -51,14 +54,20 @@ public final class EmoteWheelScreen extends Screen {
     private int page;
     private String hovered;
 
-    public EmoteWheelScreen() {
-        super(Component.translatable("cosmeticsmod.emotes.title"));
+    public EmoteWheelScreen(boolean elytra) {
+        super(Component.translatable(elytra ? "cosmeticsmod.emotes.elytra_title" : "cosmeticsmod.emotes.title"));
+        this.elytra = elytra;
     }
 
-    /** Opens the wheel, unless another screen is open or emotes are off. */
+    /** Whether this is the elytra wheel (for the in-game test). */
+    public boolean isElytraWheel() {
+        return elytra;
+    }
+
+    /** Opens the wheel (the elytra wheel while gliding), unless another screen is open or emotes are off. */
     public static void openIfAllowed(Minecraft client) {
         if (ScreenOpener.current() == null && client.player != null && CosmeticsConfig.get().emotes) {
-            ScreenOpener.open(new EmoteWheelScreen());
+            ScreenOpener.open(new EmoteWheelScreen(client.player.isFallFlying()));
         }
     }
 
@@ -73,7 +82,7 @@ public final class EmoteWheelScreen extends Screen {
     @Override
     protected void init() {
         widgets.clear();
-        emotes = Emotes.wheel();
+        emotes = Emotes.wheel(elytra);
         page = Math.max(0, Math.min(lastPage, pages() - 1));
         int cx = width / 2;
         int cy = height / 2;
@@ -124,7 +133,7 @@ public final class EmoteWheelScreen extends Screen {
     }
 
     private void play(Emote emote) {
-        EmotePlayer.play(emote);
+        EmotePlayer.play(emote, elytra);
         onClose();
     }
 

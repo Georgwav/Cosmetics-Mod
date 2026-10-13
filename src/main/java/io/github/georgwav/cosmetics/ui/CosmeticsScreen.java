@@ -150,7 +150,7 @@ public final class CosmeticsScreen extends Screen {
         }
         // Prefer a cosmetic with every option (glow and animation) so the whole page gets drawn.
         BakedCosmetic pick = null;
-        for (BakedCosmetic cosmetic : CosmeticRegistry.all()) {
+        for (BakedCosmetic cosmetic : wardrobe()) {
             if (pick == null || (cosmetic.hasAnimation() && cosmetic.hasEmissive())) {
                 pick = cosmetic;
             }
@@ -229,7 +229,7 @@ public final class CosmeticsScreen extends Screen {
         if (wardrobeList) {
             buildSidebar();
         }
-        if (wardrobeList && view.searchable() && !CosmeticRegistry.all().isEmpty()) {
+        if (wardrobeList && view.searchable() && !wardrobe().isEmpty()) {
             Component hint = Component.translatable("cosmeticsmod.screen.wardrobe.search").withStyle(ChatFormatting.DARK_GRAY);
             searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
             searchBox.setMaxLength(64);
@@ -314,7 +314,7 @@ public final class CosmeticsScreen extends Screen {
             } else if (each == View.EMOTES) {
                 count = Emotes.all().size();
             } else {
-                count = (int) CosmeticRegistry.all().stream().filter(c -> each.includes(c, wearing)).count();
+                count = (int) wardrobe().stream().filter(c -> each.includes(c, wearing)).count();
             }
             String label = t("view." + each.name().toLowerCase(Locale.ROOT));
             View target = each;
@@ -393,7 +393,7 @@ public final class CosmeticsScreen extends Screen {
             buildEmotes();
             return;
         }
-        List<BakedCosmetic> all = new ArrayList<>(CosmeticRegistry.all());
+        List<BakedCosmetic> all = new ArrayList<>(wardrobe());
         if (all.isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.empty"), () -> "", Theme.TEXT_DIM));
             return;
@@ -456,15 +456,26 @@ public final class CosmeticsScreen extends Screen {
         contentHeight += 4;
         for (Emote emote : Emotes.all()) {
             String id = emote.id();
-            boolean onWheel = Emotes.onWheel(id);
+            boolean onWheel = Emotes.onWheel(id, false);
+            boolean onElytraWheel = Emotes.onWheel(id, true);
             add(new Rows.Actions(listX, 0, listW, Emotes.name(emote),
-                    () -> EmotePlayer.playing() == emote ? t("emotes.playing") : Emotes.onWheel(id) ? t("emotes.on_wheel") : "",
-                    List.of(t("emotes.play"), onWheel ? t("emotes.remove") : t("emotes.add")),
+                    () -> EmotePlayer.playing() == emote ? t("emotes.playing") : wheels(onWheel, onElytraWheel),
+                    List.of(t("emotes.play"), t(onWheel ? "emotes.wheel_remove" : "emotes.wheel_add"),
+                            t(onElytraWheel ? "emotes.elytra_remove" : "emotes.elytra_add")),
                     List.of(() -> EmotePlayer.play(emote), () -> {
-                        Emotes.setOnWheel(id, !onWheel);
+                        Emotes.setOnWheel(id, false, !onWheel);
+                        rebuildWidgets();
+                    }, () -> {
+                        Emotes.setOnWheel(id, true, !onElytraWheel);
                         rebuildWidgets();
                     })));
         }
+    }
+
+    /** Which wheels an emote is on, for its row. */
+    private static String wheels(boolean onWheel, boolean onElytraWheel) {
+        return onWheel && onElytraWheel ? t("emotes.on_both") : onWheel ? t("emotes.on_wheel")
+                : onElytraWheel ? t("emotes.on_elytra") : "";
     }
 
     /** Saved outfits: save what you wear, then wear, update or delete each one. */
@@ -495,6 +506,11 @@ public final class CosmeticsScreen extends Screen {
                         rebuildWidgets();
                     })));
         }
+    }
+
+    /** The cosmetics the Wardrobe lists: all but emote props, which only come with their emotes. */
+    private static List<BakedCosmetic> wardrobe() {
+        return CosmeticRegistry.all().stream().filter(c -> !c.definition().prop()).toList();
     }
 
     private static boolean matches(BakedCosmetic cosmetic, String needle) {

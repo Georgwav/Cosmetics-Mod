@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
+import io.github.georgwav.cosmetics.render.ElytraUpright;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
@@ -48,14 +49,18 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, EMOTE_WHEEL, EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, EMOTE_WHEEL, EMOTE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
     /** Ticks an emote plays during the emote check. */
     private static final int EMOTE_TICKS = 100;
+    /** Ticks the elytra emote plays while gliding. */
+    private static final int ELYTRA_TICKS = 140;
+    /** How high above where the test stands the player starts gliding, blocks. */
+    private static final double ELYTRA_LAUNCH_HEIGHT = 100;
     /** Bundled emotes; fewer loaded means some failed to load. */
-    private static final int BUNDLED_EMOTES = 14;
+    private static final int BUNDLED_EMOTES = 16;
 
     private final boolean smoke;
     private final boolean benchmark;
@@ -76,6 +81,8 @@ public final class DevScenario {
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
+    private long uprightFramesAtStart;
+    private double[] groundPosition;
     private int wheelFramesAtStart;
     private boolean finished;
 
@@ -156,7 +163,7 @@ public final class DevScenario {
                         // The emote wheel, then an emote on the player.
                         client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                         wheelFramesAtStart = EmoteWheelScreen.framesRendered;
-                        ScreenOpener.open(new EmoteWheelScreen());
+                        ScreenOpener.open(new EmoteWheelScreen(false));
                         enter(Phase.EMOTE_WHEEL);
                         writeMarker("ui_emote_wheel");
                     } else {
@@ -196,6 +203,56 @@ public final class DevScenario {
                     }
                     EmotePlayer.stop();
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                    // Next an elytra emote: glide high above the ground.
+                    groundPosition = new double[]{client.player.getX(), client.player.getY(), client.player.getZ()};
+                    launchGlider(client, true);
+                    enter(Phase.ELYTRA_LAUNCH);
+                }
+            }
+            case ELYTRA_LAUNCH -> {
+                // Falling by now (the server only lets a player in the air glide); try every half second.
+                if (!client.player.isFallFlying() && ticks % 10 == 5) {
+                    startGliding(client);
+                }
+                if (client.player.isFallFlying() || ticks >= 100) {
+                    JsonObject elytra = new JsonObject();
+                    elytra.addProperty("gliding", client.player.isFallFlying());
+                    phases.add("elytra", elytra);
+                    if (!client.player.isFallFlying()) {
+                        failures.add("the elytra test never got the player gliding");
+                    }
+                    // Pressing the emote key while gliding opens the elytra wheel.
+                    EmoteWheelScreen.openIfAllowed(client);
+                    elytra.addProperty("elytraWheel", ScreenOpener.current() instanceof EmoteWheelScreen wheel
+                            && wheel.isElytraWheel());
+                    ScreenOpener.open(null);
+                    EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":cloud_rider"), true);
+                    emoteFramesAtStart = EmotePlayer.posedFrames;
+                    uprightFramesAtStart = ElytraUpright.frames;
+                    enter(Phase.ELYTRA_EMOTE);
+                }
+            }
+            case ELYTRA_EMOTE -> {
+                if (ticks >= ELYTRA_TICKS || (ticks > 20 && !client.player.isFallFlying())) {
+                    JsonObject elytra = phases.getAsJsonObject("elytra");
+                    elytra.addProperty("ticks", ticks);
+                    elytra.addProperty("posedFrames", EmotePlayer.posedFrames - emoteFramesAtStart);
+                    elytra.addProperty("uprightFrames", ElytraUpright.frames - uprightFramesAtStart);
+                    elytra.addProperty("stillPlaying", EmotePlayer.playing() != null);
+                    CosmeticsMod.LOGGER.info("Dev scenario elytra: {}", elytra);
+                    if (elytra.get("gliding").getAsBoolean()) {
+                        if (!elytra.get("elytraWheel").getAsBoolean()) {
+                            failures.add("the emote key while gliding didn't open the elytra wheel");
+                        }
+                        if (ElytraUpright.frames - uprightFramesAtStart <= 0) {
+                            failures.add("the elytra emote never drew the player upright");
+                        }
+                        if (EmotePlayer.posedFrames - emoteFramesAtStart <= 0) {
+                            failures.add("the elytra emote never posed the player model");
+                        }
+                    }
+                    EmotePlayer.stop();
+                    launchGlider(client, false);
                     // Open every tab of the settings screen, and a cosmetic's own page, to prove the
                     // UI works on this version.
                     uiTab = 0;
@@ -291,6 +348,50 @@ public final class DevScenario {
             var player = server.getPlayerList().getPlayer(id);
             if (player != null) {
                 player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
+            }
+        });
+    }
+
+    /**
+     * With {@code up}: an elytra on and high in the air (done by the integrated server; {@link #startGliding}
+     * then glides). Without: back on the ground where the test stood, elytra off.
+     */
+    private void launchGlider(Minecraft client, boolean up) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null || groundPosition == null) {
+            return;
+        }
+        java.util.UUID id = client.player.getUUID();
+        double[] ground = groundPosition;
+        server.execute(() -> {
+            var player = server.getPlayerList().getPlayer(id);
+            if (player == null) {
+                return;
+            }
+            if (up) {
+                player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
+                player.getAbilities().flying = false;
+                player.onUpdateAbilities();
+                player.teleportTo(ground[0], ground[1] + ELYTRA_LAUNCH_HEIGHT, ground[2]);
+            } else {
+                player.teleportTo(ground[0], ground[1], ground[2]);
+                player.resetFallDistance();
+                player.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
+            }
+        });
+    }
+
+    /** Starts the player gliding, as pressing jump in the air with an elytra on does. */
+    private static void startGliding(Minecraft client) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null) {
+            return;
+        }
+        java.util.UUID id = client.player.getUUID();
+        server.execute(() -> {
+            var player = server.getPlayerList().getPlayer(id);
+            if (player != null && !player.onGround()) {
+                player.startFallFlying();
             }
         });
     }

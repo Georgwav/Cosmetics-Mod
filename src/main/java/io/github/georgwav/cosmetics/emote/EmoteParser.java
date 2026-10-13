@@ -128,7 +128,7 @@ public final class EmoteParser {
             ending = Emote.Ending.HOLD;
         }
         return new Emote(id, string(json, "name"), string(json, "author"), length, ending, 0f, DEFAULT_FADE_IN,
-                DEFAULT_FADE_OUT, BEDROCK_ROOT_PIVOT, bones);
+                DEFAULT_FADE_OUT, BEDROCK_ROOT_PIVOT, bones, elytra(json), props(json, where));
     }
 
     /**
@@ -363,7 +363,7 @@ public final class EmoteParser {
         float loopStart = Math.max(0f, Math.min(length, ticks(emote, "returnTick", begin)));
         return new Emote(id, text(json.get("name")), text(json.get("author")), length,
                 loop ? Emote.Ending.LOOP : length <= 0f ? Emote.Ending.HOLD : Emote.Ending.STOP, loopStart,
-                begin, Math.max(0f, stop - end), EMOTECRAFT_ROOT_PIVOT, bones);
+                begin, Math.max(0f, stop - end), EMOTECRAFT_ROOT_PIVOT, bones, elytra(json), props(json, "emote"));
     }
 
     /** A tick field in seconds. */
@@ -372,6 +372,31 @@ public final class EmoteParser {
     }
 
     // ---------------------------------------------------------------- shared
+
+    /** {@code "elytra": true}: made for flying with an elytra. */
+    private static boolean elytra(JsonObject json) {
+        return json.has("elytra") && bool(json.get("elytra"));
+    }
+
+    /** {@code "props"}: a cosmetic id, or a list of them, shown on the player while the emote plays. */
+    private static List<String> props(JsonObject json, String where) {
+        JsonElement props = json.get("props");
+        if (props == null) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (JsonElement element : props.isJsonArray() ? props.getAsJsonArray() : List.of(props)) {
+            String id = element.getAsString();
+            if (!id.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+                throw new JsonParseException(where + ": prop '" + id + "' is not a cosmetic id (namespace:name)");
+            }
+            ids.add(id);
+        }
+        if (ids.size() > 8) {
+            throw new JsonParseException(where + ": at most 8 props");
+        }
+        return List.copyOf(ids);
+    }
 
     /** The bone a file's name means; {@code emotecraft} for its names (its "body" is the whole player). */
     static Emote.Bone bone(String name, boolean emotecraft) {

@@ -39,6 +39,7 @@ stops the game or the other cosmetics.
 | `options` | no | Which settings players may change on the cosmetic's page. See [Player settings](#player-settings). |
 | `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
 | `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
+| `prop` | no | `true`: only shown while an emote that brings it plays (a cloud to ride), and not listed in the Wardrobe. See [Emotes](#emotes). |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts
@@ -594,6 +595,19 @@ Emotecraft's JSON emotes (`{"name": ..., "emote": {"moves": [...]}}`) load as th
 player) and the axes `x`, `y`, `z`, `pitch`, `yaw`, `roll`. Limbs don't bend here, so `bend` and `axis` are
 skipped. Before a part's first move it eases in from your normal pose, like in Emotecraft. Binary
 `.emotecraft` files aren't supported.
+
+### Flying and props
+
+Two more keys work in both formats (in a Bedrock animation, next to `bones`; in an Emotecraft file, at the top):
+
+- **`"elytra": true`**: the emote is made for flying, so it is on the elytra wheel until the player picks that
+  wheel's emotes. Any emote can be played from the elytra wheel; there it plays until the player lands, and the
+  player is drawn upright to the ground (+Y up, as when standing) instead of lying along the flight. Design an
+  elytra emote as if the player were standing.
+- **`"props": ["ns:name", ...]`**: cosmetics shown on the player while the emote plays, up to eight. Make them
+  ordinary cosmetic files with `"prop": true`, so the Wardrobe doesn't list them. For example the bundled
+  `cosmeticsmod:flying_cloud` is a `body` cosmetic modelled under the feet (the model's y = 24), with particles
+  trailing behind it.
 
 ### Names and limits
 

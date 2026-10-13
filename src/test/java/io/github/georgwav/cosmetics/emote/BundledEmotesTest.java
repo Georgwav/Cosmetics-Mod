@@ -32,7 +32,7 @@ class BundledEmotesTest {
         try (Stream<Path> stream = Files.list(dir)) {
             files = stream.filter(p -> p.toString().endsWith(".json")).sorted().toList();
         }
-        assertEquals(14, files.size(), "the in-game test expects 14 bundled emotes");
+        assertEquals(16, files.size(), "the in-game test expects 16 bundled emotes");
         for (Path file : files) {
             String name = file.getFileName().toString();
             String id = "cosmeticsmod:" + name.substring(0, name.length() - ".json".length());
@@ -47,6 +47,15 @@ class BundledEmotesTest {
             assertEquals(id, emote.id());
             assertFalse(emote.bones().isEmpty(), id + " moves nothing");
             assertTrue(lang.has("emote." + id.replace(':', '.')), id + " has no name in en_us.json");
+            for (String prop : emote.props()) {
+                // A prop is a bundled cosmetic marked "prop": true.
+                Path cosmetic = dir.getParent().resolve("cosmetics/" + prop.substring(prop.indexOf(':') + 1) + ".json");
+                assertTrue(Files.exists(cosmetic), id + " brings " + prop + ", which isn't a bundled cosmetic");
+                try (Reader reader = Files.newBufferedReader(cosmetic)) {
+                    assertTrue(JsonParser.parseReader(reader).getAsJsonObject().get("prop").getAsBoolean(),
+                            prop + " isn't marked \"prop\": true");
+                }
+            }
 
             // Pose it all the way through: every number stays finite.
             float step = 0.05f;

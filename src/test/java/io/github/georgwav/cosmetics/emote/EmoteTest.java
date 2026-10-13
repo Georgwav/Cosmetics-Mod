@@ -198,6 +198,26 @@ class EmoteTest {
                 """));
     }
 
+    @Test
+    void readsElytraFlagAndProps() {
+        Emote emote = parse("""
+                {"animations": {"a": {"elytra": true, "props": ["cosmeticsmod:flying_cloud"],
+                  "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0);
+        assertTrue(emote.elytra());
+        assertEquals(List.of("cosmeticsmod:flying_cloud"), emote.props());
+        Emote plain = parse("{\"animations\": {\"a\": {\"bones\": {\"head\": {\"rotation\": [0, 10, 0]}}}}}").get(0);
+        assertTrue(!plain.elytra());
+        assertEquals(List.of(), plain.props());
+        // One prop may be given without a list; a prop must be a cosmetic id.
+        assertEquals(List.of("a:cloud"), parse("""
+                {"animations": {"a": {"props": "a:cloud", "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0).props());
+        assertThrows(JsonParseException.class, () -> parse("""
+                {"animations": {"a": {"props": ["Not An Id"], "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """));
+    }
+
     // ---------------------------------------------------------------- Emotecraft files
 
     @Test

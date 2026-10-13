@@ -211,8 +211,10 @@ public final class CosmeticParser {
                 default -> throw new JsonParseException("sides must be 'left', 'right' or 'both'");
             };
         }
+        // A prop is only shown while an emote that brings it plays; the Wardrobe doesn't list it.
+        boolean prop = json.has("prop") && bool(json.get("prop"), "prop");
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings, particles, sides);
+                options, defaultColor, defaultStyle, wings, particles, sides, prop);
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */

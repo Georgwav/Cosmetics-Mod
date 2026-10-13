@@ -45,13 +45,17 @@
   "cosmeticsmod.screen.view.limbs": "Arms & feet",
   "cosmeticsmod.screen.view.outfits": "Outfits",
   "cosmeticsmod.screen.view.emotes": "Emotes",
-  "cosmeticsmod.screen.emotes.hint": "Play one to see it on you. The emote wheel (B, see Controls) shows the ones on the wheel.",
+  "cosmeticsmod.screen.emotes.hint": "Play one to see it on you. B opens the emote wheel; while gliding with an elytra it opens the elytra wheel.",
   "cosmeticsmod.screen.emotes.empty": "No emotes loaded.",
   "cosmeticsmod.screen.emotes.off": "Emotes are off (Display → Emotes).",
   "cosmeticsmod.screen.emotes.play": "Play",
-  "cosmeticsmod.screen.emotes.add": "Add to wheel",
-  "cosmeticsmod.screen.emotes.remove": "Remove",
+  "cosmeticsmod.screen.emotes.wheel_add": "Wheel +",
+  "cosmeticsmod.screen.emotes.wheel_remove": "Wheel -",
+  "cosmeticsmod.screen.emotes.elytra_add": "Elytra +",
+  "cosmeticsmod.screen.emotes.elytra_remove": "Elytra -",
   "cosmeticsmod.screen.emotes.on_wheel": "On the wheel",
+  "cosmeticsmod.screen.emotes.on_elytra": "On the elytra wheel",
+  "cosmeticsmod.screen.emotes.on_both": "On both wheels",
   "cosmeticsmod.screen.emotes.playing": "Playing",
   "cosmeticsmod.screen.outfits.save": "Save what you're wearing as an outfit",
   "cosmeticsmod.screen.outfits.name": "Outfit",
@@ -149,6 +153,7 @@
   "cosmeticsmod.screen.reload": "Reload cosmetics",
 
   "cosmeticsmod.emotes.title": "Emotes",
+  "cosmeticsmod.emotes.elytra_title": "Elytra emotes",
   "cosmeticsmod.emotes.stop": "Stop",
   "cosmeticsmod.emotes.none": "No emotes loaded",
   "cosmeticsmod.emotes.hint": "Let go of the key over an emote, or click one · scroll for more · pick them in Wardrobe → Emotes",
@@ -165,5 +170,7 @@
   "emote.cosmeticsmod.head_shake": "Head Shake",
   "emote.cosmeticsmod.spin": "Spin",
   "emote.cosmeticsmod.t_pose": "T-Pose",
-  "emote.cosmeticsmod.sit": "Sit"
+  "emote.cosmeticsmod.sit": "Sit",
+  "emote.cosmeticsmod.cloud_rider": "Cloud Rider",
+  "emote.cosmeticsmod.cloud_sit": "Cloud Sit"
 }

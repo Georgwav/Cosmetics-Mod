@@ -2,6 +2,7 @@
   "format_version": "1.8.0",
   "animations": {
     "animation.cosmeticsmod.dance": {
+      "elytra": true,
       "loop": true,
       "animation_length": 1.0,
       "bones": {
