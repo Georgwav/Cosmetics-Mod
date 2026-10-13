@@ -7,8 +7,8 @@ Status values:
 - **Your stack**: verified by hand on the maintainer's own instance. A milestone only counts as done once
   this column is filled in.
 
-> Results below are from CI run 7 (2026-10-13), newest release of each version line, newest builds of
-> each mod from Modrinth (exact versions are in that run's "Test matrix" summary). The "Your stack"
+> Results below are from CI run 9 on main (2026-10-13), newest release of each version line, newest builds
+> of each mod from Modrinth (exact versions are in that run's "Test matrix" summary). The "Your stack"
 > column still needs the mod list and versions from the real instance.
 
 ## Summary
@@ -18,7 +18,7 @@ Status values:
 | Sodium | pass (all 10 version lines) | Untested | Cosmetics go through vanilla vertex consumers, never wrapped, so Sodium's `VertexBufferWriter` fast path applies. No mixins into anything Sodium replaces. |
 | Iris + Complementary Reimagined | pass (all 10) | Untested | Vanilla entity render types only, so Iris swaps in its entity programs. Emissive parts use `eyes`, which shaderpacks treat as glowing. CI checks on every version that cosmetics are drawn in the shadow pass, and that `renderInShadowPass: false` removes them from it (and only from it). |
 | Iris + BSL | pass (all 10) | Untested | Same checks as Complementary. |
-| Voxy | n/a / pending | Untested | No Voxy build for 1.21.1–1.21.5 or 26.3. On 1.21.8 and 1.21.10 Voxy stops at startup because CI's software renderer lacks GLSL 4.60 ("GLSL 4.60 is not supported", inside Voxy's own init). On 1.21.11, 26.1.2 and 26.2 it crashes on joining the world; not yet shown to be independent of this mod. CI now has Mesa report GL 4.6 for this stack and re-runs it without this mod to tell its crashes apart from ours. We never touch terrain or world rendering. |
+| Voxy | pass (all 5 versions with a Voxy build) | Untested | Passes on 1.21.8, 1.21.10, 1.21.11, 26.1.2 and 26.2 (Voxy 0.2.5-alpha to 0.2.19-beta). There is no Voxy build for 1.21.1–1.21.5 or 26.3. Voxy needs OpenGL 4.6, so CI has Mesa's software renderer report it for this stack. We never touch terrain or world rendering. |
 | Distant Horizons | pass (all 10) | Untested | Same as Voxy: no terrain hooks. |
 | ImmediatelyFast | pass (all 10, perf stack) | Untested | We use the buffer source / submit collector we are given and never flush or hold consumers. |
 | Entity Culling | pass (all 10, perf stack) | Untested | We are a render layer, so a culled player skips our layer with the rest of the model. Nothing to integrate. |
@@ -39,16 +39,16 @@ opened. Shader stacks also check the Iris shadow pass on and off.
 | 1.21.3 (1.21.2–1.21.3) | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
 | 1.21.4 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
 | 1.21.5 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
-| 1.21.8 (1.21.6–1.21.8) | pass | pass | pass | pass | n/a (needs GLSL 4.60) | pass | pass | pass |
-| 1.21.10 (1.21.9–1.21.10) | pass | pass | pass | pass | n/a (needs GLSL 4.60) | pass | pass | pass |
-| 1.21.11 | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
-| 26.1.2 (26.1–26.1.2) | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
-| 26.2 | pass | pass | pass | pass | pending (Voxy crashes on joining the world in CI; re-run with GL 4.6 and a without-this-mod control) | pass | pass | pass |
+| 1.21.8 (1.21.6–1.21.8) | pass | pass | pass | pass | pass | pass | pass | pass |
+| 1.21.10 (1.21.9–1.21.10) | pass | pass | pass | pass | pass | pass | pass | pass |
+| 1.21.11 | pass | pass | pass | pass | pass | pass | pass | pass |
+| 26.1.2 (26.1–26.1.2) | pass | pass | pass | pass | pass | pass | pass | pass |
+| 26.2 | pass | pass | pass | pass | pass | pass | pass | pass |
 | 26.3 | pass | pass | pass | pass | n/a (no build) | pass | pass | pass |
 
-Benchmark (50x cosmetic load, CPU time spent in cosmetics per frame, software rendering): 0.12–0.68 ms
-with shaders off and 0.95–2.3 ms with Complementary on, across all versions. At normal 1x load that is
-roughly 0.003–0.014 ms and 0.02–0.05 ms per frame.
+Benchmark (50x cosmetic load, CPU time spent in cosmetics per frame, software rendering): 0.15–0.44 ms
+with shaders off and 0.72–2.1 ms with Complementary on, across all versions. At normal 1x load that is
+roughly 0.003–0.009 ms and 0.014–0.042 ms per frame.
 
 ## How the compatibility rules are met
 
@@ -57,6 +57,7 @@ roughly 0.003–0.014 ms and 0.02–0.05 ms per frame.
 | Render as a player feature layer through Minecraft's own pipeline | `CosmeticsLayer` is added to the vanilla player renderers with Fabric API's layer callback (`LivingEntityFeatureRendererRegistrationCallback`, renamed `LivingEntityRenderLayerRegistrationCallback` in 26.x). No raw GL, no global render state. |
 | Cache geometry, emit through vanilla vertex consumers | JSON is baked once into flat float arrays (`BakedMesh`). Drawing pushes them into the vanilla `VertexConsumer`: from the buffer source before 1.21.9, and through `SubmitNodeCollector.submitCustomGeometry` from 1.21.9 on. No custom buffers. |
 | Emissive parts | `mode: "emissive"` uses the vanilla `eyes` render type. |
+| Free-form meshes | Inline, OBJ and Blockbench meshes are baked at load into the same float layout as cubes. Flat-shaded meshes share the cubes' buffer and draw call; smooth-shaded ones are written right after them into the same vertex consumer with per-vertex normals. Same render types and consumers, so Sodium, Iris (including the shadow pass) and ImmediatelyFast see nothing new. |
 | Iris shadow pass | Cosmetics are drawn in the shadow pass by default. `renderInShadowPass: false` skips them there for FPS. Iris is detected through its public API, by reflection, in an isolated class. |
 | No terrain/world rendering | The mod has no hooks into terrain, chunks or the level renderer at all. |
 | Respect other mods' culling | Nothing is forced to render. A skipped entity skips our layer. |
