@@ -72,8 +72,8 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 
 ### Emotes
 
-Press **B** (the "Emote wheel" key in Controls) for the emote wheel and click an emote: your player plays it
-and the camera moves in front of you. Walking, jumping, sneaking, attacking or getting hurt stops it, as does
+Hold **B** (the "Emote wheel" key in Controls), point at an emote on the wheel and let go, or tap B and click
+one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking, attacking or getting hurt stops it, as does
 Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 - **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit.

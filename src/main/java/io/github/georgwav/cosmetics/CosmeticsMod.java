@@ -31,6 +31,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         VersionHooks.registerCommand();
         KeyMapping openKey = VersionHooks.registerKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
+        EmoteWheelScreen.key = emoteKey;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpen();

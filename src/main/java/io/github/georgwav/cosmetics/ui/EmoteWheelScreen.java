@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
 import io.github.georgwav.cosmetics.ui.widget.Rows;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -16,13 +17,17 @@ import net.minecraft.network.chat.Component;
 *///?} else {
 import net.minecraft.client.gui.GuiGraphics;
 //?}
+//? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
+//?}
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The emote wheel (B by default): up to eight emotes in a ring around the middle of the screen; click one to
- * play it. The scroll wheel turns the page when there are more. Which emotes are on it is picked in the
+ * The emote wheel (B by default): up to eight emotes in a ring around the middle of the screen. Like Lunar's,
+ * hold the key, point at an emote and let go to play it; or tap the key and click one. The scroll wheel turns
+ * the page when there are more. Which emotes are on it is picked in the
  * Wardrobe's Emotes list. Drawn with plain fills and text like the settings screen.
  */
 public final class EmoteWheelScreen extends Screen {
@@ -33,6 +38,13 @@ public final class EmoteWheelScreen extends Screen {
     private static int lastPage;
     /** Frames drawn since the game started (read by the in-game test). */
     public static int framesRendered;
+    /** The key that opens the wheel (set when it is registered). */
+    public static KeyMapping key;
+    /** Letting go of the key this soon after it opened the wheel was a tap: the wheel stays open for clicking. */
+    private static final long TAP_NANOS = 300_000_000L;
+
+    private final long openedNanos = System.nanoTime();
+    private Slot pointed;
 
     private final List<FlatWidget> widgets = new ArrayList<>();
     private List<Emote> emotes = List.of();
@@ -116,6 +128,37 @@ public final class EmoteWheelScreen extends Screen {
         onClose();
     }
 
+    // Letting go of the wheel key: plays the emote pointed at; held a while and pointing at nothing closes the wheel.
+    private boolean wheelKeyReleased() {
+        if (pointed != null) {
+            play(pointed.emote);
+            return true;
+        }
+        if (System.nanoTime() - openedNanos > TAP_NANOS) {
+            onClose();
+            return true;
+        }
+        return false;
+    }
+
+    //? if >=1.21.9 {
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (key != null && key.matches(event) && wheelKeyReleased()) {
+            return true;
+        }
+        return super.keyReleased(event);
+    }
+    //?} else {
+    /*@Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        if (key != null && key.matches(keyCode, scanCode) && wheelKeyReleased()) {
+            return true;
+        }
+        return super.keyReleased(keyCode, scanCode, modifiers);
+    }
+    *///?}
+
     // ------------------------------------------------------------------ drawing
 
     //? if >=26.1 {
@@ -153,10 +196,12 @@ public final class EmoteWheelScreen extends Screen {
         int cx = width / 2;
         int cy = height / 2;
         hovered = null;
+        pointed = null;
         for (FlatWidget widget : widgets) {
             drawWidget(widget, g, mouseX, mouseY, partialTick);
             if (widget instanceof Slot slot && slot.isMouseOver(mouseX, mouseY)) {
                 hovered = Emotes.name(slot.emote);
+                pointed = slot;
             }
         }
         if (emotes.isEmpty()) {

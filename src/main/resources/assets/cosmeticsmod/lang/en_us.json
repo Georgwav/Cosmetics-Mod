@@ -151,7 +151,7 @@
   "cosmeticsmod.emotes.title": "Emotes",
   "cosmeticsmod.emotes.stop": "Stop",
   "cosmeticsmod.emotes.none": "No emotes loaded",
-  "cosmeticsmod.emotes.hint": "Click an emote · scroll for more · Esc to close · pick them in Wardrobe → Emotes",
+  "cosmeticsmod.emotes.hint": "Let go of the key over an emote, or click one · scroll for more · pick them in Wardrobe → Emotes",
   "emote.cosmeticsmod.wave": "Wave",
   "emote.cosmeticsmod.clap": "Clap",
   "emote.cosmeticsmod.cheer": "Cheer",
