@@ -23,24 +23,31 @@ public final class CosmeticBaker {
             {1, 0, 0},  // EAST
     };
 
+    private static final float[] ZERO = new float[3];
+
     private CosmeticBaker() {
     }
 
+    /** Parts that share a mode, texture and movement are drawn as one layer. */
+    private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations) {
+    }
+
     public static BakedCosmetic bake(CosmeticDefinition definition) {
-        // One layer per (mode, texture), in draw order: cutout, translucent, emissive.
-        Map<RenderMode, Map<String, FloatList>> buffers = new EnumMap<>(RenderMode.class);
+        // One layer per (mode, texture, animation), in draw order: cutout, translucent, emissive.
+        Map<RenderMode, Map<LayerKey, FloatList>> buffers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             FloatList out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(part.texture(), t -> new FloatList());
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations()), k -> new FloatList());
             for (CosmeticDefinition.Cube cube : part.cubes()) {
                 bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out);
             }
         }
         List<BakedCosmetic.Layer> layers = new ArrayList<>();
-        buffers.forEach((mode, byTexture) -> byTexture.forEach((texture, list) -> {
+        buffers.forEach((mode, byKey) -> byKey.forEach((key, list) -> {
             BakedMesh mesh = new BakedMesh(list.toArray());
             if (!mesh.isEmpty()) {
-                layers.add(new BakedCosmetic.Layer(mode, texture, mesh));
+                layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
+                        key.animations().toArray(new CosmeticDefinition.Animation[0])));
             }
         }));
         return new BakedCosmetic(definition, layers);
@@ -75,8 +82,20 @@ public final class CosmeticBaker {
         };
 
         float[][] uvs = cube.boxUv() != null ? boxUv(cube) : cube.faces();
-        float[] rotation = rotationMatrix(cube.rotation());
-        float[] pivot = cube.pivot();
+        // p' = m (p - before) + after. Hand-written cubes keep exactly the original arithmetic
+        // (rotation around the pivot); imported cubes use their full transform.
+        float[] m;
+        float[] before;
+        float[] after;
+        if (cube.transform() == null) {
+            m = rotationMatrix(cube.rotation());
+            before = cube.pivot();
+            after = cube.pivot();
+        } else {
+            m = cube.transform();
+            before = ZERO;
+            after = new float[]{m[9], m[10], m[11]};
+        }
 
         for (int face = 0; face < 6; face++) {
             float[] uv = uvs[face];
@@ -95,13 +114,13 @@ public final class CosmeticBaker {
                 order = new int[]{3, 2, 1, 0};
                 normal[0] = -normal[0];
             }
-            float[] n = rotate(rotation, normal[0], normal[1], normal[2]);
+            float[] n = rotate(m, normal[0], normal[1], normal[2]);
             for (int i : order) {
                 float[] p = c[faceCorners[face][i]];
-                float[] r = rotate(rotation, p[0] - pivot[0], p[1] - pivot[1], p[2] - pivot[2]);
-                out.add((r[0] + pivot[0]) / 16f);
-                out.add((r[1] + pivot[1]) / 16f);
-                out.add((r[2] + pivot[2]) / 16f);
+                float[] r = rotate(m, p[0] - before[0], p[1] - before[1], p[2] - before[2]);
+                out.add((r[0] + after[0]) / 16f);
+                out.add((r[1] + after[1]) / 16f);
+                out.add((r[2] + after[2]) / 16f);
                 out.add(quadUv[i][0]);
                 out.add(quadUv[i][1]);
                 out.add(n[0]);
@@ -156,6 +175,34 @@ public final class CosmeticBaker {
         };
     }
 
+    /** Rotation {@code m} around {@code pivot} as {@code [m00..m22, tx, ty, tz]}: p' = m p + t. */
+    static float[] affine(float[] m, float[] pivot) {
+        float[] r = rotate(m, pivot[0], pivot[1], pivot[2]);
+        float[] a = new float[12];
+        System.arraycopy(m, 0, a, 0, 9);
+        a[9] = pivot[0] - r[0];
+        a[10] = pivot[1] - r[1];
+        a[11] = pivot[2] - r[2];
+        return a;
+    }
+
+    /** {@code outer} applied after {@code inner}, both {@code [m00..m22, tx, ty, tz]}. */
+    static float[] compose(float[] outer, float[] inner) {
+        float[] a = new float[12];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                a[row * 3 + col] = outer[row * 3] * inner[col] + outer[row * 3 + 1] * inner[3 + col]
+                        + outer[row * 3 + 2] * inner[6 + col];
+            }
+        }
+        float[] t = rotate(outer, inner[9], inner[10], inner[11]);
+        a[9] = t[0] + outer[9];
+        a[10] = t[1] + outer[10];
+        a[11] = t[2] + outer[11];
+        return a;
+    }
+
+    /** Multiplies the 3x3 part of {@code m} (the first 9 entries, row-major) with a vector. */
     static float[] rotate(float[] m, float x, float y, float z) {
         return new float[]{
                 m[0] * x + m[1] * y + m[2] * z,

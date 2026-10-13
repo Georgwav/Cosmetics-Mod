@@ -26,7 +26,8 @@ import java.util.Map;
 
 /**
  * The settings screen: a flat panel with a live preview of your player on the left and four tabs on
- * the right (Wardrobe, Display, Performance, Compatibility). Everything is drawn here with plain fills
+ * the right (Wardrobe, Display, Performance, Compatibility). The arrow on a wardrobe row opens that
+ * cosmetic's own page (colour, size, position, glow, animation). Everything is drawn here with plain fills
  * and text, so it looks the same on every Minecraft version and doesn't depend on any GUI library.
  *
  * <p>Changes apply immediately (the preview updates live) and are saved when the screen closes.
@@ -44,6 +45,8 @@ public final class CosmeticsScreen extends Screen {
     private final List<FlatWidget> content = new ArrayList<>();
     private final List<Integer> contentOffsets = new ArrayList<>();
     private Tab tab = lastTab;
+    /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
+    private String detailId;
     private int scroll;
     private int contentHeight;
     private int px, py, pw, ph;
@@ -59,6 +62,34 @@ public final class CosmeticsScreen extends Screen {
     public CosmeticsScreen(Screen parent, int tabIndex) {
         this(parent);
         this.tab = Tab.values()[Math.floorMod(tabIndex, TAB_COUNT)];
+    }
+
+    /** Opens straight on one cosmetic's page. */
+    public static CosmeticsScreen forCosmetic(Screen parent, String cosmeticId) {
+        CosmeticsScreen screen = new CosmeticsScreen(parent, Tab.WARDROBE.ordinal());
+        screen.detailId = cosmeticId;
+        return screen;
+    }
+
+    /** Pages the in-game test opens: every tab, then a cosmetic's own page. */
+    public static final int TEST_PAGE_COUNT = TAB_COUNT + 1;
+
+    public static String testPageName(int page) {
+        return page < TAB_COUNT ? tabName(page) : "cosmetic";
+    }
+
+    public static CosmeticsScreen testPage(int page) {
+        if (page < TAB_COUNT) {
+            return new CosmeticsScreen(null, page);
+        }
+        // Prefer a cosmetic with every option (glow and animation) so the whole page gets drawn.
+        BakedCosmetic pick = null;
+        for (BakedCosmetic cosmetic : CosmeticRegistry.all()) {
+            if (pick == null || (cosmetic.hasAnimation() && cosmetic.hasEmissive())) {
+                pick = cosmetic;
+            }
+        }
+        return forCosmetic(null, pick != null ? pick.id() : "");
     }
 
     public static String tabName(int tabIndex) {
@@ -91,7 +122,8 @@ public final class CosmeticsScreen extends Screen {
             String label = t("tab." + each.name().toLowerCase(java.util.Locale.ROOT));
             int w = font.width(label) + 14;
             tabRight -= w;
-            addChrome(new Rows.Tab(tabRight, py + 6, w, Theme.HEADER_HEIGHT - 8, label, () -> tab == each, () -> switchTab(each)));
+            addChrome(new Rows.Tab(tabRight, py + 6, w, Theme.HEADER_HEIGHT - 8, label, () -> tab == each,
+                    () -> switchTab(each)));
         }
 
         // Footer buttons.
@@ -109,8 +141,15 @@ public final class CosmeticsScreen extends Screen {
         listW = px + pw - Theme.PAD - listX - 4; // room for the scrollbar
         listH = py + ph - Theme.FOOTER_HEIGHT - 6 - listY;
 
+        BakedCosmetic detail = detailId != null && tab == Tab.WARDROBE ? CosmeticRegistry.get(detailId) : null;
         switch (tab) {
-            case WARDROBE -> buildWardrobe();
+            case WARDROBE -> {
+                if (detail != null) {
+                    buildDetail(detail);
+                } else {
+                    buildWardrobe();
+                }
+            }
             case DISPLAY -> buildDisplay();
             case PERFORMANCE -> buildPerformance();
             case COMPATIBILITY -> buildCompatibility();
@@ -120,12 +159,19 @@ public final class CosmeticsScreen extends Screen {
     }
 
     private void switchTab(Tab next) {
-        if (tab != next) {
+        if (tab != next || detailId != null) {
             tab = next;
             lastTab = next;
+            detailId = null;
             scroll = 0;
             rebuildWidgets();
         }
+    }
+
+    private void openDetail(String cosmeticId) {
+        detailId = cosmeticId;
+        scroll = 0;
+        rebuildWidgets();
     }
 
     private void addChrome(FlatWidget widget) {
@@ -186,21 +232,96 @@ public final class CosmeticsScreen extends Screen {
                 String id = cosmetic.id();
                 String source = id.startsWith("cosmeticsmod:") ? null : id.substring(0, id.indexOf(':'));
                 add(new Rows.Toggle(listX, 0, listW, cosmetic.name(), source,
-                        () -> config.localEquipped().contains(id),
-                        on -> {
-                            List<String> equipped = config.localEquipped();
-                            equipped.remove(id);
-                            if (on) {
-                                equipped.add(id);
-                            }
-                            EquippedCosmetics.invalidate();
-                        }));
+                        () -> config.localEquipped().contains(id), on -> setEquipped(id, on))
+                        .onEdit(() -> openDetail(id)));
             }
         }
         if (!config.showOwnCosmetics || !config.enabled) {
             section("wardrobe.note");
             add(new Rows.Info(listX, 0, listW, t("wardrobe.hidden"), () -> "", Theme.WARN));
         }
+    }
+
+    private static void setEquipped(String id, boolean on) {
+        List<String> equipped = CosmeticsConfig.get().localEquipped();
+        equipped.remove(id);
+        if (on) {
+            equipped.add(id);
+        }
+        EquippedCosmetics.invalidate();
+    }
+
+    /** Colours offered for tinting, as RGB. White keeps the texture's own colours. */
+    private static final List<Integer> COLORS = List.of(
+            0xFFFFFF, 0xFF5555, 0xFFAA33, 0xFFFF55, 0x88FF55, 0x33CC66, 0x55FFFF,
+            0x5588FF, 0xAA66FF, 0xFF77CC, 0xAAAAAA, 0x444444);
+    private static final List<String> COLOR_NAMES = List.of(
+            "white", "red", "orange", "yellow", "lime", "green", "cyan", "blue", "purple", "pink", "gray", "black");
+
+    private static String colorName(int rgb) {
+        int index = COLORS.indexOf(rgb);
+        return index >= 0 ? t("color." + COLOR_NAMES.get(index)) : String.format("#%06X", rgb);
+    }
+
+    /** One cosmetic's page: wear it, colour, size and position, glow and animation. */
+    private void buildDetail(BakedCosmetic cosmetic) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        String id = cosmetic.id();
+        add(new Rows.Button(listX, 0, listW, Theme.ROW_HEIGHT, t("detail.back"), false, () -> openDetail(null)));
+        contentHeight += 4;
+        add(new Rows.Section(listX, 0, listW, cosmetic.name()));
+        add(new Rows.Toggle(listX, 0, listW, t("detail.wear"), null,
+                () -> config.localEquipped().contains(id), on -> setEquipped(id, on)));
+
+        section("section.color");
+        add(new Rows.Cycle<>(listX, 0, listW, t("color"), COLORS,
+                () -> config.options(id).color, v -> config.editOptions(id).color = v, CosmeticsScreen::colorName)
+                .withSwatch(rgb -> 0xFF000000 | rgb));
+        add(new Rows.Toggle(listX, 0, listW, t("rainbow"), null,
+                () -> config.options(id).rainbow, v -> config.editOptions(id).rainbow = v));
+        add(new Rows.Slider(listX, 0, listW, t("rainbow_speed"), 0.1, 5, 0.1,
+                () -> config.options(id).rainbowSpeed, v -> config.editOptions(id).rainbowSpeed = (float) v,
+                CosmeticsScreen::times));
+
+        section("section.shape");
+        add(new Rows.Slider(listX, 0, listW, t("size"), 0.5, 1.5, 0.05,
+                () -> config.options(id).scale, v -> config.editOptions(id).scale = (float) v,
+                v -> Math.round(v * 100) + "%"));
+        add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,
+                () -> config.options(id).offsetX, v -> config.editOptions(id).offsetX = (float) v, CosmeticsScreen::pixels));
+        add(new Rows.Slider(listX, 0, listW, t("offset_y"), -8, 8, 0.5,
+                () -> -config.options(id).offsetY, v -> config.editOptions(id).offsetY = (float) -v, CosmeticsScreen::pixels));
+        add(new Rows.Slider(listX, 0, listW, t("offset_z"), -8, 8, 0.5,
+                () -> -config.options(id).offsetZ, v -> config.editOptions(id).offsetZ = (float) -v, CosmeticsScreen::pixels));
+
+        if (cosmetic.hasEmissive() || cosmetic.hasAnimation()) {
+            section("section.effects");
+        }
+        if (cosmetic.hasEmissive()) {
+            add(new Rows.Toggle(listX, 0, listW, t("glow"), config.emissiveParts ? null : t("glow.off_globally"),
+                    () -> config.options(id).glow, v -> config.editOptions(id).glow = v));
+        }
+        if (cosmetic.hasAnimation()) {
+            add(new Rows.Toggle(listX, 0, listW, t("animation"), null,
+                    () -> config.options(id).animate, v -> config.editOptions(id).animate = v));
+            add(new Rows.Slider(listX, 0, listW, t("animation_speed"), 0.1, 3, 0.1,
+                    () -> config.options(id).animationSpeed, v -> config.editOptions(id).animationSpeed = (float) v,
+                    CosmeticsScreen::times));
+        }
+
+        contentHeight += 4;
+        add(new Rows.Button(listX, 0, listW, Theme.ROW_HEIGHT, t("detail.reset"), false, () -> {
+            config.resetOptions(id);
+            rebuildWidgets();
+        }));
+    }
+
+    private static String times(double value) {
+        return String.format(java.util.Locale.ROOT, "%.1fx", value);
+    }
+
+    private static String pixels(double value) {
+        return (value > 0 ? "+" : "") + String.format(java.util.Locale.ROOT, "%.1f px", value);
     }
 
     private void buildDisplay() {

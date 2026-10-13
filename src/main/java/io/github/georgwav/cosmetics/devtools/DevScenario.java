@@ -77,6 +77,13 @@ public final class DevScenario {
         if (!Boolean.getBoolean(PREFIX + "equipAll")) {
             CosmeticsMod.LOGGER.warn("Dev scenario without -D{}equipAll=true: only cosmetics equipped in the config are drawn", PREFIX);
         }
+        if (smoke) {
+            // Exercise the per-cosmetic options in the world too: a tinted, larger hat and a rainbow halo.
+            CosmeticsConfig.CosmeticOptions hat = CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat");
+            hat.color = 0xFF5555;
+            hat.scale = 1.1f;
+            CosmeticsConfig.get().editOptions("cosmeticsmod:halo").rainbow = true;
+        }
         DevScenario scenario = new DevScenario(smoke, benchmark);
         CosmeticsMod.LOGGER.info("Dev scenario armed (smokeTest={}, benchmark={}, phaseTicks={}, shaders={})",
                 smoke, benchmark, scenario.phaseTicks, scenario.wantShaders);
@@ -124,11 +131,12 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back");
                     if (smoke) {
-                        // Open every tab of the settings screen to prove the UI works on this version.
+                        // Open every tab of the settings screen, and a cosmetic's own page, to prove the
+                        // UI works on this version.
                         uiTab = 0;
                         openSettingsTab(client);
                         enter(Phase.SETTINGS_UI);
-                        writeMarker("ui_" + CosmeticsScreen.tabName(0));
+                        writeMarker("ui_" + CosmeticsScreen.testPageName(0));
                     } else {
                         startShadersOrFinish();
                     }
@@ -138,15 +146,15 @@ public final class DevScenario {
                 if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
                     int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
                     JsonObject ui = phases.has("settings_ui") ? phases.getAsJsonObject("settings_ui") : new JsonObject();
-                    ui.addProperty(CosmeticsScreen.tabName(uiTab), frames);
+                    ui.addProperty(CosmeticsScreen.testPageName(uiTab), frames);
                     phases.add("settings_ui", ui);
                     if (frames <= 0) {
-                        failures.add("settings screen tab '" + CosmeticsScreen.tabName(uiTab) + "' never rendered");
+                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
                     }
                     uiTab++;
-                    if (uiTab < CosmeticsScreen.TAB_COUNT) {
+                    if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
                         openSettingsTab(client);
-                        writeMarker("ui_" + CosmeticsScreen.tabName(uiTab));
+                        writeMarker("ui_" + CosmeticsScreen.testPageName(uiTab));
                     } else {
                         ScreenOpener.open(null);
                         startShadersOrFinish();
@@ -191,7 +199,7 @@ public final class DevScenario {
 
     private void openSettingsTab(Minecraft client) {
         uiFramesAtTabStart = CosmeticsScreen.framesRendered;
-        ScreenOpener.open(new CosmeticsScreen(null, uiTab));
+        ScreenOpener.open(CosmeticsScreen.testPage(uiTab));
     }
 
     private void startShadersOrFinish() {

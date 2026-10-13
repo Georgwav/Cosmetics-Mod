@@ -442,7 +442,10 @@ class Display:
         try:
             data = subprocess.run(["xwd", "-root", "-silent", "-display", self.name],
                                   capture_output=True, timeout=30, check=True).stdout
-            write_png(png_path, *xwd_to_rgb(data))
+            width, height, rows = xwd_to_rgb(data)
+            write_png(png_path, width, height, rows)
+            if os.environ.get("MCCI_LOG_SCREENSHOTS"):
+                log_screenshot(Path(png_path).stem, width, height, rows)
             return True
         except Exception as e:  # noqa: BLE001 - screenshots are best effort
             LOG(f"screenshot failed: {e}")
@@ -482,12 +485,38 @@ def xwd_to_rgb(data):
     return width, height, rows
 
 
-def write_png(path, width, height, rows):
+def png_bytes(width, height, rows):
     def chunk(kind, payload):
         return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
     raw = b"".join(b"\x00" + r for r in rows)
-    Path(path).write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
-                           + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def write_png(path, width, height, rows):
+    Path(path).write_bytes(png_bytes(width, height, rows))
+
+
+def log_screenshot(name, width, height, rows):
+    """
+    Prints a small copy of a screenshot into the log as base64 PNG, for when the uploaded artifacts can't
+    be downloaded: settings pages scaled to a quarter, in-world shots cropped around the player at half size.
+    """
+    import base64
+    if name.startswith("screenshot-ui"):
+        step, x0, y0, x1, y1 = 4, 0, 0, width, height
+    else:
+        size = min(512, width, height)
+        x0, y0 = (width - size) // 2, max(0, (height - size) // 2 - 40)
+        step, x1, y1 = 2, x0 + size, y0 + size
+    small = []
+    for y in range(y0, y1, step):
+        src = rows[y][x0 * 3:x1 * 3]
+        row = bytearray(len(range(0, len(src) // 3, step)) * 3)
+        row[0::3], row[1::3], row[2::3] = src[0::3 * step], src[1::3 * step], src[2::3 * step]
+        small.append(bytes(row))
+    data = png_bytes(len(small[0]) // 3, len(small), small)
+    LOG(f"MCCI_SCREENSHOT {name} " + base64.b64encode(data).decode("ascii"))
 
 
 # --------------------------------------------------------------------------------------------- one run

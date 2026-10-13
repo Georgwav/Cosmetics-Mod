@@ -91,6 +91,9 @@ jobs:
           restore-keys: mc-${{ matrix.node }}-
       - name: Run the game on every Minecraft release this jar covers
         run: python3 ci/mcci.py runtime --node "${{ matrix.node }}"
+        env:
+          # Also print small base64 copies of the screenshots into the log (readable without artifacts).
+          MCCI_LOG_SCREENSHOTS: "1"
       - name: Upload logs and screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

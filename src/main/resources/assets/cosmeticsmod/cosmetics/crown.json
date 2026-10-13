@@ -1,0 +1,11 @@
+{
+  "name": "Royal Crown",
+  "slot": "head",
+  "texture": "cosmeticsmod:textures/cosmetic/crown.png",
+  "model": "cosmeticsmod:crown",
+  "bones": {
+    "gems": {
+      "mode": "emissive"
+    }
+  }
+}

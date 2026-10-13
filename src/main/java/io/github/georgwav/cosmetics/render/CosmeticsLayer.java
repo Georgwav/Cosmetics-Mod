@@ -67,9 +67,9 @@ import java.util.NoSuchElementException;
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light) {
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
         MeshEmitter.emit(layer.mesh(), poseStack.last(), buffers.getBuffer(CosmeticRenderTypes.get(layer)),
-                light, MeshEmitter.WHITE);
+                light, color);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -122,9 +122,9 @@ import java.util.NoSuchElementException;
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light) {
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
         MeshEmitter.emit(layer.mesh(), poseStack.last(), buffers.getBuffer(CosmeticRenderTypes.get(layer)),
-                light, MeshEmitter.WHITE);
+                light, color);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -157,7 +157,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     }
 
     @Override
-    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light) {
+    public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color) {
         String id = cosmetic.id();
         BakedMesh mesh = layer.mesh();
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
@@ -167,7 +167,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             }
             long start = RenderStats.TIMING ? System.nanoTime() : 0L;
             try {
-                MeshEmitter.emit(mesh, pose, consumer, light, MeshEmitter.WHITE);
+                MeshEmitter.emit(mesh, pose, consumer, light, color);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }

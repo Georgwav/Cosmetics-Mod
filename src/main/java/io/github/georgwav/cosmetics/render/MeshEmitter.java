@@ -14,7 +14,6 @@ public final class MeshEmitter {
     public static final int FULL_BRIGHT = 0xF000F0;
     /** {@code OverlayTexture.NO_OVERLAY}. */
     public static final int NO_OVERLAY = 10 << 16;
-    public static final int WHITE = 0xFFFFFFFF;
 
     private MeshEmitter() {
     }
