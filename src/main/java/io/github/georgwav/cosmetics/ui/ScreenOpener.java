@@ -18,6 +18,15 @@ public final class ScreenOpener {
         //?}
     }
 
+    /** The screen open now, or null. */
+    public static Screen current() {
+        //? if >=26.2 {
+        /*return Minecraft.getInstance().gui.screen();
+        *///?} else {
+        return Minecraft.getInstance().screen;
+        //?}
+    }
+
     /**
      * Opens the settings screen on the next client tick. Needed when triggered from chat: the chat
      * screen closes right after a command runs and would close ours with it.

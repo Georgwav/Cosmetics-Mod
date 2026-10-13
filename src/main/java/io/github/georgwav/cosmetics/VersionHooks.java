@@ -39,7 +39,7 @@ import net.minecraft.client.KeyMapping;
 
 /**
  * Every registration that goes through a Minecraft or Fabric API that changed between versions.
- * Only Fabric API hooks are used here; the mod has no mixins.
+ * Only Fabric API hooks are used here; the few mixins are in the {@code mixin} package.
  */
 final class VersionHooks {
     private VersionHooks() {
@@ -91,11 +91,19 @@ final class VersionHooks {
      * bind it in Controls, or use /cosmetics or Mod Menu.
      */
     static KeyMapping registerKeyMapping() {
-        int unbound = InputConstants.UNKNOWN.getValue();
+        return registerKeyMapping("key.cosmeticsmod.open", InputConstants.UNKNOWN.getValue());
+    }
+
+    /** "Emote wheel" key, B by default like Lunar's (vanilla uses B only with Ctrl, for the narrator). */
+    static KeyMapping registerEmoteKeyMapping() {
+        return registerKeyMapping("key.cosmeticsmod.emotes", InputConstants.KEY_B);
+    }
+
+    private static KeyMapping registerKeyMapping(String name, int defaultKey) {
         //? if <1.21.9 {
-        /*KeyMapping key = new KeyMapping("key.cosmeticsmod.open", InputConstants.Type.KEYSYM, unbound, "key.categories.cosmeticsmod");
+        /*KeyMapping key = new KeyMapping(name, InputConstants.Type.KEYSYM, defaultKey, "key.categories.cosmeticsmod");
         *///?} else {
-        KeyMapping key = new KeyMapping("key.cosmeticsmod.open", unbound, KeyMapping.Category.MISC);
+        KeyMapping key = new KeyMapping(name, defaultKey, KeyMapping.Category.MISC);
         //?}
         //? if <26.1 {
         return KeyBindingHelper.registerKeyBinding(key);

@@ -539,3 +539,64 @@ In `config/cosmeticsmod.json`:
 ```
 
 `local` is whoever plays on this client. Other keys are player UUIDs.
+
+## Emotes
+
+Emotes are separate files, at `assets/<namespace>/emotes/<name>.json` in any resource pack. Two formats work.
+
+### Blockbench (Bedrock animations)
+
+Animate a player model in Blockbench and use **File → Export → Export Bedrock Animations**. Every animation in
+the file is an emote: a file with one animation is the emote `<namespace>:<name>`, a file with several gives
+`<namespace>:<name>/<animation>` (`animation.emote.wave` gives `wave`).
+
+```json
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.emote.wave": {
+      "animation_length": 2.4,
+      "bones": {
+        "right_arm": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.3": {"post": [-10, 0, 150], "lerp_mode": "catmullrom"},
+            "2.1": [-10, 0, 150],
+            "2.4": [0, 0, 0]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+- **Bones** are found by name, in any spelling (`right_arm`, `rightArm`, `RightArm`): `head`, `body` (or
+  `torso`), `right_arm`, `left_arm`, `right_leg`, `left_leg`, plus `waist` (bends the upper body at the hips)
+  and `root` (moves or turns the whole player, around the feet). They hang together like the Bedrock player:
+  the head and arms move with the body, the body with the waist, everything with the root. Other bones are
+  ignored with a warning in the log.
+- **`rotation`** is in degrees, `[x, y, z]`, with the Bedrock player's signs (raising the right arm sideways is
+  `+z`, forward is `-x`). **`position`** is in pixels with +Y up. `scale` isn't supported.
+- A value is a vector, or keyframes by time in seconds. A keyframe is a vector or
+  `{"pre": [...], "post": [...], "lerp_mode": "linear" | "catmullrom" | "step"}`; GeckoLib's
+  `{"vector": [...], "easing": "easeInOutSine"}` works too.
+- Values must be numbers: Molang expressions are refused (bake the animation in Blockbench first).
+- **`loop`**: `true` loops until you stop it, `"hold_on_last_frame"` stays on the last frame until you move,
+  anything else plays once. An animation with no length is a still pose that holds.
+- A part the emote doesn't move keeps its normal pose (so the head still looks around while you wave).
+
+### Emotecraft
+
+Emotecraft's JSON emotes (`{"name": ..., "emote": {"moves": [...]}}`) load as they are: `beginTick`, `endTick`,
+`stopTick`, `isLoop` and `returnTick`, `degrees`, and per move `tick`, `easing` (all of Emotecraft's easings),
+`turn`, with the parts `head`, `torso`, `rightArm`, `leftArm`, `rightLeg`, `leftLeg` and `body` (the whole
+player) and the axes `x`, `y`, `z`, `pitch`, `yaw`, `roll`. Limbs don't bend here, so `bend` and `axis` are
+skipped. Before a part's first move it eases in from your normal pose, like in Emotecraft. Binary
+`.emotecraft` files aren't supported.
+
+### Names and limits
+
+The name shown is the translation `emote.<namespace>.<name>` if a language file has one, else the `name` in
+the file, else the file name ("head_shake" shows "Head Shake"). An emote is at most 600 seconds long with at
+most 10 000 keyframes per value; a file that breaks the rules is skipped with the reason in the log.

@@ -36,9 +36,12 @@ It is a flat, minimal screen with a live preview of your player and four tabs:
 | Tab | What's there |
 |---|---|
 | Wardrobe | Every loaded cosmetic, grouped by slot. Toggle what you wear and watch the preview. The `>` at the end of a row opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), and a reset. A cosmetic can leave some of these out. |
-| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength. |
+| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
+
+The Wardrobe's **Emotes** list plays each emote (you see it in the preview) and picks which ones are on the
+emote wheel.
 
 Changes apply immediately and are saved when the screen closes. "Reset settings" restores defaults but
 keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its own reset.
@@ -67,6 +70,17 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   from Blender, or an animated `.md5mesh` with `.md5anim` files. See
   [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
 
+### Emotes
+
+Press **B** (the "Emote wheel" key in Controls) for the emote wheel and click an emote: your player plays it
+and the camera moves in front of you. Walking, jumping, sneaking, attacking or getting hurt stops it, as does
+Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
+
+- **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit.
+- **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
+  (Bedrock animation files) and Emotecraft emote files both work. See
+  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes).
+
 ### Config file (`config/cosmeticsmod.json`)
 
 Everything on the settings screen is stored here. The file can also be edited by hand; bad values are
@@ -78,6 +92,8 @@ repaired on load.
 | `showOwnCosmetics` / `showOtherPlayersCosmetics` | `true` | Whose cosmetics are drawn. |
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`, `AURA`, `PET`, `ARM`, `FEET`). |
 | `particles` / `particleDensity` / `ownParticlesInFirstPerson` | `true` / `1.0` / `true` | Particle cosmetics (auras, trails) on or off, how many (0 to 2), and your own in first person. |
+| `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
+| `emoteWheel` | `[]` | The emote ids on the emote wheel, in order. Empty puts every emote on it. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
