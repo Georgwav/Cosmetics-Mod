@@ -1,0 +1,187 @@
+package io.github.georgwav.cosmetics.model;
+
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Turns a {@link CosmeticDefinition} into {@link BakedMesh}es. Box UVs and face winding match
+ * vanilla {@code ModelPart.Cube} exactly, so textures made for vanilla-style entity models (e.g.
+ * Blockbench "Modded Entity" projects with box UV) map the same way.
+ *
+ * <p>Pure Java with no Minecraft types, so it is unit-tested without a game instance.
+ */
+public final class CosmeticBaker {
+    private static final float[][] FACE_NORMALS = {
+            {0, -1, 0}, // DOWN
+            {0, 1, 0},  // UP
+            {0, 0, -1}, // NORTH
+            {0, 0, 1},  // SOUTH
+            {-1, 0, 0}, // WEST
+            {1, 0, 0},  // EAST
+    };
+
+    private CosmeticBaker() {
+    }
+
+    public static BakedCosmetic bake(CosmeticDefinition definition) {
+        // One layer per (mode, texture), in draw order: cutout, translucent, emissive.
+        Map<RenderMode, Map<String, FloatList>> buffers = new EnumMap<>(RenderMode.class);
+        for (CosmeticDefinition.Part part : definition.parts()) {
+            FloatList out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
+                    .computeIfAbsent(part.texture(), t -> new FloatList());
+            for (CosmeticDefinition.Cube cube : part.cubes()) {
+                bakeCube(cube, definition.textureWidth(), definition.textureHeight(), out);
+            }
+        }
+        List<BakedCosmetic.Layer> layers = new ArrayList<>();
+        buffers.forEach((mode, byTexture) -> byTexture.forEach((texture, list) -> {
+            BakedMesh mesh = new BakedMesh(list.toArray());
+            if (!mesh.isEmpty()) {
+                layers.add(new BakedCosmetic.Layer(mode, texture, mesh));
+            }
+        }));
+        return new BakedCosmetic(definition, layers);
+    }
+
+    static void bakeCube(CosmeticDefinition.Cube cube, float texW, float texH, FloatList out) {
+        float minX = cube.from()[0] - cube.inflate();
+        float minY = cube.from()[1] - cube.inflate();
+        float minZ = cube.from()[2] - cube.inflate();
+        float maxX = cube.to()[0] + cube.inflate();
+        float maxY = cube.to()[1] + cube.inflate();
+        float maxZ = cube.to()[2] + cube.inflate();
+        if (cube.mirror()) {
+            float tmp = maxX;
+            maxX = minX;
+            minX = tmp;
+        }
+
+        // Corner numbering matches vanilla ModelPart.Cube.
+        float[][] c = {
+                {minX, minY, minZ}, {maxX, minY, minZ}, {maxX, maxY, minZ}, {minX, maxY, minZ},
+                {minX, minY, maxZ}, {maxX, minY, maxZ}, {maxX, maxY, maxZ}, {minX, maxY, maxZ},
+        };
+        // Vertex order per face, indexed like CosmeticDefinition.Face.
+        int[][] faceCorners = {
+                {5, 4, 0, 1}, // DOWN
+                {2, 3, 7, 6}, // UP
+                {1, 0, 3, 2}, // NORTH
+                {4, 5, 6, 7}, // SOUTH
+                {0, 4, 7, 3}, // WEST
+                {5, 1, 2, 6}, // EAST
+        };
+
+        float[][] uvs = cube.boxUv() != null ? boxUv(cube) : cube.faces();
+        float[] rotation = rotationMatrix(cube.rotation());
+        float[] pivot = cube.pivot();
+
+        for (int face = 0; face < 6; face++) {
+            float[] uv = uvs[face];
+            if (uv == null) {
+                continue;
+            }
+            float u1 = uv[0] / texW;
+            float v1 = uv[1] / texH;
+            float u2 = uv[2] / texW;
+            float v2 = uv[3] / texH;
+            // Same UV assignment as vanilla ModelPart.Polygon.
+            float[][] quadUv = {{u2, v1}, {u1, v1}, {u1, v2}, {u2, v2}};
+            int[] order = {0, 1, 2, 3};
+            float[] normal = FACE_NORMALS[face].clone();
+            if (cube.mirror()) {
+                order = new int[]{3, 2, 1, 0};
+                normal[0] = -normal[0];
+            }
+            float[] n = rotate(rotation, normal[0], normal[1], normal[2]);
+            for (int i : order) {
+                float[] p = c[faceCorners[face][i]];
+                float[] r = rotate(rotation, p[0] - pivot[0], p[1] - pivot[1], p[2] - pivot[2]);
+                out.add((r[0] + pivot[0]) / 16f);
+                out.add((r[1] + pivot[1]) / 16f);
+                out.add((r[2] + pivot[2]) / 16f);
+                out.add(quadUv[i][0]);
+                out.add(quadUv[i][1]);
+                out.add(n[0]);
+                out.add(n[1]);
+                out.add(n[2]);
+            }
+        }
+    }
+
+    /** Vanilla box UV layout, in pixels, indexed like {@link CosmeticDefinition.Face}. */
+    private static float[][] boxUv(CosmeticDefinition.Cube cube) {
+        float dx = cube.to()[0] - cube.from()[0];
+        float dy = cube.to()[1] - cube.from()[1];
+        float dz = cube.to()[2] - cube.from()[2];
+        float u = cube.boxUv()[0];
+        float v = cube.boxUv()[1];
+        float u0 = u;
+        float u1 = u + dz;
+        float u2 = u + dz + dx;
+        float u3 = u + dz + dx + dx;
+        float u4 = u + dz + dx + dz;
+        float u5 = u + dz + dx + dz + dx;
+        float v0 = v;
+        float v1 = v + dz;
+        float v2 = v + dz + dy;
+        return new float[][]{
+                {u1, v0, u2, v1}, // DOWN
+                {u2, v1, u3, v0}, // UP
+                {u1, v1, u2, v2}, // NORTH
+                {u4, v1, u5, v2}, // SOUTH
+                {u0, v1, u1, v2}, // WEST
+                {u2, v1, u4, v2}, // EAST
+        };
+    }
+
+    /**
+     * Row-major 3x3 rotation for Euler angles in degrees, applied in vanilla's order
+     * ({@code rotationZYX}: X first, then Y, then Z).
+     */
+    static float[] rotationMatrix(float[] degrees) {
+        double x = Math.toRadians(degrees[0]);
+        double y = Math.toRadians(degrees[1]);
+        double z = Math.toRadians(degrees[2]);
+        double cx = Math.cos(x), sx = Math.sin(x);
+        double cy = Math.cos(y), sy = Math.sin(y);
+        double cz = Math.cos(z), sz = Math.sin(z);
+        // Rz * Ry * Rx
+        return new float[]{
+                (float) (cz * cy), (float) (cz * sy * sx - sz * cx), (float) (cz * sy * cx + sz * sx),
+                (float) (sz * cy), (float) (sz * sy * sx + cz * cx), (float) (sz * sy * cx - cz * sx),
+                (float) (-sy), (float) (cy * sx), (float) (cy * cx),
+        };
+    }
+
+    static float[] rotate(float[] m, float x, float y, float z) {
+        return new float[]{
+                m[0] * x + m[1] * y + m[2] * z,
+                m[3] * x + m[4] * y + m[5] * z,
+                m[6] * x + m[7] * y + m[8] * z,
+        };
+    }
+
+    /** Minimal growable float array, to avoid boxing while baking. */
+    static final class FloatList {
+        private float[] data = new float[256];
+        private int size;
+
+        void add(float f) {
+            if (size == data.length) {
+                float[] grown = new float[data.length * 2];
+                System.arraycopy(data, 0, grown, 0, size);
+                data = grown;
+            }
+            data[size++] = f;
+        }
+
+        float[] toArray() {
+            float[] result = new float[size];
+            System.arraycopy(data, 0, result, 0, size);
+            return result;
+        }
+    }
+}

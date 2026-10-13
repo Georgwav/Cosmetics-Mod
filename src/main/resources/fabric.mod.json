@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "cosmeticsmod",
+  "version": "${version}",
+  "name": "Cosmetics Mod",
+  "description": "Player cosmetics drawn through Minecraft's own entity render pipeline, built to coexist with Sodium, Iris and shaderpacks, LoD mods and other model mods.",
+  "authors": ["Georgwav"],
+  "contact": {
+    "sources": "https://github.com/Georgwav/Cosmetics-Mod",
+    "issues": "https://github.com/Georgwav/Cosmetics-Mod/issues"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "client": ["io.github.georgwav.cosmetics.CosmeticsMod"],
+    "modmenu": ["io.github.georgwav.cosmetics.compat.modmenu.ModMenuCompat"]
+  },
+  "depends": {
+    "fabricloader": ">=${loader}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}"
+  }
+}

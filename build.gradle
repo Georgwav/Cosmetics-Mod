@@ -1,0 +1,131 @@
+import java.util.spi.ToolProvider
+
+// Shared build script. Stonecutter runs it once per Minecraft version listed in settings.gradle.kts,
+// with that version's properties from versions/<version>/gradle.properties.
+
+def mcVersion = stonecutter.current.version
+// 26.1+ ships without obfuscation: plain Loom, no mappings, no remapping, Java 25.
+def unobfuscated = stonecutter.eval(mcVersion, '>=26.1')
+def javaVersion = unobfuscated ? 25 : 21
+
+// Read every property here: inside task closures `property(...)` would resolve against the task.
+def prop = { String key -> project.property(key).toString() }
+def minecraftVersion = prop('deps.minecraft')
+def loaderVersion = prop('deps.fabric_loader')
+def fabricApiVersion = prop('deps.fabric_api')
+def minecraftDependency = prop('mod.mc_dep')
+def loaderMinimum = prop('mod.loader_min')
+
+apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
+
+version = "${prop('mod.version')}+mc${mcVersion}"
+group = prop('mod.group')
+base.archivesName.set(prop('mod.id'))
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
+    if (unobfuscated) {
+        implementation "net.fabricmc:fabric-loader:${loaderVersion}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    } else {
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${loaderVersion}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    }
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+loom {
+    runs {
+        client {
+            // Mixin audit in dev: dump every transformed class and verify it, so conflicts with other
+            // mods' mixins show up in .mixin.out/ and in the log.
+            vmArg '-Dmixin.debug.export=true'
+            vmArg '-Dmixin.debug.verify=true'
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(javaVersion)
+    targetCompatibility = JavaVersion.toVersion(javaVersion)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release.set(javaVersion)
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+processResources {
+    def props = [
+            version  : project.version.toString(),
+            minecraft: minecraftDependency,
+            loader   : loaderMinimum,
+            java     : javaVersion.toString(),
+    ]
+    inputs.properties(props)
+    filesMatching('fabric.mod.json') {
+        expand(props)
+    }
+}
+
+// Compile-time stand-ins for Mod Menu's API (src/main/java/com/terraformersmc): never shipped, the
+// real classes come from Mod Menu when it's installed.
+tasks.named('jar') {
+    exclude 'com/terraformersmc/**'
+}
+tasks.named('sourcesJar') {
+    exclude 'com/terraformersmc/**'
+}
+
+// The jar players install: remapped to intermediary on 1.21.x, the plain jar on 26.x.
+def modJar = tasks.named(unobfuscated ? 'jar' : 'remapJar')
+
+// Copies every version's jar into <root>/build/libs so CI and releases find them in one place.
+tasks.register('collectJar', Copy) {
+    group = 'build'
+    from(modJar.flatMap { it.archiveFile })
+    into(rootProject.layout.buildDirectory.dir('libs'))
+}
+tasks.named('build') {
+    finalizedBy 'collectJar'
+}
+
+// Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
+// prints the public and protected API of those classes exactly as this version's Minecraft has it.
+// An entry ending in .* (e.g. net.fabricmc.fabric.api.client.command.v2.*) lists that package's classes.
+tasks.register('dumpApi') {
+    group = 'help'
+    def classes = providers.gradleProperty('dumpClasses').orElse('')
+    def classpath = sourceSets.main.compileClasspath
+    doLast {
+        def javap = ToolProvider.findFirst('javap').orElseThrow()
+        classes.get().split(',').collect { it.trim() }.findAll { !it.isEmpty() }.each { name ->
+            println "===== ${mcVersion} ${name} ====="
+            if (name.endsWith('.*')) {
+                def prefix = name[0..-3].replace('.', '/') + '/'
+                classpath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { file ->
+                    new java.util.zip.ZipFile(file).withCloseable { zip ->
+                        zip.entries().collect { it.name }
+                                .findAll { it.startsWith(prefix) && it.endsWith('.class') && !it.substring(prefix.length()).contains('/') }
+                                .each { println "${it[0..-7].replace('/', '.')}    (${file.name})" }
+                    }
+                }
+            } else {
+                javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name)
+            }
+        }
+    }
+}

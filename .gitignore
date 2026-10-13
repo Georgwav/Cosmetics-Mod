@@ -1,0 +1,30 @@
+# Gradle / Loom
+.gradle/
+build/
+versions/*/build/
+versions/*/.gradle/
+run/
+versions/*/run/
+.kotlin/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Mixin debug export
+.mixin.out/
+
+# CI runner scratch
+ci/work/
+
+# Python
+__pycache__/
+*.pyc
