@@ -65,6 +65,8 @@ public final class CosmeticsScreen extends Screen {
     /** Rows in one category (the rest are found by searching). */
     private static final int ROWS_PER_VIEW = 300;
     private static final int SIDEBAR_WIDTH = 104;
+    /** How far you turned the preview (degrees), kept while the game runs. */
+    private static float previewSpin;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
     /** Wardrobe rows per slot without a search (the rest are found by searching), and in a search. */
@@ -94,6 +96,8 @@ public final class CosmeticsScreen extends Screen {
     private final Map<FlatWidget, String> rowCosmetics = new java.util.IdentityHashMap<>();
     /** The cosmetic the preview shows you in right now without you wearing it, or null. */
     private String tryingOn;
+    /** The preview's turn as drawn, easing towards {@link #previewSpin} (plus a half turn for back items). */
+    private float shownSpin = previewSpin;
     private String query = lastQuery;
     /** The wardrobe's search field, when the wardrobe list is showing. */
     private EditBox searchBox;
@@ -178,6 +182,9 @@ public final class CosmeticsScreen extends Screen {
         if (showPreview) {
             previewX = left;
             left += previewW + Theme.PAD;
+            int top = py + Theme.HEADER_HEIGHT + 6;
+            addChrome(new Rows.DragArea(previewX, top, previewW, py + ph - Theme.FOOTER_HEIGHT - 6 - top,
+                    dx -> previewSpin += (float) dx * 2f));
         }
 
         // Tabs, right-aligned in the header.
@@ -783,9 +790,17 @@ public final class CosmeticsScreen extends Screen {
         int y2 = py + ph - Theme.FOOTER_HEIGHT - 6;
         g.fill(x1, y1, x2, y2, Theme.PREVIEW_BG);
         int scale = Math.max(20, (int) ((y2 - y1) / 2.9f));
-        g.entityFollowingMouse(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player);
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
-        String caption = shown != null ? t("preview.trying", shown.name()) : t("preview");
+        // Capes, wings and backpacks are worn on the back: turn round to show them.
+        boolean back = shown != null && (shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK
+                || shown.wings() != null);
+        float target = previewSpin + (back ? 180f : 0f);
+        shownSpin += (target - shownSpin) * 0.2f;
+        if (Math.abs(target - shownSpin) < 0.5f) {
+            shownSpin = target;
+        }
+        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin);
+        String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
         g.centeredText(font, fitText(caption, previewW - 8), (x1 + x2) / 2, y2 - font.lineHeight - 4,
                 shown != null ? Theme.ACCENT : Theme.TEXT_FAINT);
     }

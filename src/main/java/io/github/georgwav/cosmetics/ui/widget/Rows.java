@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.widget;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.Theme;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -435,6 +436,37 @@ public final class Rows {
                     return;
                 }
             }
+        }
+    }
+
+    /** An invisible area that reports how far the mouse moved sideways while held, e.g. to turn the preview. */
+    public static final class DragArea extends FlatWidget {
+        private final DoubleConsumer onDrag;
+        private double lastX;
+
+        public DragArea(int x, int y, int width, int height, DoubleConsumer onDrag) {
+            super(x, y, width, height, Component.empty());
+            this.onDrag = onDrag;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+        }
+
+        @Override
+        public void playDownSound(SoundManager sounds) {
+            // Grabbing the preview isn't a button press.
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            lastX = mouseX;
+        }
+
+        @Override
+        protected void dragged(double mouseX, double mouseY) {
+            onDrag.accept(mouseX - lastX);
+            lastX = mouseX;
         }
     }
 }
