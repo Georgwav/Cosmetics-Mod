@@ -4,9 +4,12 @@
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
-# A class starting with ! also prints private members and bytecode.
-1.21.1 !net.minecraft.client.gui.screens.inventory.InventoryScreen
-1.21.8 !net.minecraft.client.gui.screens.inventory.InventoryScreen
-1.21.11 !net.minecraft.client.gui.screens.inventory.InventoryScreen
-26.1.2 !net.minecraft.client.gui.screens.inventory.InventoryScreen
-26.3 !net.minecraft.client.gui.screens.inventory.InventoryScreen
+# A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
+# contains the text (e.g. ?cape).
+1.21.1 !net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer,net.minecraft.client.model.ShieldModel,?cape
+1.21.3 net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer,net.minecraft.client.renderer.entity.state.PlayerRenderState,net.minecraft.client.renderer.entity.state.LivingEntityRenderState
+1.21.4 net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,!net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.item.ItemStackRenderState,net.minecraft.client.renderer.entity.state.ArmedEntityRenderState
+1.21.8 !net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.entity.state.ArmedEntityRenderState
+1.21.11 !net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,!net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.entity.state.ArmedEntityRenderState,net.minecraft.client.renderer.item.ItemStackRenderState,?cape,?shield
+26.1.2 !net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer
+26.3 !net.minecraft.client.gui.screens.inventory.InventoryScreen,net.minecraft.client.renderer.entity.layers.ItemInHandLayer,net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer,!net.minecraft.client.renderer.special.ShieldSpecialRenderer,net.minecraft.client.renderer.entity.state.ArmedEntityRenderState,net.minecraft.client.renderer.item.ItemStackRenderState,?cape,?shield
