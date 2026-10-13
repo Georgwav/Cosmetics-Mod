@@ -48,6 +48,8 @@
   "cosmeticsmod.screen.outfits.delete": "Delete",
   "cosmeticsmod.screen.preview.trying": "Trying on %s",
   "cosmeticsmod.screen.preview.drag": "Drag to turn",
+  "cosmeticsmod.screen.cloth": "Cloth cloak",
+  "cosmeticsmod.screen.cloth.physics_off": "cape physics is off",
 
   "cosmeticsmod.screen.detail.back": "<  Back to wardrobe",
   "cosmeticsmod.screen.detail.wear": "Wear it",

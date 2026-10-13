@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.Cloth;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
@@ -29,9 +30,10 @@ public final class CosmeticRenderer {
          * @param frame    which frame of the layer's texture animation shows (0 when it has none)
          * @param clip     for a skinned layer, which of its rig's clips plays
          * @param clipTime for a skinned layer, seconds into that clip
+         * @param cloth    for a cloth cloak, the bent shape to draw the layer's cloth mesh along; else null
          */
         void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color, int frame,
-                  int clip, float clipTime);
+                  int clip, float clipTime, Cloth.Shape cloth);
     }
 
     /** Colour for layers that keep the texture's own colours. */
@@ -133,8 +135,13 @@ public final class CosmeticRenderer {
                     wingPhase = animate ? wing.phase : 0.0;
                     applyWingOffsets(poseStack, wings, wing.sneak, info.chestArmor);
                 }
+                // A flat cape drawn as cloth: blown back by how fast the player moves, rippling, as strong as the
+                // cape swing setting; still with cape physics off.
+                float[] cloth = slot == CosmeticSlot.CAPE && options.cloth && config.capePhysics
+                        ? new float[]{Math.min(1f, info.capeLean / 100f), (info.uuid.hashCode() & 0xFFFF) * 1.0e-4f,
+                        config.capeSwing} : null;
                 drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
-                        wings, wingAngle, wingPhase, seconds, shadowPass, sink);
+                        wings, wingAngle, wingPhase, seconds, shadowPass, cloth, sink);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(cosmetic.id(), e);
             } finally {
@@ -150,7 +157,7 @@ public final class CosmeticRenderer {
     private static void drawLayers(PoseStack poseStack, BakedCosmetic cosmetic, int packedLight, int color,
                                    boolean glow, boolean animate, float animationSpeed, int style, float capeMotion,
                                    CosmeticDefinition.Wings wings, float wingAngle, double wingPhase, double seconds,
-                                   boolean shadowPass, Sink sink) {
+                                   boolean shadowPass, float[] cloth, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         for (BakedCosmetic.Layer layer : cosmetic.layers()) {
             if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
@@ -190,8 +197,11 @@ public final class CosmeticRenderer {
                     pushes++;
                     applyRig(poseStack, rig, layer.joint(), clip, clipTime);
                 }
+                // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
+                Cloth.Shape shape = cloth != null && rig == null
+                        ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2]) : null;
                 for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                    sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime);
+                    sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime, shape);
                 }
             } finally {
                 for (; pushes > 0; pushes--) {
@@ -234,7 +244,7 @@ public final class CosmeticRenderer {
             float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
             int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
             drawLayers(poseStack, cosmetic, packedLight, Tint.argb(options, cosmetic, seconds), glow, animate,
-                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), sink);
+                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), null, sink);
             RenderStats.heldDrawn++;
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(cosmetic.id(), e);

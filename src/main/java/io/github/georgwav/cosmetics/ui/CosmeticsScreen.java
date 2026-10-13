@@ -559,8 +559,15 @@ public final class CosmeticsScreen extends Screen {
 
         boolean glow = cosmetic.hasEmissive() && cosmetic.allows(CosmeticOption.GLOW);
         boolean animation = cosmetic.hasAnimation() && cosmetic.allows(CosmeticOption.ANIMATION);
-        if (glow || animation) {
+        // Cloth needs a flat cape: one with a layer that isn't skeletal (those wave by themselves).
+        boolean cloth = cosmetic.slot() == CosmeticSlot.CAPE
+                && java.util.Arrays.stream(cosmetic.layers()).anyMatch(l -> l.rig() == null);
+        if (glow || animation || cloth) {
             section("section.effects");
+        }
+        if (cloth) {
+            add(new Rows.Toggle(listX, 0, listW, t("cloth"), config.capePhysics ? null : t("cloth.physics_off"),
+                    () -> config.options(id).cloth, v -> config.editOptions(id).cloth = v));
         }
         if (glow) {
             add(new Rows.Toggle(listX, 0, listW, t("glow"), config.emissiveParts ? null : t("glow.off_globally"),

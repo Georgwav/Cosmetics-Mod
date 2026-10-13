@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.Cloth;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -68,8 +69,8 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime, cloth);
     }
 
     // Same maths as the vanilla 1.21.1 cape layer, minus the crouch bonus: our cape hangs off the body
@@ -123,8 +124,8 @@ import java.util.NoSuchElementException;
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        drawToBuffers(buffers, poseStack, layer, light, color, frame, clip, clipTime, cloth);
     }
 *///?} else {
 public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderState>> extends RenderLayer<AvatarRenderState, M>
@@ -158,13 +159,13 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
 
     @Override
     public void draw(PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer, int light, int color,
-                     int frame, int clip, float clipTime) {
-        submit(collector, poseStack, cosmetic, layer, light, color, frame, clip, clipTime);
+                     int frame, int clip, float clipTime, Cloth.Shape cloth) {
+        submit(collector, poseStack, cosmetic, layer, light, color, frame, clip, clipTime, cloth);
     }
 
     // Hands one layer to the collector; also used for held items (see HeldItems).
     static void submit(SubmitNodeCollector collector, PoseStack poseStack, BakedCosmetic cosmetic, BakedCosmetic.Layer layer,
-                       int light, int color, int frame, int clip, float clipTime) {
+                       int light, int color, int frame, int clip, float clipTime, Cloth.Shape cloth) {
         String id = cosmetic.id();
         float vOffset = vOffset(layer, frame);
         // Vertices are written later, when the collected nodes are drawn, so the guard goes inside too.
@@ -176,7 +177,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             try {
                 // A skinned layer is skinned here, when its vertices are written, for the clip time it was
                 // submitted with.
-                MeshEmitter.emitLayer(layer, vOffset, clip, clipTime, pose, consumer, light, color);
+                MeshEmitter.emitLayer(layer, vOffset, clip, clipTime, pose, consumer, light, color, cloth);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(id, e);
             }
@@ -190,9 +191,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     //? if <1.21.9 {
     /*// Draws one layer into a buffer source; also used for held items (see HeldItems).
     static void drawToBuffers(MultiBufferSource buffers, PoseStack poseStack, BakedCosmetic.Layer layer, int light,
-                              int color, int frame, int clip, float clipTime) {
+                              int color, int frame, int clip, float clipTime, Cloth.Shape cloth) {
         VertexConsumer consumer = buffers.getBuffer(CosmeticRenderTypes.get(layer, frame));
-        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color);
+        MeshEmitter.emitLayer(layer, vOffset(layer, frame), clip, clipTime, poseStack.last(), consumer, light, color, cloth);
     }
     *///?}
 

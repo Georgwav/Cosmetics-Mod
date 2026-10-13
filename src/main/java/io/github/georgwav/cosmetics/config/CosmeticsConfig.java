@@ -128,13 +128,15 @@ public final class CosmeticsConfig {
         public float animationSpeed = 1.0f;
         /** Which of the cosmetic's styles (named skeletal animations) to show, or null for its default. */
         public String style = null;
+        /** For a flat cape: draw it as cloth that bends and ripples (Lunar's "cloth cloak") instead of a board. */
+        public boolean cloth = false;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
                     && saturation == d.saturation && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
-                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null;
+                    && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth;
         }
 
         void sanitize() {
