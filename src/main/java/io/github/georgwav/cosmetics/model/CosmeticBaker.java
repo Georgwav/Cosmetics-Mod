@@ -23,6 +23,8 @@ public final class CosmeticBaker {
             {1, 0, 0},  // EAST
     };
 
+    private static final float[] ZERO = new float[3];
+
     private CosmeticBaker() {
     }
 
@@ -80,7 +82,20 @@ public final class CosmeticBaker {
         };
 
         float[][] uvs = cube.boxUv() != null ? boxUv(cube) : cube.faces();
-        float[] affine = cube.transform() != null ? cube.transform() : affine(rotationMatrix(cube.rotation()), cube.pivot());
+        // p' = m (p - before) + after. Hand-written cubes keep exactly the original arithmetic
+        // (rotation around the pivot); imported cubes use their full transform.
+        float[] m;
+        float[] before;
+        float[] after;
+        if (cube.transform() == null) {
+            m = rotationMatrix(cube.rotation());
+            before = cube.pivot();
+            after = cube.pivot();
+        } else {
+            m = cube.transform();
+            before = ZERO;
+            after = new float[]{m[9], m[10], m[11]};
+        }
 
         for (int face = 0; face < 6; face++) {
             float[] uv = uvs[face];
@@ -99,13 +114,13 @@ public final class CosmeticBaker {
                 order = new int[]{3, 2, 1, 0};
                 normal[0] = -normal[0];
             }
-            float[] n = rotate(affine, normal[0], normal[1], normal[2]);
+            float[] n = rotate(m, normal[0], normal[1], normal[2]);
             for (int i : order) {
                 float[] p = c[faceCorners[face][i]];
-                float[] r = rotate(affine, p[0], p[1], p[2]);
-                out.add((r[0] + affine[9]) / 16f);
-                out.add((r[1] + affine[10]) / 16f);
-                out.add((r[2] + affine[11]) / 16f);
+                float[] r = rotate(m, p[0] - before[0], p[1] - before[1], p[2] - before[2]);
+                out.add((r[0] + after[0]) / 16f);
+                out.add((r[1] + after[1]) / 16f);
+                out.add((r[2] + after[2]) / 16f);
                 out.add(quadUv[i][0]);
                 out.add(quadUv[i][1]);
                 out.add(n[0]);
