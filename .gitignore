@@ -28,3 +28,18 @@ ci/work/
 # Python
 __pycache__/
 *.pyc
+
+# Badlion importer (tools/badlion-import): its input (copies of Badlion data jars and assets.json) and its
+# output pack live outside this repo, in the private cosmetics-personal repo. Never commit them here.
+data[0-9].jar
+data[0-9][0-9].jar
+/assets.json
+/badlion*/
+/input/
+/packs/
+/personal-pack/
+import-report.txt
+.badlion-import-state.json
+tools/badlion-import/input/
+tools/badlion-import/output/
+tools/badlion-import/out/
