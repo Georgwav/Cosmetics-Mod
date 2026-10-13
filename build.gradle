@@ -66,6 +66,13 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // -Pcosmetics.validatePack=<folder>: ImportedPackTest loads every cosmetic of that resource pack.
+    def validatePack = findProperty('cosmetics.validatePack')
+    if (validatePack) {
+        systemProperty 'cosmetics.validatePack', validatePack
+        inputs.property('validatePack', validatePack)
+        outputs.upToDateWhen { false }
+    }
 }
 
 processResources {
