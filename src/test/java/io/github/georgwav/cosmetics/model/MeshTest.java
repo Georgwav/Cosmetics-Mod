@@ -285,6 +285,65 @@ class MeshTest {
         assertTrue(e.getMessage().contains(expected), e.getMessage());
     }
 
+    // ------------------------------------------------------------------ Blockbench
+
+    @Test
+    void bbmodelMeshesConvertLikeBlockbenchsJavaExport() {
+        String bbmodel = """
+                {"meta": {"format_version": "4.10", "model_format": "free"},
+                 "resolution": {"width": 32, "height": 32},
+                 "elements": [
+                   {"type": "cube", "name": "ignored", "from": [0,0,0], "to": [1,1,1], "uuid": "c1"},
+                   {"type": "mesh", "name": "plate", "uuid": "m1", "origin": [1, 30, 0], "rotation": [0, 0, 0],
+                    "vertices": {"a": [0,0,0], "b": [2,0,0], "c": [2,0,2], "d": [0,0,2]},
+                    "faces": {
+                      "under": {"vertices": ["a", "c", "b", "d"], "uv": {"a": [0,0], "b": [32,0], "c": [32,32], "d": [0,32]}, "texture": 0},
+                      "hidden": {"vertices": ["a", "b", "c"], "uv": {"a": [0,0], "b": [0,0], "c": [0,0]}, "texture": null}}}],
+                 "outliner": ["m1"]}
+                """;
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/p.bbmodel\"}"),
+                Map.of("test:models/cosmetic/p.bbmodel", bbmodel)));
+        assertEquals(1, mesh.faceSizes().length);              // the null-texture face is hidden
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("1 non-mesh element")), warnings.toString());
+        float[] c = mesh.corners();
+        int stride = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        // Blockbench's corner order for the quad is a, b, c, d; internal (1,30,0) becomes (-1, -6, 0).
+        assertArrayEquals(new float[]{-1, -6, 0}, slice(c, 0, 3), EPS);
+        assertArrayEquals(new float[]{-3, -6, 0}, slice(c, stride, stride + 3), EPS);
+        // UVs are in project pixels (32x32) and become texture pixels (16x16).
+        assertArrayEquals(new float[]{16, 0}, slice(c, stride + 3, stride + 5), EPS);
+        // Blockbench draws the side its right-hand normal points to: (b - a) x (c - a) is down (-Y up
+        // there), which is +Y for us.
+        assertArrayEquals(new float[]{0, 1, 0}, normalOf(mesh, 0, 0), EPS);
+    }
+
+    @Test
+    void bbmodelGroupsRotateTheirMeshes() {
+        String bbmodel = """
+                {"resolution": {"width": 16, "height": 16},
+                 "groups": [{"uuid": "g1", "name": "spin", "origin": [0, 24, 0], "rotation": [0, 90, 0]}],
+                 "elements": [{"type": "mesh", "uuid": "m1", "origin": [0, 24, 0],
+                   "vertices": {"a": [1,0,0], "b": [1,1,0], "c": [1,0,1]},
+                   "faces": {"f": {"vertices": ["a", "b", "c"], "uv": {"a": [0,0], "b": [0,0], "c": [0,0]}, "texture": 0}}}],
+                 "outliner": [{"uuid": "g1", "children": ["m1"]}]}
+                """;
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/g.bbmodel\"}"),
+                Map.of("test:models/cosmetic/g.bbmodel", bbmodel)));
+        // Internal (1,24,0) turned 90 degrees around Y is (0,24,-1); ours is (-0, 0, -1).
+        assertArrayEquals(new float[]{0, 0, -1}, slice(mesh.corners(), 0, 3), 1.0e-4f);
+    }
+
+    @Test
+    void bbmodelQuadCornersAreSortedTheBlockbenchWay() {
+        Map<String, Integer> ids = Map.of("a", 0, "b", 1, "c", 2, "d", 3);
+        List<float[]> square = List.of(new float[]{0, 0, 0}, new float[]{1, 0, 0}, new float[]{0, 1, 0}, new float[]{1, 1, 0});
+        // a, b, c, d given as a "Z" order: the loop is a, b, d, c.
+        List<String> sorted = BbmodelParser.sortQuad(List.of("a", "b", "c", "d"), ids, square);
+        assertEquals(List.of("c", "a", "b", "d"), sorted);
+        // An order that already goes around stays as it is.
+        assertEquals(List.of("a", "b", "d", "c"), BbmodelParser.sortQuad(List.of("a", "b", "d", "c"), ids, square));
+    }
+
     // ------------------------------------------------------------------ validation
 
     @Test
@@ -302,7 +361,7 @@ class MeshTest {
         assertError("scale", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"scale\": 0}"));
         assertError("zero length", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"smooth\", \"normals\": [[0,0,0],[0,0,1],[0,0,1]]}"));
         assertError("missing.obj", withMesh("{\"model\": \"test:models/cosmetic/missing.obj\"}"));
-        assertError("must be a .obj file", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
+        assertError(".obj or .bbmodel", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
         assertError("not both", withMesh("{\"model\": \"test:models/cosmetic/a.obj\", " + tri + ", \"faces\": [[0,1,2]]}"));
         assertError("'cubes', 'meshes' or both", """
                 {"slot": "head", "texture": "test:t.png", "parts": [{"name": "empty"}]}

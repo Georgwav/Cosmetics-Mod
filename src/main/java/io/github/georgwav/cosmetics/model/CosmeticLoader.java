@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * Loads every {@code assets/<namespace>/cosmetics/*.json} from the active resource packs and bakes it.
  * Cosmetics can use Bedrock geometry models from {@code assets/<namespace>/cosmetic_models/} and mesh
- * files ({@code .obj}) from anywhere under {@code assets/<namespace>/models/}.
+ * files ({@code .obj}, {@code .bbmodel}) from anywhere under {@code assets/<namespace>/models/}.
  * A broken file is logged and skipped; it never stops the other cosmetics or the game from loading.
  */
 public final class CosmeticLoader {
@@ -47,7 +47,8 @@ public final class CosmeticLoader {
         // Mesh files by full location ("namespace:models/.../name.obj"). Vanilla only reads .json files
         // under models/, so these never reach the block and item model loader.
         Map<String, Resource> meshFiles = new HashMap<>();
-        for (var entry : manager.listResources(MESH_DIRECTORY, location -> location.getPath().endsWith(".obj")).entrySet()) {
+        for (var entry : manager.listResources(MESH_DIRECTORY, location -> location.getPath().endsWith(".obj")
+                || location.getPath().endsWith(".bbmodel")).entrySet()) {
             meshFiles.put(entry.getKey().getNamespace() + ":" + entry.getKey().getPath(), entry.getValue());
         }
         CosmeticParser.FileSource files = location -> {

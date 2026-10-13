@@ -45,6 +45,7 @@ public final class CosmeticParser {
 
     /** Largest mesh files read, in bytes. */
     static final int MAX_OBJ_BYTES = 4 << 20;
+    static final int MAX_BBMODEL_BYTES = 16 << 20;
 
     /**
      * Everything a cosmetic file may need besides itself.
@@ -157,7 +158,7 @@ public final class CosmeticParser {
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts));
     }
 
-    /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} file. */
+    /** One entry of a part's {@code meshes}: inline geometry or a {@code .obj} / {@code .bbmodel} file. */
     private static CosmeticDefinition.Mesh parseMesh(JsonObject json, String where, String namespace,
                                                      int texW, int texH, Context context) {
         boolean smooth = false;
@@ -191,8 +192,11 @@ public final class CosmeticParser {
             String location = qualifyFile(namespace, json.get("model").getAsString(), where);
             if (location.endsWith(".obj")) {
                 raw = ObjParser.parse(readText(context.files(), location, MAX_OBJ_BYTES), location, texW, texH);
+            } else if (location.endsWith(".bbmodel")) {
+                raw = BbmodelParser.parse(readText(context.files(), location, MAX_BBMODEL_BYTES), location, texW, texH,
+                        context.warnings());
             } else {
-                throw new JsonParseException(where + ": model must be a .obj file");
+                throw new JsonParseException(where + ": model must be a .obj or .bbmodel file");
             }
             source = location;
         } else {
