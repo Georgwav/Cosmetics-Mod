@@ -1,0 +1,25 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.cosmeticsmod.clap": {
+      "loop": true,
+      "animation_length": 0.5,
+      "bones": {
+        "right_arm": {
+          "rotation": {
+            "0.0": [-75, -8, 0],
+            "0.2": [-75, -30, 0],
+            "0.5": [-75, -8, 0]
+          }
+        },
+        "left_arm": {
+          "rotation": {
+            "0.0": [-75, 8, 0],
+            "0.2": [-75, 30, 0],
+            "0.5": [-75, 8, 0]
+          }
+        }
+      }
+    }
+  }
+}

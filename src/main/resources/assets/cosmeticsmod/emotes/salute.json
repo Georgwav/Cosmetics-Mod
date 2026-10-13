@@ -1,0 +1,26 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.cosmeticsmod.salute": {
+      "animation_length": 2.2,
+      "bones": {
+        "right_arm": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.3": [-148, -37, 0],
+            "1.8": [-148, -37, 0],
+            "2.2": [0, 0, 0]
+          }
+        },
+        "head": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.3": [-5, 0, 0],
+            "1.8": [-5, 0, 0],
+            "2.2": [0, 0, 0]
+          }
+        }
+      }
+    }
+  }
+}

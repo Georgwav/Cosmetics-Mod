@@ -4,6 +4,8 @@ import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
+import io.github.georgwav.cosmetics.emote.EmotePlayer;
+import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -28,12 +30,18 @@ public final class CosmeticsMod implements ClientModInitializer {
         VersionHooks.registerCapeOverride();
         VersionHooks.registerCommand();
         KeyMapping openKey = VersionHooks.registerKeyMapping();
+        KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
+        EmoteWheelScreen.key = emoteKey;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpen();
             }
+            while (emoteKey.consumeClick()) {
+                EmoteWheelScreen.openIfAllowed(client);
+            }
             ScreenOpener.tick();
             AuraParticles.tick(client);
+            EmotePlayer.tick(client);
         });
         DevScenario.init();
     }

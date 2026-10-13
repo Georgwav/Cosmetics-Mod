@@ -3,6 +3,9 @@ package io.github.georgwav.cosmetics.ui;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
+import io.github.georgwav.cosmetics.emote.Emote;
+import io.github.georgwav.cosmetics.emote.EmotePlayer;
+import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticLoader;
@@ -43,7 +46,7 @@ public final class CosmeticsScreen extends Screen {
 
     /** The wardrobe's categories, in the side bar's order. */
     private enum View {
-        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, OUTFITS;
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, EMOTES, OUTFITS;
 
         boolean includes(BakedCosmetic cosmetic, List<String> wearing) {
             return switch (this) {
@@ -59,8 +62,13 @@ public final class CosmeticsScreen extends Screen {
                 case AURAS -> cosmetic.slot() == CosmeticSlot.AURA;
                 case PETS -> cosmetic.slot() == CosmeticSlot.PET;
                 case LIMBS -> cosmetic.slot() == CosmeticSlot.ARM || cosmetic.slot() == CosmeticSlot.FEET;
-                case OUTFITS -> false;
+                case EMOTES, OUTFITS -> false;
             };
+        }
+
+        /** Lists cosmetics, so it has the search field. */
+        boolean searchable() {
+            return this != EMOTES && this != OUTFITS;
         }
     }
 
@@ -221,7 +229,7 @@ public final class CosmeticsScreen extends Screen {
         if (wardrobeList) {
             buildSidebar();
         }
-        if (wardrobeList && view != View.OUTFITS && !CosmeticRegistry.all().isEmpty()) {
+        if (wardrobeList && view.searchable() && !CosmeticRegistry.all().isEmpty()) {
             Component hint = Component.translatable("cosmeticsmod.screen.wardrobe.search").withStyle(ChatFormatting.DARK_GRAY);
             searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
             searchBox.setMaxLength(64);
@@ -283,7 +291,7 @@ public final class CosmeticsScreen extends Screen {
 
     private void switchView(View next) {
         if (view != next) {
-            boolean searchChanges = (view == View.OUTFITS) != (next == View.OUTFITS);
+            boolean searchChanges = view.searchable() != next.searchable();
             view = next;
             lastView = next;
             scroll = 0;
@@ -303,12 +311,14 @@ public final class CosmeticsScreen extends Screen {
             int count;
             if (each == View.OUTFITS) {
                 count = CosmeticsConfig.get().outfits.size();
+            } else if (each == View.EMOTES) {
+                count = Emotes.all().size();
             } else {
                 count = (int) CosmeticRegistry.all().stream().filter(c -> each.includes(c, wearing)).count();
             }
             String label = t("view." + each.name().toLowerCase(Locale.ROOT));
             View target = each;
-            if (each == View.OUTFITS) {
+            if (each == View.EMOTES) {
                 y += 6;
             }
             addChrome(new Rows.SideTab(sidebarX, y, SIDEBAR_WIDTH, 18, label,
@@ -379,6 +389,10 @@ public final class CosmeticsScreen extends Screen {
             buildOutfits();
             return;
         }
+        if (view == View.EMOTES) {
+            buildEmotes();
+            return;
+        }
         List<BakedCosmetic> all = new ArrayList<>(CosmeticRegistry.all());
         if (all.isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.empty"), () -> "", Theme.TEXT_DIM));
@@ -426,6 +440,30 @@ public final class CosmeticsScreen extends Screen {
         }
         if (cosmetics.size() > limit) {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.more", cosmetics.size() - limit), () -> "", Theme.TEXT_DIM));
+        }
+    }
+
+    /** Every emote: play it (it shows in the preview) and put it on the emote wheel or take it off. */
+    private void buildEmotes() {
+        add(new Rows.Info(listX, 0, listW, t("emotes.hint"), () -> "", Theme.TEXT_DIM));
+        if (Emotes.all().isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("emotes.empty"), () -> "", Theme.TEXT_DIM));
+            return;
+        }
+        if (!CosmeticsConfig.get().emotes) {
+            add(new Rows.Info(listX, 0, listW, t("emotes.off"), () -> "", Theme.WARN));
+        }
+        contentHeight += 4;
+        for (Emote emote : Emotes.all()) {
+            String id = emote.id();
+            boolean onWheel = Emotes.onWheel(id);
+            add(new Rows.Actions(listX, 0, listW, Emotes.name(emote),
+                    () -> EmotePlayer.playing() == emote ? t("emotes.playing") : Emotes.onWheel(id) ? t("emotes.on_wheel") : "",
+                    List.of(t("emotes.play"), onWheel ? t("emotes.remove") : t("emotes.add")),
+                    List.of(() -> EmotePlayer.play(emote), () -> {
+                        Emotes.setOnWheel(id, !onWheel);
+                        rebuildWidgets();
+                    })));
         }
     }
 
@@ -631,6 +669,18 @@ public final class CosmeticsScreen extends Screen {
         add(new Rows.Slider(listX, 0, listW, t("particle_density"), 0, 2, 0.1,
                 () -> c.particleDensity, v -> c.particleDensity = (float) v, v -> Math.round(v * 100) + "%"));
         toggle("own_particles_first_person", () -> c.ownParticlesInFirstPerson, v -> c.ownParticlesInFirstPerson = v);
+
+        section("section.emotes");
+        toggle("emotes_enabled", () -> c.emotes, v -> {
+            c.emotes = v;
+            if (!v) {
+                EmotePlayer.stop();
+            }
+        });
+        add(new Rows.Cycle<>(listX, 0, listW, t("emote_camera"), List.of(CosmeticsConfig.EmoteCamera.values()),
+                () -> c.emoteCamera, v -> c.emoteCamera = v,
+                v -> t("emote_camera." + v.name().toLowerCase(Locale.ROOT))));
+        toggle("emote_stop_on_move", () -> c.emoteStopOnMove, v -> c.emoteStopOnMove = v);
     }
 
     private void buildPerformance() {

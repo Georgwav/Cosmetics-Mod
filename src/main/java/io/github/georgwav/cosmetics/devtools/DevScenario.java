@@ -8,10 +8,13 @@ import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.compat.iris.IrisCompat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.emote.EmotePlayer;
+import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
+import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -33,7 +36,8 @@ import java.util.List;
  * Off unless started with {@code -Dcosmeticsmod.smokeTest=true} or {@code -Dcosmeticsmod.benchmark=true}.
  *
  * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
- * every page of the settings screen (and, with Mod Menu, the screen its "Configure" button opens),
+ * the emote wheel and an emote, every page of the settings screen (and, with Mod Menu, the screen its
+ * "Configure" button opens),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
  * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
  * in the game directory, a PASSED/FAILED line goes to the log, and the game quits.
@@ -44,10 +48,14 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, EMOTE_WHEEL, EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
+    /** Ticks an emote plays during the emote check. */
+    private static final int EMOTE_TICKS = 100;
+    /** Bundled emotes; fewer loaded means some failed to load. */
+    private static final int BUNDLED_EMOTES = 14;
 
     private final boolean smoke;
     private final boolean benchmark;
@@ -67,6 +75,8 @@ public final class DevScenario {
     private CosmeticsScreen uiScreen;
     private long phaseStart;
     private long particlesAtPhaseStart;
+    private long emoteFramesAtStart;
+    private int wheelFramesAtStart;
     private boolean finished;
 
     private DevScenario(boolean smoke, boolean benchmark) {
@@ -143,15 +153,55 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back");
                     if (smoke) {
-                        // Open every tab of the settings screen, and a cosmetic's own page, to prove the
-                        // UI works on this version.
-                        uiTab = 0;
-                        openSettingsTab(client);
-                        enter(Phase.SETTINGS_UI);
-                        writeMarker("ui_" + CosmeticsScreen.testPageName(0));
+                        // The emote wheel, then an emote on the player.
+                        client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                        wheelFramesAtStart = EmoteWheelScreen.framesRendered;
+                        ScreenOpener.open(new EmoteWheelScreen());
+                        enter(Phase.EMOTE_WHEEL);
+                        writeMarker("ui_emote_wheel");
                     } else {
                         startShadersOrFinish();
                     }
+                }
+            }
+            case EMOTE_WHEEL -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = EmoteWheelScreen.framesRendered - wheelFramesAtStart;
+                    if (frames <= 0) {
+                        failures.add("the emote wheel never rendered");
+                    }
+                    JsonObject emote = new JsonObject();
+                    emote.addProperty("loaded", Emotes.all().size());
+                    emote.addProperty("wheelFrames", frames);
+                    phases.add("emote", emote);
+                    if (Emotes.all().size() < BUNDLED_EMOTES) {
+                        failures.add("only " + Emotes.all().size() + " of the " + BUNDLED_EMOTES + " bundled emotes loaded");
+                    }
+                    ScreenOpener.open(null);
+                    // A looping emote, so it still plays when the phase ends.
+                    EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":dance"));
+                    emoteFramesAtStart = EmotePlayer.posedFrames;
+                    enter(Phase.EMOTE);
+                }
+            }
+            case EMOTE -> {
+                if (ticks >= EMOTE_TICKS) {
+                    long posed = EmotePlayer.posedFrames - emoteFramesAtStart;
+                    JsonObject emote = phases.getAsJsonObject("emote");
+                    emote.addProperty("posedFrames", posed);
+                    emote.addProperty("stillPlaying", EmotePlayer.playing() != null);
+                    CosmeticsMod.LOGGER.info("Dev scenario emote: {}", emote);
+                    if (posed <= 0) {
+                        failures.add("playing an emote never posed the player model");
+                    }
+                    EmotePlayer.stop();
+                    client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                    // Open every tab of the settings screen, and a cosmetic's own page, to prove the
+                    // UI works on this version.
+                    uiTab = 0;
+                    openSettingsTab(client);
+                    enter(Phase.SETTINGS_UI);
+                    writeMarker("ui_" + CosmeticsScreen.testPageName(0));
                 }
             }
             case SETTINGS_UI -> {
@@ -300,7 +350,7 @@ public final class DevScenario {
         particlesAtPhaseStart = AuraParticles.spawned;
         if (next != Phase.DONE) {
             CosmeticsMod.LOGGER.info("Dev scenario phase: {}", next);
-            if (next != Phase.SETTINGS_UI) {
+            if (next != Phase.SETTINGS_UI && next != Phase.EMOTE_WHEEL) {
                 writeMarker(next.name().toLowerCase(java.util.Locale.ROOT));
             }
         }

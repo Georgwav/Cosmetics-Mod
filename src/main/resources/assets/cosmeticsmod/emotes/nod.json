@@ -1,0 +1,20 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.cosmeticsmod.nod": {
+      "animation_length": 1.2,
+      "bones": {
+        "head": {
+          "rotation": {
+            "0.0": {"post": [0, 0, 0], "lerp_mode": "catmullrom"},
+            "0.2": {"post": [22, 0, 0], "lerp_mode": "catmullrom"},
+            "0.45": {"post": [-6, 0, 0], "lerp_mode": "catmullrom"},
+            "0.7": {"post": [22, 0, 0], "lerp_mode": "catmullrom"},
+            "0.95": {"post": [-6, 0, 0], "lerp_mode": "catmullrom"},
+            "1.2": {"post": [0, 0, 0], "lerp_mode": "catmullrom"}
+          }
+        }
+      }
+    }
+  }
+}

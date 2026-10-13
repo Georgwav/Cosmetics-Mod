@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.model;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -23,6 +24,7 @@ import java.util.Map;
  * files ({@code .obj}, {@code .bbmodel}) by their full location, such as
  * {@code namespace:models/cosmetic/name.obj}.
  * A broken file is logged and skipped; it never stops the other cosmetics or the game from loading.
+ * Emotes ({@code assets/<namespace>/emotes/}) are loaded along with them, see {@link Emotes}.
  */
 public final class CosmeticLoader {
     private static final String DIRECTORY = "cosmetics";
@@ -84,5 +86,6 @@ public final class CosmeticLoader {
         CosmeticRegistry.replace(loaded);
         RenderGuard.reset();
         CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s)", loaded.size());
+        Emotes.reload(manager);
     }
 }

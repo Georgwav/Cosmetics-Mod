@@ -65,6 +65,20 @@ public final class CosmeticsConfig {
     /** Draw see-through (translucent) parts. */
     public boolean translucentParts = true;
 
+    // ---------------------------------------------------------------- emotes
+
+    /** Emotes can be played (the emote wheel key, and Play in the Wardrobe's Emotes list). */
+    public boolean emotes = true;
+    /** Where the camera goes while you emote. */
+    public EmoteCamera emoteCamera = EmoteCamera.FRONT;
+    /** Walking, jumping, sneaking or getting hurt stops an emote. */
+    public boolean emoteStopOnMove = true;
+    /** The emotes on the emote wheel, in order. Empty puts every emote on it. */
+    public List<String> emoteWheel = new ArrayList<>();
+
+    /** Where the camera goes while you emote: in front of you, behind you, or nowhere (it stays as it is). */
+    public enum EmoteCamera { FRONT, BACK, UNCHANGED }
+
     // ---------------------------------------------------------------- performance
 
     /** Players further away than this many blocks don't get cosmetics drawn. 0 = no limit. */
@@ -239,6 +253,9 @@ public final class CosmeticsConfig {
         ownParticlesInFirstPerson = defaults.ownParticlesInFirstPerson;
         emissiveParts = defaults.emissiveParts;
         translucentParts = defaults.translucentParts;
+        emotes = defaults.emotes;
+        emoteCamera = defaults.emoteCamera;
+        emoteStopOnMove = defaults.emoteStopOnMove;
         maxRenderDistance = defaults.maxRenderDistance;
         renderInShadowPass = defaults.renderInShadowPass;
         shadowDistance = defaults.shadowDistance;
@@ -311,6 +328,11 @@ public final class CosmeticsConfig {
         }
         outfits.entrySet().removeIf(e -> e.getKey() == null || e.getKey().isBlank() || e.getValue() == null);
         outfits.values().forEach(list -> list.removeIf(id -> id == null));
+        if (emoteCamera == null) {
+            emoteCamera = EmoteCamera.FRONT;
+        }
+        emoteWheel = emoteWheel == null ? new ArrayList<>()
+                : new ArrayList<>(new java.util.LinkedHashSet<>(emoteWheel.stream().filter(id -> id != null).toList()));
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }
