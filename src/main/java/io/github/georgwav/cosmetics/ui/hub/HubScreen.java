@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.hub;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
@@ -126,12 +127,14 @@ public final class HubScreen extends Screen {
 
     // A page open over the hub (the Mods list), or null; how open it is (0 = the middle orb, 1 = open).
     static final String MODS_PAGE = "mods";
+    static final String SKINS_PAGE = "skins";
     private String page;
     private float pageP;
     private float pageV;
     /** The page a transition opens, or null when it goes to a sphere. */
     private String transPage;
     private final ModsPage modsPage = new ModsPage(this);
+    private final SkinsPage skinsPage = new SkinsPage(this);
     /** The slider being dragged. */
     private Ui.Hit dragging;
     /** The key bind waiting for a key (or mouse button). */
@@ -161,6 +164,20 @@ public final class HubScreen extends Screen {
         return hub;
     }
 
+    /** For the in-game test: the Skins page already open. */
+    public static HubScreen onSkinsPage() {
+        HubScreen hub = new HubScreen(null);
+        hub.page = SKINS_PAGE;
+        hub.pageP = 1f;
+        hub.spread = 0f;
+        return hub;
+    }
+
+    /** For the in-game test: how many skins the last Skins page shows. */
+    public static int skinsShown() {
+        return SkinsPage.shown;
+    }
+
     /** For the in-game test: the Mods page already open, on the crosshair's settings and preview. */
     public static HubScreen onModsPage() {
         HubScreen hub = inMods();
@@ -188,6 +205,7 @@ public final class HubScreen extends Screen {
                         .action(() -> ScreenOpener.open(new CosmeticsScreen(this, 1))),
                 shaders,
                 voxy,
+                new HubItem("skins", "you", HubItem.Kind.ACTION).icon("shirt").action(() -> openPage(SKINS_PAGE)),
                 new HubItem("emotes", "c", HubItem.Kind.ACTION).icon("smile")
                         .action(() -> ScreenOpener.open(CosmeticsScreen.emotes(this))),
                 new HubItem("music", "d", HubItem.Kind.LATER).icon("music"),
@@ -214,7 +232,8 @@ public final class HubScreen extends Screen {
                 HubItem.module(Modules.FULLBRIGHT, "render"),
                 HubItem.module(Modules.CROSSHAIR, "render"),
                 HubItem.module(Modules.WEATHER, "render"),
-                HubItem.module(Modules.TIME, "render"),
+                HubItem.module(Modules.TIME, "render")
+                        .missing(() -> TimeChanger.supported() ? null : t("not_on_version")),
                 HubItem.module(Modules.KEYSTROKES, "modules"),
                 HubItem.module(Modules.TOGGLE_SPRINT, "modules"),
                 HubItem.module(Modules.FPS, "hud").live("fps"),
@@ -346,6 +365,12 @@ public final class HubScreen extends Screen {
         CosmeticsConfig.save();
         EquippedCosmetics.invalidate();
         ScreenOpener.open(parent);
+    }
+
+    @Override
+    public void removed() {
+        skinsPage.release();
+        super.removed();
     }
 
     void notify(String text) {
@@ -769,8 +794,8 @@ public final class HubScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (page != null) {
-            if (modsPage.overList(designX(mouseX), designY(mouseY))) {
-                modsPage.scrollBy(scrollY);
+            if (currentPage().overList(designX(mouseX), designY(mouseY))) {
+                currentPage().scrollBy(scrollY);
             }
             return true;
         }
@@ -924,8 +949,12 @@ public final class HubScreen extends Screen {
         Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
         if (p > 0.85f) {
             Ui ui = new Ui(g, font, u, ox, oy, gs, mx, my, ACCENT, INK, hits, eased);
-            modsPage.draw(ui, query);
+            currentPage().draw(ui, query);
         }
+    }
+
+    private HubPage currentPage() {
+        return SKINS_PAGE.equals(page) ? skinsPage : modsPage;
     }
 
     // Orbs drawn this frame, back to front; the tooltip needs the hovered one.
@@ -1145,16 +1174,18 @@ public final class HubScreen extends Screen {
     }
 
     private void drawPageIsland(Canvas g) {
-        String name = t("mods.title");
-        long on = Modules.all().stream().filter(io.github.georgwav.cosmetics.client.Module::enabled).count();
-        String line = notice != null ? notice : listening != null ? t("mods.press_key") : t("mods.island", on, Modules.all().size());
+        HubPage current = currentPage();
+        String name = current.title();
+        String line = notice != null ? notice : current.line();
         String label = t("done");
+        String own = current.actionLabel();
         HubFont nameFont = type(Ui.NAME, true);
         HubFont lineFont = type(Ui.SMALL, false);
         HubFont labelFont = type(Ui.SMALL, true);
         float bw = labelFont.width(label) / u + 32f;
+        float ow = own == null ? 0f : labelFont.width(own) / u + 32f;
         float textW = Math.max(nameFont.width(name), lineFont.width(line)) / u;
-        islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + bw + 12f + 10f));
+        islandTarget = Math.max(440f, Math.min(680f, 62f + textW + 12f + bw + 12f + (own == null ? 0f : ow + 8f) + 10f));
         float w = islandW;
         float h = 60f;
         float left = CX - w / 2f;
@@ -1163,7 +1194,7 @@ public final class HubScreen extends Screen {
         Shapes.fill(g, Shapes.roundRect(sx(left), sy(top), w * u, h * u, h * u / 2f), 0xFF000000);
         Shapes.fill(g, Shapes.circle(sx(left + 30f), sy(top + 30f), 20f * u), WELL);
         int size = Math.round(20f * u);
-        g.blit(icon("list"), Math.round(sx(left + 30f) - size / 2f), Math.round(sy(top + 30f) - size / 2f), size, size, 64);
+        g.blit(icon(current.icon()), Math.round(sx(left + 30f) - size / 2f), Math.round(sy(top + 30f) - size / 2f), size, size, 64);
         float right = left + w - 10f;
         if (mode == Mode.IDLE) {
             float bx = right - bw;
@@ -1171,6 +1202,14 @@ public final class HubScreen extends Screen {
             labelFont.drawMid(g, label, sx(bx + bw / 2f) - labelFont.width(label) / 2f, sy(top + 30f), TEXT);
             hits.add(new Ui.Hit(bx, top + 8f, bx + bw, top + 52f, this::closePage, null));
             right = bx - 12f;
+            if (own != null) {
+                // The page's own button, filled: what you came here to do.
+                float ax = right + 4f - ow;
+                Shapes.fill(g, Shapes.roundRect(sx(ax), sy(top + 8f), ow * u, 44f * u, 22f * u), ACCENT);
+                labelFont.drawMid(g, own, sx(ax + ow / 2f) - labelFont.width(own) / 2f, sy(top + 30f), INK);
+                hits.add(new Ui.Hit(ax, top + 8f, ax + ow, top + 52f, current::action, null));
+                right = ax - 12f;
+            }
         }
         float room = (right - left - 62f) * u;
         nameFont.draw(g, nameFont.fit(name, room), sx(left + 62f), sy(top + 17f) + nameFont.cap(), TEXT);
@@ -1183,7 +1222,7 @@ public final class HubScreen extends Screen {
         boolean hasBack = onPage || !level.equals(MAIN);
         Runnable back = onPage ? this::closePage : () -> enter(MAIN, -1);
         String backLabel = t("back");
-        String hint = t(onPage ? "mods.search" : "search");
+        String hint = onPage ? currentPage().searchHint() : t("search");
         HubFont labelFont = type(Ui.SMALL, true);
         HubFont inputFont = type(Ui.SMALL, false);
         float backW = hasBack ? labelFont.width(backLabel) / u + 48f : 0f;

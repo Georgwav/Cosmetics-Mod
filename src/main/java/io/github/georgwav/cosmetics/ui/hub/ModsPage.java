@@ -21,7 +21,7 @@ import java.util.Set;
  * The Mods page: every module of the client (switch, key, its own settings under the gear) and every installed mod
  * (its settings through Mod Menu), sorted into sections down the left, searched from the bar at the bottom.
  */
-final class ModsPage {
+final class ModsPage implements HubPage {
     private static final Set<String> NOT_LISTED = Set.of("minecraft", "java", "fabricloader", CosmeticsMod.MOD_ID);
     private static final String[] SECTIONS = {"all", "on", "view", "world", "hud", "installed", "look"};
     // Everything stays inside the open panel (x 80 to 1360, y 92 to 732, rounded corners): the header across the
@@ -91,17 +91,41 @@ final class ModsPage {
         };
     }
 
-    void scrollBy(double amount) {
+    @Override
+    public String title() {
+        return t("title");
+    }
+
+    @Override
+    public String line() {
+        long on = Modules.all().stream().filter(Module::enabled).count();
+        return hub.listeningFor() != null ? t("press_key") : t("island", on, Modules.all().size());
+    }
+
+    @Override
+    public String icon() {
+        return "list";
+    }
+
+    @Override
+    public String searchHint() {
+        return t("search");
+    }
+
+    @Override
+    public void scrollBy(double amount) {
         float max = Math.max(0f, contentHeight - (LIST_BOTTOM - LIST_TOP));
         scroll = Math.max(0f, Math.min(max, scroll - (float) amount * 48f));
     }
 
-    boolean overList(float x, float y) {
+    @Override
+    public boolean overList(float x, float y) {
         return x >= LIST_X && x < LIST_X + LIST_W && y >= LIST_TOP && y < LIST_BOTTOM;
     }
 
     /** The page's contents inside the open panel. */
-    void draw(Ui ui, String query) {
+    @Override
+    public void draw(Ui ui, String query) {
         String needle = query.trim().toLowerCase(Locale.ROOT);
         float headerRight = RIGHT;
         if (io.github.georgwav.cosmetics.compat.Compat.MOD_MENU) {

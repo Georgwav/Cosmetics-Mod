@@ -547,6 +547,12 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     if extra_mods_dir:
         for jar in Path(extra_mods_dir).glob("*.jar"):
             shutil.copy(jar, game_dir / "mods")
+    # A launcher folder with saved skins (the unit tests' database), chosen as the client's main folder: the
+    # Skins page reads it.
+    launcher = game_dir / "launcher"
+    launcher.mkdir()
+    shutil.copy(ROOT / "src" / "test" / "resources" / "skins" / "app.db", launcher / "app.db")
+    (game_dir / "config" / "cosmeticsmod-client.json").write_text(json.dumps({"mainFolder": str(launcher.resolve())}))
     if shaderpack:
         (game_dir / "shaderpacks").mkdir()
         shutil.copy(shaderpack, game_dir / "shaderpacks")

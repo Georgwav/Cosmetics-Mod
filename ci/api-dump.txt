@@ -6,6 +6,4 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-26.3 net.minecraft.world.entity.player.PlayerSkin,net.minecraft.core.ClientAsset,net.minecraft.core.*,net.minecraft.client.player.AbstractClientPlayer,net.minecraft.client.User,net.minecraft.client.resources.SkinManager,net.minecraft.client.renderer.texture.DynamicTexture,net.minecraft.client.renderer.texture.TextureManager
-1.21.10 net.minecraft.world.entity.player.PlayerSkin,net.minecraft.client.player.AbstractClientPlayer,net.minecraft.client.resources.SkinManager,net.minecraft.client.User
-1.21.4 net.minecraft.client.resources.PlayerSkin,net.minecraft.client.player.AbstractClientPlayer,net.minecraft.client.resources.SkinManager
+26.2 !net.minecraft.client.ClientClockManager,net.minecraft.world.clock.*

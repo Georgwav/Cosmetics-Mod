@@ -6,7 +6,7 @@ import net.minecraft.world.effect.MobEffects;
 
 import java.util.ArrayList;
 import java.util.List;
-//? if >=26.1 {
+//? if >=26.3 {
 /*import net.minecraft.client.ClientClockManager;
 *///?}
 
@@ -40,12 +40,14 @@ public final class ModulesSelfTest {
         if (mc.level.getRainLevel(1f) < 0.99f || mc.level.getThunderLevel(1f) < 0.99f) {
             problems.add("the weather changer's thunder doesn't show (rain " + mc.level.getRainLevel(1f) + ")");
         }
-        //? if >=26.1 {
+        //? if >=26.3 {
         /*long clock = new ClientClockManager.ClientClockInstance().totalTicks();
         if (clock != 18000L) {
             problems.add("the time changer's midnight doesn't show on the world clocks (" + clock + ")");
         }
-        *///?} else {
+        *///?} elif >=26.1 {
+        // 26.1 and 26.2: not yet (TimeChanger.supported()).
+        //?} else {
         if (mc.level.getDayTime() != 18000L) {
             problems.add("the time changer's midnight doesn't show (day time " + mc.level.getDayTime() + ")");
         }

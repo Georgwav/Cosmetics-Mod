@@ -17,7 +17,7 @@ import java.util.Set;
 public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public List<String> getMixins() {
-        //? if >=26.1 {
+        //? if >=26.3 {
         /*return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin",
                 "ClockInstanceMixin");

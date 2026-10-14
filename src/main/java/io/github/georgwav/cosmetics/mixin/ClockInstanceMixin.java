@@ -1,8 +1,9 @@
 package io.github.georgwav.cosmetics.mixin;
 
-// 26.1 replaced the day time with world clocks: the time changer sets the time of day the client's clocks show,
-// keeping their day count (the moon's phase). Up to 1.21.11 LevelMixin changes the day time instead.
-//? if >=26.1 {
+// 26.1 replaced the day time with world clocks: from 26.3 (whose clocks this hooks) the time changer sets the
+// time of day the client's clocks show, keeping their day count (the moon's phase). Up to 1.21.11 LevelMixin
+// changes the day time instead.
+//? if >=26.3 {
 /*import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import net.minecraft.client.ClientClockManager;
 import org.spongepowered.asm.mixin.Mixin;
