@@ -37,6 +37,21 @@ class EmoteTest {
         return parts;
     }
 
+    // ---------------------------------------------------------------- pictures
+
+    @Test
+    void theBestMomentIsTheBiggestPose() {
+        // The right arm goes up over a second and back down over the next: the picture shows it up.
+        Emote wave = parse("""
+                {"format_version": "1.8.0", "animations": {"animation.wave": {"animation_length": 2,
+                  "bones": {"right_arm": {"rotation": {"0.0": [0, 0, 0], "1.0": [0, 0, 150], "2.0": [0, 0, 0]}}}}}}
+                """).get(0);
+        assertEquals(1f, EmotePose.bestTime(wave), 0.05f);
+        float[][] posed = EmotePose.posed(wave, 1f);
+        assertTrue(Math.abs(posed[EmotePose.RIGHT_ARM][5]) > 2f, "the arm is raised at the best moment");
+        assertEquals(EmotePose.REST[EmotePose.LEFT_LEG][0], posed[EmotePose.LEFT_LEG][0], EPS, "legs stay put");
+    }
+
     // ---------------------------------------------------------------- easing and channels
 
     @Test

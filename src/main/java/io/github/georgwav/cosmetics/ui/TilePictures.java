@@ -11,7 +11,6 @@ import io.github.georgwav.cosmetics.model.TextureFrames;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
 import io.github.georgwav.cosmetics.render.SoftRaster;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.server.packs.resources.Resource;
 import org.joml.Quaternionf;
 //? if >=1.21.11 {
@@ -65,27 +64,12 @@ final class TilePictures {
     private int nextSlot;
 
     private static final class Picture {
-        //? if >=1.21.11 {
-        final Identifier id;
-        //?} else {
-        /*final ResourceLocation id;
-        *///?}
-        final DynamicTexture texture;
+        final PictureTexture texture;
         float yaw = Float.NaN;
         boolean empty;
 
         Picture(int slot) {
-            //? if >=1.21.11 {
-            id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "tile_picture/" + slot);
-            //?} else {
-            /*id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "tile_picture/" + slot);
-            *///?}
-            //? if >=1.21.5 {
-            texture = new DynamicTexture("cosmeticsmod tile picture", SIZE, SIZE, true);
-            //?} else {
-            /*texture = new DynamicTexture(SIZE, SIZE, true);
-            *///?}
-            Minecraft.getInstance().getTextureManager().register(id, texture);
+            texture = new PictureTexture("tile_picture/" + slot, SIZE);
         }
     }
 
@@ -127,7 +111,7 @@ final class TilePictures {
         if (picture.empty || Float.isNaN(picture.yaw)) {
             return false;
         }
-        g.blit(picture.id, x, y, size, size, SIZE);
+        picture.texture.draw(g, x, y, size);
         return true;
     }
 
@@ -137,7 +121,7 @@ final class TilePictures {
             Iterator<Map.Entry<String, Picture>> oldest = pictures.entrySet().iterator();
             Picture dropped = oldest.next().getValue();
             oldest.remove();
-            Minecraft.getInstance().getTextureManager().release(dropped.id);
+            dropped.texture.release();
         }
         return nextSlot++;
     }
@@ -145,7 +129,7 @@ final class TilePictures {
     /** Releases every picture's texture (when the screen closes or cosmetics reload). */
     void close() {
         for (Picture picture : pictures.values()) {
-            Minecraft.getInstance().getTextureManager().release(picture.id);
+            picture.texture.release();
         }
         pictures.clear();
         textures.clear();
@@ -159,7 +143,7 @@ final class TilePictures {
     // ------------------------------------------------------------------ painting
 
     /** Paints the cosmetic turned {@code yaw} degrees into the texture; false when it has no geometry. */
-    private boolean paint(BakedCosmetic cosmetic, float yaw, DynamicTexture texture) {
+    private boolean paint(BakedCosmetic cosmetic, float yaw, PictureTexture texture) {
         float[] frame = framing.computeIfAbsent(cosmetic.id(), id -> frame(cosmetic));
         if (frame == null) {
             return false;
@@ -188,19 +172,7 @@ final class TilePictures {
                 raster.draw(mesh, matrix, normal, vOffset, image, color, blend);
             }
         });
-        NativeImage pixels = texture.getPixels();
-        int[] argb = raster.pixels();
-        for (int py = 0; py < SIZE; py++) {
-            for (int px = 0; px < SIZE; px++) {
-                int c = argb[py * SIZE + px];
-                //? if >=1.21.2 {
-                pixels.setPixel(px, py, c);
-                //?} else {
-                /*pixels.setPixelRGBA(px, py, (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF));
-                *///?}
-            }
-        }
-        texture.upload();
+        texture.upload(raster.pixels());
         return true;
     }
 
@@ -236,30 +208,7 @@ final class TilePictures {
     }
 
     private void load(PoseStack poseStack) {
-        PoseStack.Pose last = poseStack.last();
-        var m = last.pose();
-        var n = last.normal();
-        matrix[0] = m.m00();
-        matrix[1] = m.m01();
-        matrix[2] = m.m02();
-        matrix[3] = m.m10();
-        matrix[4] = m.m11();
-        matrix[5] = m.m12();
-        matrix[6] = m.m20();
-        matrix[7] = m.m21();
-        matrix[8] = m.m22();
-        matrix[9] = m.m30();
-        matrix[10] = m.m31();
-        matrix[11] = m.m32();
-        normal[0] = n.m00();
-        normal[1] = n.m01();
-        normal[2] = n.m02();
-        normal[3] = n.m10();
-        normal[4] = n.m11();
-        normal[5] = n.m12();
-        normal[6] = n.m20();
-        normal[7] = n.m21();
-        normal[8] = n.m22();
+        PictureTexture.load(poseStack, matrix, normal);
     }
 
     /** A texture's pixels, read once from the resource packs; plain white when it can't be read. */

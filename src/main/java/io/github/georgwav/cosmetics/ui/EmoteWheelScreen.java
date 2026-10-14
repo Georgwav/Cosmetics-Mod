@@ -25,16 +25,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The emote wheel (B by default): up to eight emotes in a ring around the middle of the screen. Like Lunar's,
- * hold the key, point at an emote and let go to play it; or tap the key and click one. The scroll wheel turns
- * the page when there are more. Which emotes are on it is picked in the
- * Wardrobe's Emotes list. Opened while gliding with an elytra it is the elytra wheel, with its own emotes, which
- * play until you land. Drawn with plain fills and text like the settings screen.
+ * The emote wheel (B by default): eight square slots in a ring around the middle of the screen, each showing its
+ * emote's most telling pose. Like Lunar's, hold the key, point at an emote and let go to play it; or tap the key
+ * and click one. Slots start empty: click a "+" to pick an emote for it, and the gear on a slot to change it. The
+ * scroll wheel turns the page, and pages can be added. Opened while gliding with an elytra it is the elytra wheel,
+ * with its own slots, whose emotes play until you land. Drawn with plain fills and text like the settings screen.
  */
 public final class EmoteWheelScreen extends Screen {
-    private static final int PER_PAGE = 8;
-    private static final int SLOT_WIDTH = 100;
-    private static final int SLOT_HEIGHT = 26;
+    private static final int PER_PAGE = CosmeticsConfig.WHEEL_SLOTS;
+    /** The picker's tiles. */
+    private static final int TILE = 58;
+    private static final int TILE_GAP = 6;
     /** Remembered between openings. */
     private static int lastPage;
     /** Frames drawn since the game started (read by the in-game test). */
@@ -47,16 +48,28 @@ public final class EmoteWheelScreen extends Screen {
     private final long openedNanos = System.nanoTime();
     /** The elytra wheel (opened while gliding). */
     private final boolean elytra;
+    private final EmotePictures pictures = new EmotePictures();
     private Slot pointed;
 
     private final List<FlatWidget> widgets = new ArrayList<>();
-    private List<Emote> emotes = List.of();
     private int page;
     private String hovered;
+    /** The slot an emote is being picked for, or -1 while the wheel shows. */
+    private int picking = -1;
+    /** Rows of the picker scrolled past. */
+    private int pickerScroll;
+    private int pickerRows;
+    private int pickerVisibleRows;
+    private int panelX, panelY, panelW, panelH;
 
     public EmoteWheelScreen(boolean elytra) {
         super(Component.translatable(elytra ? "cosmeticsmod.emotes.elytra_title" : "cosmeticsmod.emotes.title"));
         this.elytra = elytra;
+    }
+
+    /** Emote pictures made since the game started (for the in-game test). */
+    public static int picturesMade() {
+        return EmotePictures.made;
     }
 
     /** Whether this is the elytra wheel (for the in-game test). */
@@ -76,36 +89,116 @@ public final class EmoteWheelScreen extends Screen {
     }
 
     private int pages() {
-        return Math.max(1, (emotes.size() + PER_PAGE - 1) / PER_PAGE);
+        return Emotes.pages(elytra);
+    }
+
+    /** The slot squares' side, in GUI pixels. */
+    private int slotSize() {
+        return Math.max(44, Math.min(76, Math.min(width, height) / 6));
     }
 
     @Override
     protected void init() {
         widgets.clear();
-        emotes = Emotes.wheel(elytra);
         page = Math.max(0, Math.min(lastPage, pages() - 1));
+        if (picking >= 0) {
+            initPicker();
+            return;
+        }
         int cx = width / 2;
         int cy = height / 2;
-        int radius = Math.max(60, Math.min(120, Math.min(width / 2 - SLOT_WIDTH / 2 - 8, height / 2 - SLOT_HEIGHT - 8)));
-        int first = page * PER_PAGE;
-        int count = Math.min(PER_PAGE, emotes.size() - first);
-        for (int i = 0; i < count; i++) {
+        int size = slotSize();
+        // Far enough out that neighbours (and their names) don't touch, close enough to stay on screen.
+        int radius = Math.max((int) (size * 1.55f), Math.min(150, Math.min(width / 2 - size, height / 2 - size - 14)));
+        for (int i = 0; i < PER_PAGE; i++) {
             // Clockwise from the top.
             double angle = -Math.PI / 2 + i * 2 * Math.PI / PER_PAGE;
-            int x = cx + (int) Math.round(Math.cos(angle) * radius * 1.35) - SLOT_WIDTH / 2;
-            int y = cy + (int) Math.round(Math.sin(angle) * radius) - SLOT_HEIGHT / 2;
-            add(new Slot(x, y, emotes.get(first + i), i + 1));
+            int x = cx + (int) Math.round(Math.cos(angle) * radius) - size / 2;
+            int y = cy + (int) Math.round(Math.sin(angle) * radius) - size / 2;
+            add(new Slot(x, y, size, page * PER_PAGE + i, i + 1));
         }
         if (EmotePlayer.playing() != null) {
             add(new Rows.Button(cx - 30, cy - 10, 60, 20, t("stop"), true, () -> {
                 EmotePlayer.stop();
-                onClose();
+                close();
             }));
         }
+        // Pages: turn, add one, remove an empty one.
+        int by = Math.min(height - 40, cy + radius + size / 2 + 18);
         if (pages() > 1) {
-            add(new Rows.Button(cx - 70, cy + 16, 20, 16, "<", false, () -> turn(-1)));
-            add(new Rows.Button(cx + 50, cy + 16, 20, 16, ">", false, () -> turn(1)));
+            add(new Rows.Button(cx - 60, by, 20, 16, "<", false, () -> turn(-1)));
+            add(new Rows.Button(cx + 40, by, 20, 16, ">", false, () -> turn(1)));
         }
+        add(new Rows.Button(cx + 66, by, 64, 16, t("add_page"), false, () -> {
+            if (Emotes.addPage(elytra)) {
+                lastPage = pages() - 1;
+                CosmeticsConfig.save();
+                rebuildWidgets();
+            }
+        }));
+        if (pages() > 1 && pageEmpty()) {
+            add(new Rows.Button(cx - 130, by, 64, 16, t("remove_page"), false, () -> {
+                Emotes.removePage(elytra, page);
+                lastPage = Math.max(0, page - 1);
+                CosmeticsConfig.save();
+                rebuildWidgets();
+            }));
+        }
+    }
+
+    private boolean pageEmpty() {
+        for (int i = 0; i < PER_PAGE; i++) {
+            if (Emotes.at(elytra, page * PER_PAGE + i) != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Every emote as a tile to pick from, made for this wheel first, scrolled with the mouse wheel. */
+    private void initPicker() {
+        panelW = Math.min(width - 32, 560);
+        panelH = Math.min(height - 32, 360);
+        panelX = (width - panelW) / 2;
+        panelY = (height - panelH) / 2;
+        List<Emote> all = new ArrayList<>(Emotes.all());
+        all.sort(java.util.Comparator.comparing((Emote e) -> e.elytra() != elytra));
+        int gridX = panelX + 10;
+        int gridY = panelY + 28;
+        int gridH = panelH - 28 - 34;
+        int columns = Math.max(1, (panelW - 20 + TILE_GAP) / (TILE + TILE_GAP));
+        int rowH = TILE + 12 + TILE_GAP;
+        pickerRows = (all.size() + columns - 1) / columns;
+        pickerVisibleRows = Math.max(1, gridH / rowH);
+        pickerScroll = Math.max(0, Math.min(pickerScroll, pickerRows - pickerVisibleRows));
+        int left = gridX + (panelW - 20 - (columns * (TILE + TILE_GAP) - TILE_GAP)) / 2;
+        for (int i = 0; i < all.size(); i++) {
+            int row = i / columns - pickerScroll;
+            if (row < 0 || row >= pickerVisibleRows) {
+                continue;
+            }
+            add(new Pick(left + (i % columns) * (TILE + TILE_GAP), gridY + row * rowH, all.get(i)));
+        }
+        int by = panelY + panelH - 26;
+        add(new Rows.Button(panelX + panelW - 10 - 80, by, 80, 18, t("back"), false, this::endPicking));
+        if (Emotes.at(elytra, picking) != null) {
+            add(new Rows.Button(panelX + 10, by, 110, 18, t("empty_slot"), false, () -> {
+                Emotes.assign(elytra, picking, "");
+                CosmeticsConfig.save();
+                endPicking();
+            }));
+        }
+    }
+
+    private void startPicking(int slot) {
+        picking = slot;
+        pickerScroll = 0;
+        rebuildWidgets();
+    }
+
+    private void endPicking() {
+        picking = -1;
+        rebuildWidgets();
     }
 
     private void add(FlatWidget widget) {
@@ -120,7 +213,18 @@ public final class EmoteWheelScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (pages() > 1 && scrollY != 0) {
+        if (scrollY == 0) {
+            return false;
+        }
+        if (picking >= 0) {
+            int next = Math.max(0, Math.min(pickerScroll + (scrollY > 0 ? -1 : 1), pickerRows - pickerVisibleRows));
+            if (next != pickerScroll) {
+                pickerScroll = next;
+                rebuildWidgets();
+            }
+            return true;
+        }
+        if (pages() > 1) {
             turn(scrollY > 0 ? -1 : 1);
             return true;
         }
@@ -132,19 +236,43 @@ public final class EmoteWheelScreen extends Screen {
         return false;
     }
 
+    /** Escape in the picker goes back to the wheel; otherwise it closes the wheel. */
+    @Override
+    public void onClose() {
+        if (picking >= 0) {
+            endPicking();
+            return;
+        }
+        close();
+    }
+
+    private void close() {
+        super.onClose();
+    }
+
+    @Override
+    public void removed() {
+        pictures.close();
+        super.removed();
+    }
+
     private void play(Emote emote) {
         EmotePlayer.play(emote, elytra);
-        onClose();
+        close();
     }
 
     // Letting go of the wheel key: plays the emote pointed at; held a while and pointing at nothing closes the wheel.
+    // While picking, the key does nothing.
     private boolean wheelKeyReleased() {
-        if (pointed != null) {
-            play(pointed.emote);
+        if (picking >= 0) {
+            return true;
+        }
+        if (pointed != null && pointed.emote() != null) {
+            play(pointed.emote());
             return true;
         }
         if (System.nanoTime() - openedNanos > TAP_NANOS) {
-            onClose();
+            close();
             return true;
         }
         return false;
@@ -204,53 +332,139 @@ public final class EmoteWheelScreen extends Screen {
         g.fill(0, 0, width, height, 0x700A0B0E);
         int cx = width / 2;
         int cy = height / 2;
+        if (picking >= 0) {
+            g.fill(panelX - 1, panelY - 1, panelX + panelW + 1, panelY + panelH + 1, Theme.PANEL_BORDER);
+            g.fill(panelX, panelY, panelX + panelW, panelY + panelH, Theme.PANEL);
+            g.text(font, t("pick_title", picking % PER_PAGE + 1), panelX + 10, panelY + 10, Theme.TEXT);
+            if (pickerRows > pickerVisibleRows) {
+                String rows = (pickerScroll + 1) + "-" + Math.min(pickerRows, pickerScroll + pickerVisibleRows) + " / "
+                        + pickerRows;
+                g.text(font, rows, panelX + panelW - 10 - font.width(rows), panelY + 10, Theme.TEXT_FAINT);
+            }
+            for (FlatWidget widget : widgets) {
+                drawWidget(widget, g, mouseX, mouseY, partialTick);
+            }
+            if (Emotes.all().isEmpty()) {
+                g.centeredText(font, t("none"), cx, cy - font.lineHeight / 2, Theme.TEXT_DIM);
+            }
+            return;
+        }
         hovered = null;
         pointed = null;
         for (FlatWidget widget : widgets) {
             drawWidget(widget, g, mouseX, mouseY, partialTick);
             if (widget instanceof Slot slot && slot.isMouseOver(mouseX, mouseY)) {
-                hovered = Emotes.name(slot.emote);
                 pointed = slot;
+                hovered = slot.emote() != null ? Emotes.name(slot.emote()) : t("add");
             }
         }
-        if (emotes.isEmpty()) {
-            g.centeredText(font, t("none"), cx, cy - font.lineHeight / 2, Theme.TEXT_DIM);
-        } else if (EmotePlayer.playing() == null) {
+        if (EmotePlayer.playing() == null) {
             String middle = hovered != null ? hovered : title.getString();
             g.centeredText(font, middle, cx, cy - font.lineHeight / 2, hovered != null ? Theme.TEXT : Theme.TEXT_DIM);
         }
         if (pages() > 1) {
-            g.centeredText(font, (page + 1) + " / " + pages(), cx, cy + 20, Theme.TEXT_DIM);
+            int size = slotSize();
+            int radius = Math.max((int) (size * 1.55f), Math.min(150, Math.min(width / 2 - size, height / 2 - size - 14)));
+            int by = Math.min(height - 40, cy + radius + size / 2 + 18);
+            g.centeredText(font, (page + 1) + " / " + pages(), cx, by + 4, Theme.TEXT_DIM);
         }
         g.centeredText(font, t("hint"), cx, height - font.lineHeight - 8, Theme.TEXT_FAINT);
     }
 
-    /** One emote on the wheel. */
+    /** A "+" made of two bars, for an empty slot. */
+    private static void plus(Canvas g, int cx, int cy, int arm, int color) {
+        g.fill(cx - arm, cy - 1, cx + arm + 1, cy + 2, color);
+        g.fill(cx - 1, cy - arm, cx + 2, cy + arm + 1, color);
+    }
+
+    /** One slot of the wheel: an emote's picture and name, or a "+" to fill it. */
     private final class Slot extends FlatWidget {
-        private final Emote emote;
+        private static final int GEAR = 12;
+        private final int index;
         private final String number;
 
-        Slot(int x, int y, Emote emote, int number) {
-            super(x, y, SLOT_WIDTH, SLOT_HEIGHT, Component.literal(Emotes.name(emote)));
-            this.emote = emote;
+        Slot(int x, int y, int size, int index, int number) {
+            super(x, y, size, size, Component.literal(""));
+            this.index = index;
             this.number = Integer.toString(number);
+        }
+
+        Emote emote() {
+            return Emotes.at(elytra, index);
+        }
+
+        private boolean onGear(double mouseX, double mouseY) {
+            return mouseX >= getX() + getWidth() - GEAR - 2 && mouseY < getY() + GEAR + 2;
         }
 
         @Override
         protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
-            boolean playing = EmotePlayer.playing() == emote;
+            Emote emote = emote();
+            boolean playing = emote != null && EmotePlayer.playing() == emote;
             int border = hovered ? Theme.ACCENT_HOVER : playing ? Theme.GOOD : Theme.PANEL_BORDER;
             rect(g, getX() - 1, getY() - 1, getWidth() + 2, getHeight() + 2, border);
             rect(g, getX(), getY(), getWidth(), getHeight(), hovered ? Theme.TRACK_HOVER : Theme.PANEL);
-            int ty = getY() + (getHeight() - font.lineHeight) / 2 + 1;
-            text(g, font, number, getX() + 5, ty, Theme.TEXT_FAINT);
-            g.centeredText(font, fit(font, Emotes.name(emote), getWidth() - 24), getX() + getWidth() / 2 + 4, ty,
+            int cx = getX() + getWidth() / 2;
+            if (emote == null) {
+                int cy = getY() + getHeight() / 2 - 4;
+                plus(g, cx, cy, Math.max(5, getWidth() / 7), hovered ? Theme.ACCENT_HOVER : Theme.TEXT_FAINT);
+                g.centeredText(font, t("add"), cx, getY() + getHeight() - font.lineHeight - 3,
+                        hovered ? Theme.TEXT : Theme.TEXT_FAINT);
+                return;
+            }
+            pictures.draw(g, emote, getX() + 1, getY() + 1, getWidth() - 2);
+            text(g, font, number, getX() + 3, getY() + 3, Theme.TEXT_FAINT);
+            if (hovered) {
+                text(g, font, "\u2699", getX() + getWidth() - GEAR, getY() + 2,
+                        onGear(mouseX, mouseY) ? Theme.ACCENT_HOVER : Theme.TEXT_DIM);
+            }
+            // The name under the square.
+            g.centeredText(font, fit(font, Emotes.name(emote), getWidth() + 24), cx, getY() + getHeight() + 3,
                     hovered ? Theme.TEXT : Theme.TEXT_DIM);
         }
 
         @Override
         protected void pressed(double mouseX, double mouseY) {
-            play(emote);
+            Emote emote = emote();
+            if (emote == null || onGear(mouseX, mouseY)) {
+                startPicking(index);
+            } else {
+                play(emote);
+            }
+        }
+    }
+
+    /** One emote in the picker: clicking puts it in the slot being filled. */
+    private final class Pick extends FlatWidget {
+        private final Emote emote;
+
+        Pick(int x, int y, Emote emote) {
+            super(x, y, TILE, TILE, Component.literal(Emotes.name(emote)));
+            this.emote = emote;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            boolean current = Emotes.at(elytra, picking) == emote;
+            int border = hovered ? Theme.ACCENT_HOVER : current ? Theme.ACCENT : Theme.PANEL_BORDER;
+            rect(g, getX() - 1, getY() - 1, getWidth() + 2, getHeight() + 2, border);
+            rect(g, getX(), getY(), getWidth(), getHeight(), hovered ? Theme.TRACK_HOVER : Theme.TILE);
+            pictures.draw(g, emote, getX() + 1, getY() + 1, getWidth() - 2);
+            g.centeredText(font, fit(font, Emotes.name(emote), TILE + TILE_GAP - 2), getX() + getWidth() / 2,
+                    getY() + getHeight() + 2, hovered ? Theme.TEXT : Theme.TEXT_DIM);
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            // An emote is on a wheel once: from its old slot to this one.
+            for (int i = 0; i < Emotes.slots(elytra).size(); i++) {
+                if (i != picking && Emotes.slots(elytra).get(i).equals(emote.id())) {
+                    Emotes.assign(elytra, i, "");
+                }
+            }
+            Emotes.assign(elytra, picking, emote.id());
+            CosmeticsConfig.save();
+            endPicking();
         }
     }
 }

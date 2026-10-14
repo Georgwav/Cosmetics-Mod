@@ -34,7 +34,7 @@ public final class CosmeticsConfig {
      * 2 made capes override the vanilla cape.
      */
     public int configVersion;
-    static final int CONFIG_VERSION = 2;
+    static final int CONFIG_VERSION = 3;
 
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
@@ -85,13 +85,45 @@ public final class CosmeticsConfig {
     public EmoteCamera emoteCamera = EmoteCamera.FRONT;
     /** Walking, jumping, sneaking or getting hurt stops an emote. */
     public boolean emoteStopOnMove = true;
-    /** The emotes on the emote wheel, in order. Empty puts every emote on it. */
-    public List<String> emoteWheel = new ArrayList<>();
     /**
-     * The emotes on the elytra wheel (the emote wheel opened while gliding), in order. Empty puts the emotes made
-     * for flying on it.
+     * The emote wheel's slots, {@link #WHEEL_SLOTS} to a page, each an emote id or "" for an empty slot. Starts as
+     * one empty page; you fill it from the wheel.
      */
+    public List<String> emoteWheelSlots = emptyPage();
+    /** The elytra wheel's slots (the emote wheel opened while gliding), like {@link #emoteWheelSlots}. */
+    public List<String> elytraWheelSlots = emptyPage();
+    /** Before config version 3: the emotes on each wheel, in order. Read once into the slots. */
+    @Deprecated
+    public List<String> emoteWheel = new ArrayList<>();
+    @Deprecated
     public List<String> elytraEmoteWheel = new ArrayList<>();
+
+    /** Slots on one page of an emote wheel. */
+    public static final int WHEEL_SLOTS = 8;
+    /** Most pages a wheel can have. */
+    public static final int MAX_WHEEL_PAGES = 20;
+
+    private static List<String> emptyPage() {
+        return new ArrayList<>(java.util.Collections.nCopies(WHEEL_SLOTS, ""));
+    }
+
+    /**
+     * {@code slots} as whole pages: nulls are empty slots, the list is padded to a full page (at least one) and cut
+     * at {@link #MAX_WHEEL_PAGES}.
+     */
+    static List<String> wheelPages(List<String> slots) {
+        List<String> result = new ArrayList<>();
+        if (slots != null) {
+            for (String id : slots) {
+                result.add(id == null ? "" : id);
+            }
+        }
+        int pages = Math.max(1, Math.min(MAX_WHEEL_PAGES, (result.size() + WHEEL_SLOTS - 1) / WHEEL_SLOTS));
+        while (result.size() < pages * WHEEL_SLOTS) {
+            result.add("");
+        }
+        return new ArrayList<>(result.subList(0, pages * WHEEL_SLOTS));
+    }
 
     /** Where the camera goes while you emote: in front of you, behind you, or nowhere (it stays as it is). */
     public enum EmoteCamera { FRONT, BACK, UNCHANGED }
@@ -393,6 +425,13 @@ public final class CosmeticsConfig {
             // Files from before capes overrode the vanilla cape by default still say DEFER for them.
             slotPriority.put(CosmeticSlot.CAPE, SlotPriority.OVERRIDE);
         }
+        if (configVersion < 3) {
+            // The wheels were lists (empty: every emote); now they are slots, empty until you fill them.
+            emoteWheelSlots = cleanIds(emoteWheel);
+            elytraWheelSlots = cleanIds(elytraEmoteWheel);
+        }
+        emoteWheel = new ArrayList<>();
+        elytraEmoteWheel = new ArrayList<>();
         configVersion = CONFIG_VERSION;
         if (equipped == null) {
             equipped = new LinkedHashMap<>();
@@ -407,8 +446,8 @@ public final class CosmeticsConfig {
         if (emoteCamera == null) {
             emoteCamera = EmoteCamera.FRONT;
         }
-        emoteWheel = cleanIds(emoteWheel);
-        elytraEmoteWheel = cleanIds(elytraEmoteWheel);
+        emoteWheelSlots = wheelPages(emoteWheelSlots);
+        elytraWheelSlots = wheelPages(elytraWheelSlots);
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }

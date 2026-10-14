@@ -68,52 +68,79 @@ public final class Emotes {
         return emotes.get(id);
     }
 
-    /**
-     * The emotes on a wheel, in order: the ones picked in the Wardrobe, or by default every emote (the emote wheel)
-     * or the emotes made for flying (the elytra wheel, which falls back to every emote when none are).
-     */
-    public static List<Emote> wheel(boolean elytra) {
-        List<String> picked = picked(elytra);
-        if (picked.isEmpty()) {
-            if (elytra) {
-                List<Emote> flying = emotes.values().stream().filter(Emote::elytra).toList();
-                if (!flying.isEmpty()) {
-                    return flying;
-                }
-            }
-            return List.copyOf(emotes.values());
-        }
-        List<Emote> wheel = new ArrayList<>();
-        for (String id : picked) {
-            Emote emote = emotes.get(id);
-            if (emote != null) {
-                wheel.add(emote);
-            }
-        }
-        return wheel;
-    }
-
-    /** Whether {@code id} is on a wheel. */
-    public static boolean onWheel(String id, boolean elytra) {
-        return wheel(elytra).stream().anyMatch(e -> e.id().equals(id));
-    }
-
-    /** Puts {@code id} on a wheel or takes it off. */
-    public static void setOnWheel(String id, boolean elytra, boolean on) {
-        List<String> picked = picked(elytra);
-        if (picked.isEmpty()) {
-            // The default until now: start from what the wheel showed.
-            wheel(elytra).forEach(e -> picked.add(e.id()));
-        }
-        picked.remove(id);
-        if (on) {
-            picked.add(id);
-        }
-    }
-
-    private static List<String> picked(boolean elytra) {
+    /** A wheel's slots, {@link CosmeticsConfig#WHEEL_SLOTS} to a page: emote ids, "" for empty. Live; edit freely. */
+    public static List<String> slots(boolean elytra) {
         CosmeticsConfig config = CosmeticsConfig.get();
-        return elytra ? config.elytraEmoteWheel : config.emoteWheel;
+        return elytra ? config.elytraWheelSlots : config.emoteWheelSlots;
+    }
+
+    /** How many pages a wheel has. */
+    public static int pages(boolean elytra) {
+        return Math.max(1, slots(elytra).size() / CosmeticsConfig.WHEEL_SLOTS);
+    }
+
+    /** The emote in a slot, or null when the slot is empty (or names an emote that isn't loaded). */
+    public static Emote at(boolean elytra, int slot) {
+        List<String> slots = slots(elytra);
+        return slot >= 0 && slot < slots.size() ? emotes.get(slots.get(slot)) : null;
+    }
+
+    /** Puts {@code id} in a slot; null or "" empties it. */
+    public static void assign(boolean elytra, int slot, String id) {
+        List<String> slots = slots(elytra);
+        if (slot >= 0 && slot < slots.size()) {
+            slots.set(slot, id == null ? "" : id);
+        }
+    }
+
+    /** Adds an empty page at the end; false when the wheel has as many as it may. */
+    public static boolean addPage(boolean elytra) {
+        List<String> slots = slots(elytra);
+        if (slots.size() / CosmeticsConfig.WHEEL_SLOTS >= CosmeticsConfig.MAX_WHEEL_PAGES) {
+            return false;
+        }
+        for (int i = 0; i < CosmeticsConfig.WHEEL_SLOTS; i++) {
+            slots.add("");
+        }
+        return true;
+    }
+
+    /** Removes a page and its slots; the last page stays (emptied). */
+    public static void removePage(boolean elytra, int page) {
+        List<String> slots = slots(elytra);
+        int from = page * CosmeticsConfig.WHEEL_SLOTS;
+        if (from < 0 || from >= slots.size()) {
+            return;
+        }
+        if (slots.size() <= CosmeticsConfig.WHEEL_SLOTS) {
+            java.util.Collections.fill(slots, "");
+            return;
+        }
+        slots.subList(from, from + CosmeticsConfig.WHEEL_SLOTS).clear();
+    }
+
+    /** Whether {@code id} is in one of a wheel's slots. */
+    public static boolean onWheel(String id, boolean elytra) {
+        return slots(elytra).contains(id);
+    }
+
+    /** Puts {@code id} in a wheel's first empty slot (on a new page when they are full), or takes it off. */
+    public static void setOnWheel(String id, boolean elytra, boolean on) {
+        List<String> slots = slots(elytra);
+        if (!on) {
+            slots.replaceAll(each -> each.equals(id) ? "" : each);
+            return;
+        }
+        if (slots.contains(id)) {
+            return;
+        }
+        int empty = slots.indexOf("");
+        if (empty < 0 && addPage(elytra)) {
+            empty = slots.indexOf("");
+        }
+        if (empty >= 0) {
+            slots.set(empty, id);
+        }
     }
 
     /**

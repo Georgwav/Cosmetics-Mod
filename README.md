@@ -78,18 +78,21 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 ### Emotes
 
 Hold **B** (the "Emote wheel" key in Controls), point at an emote on the wheel and let go, or tap B and click
-one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking or getting hurt stops it, as do
+one: your player plays it and the camera moves in front of you. The wheel has eight square slots, each with a
+picture of its emote's best pose. It starts empty: click a **+** to pick an emote for that slot, and the gear on
+a slot to change or empty it. **+ Page** adds another page of eight (scroll to turn pages); an empty page can be
+removed. Walking, jumping, sneaking or getting hurt stops it, as do
 attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
 are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud.
-Pick what's on each wheel in Wardrobe → Emotes ("Wheel +/-", "Elytra +/-"). Until you pick, the elytra wheel
-has the emotes made for flying.
+Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
+emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
 - **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
   plus Cloud Rider (stand on a cloud and surf) and Cloud Sit for flying. Cloud Rider, Cloud Sit, wave, cheer,
-  dance, dab, salute, spin and T-pose are on the elytra wheel.
+  dance, dab, salute, spin and T-pose are made for the elytra wheel.
 - **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
   (Bedrock animation files) and Emotecraft emote files both work. See
   [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes).
@@ -106,7 +109,7 @@ repaired on load.
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`, `AURA`, `PET`, `ARM`, `FEET`). |
 | `particles` / `particleDensity` / `ownParticlesInFirstPerson` | `true` / `1.0` / `true` | Particle cosmetics (auras, trails) on or off, how many (0 to 2), and your own in first person. |
 | `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
-| `emoteWheel` / `elytraEmoteWheel` | `[]` | The emote ids on the emote wheel and on the elytra wheel (opened while gliding), in order. Empty puts every emote on the emote wheel, and the emotes made for flying on the elytra wheel. |
+| `emoteWheelSlots` / `elytraWheelSlots` | one page of `""` | The slots of the emote wheel and of the elytra wheel (opened while gliding), eight to a page: an emote id, or `""` for an empty slot. Older files' `emoteWheel` / `elytraEmoteWheel` lists are moved into the slots once. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |

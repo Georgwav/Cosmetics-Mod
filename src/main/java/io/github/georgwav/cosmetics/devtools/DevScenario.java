@@ -85,6 +85,7 @@ public final class DevScenario {
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
+    private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
     private double[] groundPosition;
     private int wheelFramesAtStart;
@@ -204,8 +205,12 @@ public final class DevScenario {
                     for (CosmeticSlot slot : CosmeticSlot.values()) {
                         config.slotVisible.put(slot, true);
                     }
-                    // The emote wheel, then an emote on the player.
+                    // The emote wheel (a few emotes in its slots, the rest empty), then an emote on the player.
+                    for (String name : new String[]{"wave", "dance", "dab", "cheer", "salute"}) {
+                        Emotes.setOnWheel(CosmeticsMod.MOD_ID + ":" + name, false, true);
+                    }
                     wheelFramesAtStart = EmoteWheelScreen.framesRendered;
+                    wheelPicturesAtStart = EmoteWheelScreen.picturesMade();
                     ScreenOpener.open(new EmoteWheelScreen(false));
                     enter(Phase.EMOTE_WHEEL);
                     writeMarker("ui_emote_wheel");
@@ -217,9 +222,14 @@ public final class DevScenario {
                     if (frames <= 0) {
                         failures.add("the emote wheel never rendered");
                     }
+                    int pictures = EmoteWheelScreen.picturesMade() - wheelPicturesAtStart;
+                    if (pictures <= 0) {
+                        failures.add("the emote wheel drew no emote pictures");
+                    }
                     JsonObject emote = new JsonObject();
                     emote.addProperty("loaded", Emotes.all().size());
                     emote.addProperty("wheelFrames", frames);
+                    emote.addProperty("wheelPictures", pictures);
                     phases.add("emote", emote);
                     if (Emotes.all().size() < BUNDLED_EMOTES) {
                         failures.add("only " + Emotes.all().size() + " of the " + BUNDLED_EMOTES + " bundled emotes loaded");

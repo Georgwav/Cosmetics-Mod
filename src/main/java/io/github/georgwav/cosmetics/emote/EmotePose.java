@@ -21,7 +21,47 @@ public final class EmotePose {
     private static final Emote.Bone[] BONES = {Emote.Bone.HEAD, Emote.Bone.BODY, Emote.Bone.RIGHT_ARM,
             Emote.Bone.LEFT_ARM, Emote.Bone.RIGHT_LEG, Emote.Bone.LEFT_LEG};
 
+    /** Where the vanilla player model has each part at rest, {x, y, z} in pixels. */
+    public static final float[][] REST = {{0f, 0f, 0f}, {0f, 0f, 0f}, {-5f, 2f, 0f}, {5f, 2f, 0f}, {-1.9f, 12f, 0f},
+            {1.9f, 12f, 0f}};
+    /** Moments looked at when picking an emote's best one. */
+    private static final int SAMPLES = 48;
+
     private EmotePose() {
+    }
+
+    /** The six parts of a player standing still, posed for {@code emote} at {@code time} seconds. */
+    public static float[][] posed(Emote emote, float time) {
+        float[][] parts = new float[PARTS][Emote.CHANNELS];
+        for (int p = 0; p < PARTS; p++) {
+            System.arraycopy(REST[p], 0, parts[p], 0, 3);
+        }
+        apply(emote, time, 1f, parts, REST);
+        return parts;
+    }
+
+    /**
+     * The moment that shows the emote best, for its picture: where the pose is furthest from standing still (the
+     * parts' turns, plus how far they moved).
+     */
+    public static float bestTime(Emote emote) {
+        float best = 0f;
+        float bestScore = -1f;
+        for (int i = 0; i <= SAMPLES; i++) {
+            float time = emote.length() * i / SAMPLES;
+            float[][] parts = posed(emote, time);
+            float score = 0f;
+            for (int p = 0; p < PARTS; p++) {
+                for (int c = 0; c < 3; c++) {
+                    score += Math.abs(parts[p][3 + c]) + Math.abs(parts[p][c] - REST[p][c]) / 8f;
+                }
+            }
+            if (score > bestScore + 1.0e-4f) {
+                bestScore = score;
+                best = time;
+            }
+        }
+        return best;
     }
 
     /**
