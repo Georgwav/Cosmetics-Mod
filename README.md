@@ -159,6 +159,15 @@ repaired on load.
 For your own use only: bundle a resource pack, such as one the [importer](tools/badlion-import/README.md)
 writes into your private `cosmetics-personal` repository, into the mod jar.
 
+**The quickest way, no build tools:** the importer's `bundle` command copies any number of packs into a copy of a
+built jar (see the [importer's README](tools/badlion-import/README.md#bundle-your-packs-inside-the-mods-jar)):
+
+```
+badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\Users\Pc\AppData\Roaming\.minecraft\mods
+```
+
+**Building it yourself** (needs Java 21, and 25 for 26.x):
+
 ```
 ./gradlew build -Pcosmetics.bundleDir=../cosmetics-personal/packs/badlion-import
 ```

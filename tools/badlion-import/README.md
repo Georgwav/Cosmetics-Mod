@@ -121,7 +121,7 @@ Running it again into the same folder only re-encodes textures that changed, and
 earlier run that this one doesn't write. It refuses a folder that isn't empty and wasn't written by it.
 
 **Using the pack.** Put the output folder (or a link to it) in `.minecraft\resourcepacks` and enable it in
-Options → Resource Packs. Or bundle it into a personal build with `-Pcosmetics.bundleDir`. Cosmetics appear in
+Options → Resource Packs. Or put it into the mod's jar with [`bundle`](#bundle-your-packs-inside-the-mods-jar). Cosmetics appear in
 the Wardrobe under their Badlion names, with ids like `blc_import:cape_12_red_cape`.
 
 `import-report.md` in the pack lists what was converted, what was skipped and why, cosmetics over the mod's
@@ -223,6 +223,28 @@ and why, and every **emote-like file it couldn't read** (a path with "emote" in 
 `.emotecraft`): send that list to get those supported. Running it again on the same pack folder replaces its
 emotes. Packs this tool wrote are passed over wherever they are (an earlier one copied into `resourcepacks`), so
 emotes aren't found twice. Copy the pack into `resourcepacks` and turn it on; the emotes appear in Wardrobe → Emotes.
+
+### `bundle`: your packs inside the mod's jar
+
+Instead of copying packs into `resourcepacks` and turning them on, put them into a copy of the mod's jar: one file
+in your `mods` folder with all your cosmetics and emotes.
+
+```powershell
+badlion-import bundle C:\Users\Pc\Downloads\cosmeticsmod-<version>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk C:\badlion-packs\emotes-norisk --out C:\Users\Pc\AppData\Roaming\.minecraft\mods
+```
+
+- The first argument is the mod's jar for your Minecraft version (from a build's `jars` download), then any number
+  of pack folders written by `import` and `emotes`.
+- It writes `cosmeticsmod-<version>+mc<minecraft>-personal.jar`: next to the mod's jar, or into the folder (or as
+  the file) `--out` names. Never into this repository: like the packs, it is for your own use.
+- Only each pack's `assets/` goes in; the mod reads it from the jar exactly as from the pack. Where two packs have
+  the same file the later one's is taken (as the higher resource pack's would be), and listed; translations
+  (`lang/*.json`) are merged.
+- A pack file where the mod has one of its own is refused, so the mod itself is never changed.
+- Bundling into a `-personal` jar again (a newer pack, or more packs) replaces what was bundled before. After a mod
+  update, bundle into the new version's jar.
+- Keep **one** copy of the mod in `mods`: take the plain jar out (it warns if it's next to the one it wrote), and
+  the packs can come out of `resourcepacks` too.
 
 #### Settings file
 

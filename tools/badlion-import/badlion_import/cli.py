@@ -1,4 +1,4 @@
-"""Command line: `list`, `inspect`, `show`, `survey`, `import` and `emotes`."""
+"""Command line: `list`, `inspect`, `show`, `survey`, `import`, `emotes` and `bundle`."""
 
 from __future__ import annotations
 
@@ -311,6 +311,45 @@ def cmd_emotes(args) -> int:
     return 0
 
 
+def cmd_bundle(args) -> int:
+    """Your packs inside a copy of the mod's jar (see bundle.py)."""
+    from . import bundle
+
+    jar = Path(args.jar)
+    if not jar.is_file():
+        print(f"error: {jar} is not a file", file=sys.stderr)
+        return 2
+    packs = [Path(p) for p in args.packs]
+    for folder in packs:
+        if not folder.is_dir():
+            print(f"error: {folder} is not a folder", file=sys.stderr)
+            return 2
+    output = Path(args.out) if args.out else bundle.default_output(jar)
+    if output.is_dir():
+        output = output / bundle.default_output(jar).name
+    if output.suffix != ".jar":
+        print(f"error: {output} should end in .jar", file=sys.stderr)
+        return 2
+    for folder in packs:
+        refuse_output(output, folder)
+    if output.resolve() == jar.resolve() and not jar.stem.endswith(bundle.SUFFIX):
+        print(f"error: {jar} is the mod's own jar; write the personal one next to it (leave out --out)",
+              file=sys.stderr)
+        return 2
+    result = bundle.bundle(jar, packs, output)
+    print(f"Wrote {output}: {result.files} file(s) from {len(result.packs)} pack(s)"
+          + (f", {len(result.merged)} translation file(s) merged" if result.merged else "")
+          + (f", {result.dropped} file(s) of the earlier bundle replaced" if result.dropped else ""))
+    for path, pack, earlier in result.replaced[:10]:
+        print(f"  {path}: taken from {pack} (also in {earlier})")
+    if len(result.replaced) > 10:
+        print(f"  ... and {len(result.replaced) - 10} more file(s) in two packs")
+    for copy in bundle.other_copies(output):
+        print(f"warning: {copy} is the mod too. Keep only one copy in your mods folder, or the game won't start.",
+              file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="badlion-import", description=__doc__)
     parser.add_argument("--version", action="version", version=__version__)
@@ -375,6 +414,15 @@ def main(argv: list[str] | None = None) -> int:
                                   "repository")
     p.add_argument("--quiet", action="store_true", help="no progress messages")
     p.set_defaults(func=cmd_emotes)
+
+    p = sub.add_parser("bundle", help="put your packs (cosmetics and emotes) into a copy of the mod's jar, so no "
+                                      "resource packs are needed; for your own use, named -personal")
+    p.add_argument("jar", help="the mod's jar for your Minecraft version (from the build's jars download)")
+    p.add_argument("packs", nargs="+", help="pack folders written by import or emotes (later ones win where two have "
+                                            "the same file)")
+    p.add_argument("--out", help="the jar to write, or a folder (e.g. your mods folder) to write it into (default: "
+                                 "next to the mod's jar, named -personal); not in this repository")
+    p.set_defaults(func=cmd_bundle)
 
     args = parser.parse_args(argv)
     try:
