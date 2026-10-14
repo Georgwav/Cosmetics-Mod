@@ -163,7 +163,7 @@ writes into your private `cosmetics-personal` repository, into the mod jar.
 built jar (see the [importer's README](tools/badlion-import/README.md#bundle-your-packs-inside-the-mods-jar)):
 
 ```
-badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\Users\Pc\AppData\Roaming\.minecraft\mods
+badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\badlion-packs
 ```
 
 **Building it yourself** (needs Java 21, and 25 for 26.x):
