@@ -337,9 +337,13 @@ def cmd_bundle(args) -> int:
               file=sys.stderr)
         return 2
     result = bundle.bundle(jar, packs, output)
-    print(f"Wrote {output}: {result.files} file(s) from {len(result.packs)} pack(s)"
+    print(f"Wrote {output}: {result.files} file(s) from {len(result.packs)} pack(s), {result.cosmetics} cosmetic(s) "
+          f"and {result.emotes} emote file(s)"
           + (f", {len(result.merged)} translation file(s) merged" if result.merged else "")
           + (f", {result.dropped} file(s) of the earlier bundle replaced" if result.dropped else ""))
+    if result.emotes == 0:
+        print("warning: none of these packs has emotes, so the emote wheel only has the mod's own. Add your emotes "
+              "pack (the folder `badlion-import emotes` wrote) to the packs.", file=sys.stderr)
     for path, pack, earlier in result.replaced[:10]:
         print(f"  {path}: taken from {pack} (also in {earlier})")
     if len(result.replaced) > 10:

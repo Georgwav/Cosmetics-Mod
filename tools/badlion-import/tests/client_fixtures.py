@@ -223,6 +223,13 @@ def build_norisk(root: Path) -> Path:
         128, 128))
     _image(flag / "wm_flag.png", (128, 128))
     _image(flag / "textures" / "ger.png", (128, 128), color=(0, 0, 0, 255))
+    # An aura NoRisk draws itself (as particles): its model is only empty bones, so it is left out.
+    aura = cosmetics / "aura" / "enchant_aura"
+    _json(aura / "enchant_aura.norisk.json", _norisk_descriptor("Enchant Aura", "AURA", "enchant_aura"))
+    _json(aura / "enchant_aura.geo.json", _geo([{"name": "root", "pivot": [0, 0, 0]},
+                                                 {"name": "glyphs", "parent": "root", "pivot": [0, 12, 0]},
+                                                 {"name": "locator_bone", "parent": "root", "pivot": [0, 24, 0]}]))
+    _image(aura / "enchant_aura.png", (16, 16))
 
     # The shop's own files are no cosmetics.
     _json(nrc / "shop" / "ranks" / "30_days_nrc_plus.norisk.json",

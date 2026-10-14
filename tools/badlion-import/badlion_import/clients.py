@@ -159,6 +159,16 @@ def _geometry(geo: dict) -> dict:
     return geos[0]
 
 
+def _has_shapes(geometry: dict) -> bool:
+    """Whether a Bedrock model has anything to draw: a bone with cubes or a mesh (poly_mesh)."""
+    bones = geometry.get("bones") if isinstance(geometry.get("bones"), list) else []
+    return any(isinstance(b, dict) and ((isinstance(b.get("cubes"), list) and b["cubes"])
+                                        or isinstance(b.get("poly_mesh"), dict)) for b in bones)
+
+
+NO_SHAPES = "its model has no shapes, only empty bones (the client draws this one itself, e.g. as particles); left out"
+
+
 def _vec(value, default=(0.0, 0.0, 0.0)) -> list[float]:
     if isinstance(value, list) and len(value) == 3 and all(isinstance(v, (int, float)) for v in value):
         return [float(v) for v in value]
@@ -397,6 +407,8 @@ def _lunar(gek: Path, root: Path, index: _Index, used: set[str]) -> Found:
         raise ValueError(f"no model file {model_ref}")
     geo = _read_json(geo_path)
     geometry = _geometry(geo)
+    if not _has_shapes(geometry):
+        raise ValueError(NO_SHAPES)
     texture_ref = data.get("texture") or f"{stem}.webp"
     texture_path = index.find(gek, str(texture_ref), extensions=(".webp", ".png"))
     if texture_path is None:
@@ -550,6 +562,8 @@ def _norisk(descriptor: Path, root: Path, used: set[str]) -> list[Found]:
         raise ValueError(f"{ctype.lower() or 'cosmetic'} without a model ({stem}.geo.json)")
     geo = _read_json(geo_path)
     geometry = _geometry(geo)
+    if not _has_shapes(geometry):
+        raise ValueError(NO_SHAPES)
     notes: list[str] = []
     slot, kind = NORISK_TYPES.get(ctype, ("body", None))
     if kind is None:
