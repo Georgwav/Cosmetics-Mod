@@ -198,6 +198,7 @@
   "cosmeticsmod.screen.emote_camera.back": "Behind you",
   "cosmeticsmod.screen.emote_camera.unchanged": "Don't move it",
   "cosmeticsmod.screen.emote_stop_on_move": "Moving stops the emote",
+  "cosmeticsmod.screen.elytra_emote_rockets": "Rockets keep elytra emotes going",
 
   "cosmeticsmod.screen.render_distance": "Render distance",
   "cosmeticsmod.screen.shadows": "Cast shadows with shaders",

@@ -91,7 +91,8 @@ removed. Walking, jumping, sneaking or getting hurt stops it, as do
 attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
-emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
+emotes. One plays until you land; moving doesn't stop it, nor does firing rockets (right-click) to fly on (Display →
+"Rockets keep elytra emotes going", on by default), and the camera stays where it is. While it plays you
 are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud;
 your elytra isn't drawn meanwhile and your cape shows instead. During other emotes an elytra stays on your posed
 body, as armour does, and it lies on your back like a cape until you spread it to glide (Display → "Elytra close
@@ -120,6 +121,7 @@ repaired on load.
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`, `AURA`, `PET`, `ARM`, `FEET`). |
 | `particles` / `particleDensity` / `ownParticlesInFirstPerson` | `true` / `1.0` / `true` | Particle cosmetics (auras, trails) on or off, how many (0 to 2), and your own in first person. |
 | `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
+| `elytraEmoteRockets` | `true` | Using an item (right-click: a firework rocket) doesn't stop an elytra emote, so you can fly on with rockets while it plays; attacking or sneaking still stops it. Off: anything you do stops it. |
 | `emoteWheelSlots` / `elytraWheelSlots` | one page of `""` | The slots of the emote wheel and of the elytra wheel (opened while gliding), eight to a page: an emote id, or `""` for an empty slot. Older files' `emoteWheel` / `elytraEmoteWheel` lists are moved into the slots once. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |

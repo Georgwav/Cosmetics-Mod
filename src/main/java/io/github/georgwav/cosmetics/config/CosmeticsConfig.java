@@ -97,6 +97,11 @@ public final class CosmeticsConfig {
     /** Walking, jumping, sneaking or getting hurt stops an emote. */
     public boolean emoteStopOnMove = true;
     /**
+     * Using an item (right-click: a firework rocket to fly on) keeps an elytra emote going; attacking or sneaking
+     * still stops it. Off: anything you do stops it.
+     */
+    public boolean elytraEmoteRockets = true;
+    /**
      * The emote wheel's slots, {@link #WHEEL_SLOTS} to a page, each an emote id or "" for an empty slot. Starts as
      * one empty page; you fill it from the wheel.
      */
@@ -529,6 +534,7 @@ public final class CosmeticsConfig {
         emotes = defaults.emotes;
         emoteCamera = defaults.emoteCamera;
         emoteStopOnMove = defaults.emoteStopOnMove;
+        elytraEmoteRockets = defaults.elytraEmoteRockets;
         maxRenderDistance = defaults.maxRenderDistance;
         renderInShadowPass = defaults.renderInShadowPass;
         shadowDistance = defaults.shadowDistance;
