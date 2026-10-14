@@ -11,6 +11,10 @@ import io.github.georgwav.cosmetics.model.SkinnedMesh;
  * Pushes a {@link BakedMesh} into a vanilla {@link VertexConsumer}. This is the only place vertices
  * are written: no custom GL buffers, no GL state, no wrapping of the consumer (Sodium requires the
  * consumer it handed out to be used directly).
+ *
+ * <p>Each vertex goes in with the one-call {@code addVertex} that vanilla's own model parts use: for the
+ * entity vertex format the buffer writes it straight to memory, instead of element by element. A shader pack's
+ * wider format falls back to the element-by-element writes, exactly as before.
  */
 public final class MeshEmitter {
     /** {@code LightTexture.FULL_BRIGHT}; a literal because the light class was renamed in 26.x. */
@@ -91,17 +95,14 @@ public final class MeshEmitter {
             for (int v = 0; v < BakedMesh.VERTICES_PER_QUAD; v++) {
                 float x = d[i], y = d[i + 1], z = d[i + 2];
                 consumer.addVertex(
-                                m00 * x + m10 * y + m20 * z + m30,
-                                m01 * x + m11 * y + m21 * z + m31,
-                                m02 * x + m12 * y + m22 * z + m32)
-                        .setColor(color)
-                        .setUv(d[i + 3], d[i + 4])
-                        .setOverlay(NO_OVERLAY)
-                        .setLight(light)
-                        .setNormal(nx, ny, nz);
+                        m00 * x + m10 * y + m20 * z + m30,
+                        m01 * x + m11 * y + m21 * z + m31,
+                        m02 * x + m12 * y + m22 * z + m32,
+                        color, d[i + 3], d[i + 4], NO_OVERLAY, light, nx, ny, nz);
                 i += BakedMesh.FLOATS_PER_VERTEX;
             }
         }
+        RenderStats.countVertices(quads * BakedMesh.VERTICES_PER_QUAD);
     }
 
     /**
@@ -135,16 +136,13 @@ public final class MeshEmitter {
                 nz /= len;
             }
             consumer.addVertex(
-                            m00 * x + m10 * y + m20 * z + m30,
-                            m01 * x + m11 * y + m21 * z + m31,
-                            m02 * x + m12 * y + m22 * z + m32)
-                    .setColor(color)
-                    .setUv(d[i + 3], d[i + 4])
-                    .setOverlay(NO_OVERLAY)
-                    .setLight(light)
-                    .setNormal(nx, ny, nz);
+                    m00 * x + m10 * y + m20 * z + m30,
+                    m01 * x + m11 * y + m21 * z + m31,
+                    m02 * x + m12 * y + m22 * z + m32,
+                    color, d[i + 3], d[i + 4], NO_OVERLAY, light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
+        RenderStats.countVertices(vertices);
     }
 
     /**
@@ -181,16 +179,13 @@ public final class MeshEmitter {
                 nz /= len;
             }
             consumer.addVertex(
-                            m00 * x + m10 * y + m20 * z + m30,
-                            m01 * x + m11 * y + m21 * z + m31,
-                            m02 * x + m12 * y + m22 * z + m32)
-                    .setColor(color)
-                    .setUv(d[i + 3], d[i + 4] + vOffset)
-                    .setOverlay(NO_OVERLAY)
-                    .setLight(light)
-                    .setNormal(nx, ny, nz);
+                    m00 * x + m10 * y + m20 * z + m30,
+                    m01 * x + m11 * y + m21 * z + m31,
+                    m02 * x + m12 * y + m22 * z + m32,
+                    color, d[i + 3], d[i + 4] + vOffset, NO_OVERLAY, light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
+        RenderStats.countVertices(vertices);
     }
 
     /**
@@ -226,15 +221,12 @@ public final class MeshEmitter {
                 nz /= len;
             }
             consumer.addVertex(
-                            m00 * x + m10 * y + m20 * z + m30,
-                            m01 * x + m11 * y + m21 * z + m31,
-                            m02 * x + m12 * y + m22 * z + m32)
-                    .setColor(color)
-                    .setUv(d[i + 3], d[i + 4] + vOffset)
-                    .setOverlay(NO_OVERLAY)
-                    .setLight(light)
-                    .setNormal(nx, ny, nz);
+                    m00 * x + m10 * y + m20 * z + m30,
+                    m01 * x + m11 * y + m21 * z + m31,
+                    m02 * x + m12 * y + m22 * z + m32,
+                    color, d[i + 3], d[i + 4] + vOffset, NO_OVERLAY, light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
+        RenderStats.countVertices(vertices);
     }
 }

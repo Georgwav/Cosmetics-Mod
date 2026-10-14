@@ -79,9 +79,6 @@ public final class CosmeticRenderer {
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
         long now = System.nanoTime();
         double seconds = (now - START_NANOS) / 1.0e9;
-        if (info.local && !shadowPass) {
-            RenderStats.localPlayerFrames++;
-        }
         int figura = -1; // looked up lazily, at most once per player per frame
 
         for (BakedCosmetic cosmetic : cosmetics) {
@@ -205,6 +202,17 @@ public final class CosmeticRenderer {
         }
     }
 
+    /**
+     * Whether this player may have anything of ours drawn: the mod and their side (yours or others') are on and they
+     * wear something. The layer asks this first, so players wearing nothing cost it next to nothing.
+     */
+    public static boolean anyToDraw(java.util.UUID player, boolean local) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        return config.enabled && !RenderGuard.isLayerDisabled()
+                && (local ? config.showOwnCosmetics : config.showOtherPlayersCosmetics)
+                && EquippedCosmetics.forPlayer(player, local).length > 0;
+    }
+
     /** Draws every layer of one cosmetic at the pose stack's current pose. */
     private static void drawLayers(PoseStack poseStack, BakedCosmetic cosmetic, int packedLight, int color,
                                    boolean glow, boolean animate, float animationSpeed, int style, float capeMotion,
@@ -269,7 +277,7 @@ public final class CosmeticRenderer {
                     // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
                     Cloth.Shape shape = cloth != null && rig == null
                             ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2], clothLag) : null;
-                    for (int copy = 0; copy < RenderStats.COPIES; copy++) {
+                    for (int copy = 0; copy < RenderStats.copies; copy++) {
                         sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime, shape);
                     }
                 } finally {

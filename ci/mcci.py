@@ -908,7 +908,43 @@ def setup_failure(args, mc, label, mode, error):
 # A cosmetic definition inside a mod jar.
 COSMETIC_FILE = re.compile(r"assets/[^/]+/cosmetics/[^/]+\.json$")
 # Benchmark numbers compared between the two builds: (key in the phase results, label, lower is better).
-BENCH_METRICS = [("cosmeticsMsPerFrame", "Cosmetics CPU ms/frame", True), ("fps", "FPS", False)]
+BENCH_METRICS = [("cosmeticsMsPerFrame", "Cosmetics CPU ms/frame", True), ("fps", "FPS", False),
+                 ("verticesPerFrame", "Vertices/frame", True)]
+
+# The benchmark draws each view at the stress load, at a normal load and with the mod off (see DevScenario).
+COST_VIEWS = [("Shaders off", "vanilla_back", "vanilla_back_normal", "vanilla_back_off"),
+              ("Shaders on", "shaders_on", "shaders_on_normal", "shaders_on_off")]
+
+
+def cost_lines(rounds, copies):
+    """
+    Markdown table of what cosmetics cost: each view's frame rate with the mod off, at a normal load (every
+    cosmetic once) and at the stress load, from benchmark runs of one build (`rounds`: each run's phases).
+    """
+    lines = []
+    for view, stress, normal, off in COST_VIEWS:
+        def values(phase, key):
+            return [r[phase][key] for r in rounds if key in r.get(phase, {})]
+        off_fps = values(off, "fps")
+        if not off_fps:
+            continue
+        base = median(off_fps)
+        for label, phase in (("off", off), ("normal load (each cosmetic once)", normal),
+                             (f"stress load (each cosmetic {copies}x)", stress)):
+            fps = values(phase, "fps")
+            if not fps:
+                continue
+            ms = values(phase, "cosmeticsMsPerFrame")
+            verts = values(phase, "verticesPerFrame")
+            change = (median(fps) - base) / base * 100 if base else 0.0
+            lines.append(f"| {view} | {label} | {median(fps):.1f} [{min(fps):.1f} to {max(fps):.1f}] | "
+                         + ("" if phase == off else f"{change:+.1f}%") + " | "
+                         + (f"{median(ms):.3f}" if ms and phase != off else "") + " | "
+                         + (f"{median(verts):,.0f}" if verts and phase != off else "") + " |")
+    if not lines:
+        return []
+    return ["| View | Cosmetics | FPS, median [min to max] | FPS vs off | Cosmetics CPU ms/frame | Vertices/frame |",
+            "|---|---|---|---|---|---|"] + lines
 
 
 def same_cosmetics(jar, reference, dest):
@@ -991,6 +1027,12 @@ def cmd_bench_ab(args):
                          f"{mb:.4g} [{min(b):.4g} to {max(b):.4g}] | {change:+.1f}% | {'yes' if overlap else 'no'} |")
             result["phases"].setdefault(phase, {})[key] = {"base": a, "head": b, "changePercent": change,
                                                            "rangesOverlap": overlap}
+    cost = cost_lines(phases["head"], max(r.get("copies", 0) for r in phases["head"][0].values()))
+    if cost:
+        lines += ["", "### What cosmetics cost, head build", "",
+                  "The same view with the mod switched off, every cosmetic drawn once, and the stress load. "
+                  "Software rendering: the percentages are what to read, and they overstate the cost on a real GPU, "
+                  "where drawing the vertices isn't done by the CPU.", ""] + cost
     text = "\n".join(lines) + "\n"
     (work / "bench-ab.md").write_text(text)
     (work / "bench-ab.json").write_text(json.dumps(result, indent=2))
@@ -1025,11 +1067,14 @@ def cmd_summarize(args):
     bench = [r for r in runs if r.get("mode") == "benchmark"]
     if bench:
         lines += ["", "## Benchmark (50x cosmetic load, software rendering: compare runs, not absolute FPS)", "",
-                  "| Minecraft | Phase | FPS | Cosmetics CPU ms/frame | Shader pack active |", "|---|---|---|---|---|"]
+                  "`_normal` phases draw every cosmetic once, `_off` phases have the mod switched off.", "",
+                  "| Minecraft | Phase | FPS | Cosmetics CPU ms/frame | Vertices/frame | Shader pack active |",
+                  "|---|---|---|---|---|---|"]
         for r in bench:
             for phase, p in r.get("phases", {}).items():
                 lines.append(f"| {r['mc']} | {phase} | {p.get('fps', 0):.1f} | "
-                             f"{p.get('cosmeticsMsPerFrame', 0):.3f} | {p.get('shaderPackInUse')} |")
+                             f"{p.get('cosmeticsMsPerFrame', 0):.3f} | {p.get('verticesPerFrame', 0):,.0f} | "
+                             f"{p.get('shaderPackInUse')} |")
     text = "\n".join(lines) + "\n"
     Path(args.output).write_text(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
