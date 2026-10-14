@@ -3,6 +3,9 @@ package io.github.georgwav.cosmetics.ui;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+//? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
+//?}
 
 /**
  * The mod's key binds. They are the game's own key mappings (Options → Controls → Key Binds), which the settings
@@ -38,12 +41,33 @@ public final class KeyBinds {
         return false;
     }
 
-    /** A keyboard key, by its key code, or by its scan code when it has none (as the game reads it). */
+    // A keyboard key pressed: by its key code, or by its scan code when it has none (as the game reads it).
+    // 26.3 keeps only key codes (one KEYBOARD type) and reads a pressed key itself.
+    //? if >=26.3 {
+    /*static InputConstants.Key keyboard(KeyEvent event) {
+        return InputConstants.getKey(event);
+    }
+
+    static InputConstants.Key keyboard(int keyCode, int scanCode) {
+        return InputConstants.Type.KEYBOARD.getOrCreate(keyCode);
+    }
+    *///?} elif >=1.21.9 {
+    static InputConstants.Key keyboard(KeyEvent event) {
+        return keyboard(event.key(), event.scancode());
+    }
+
     static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return keyCode == InputConstants.UNKNOWN.getValue()
                 ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
                 : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
     }
+    //?} else {
+    /*static InputConstants.Key keyboard(int keyCode, int scanCode) {
+        return keyCode == InputConstants.UNKNOWN.getValue()
+                ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
+                : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
+    }
+    *///?}
 
     static InputConstants.Key mouse(int button) {
         return InputConstants.Type.MOUSE.getOrCreate(button);
