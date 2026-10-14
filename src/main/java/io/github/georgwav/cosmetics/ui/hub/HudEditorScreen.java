@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * The HUD editor, over the game as it is: the HUD modules that are on, where they sit. Drag one to move it (it
  * snaps to the screen's edges and middle and to the other modules), scroll over one to resize it, right-click it
- * for its settings. The bar at the bottom switches modules on and off.
+ * for its settings. Modules in the island opens the list that switches modules on and off.
  */
 public final class HudEditorScreen extends Screen {
     private static final float DESIGN_W = 1440f;
@@ -40,6 +40,8 @@ public final class HudEditorScreen extends Screen {
 
     private final Screen parent;
     private Box dragging;
+    /** Whether the module list under the island is open: at first only when no module is on yet. */
+    private boolean showModules = Modules.hud().stream().noneMatch(HudModule::enabled);
     private float grabX;
     private float grabY;
     // The guides a dragged module snapped to, GUI pixels, or NaN.
@@ -432,7 +434,8 @@ public final class HudEditorScreen extends Screen {
         String line = any ? t("hint") : t("empty");
         String done = Component.translatable("cosmeticsmod.hub.done").getString();
         String reset = VanillaHud.moved() ? t("reset") : null;
-        float bw = ui.buttonWidth(done) + (reset != null ? ui.buttonWidth(reset) + 8f : 0f);
+        String modules = t("modules");
+        float bw = ui.buttonWidth(done) + ui.buttonWidth(modules) + 8f + (reset != null ? ui.buttonWidth(reset) + 8f : 0f);
         float textW = Math.max(ui.textWidth(name, Ui.NAME, true), ui.textWidth(line, Ui.SMALL, false));
         float w = Math.max(440f, Math.min(820f, 62f + textW + 12f + bw + 18f));
         float left = CX - w / 2f;
@@ -448,13 +451,20 @@ public final class HudEditorScreen extends Screen {
                 Modules.save();
             }) - 12f;
         }
+        right = ui.buttonRight(modules, right + 4f, top + 8f, 44f, showModules, () -> showModules = !showModules) - 12f;
         float room = right - (left + 62f);
         ui.text(ui.fit(name, room, Ui.NAME, true), left + 62f, top + 17f, Ui.TEXT, Ui.NAME, true);
         ui.text(ui.fit(line, room, Ui.SMALL, false), left + 62f, top + 34f, Ui.TEXT_DIM, Ui.SMALL, false);
     }
 
-    /** At the bottom: every HUD module, lit when on; clicking one switches it. */
+    /**
+     * Under the island, while Modules is on (and nothing is being dragged): every HUD module, lit when on; clicking
+     * one switches it. Up there it never covers the hotbar.
+     */
     private void drawBar(Ui ui) {
+        if (!showModules || dragging != null) {
+            return;
+        }
         List<HudModule> all = Modules.hud();
         float w = 4f;
         for (HudModule m : all) {
@@ -462,7 +472,7 @@ public final class HudEditorScreen extends Screen {
         }
         w = w - 6f + 4f;
         float left = CX - w / 2f;
-        float top = 744f;
+        float top = 94f;
         ui.roundRect(left - 4f, top + 8f, w + 8f, 60f, 30f, 0x30000000);
         ui.roundRect(left, top, w, 52f, 26f, 0xFF000000);
         float x = left + 4f;

@@ -117,6 +117,7 @@
   "cosmeticsmod.hud.title": "HUD editor",
   "cosmeticsmod.hud.hint": "Drag to move · scroll to resize · right-click for settings or to put a game part back",
   "cosmeticsmod.hud.empty": "Switch a module on below",
+  "cosmeticsmod.hud.modules": "Modules",
   "cosmeticsmod.hud.reset": "Reset game HUD",
   "cosmeticsmod.hud.part.hotbar": "Hotbar and experience",
   "cosmeticsmod.hud.part.health": "Health",
