@@ -1,0 +1,21 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "shine": {
+      "loop": true,
+      "animation_length": 3,
+      "bones": {
+        "gems": {
+          "position": [0, "math.sin(q.anim_time * 120) * 0.3", 0]
+        },
+        "points": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.5": {"post": [0, 3, 0], "lerp_mode": "catmullrom"},
+            "3.0": [0, 0, 0]
+          }
+        }
+      }
+    }
+  }
+}

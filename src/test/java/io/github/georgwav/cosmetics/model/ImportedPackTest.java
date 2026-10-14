@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 /**
  * Checks a resource pack written by a tool (such as tools/badlion-import) against the real parser: every cosmetic
  * loads without warnings and bakes, and every texture it names exists with the size its {@code texture_size}
- * and frame count say. Skipped unless {@code -Dcosmetics.validatePack=<pack folder>} is given (CI passes a pack
+ * and frame count say (Blockbench models: any resolution), and every model animation plays. Skipped unless {@code -Dcosmetics.validatePack=<pack folder>} is given (CI passes a pack
  * the importer made from synthetic files).
  */
 class ImportedPackTest {
@@ -38,7 +38,16 @@ class ImportedPackTest {
         }
         assertFalse(files.isEmpty(), "the pack has no cosmetics");
         CosmeticParser.FileSource packFiles = location -> Files.newInputStream(resolve(assets, location));
+        // Blockbench models and their animations, as the mod finds them: cosmetic_models/<name>.geo.json or .json.
         CosmeticParser.ModelSource models = modelId -> {
+            int colon = modelId.indexOf(':');
+            Path modelFolder = assets.resolve(modelId.substring(0, colon)).resolve("cosmetic_models");
+            for (String suffix : new String[]{".geo.json", ".json"}) {
+                Path file = modelFolder.resolve(modelId.substring(colon + 1) + suffix);
+                if (Files.isRegularFile(file)) {
+                    return Files.newBufferedReader(file);
+                }
+            }
             throw new java.io.FileNotFoundException(modelId);
         };
         for (Path file : files) {
@@ -63,8 +72,22 @@ class ImportedPackTest {
             int frames = json.has("texture_animation") ? json.getAsJsonObject("texture_animation").get("frames").getAsInt() : 1;
             BufferedImage image = ImageIO.read(resolve(assets, definition.texture()).toFile());
             assertNotNull(image, id + ": texture can't be read: " + definition.texture());
-            assertEquals(definition.textureWidth(), image.getWidth(), id + ": texture width");
-            assertEquals(definition.textureHeight() * frames, image.getHeight(), id + ": texture height (frames stacked)");
+            if (json.has("model")) {
+                // A Blockbench model's UVs are in its own texture size; the image may be any resolution of it.
+                assertEquals(0, image.getHeight() % frames, id + ": texture height (frames stacked)");
+            } else {
+                assertEquals(definition.textureWidth(), image.getWidth(), id + ": texture width");
+                assertEquals(definition.textureHeight() * frames, image.getHeight(), id + ": texture height (frames stacked)");
+            }
+            if (definition.bones() != null) {
+                // Every animation state works out (Molang included) at rest and a second in.
+                BoneRig rig = definition.bones();
+                BoneRig.Playback playback = rig.newPlayback();
+                Molang.Context queries = new Molang.Context().clear();
+                rig.pose(playback, 0.0, 1f, queries);
+                rig.pose(playback, 1.0, 1f, queries.set(Molang.Query.IS_ELYTRA_FLYING, true));
+                rig.poseStill();
+            }
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                 assertTrue(Files.exists(resolve(assets, layer.texture())), id + " references missing texture " + layer.texture());
             }

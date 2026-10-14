@@ -31,7 +31,7 @@ public final class CosmeticBaker {
     /** Parts that share a mode, texture, movement, texture animation, tinting and wing are drawn as one layer. */
     private record LayerKey(String texture, List<CosmeticDefinition.Animation> animations,
                             CosmeticDefinition.TextureAnimation textureAnimation, boolean tinted,
-                            CosmeticDefinition.WingPart wing) {
+                            CosmeticDefinition.WingPart wing, int bone) {
     }
 
     /**
@@ -51,7 +51,8 @@ public final class CosmeticBaker {
         Map<RenderMode, List<BakedCosmetic.Layer>> rigLayers = new EnumMap<>(RenderMode.class);
         for (CosmeticDefinition.Part part : definition.parts()) {
             LayerBuffers out = buffers.computeIfAbsent(part.mode(), m -> new LinkedHashMap<>())
-                    .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation(), part.tinted(), part.wing()),
+                    .computeIfAbsent(new LayerKey(part.texture(), part.animations(), part.textureAnimation(), part.tinted(), part.wing(),
+                            part.bone()),
                             k -> new LayerBuffers());
             // UVs address one frame; in a vertical strip that frame is 1/frames of the image's height.
             float texH = definition.textureHeight();
@@ -89,7 +90,7 @@ public final class CosmeticBaker {
                     TextureFrames frames = key.textureAnimation() != null ? new TextureFrames(key.textureAnimation()) : null;
                     layers.add(new BakedCosmetic.Layer(mode, key.texture(), mesh,
                             key.animations().toArray(new CosmeticDefinition.Animation[0]), smooth, frames, key.tinted(),
-                            null, -1, null, key.wing()));
+                            null, -1, null, key.wing(), key.bone()));
                 }
             });
             layers.addAll(rigLayers.getOrDefault(mode, List.of()));
@@ -133,7 +134,7 @@ public final class CosmeticBaker {
             BakedMesh baked = new BakedMesh(out.toArray());
             layers.add(new BakedCosmetic.Layer(part.mode(), part.texture(), mesh.smooth() ? empty : baked, animations,
                     mesh.smooth() ? baked : null, frames(part), part.tinted(), rigged.rig(), piece.joint(), null,
-                    part.wing()));
+                    part.wing(), -1));
         }
         CosmeticDefinition.SkinnedPiece skinned = rigged.skinned();
         if (skinned != null) {
@@ -155,7 +156,7 @@ public final class CosmeticBaker {
                     skinned.weightJoint(), skinned.weightBias(), skinned.weightPos(), skinned.weightNormal(), slotVertex,
                     new BakedMesh(data));
             layers.add(new BakedCosmetic.Layer(part.mode(), part.texture(), empty, animations, null, frames(part),
-                    part.tinted(), rigged.rig(), -1, skin, part.wing()));
+                    part.tinted(), rigged.rig(), -1, skin, part.wing(), -1));
         }
         return layers;
     }

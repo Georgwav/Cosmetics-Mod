@@ -211,7 +211,45 @@ def cmd_survey(args) -> int:
     return 0
 
 
+def _is_badlion(folder: Path) -> bool:
+    return (folder / "assets.json").is_file() or any(folder.glob("data*.jar"))
+
+
+def cmd_import_clients(args) -> int:
+    """Lunar and NoRisk cosmetics (see clients.py): found by their descriptor files anywhere in the folder."""
+    from . import clients
+
+    input_folder = Path(args.input)
+    output = Path(args.output)
+    refuse_output(output, input_folder)
+    clients.check_output(output)
+    progress = _progress(args.quiet)
+    progress("looking for Lunar and NoRisk cosmetics")
+    names = [n.strip() for n in args.name.split(",") if n.strip()] if args.name else None
+    found = clients.find(input_folder, names)
+    if args.limit:
+        kept, per_kind = [], {}
+        for f in found.found:
+            per_kind[f.kind] = per_kind.get(f.kind, 0) + 1
+            if per_kind[f.kind] <= args.limit:
+                kept.append(f)
+        found.found = kept
+    max_size = args.max_texture or convert.Settings().max_texture_size
+    written = clients.write(found.found, output, max_size=max_size, quantize=not args.no_quantize, progress=progress)
+    (output / clients.REPORT).write_text(clients.report(found, written, input_folder), encoding="utf-8")
+    print(f"Wrote {len(written.cosmetics)} Lunar/NoRisk cosmetic(s) to {output}"
+          + (f", {len(written.failed)} failed" if written.failed else "")
+          + f"; {len(found.skipped)} skipped. Details: {output / clients.REPORT}")
+    return 1 if written.failed else 0
+
+
 def cmd_import(args) -> int:
+    input_folder = Path(args.input)
+    if input_folder.is_dir() and not _is_badlion(input_folder):
+        from . import clients
+
+        if clients.detect(input_folder):
+            return cmd_import_clients(args)
     problem = avif.check_decoder()
     if problem:
         print(problem, file=sys.stderr)
@@ -290,8 +328,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--quiet", action="store_true", help="no progress messages")
     p.set_defaults(func=cmd_survey)
 
-    p = sub.add_parser("import", help="convert the cosmetics in your jars into a resource pack for the mod")
-    p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json")
+    p = sub.add_parser("import", help="convert the cosmetics in your jars (Badlion) or a folder of Lunar / NoRisk "
+                                      "cosmetic files into a resource pack for the mod")
+    p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json, or a folder of "
+                                 "Lunar (.gek.json) and NoRisk (.norisk.json) cosmetics")
     p.add_argument("output", help="pack folder to write (new, or one this tool wrote before); not in this repository")
     p.add_argument("--calibrate", action="store_true",
                    help="write a few cosmetics in every variant to compare in game, instead of everything")

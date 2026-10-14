@@ -158,6 +158,36 @@ conversion used.
 Skipped and listed in the report: player pets, swords, bows, sprays, auras and nametag decorations, cosmetics
 without a model of their own (other than capes), and sub-models (only a cosmetic's main model converts).
 
+### `import` for Lunar and NoRisk cosmetics
+
+Point `import` at a folder of Lunar and NoRisk cosmetic files (the ones you own) instead of Badlion jars, and it
+converts those. It tells them apart by their files, so one folder can hold both:
+
+```powershell
+badlion-import import C:\Users\Pc\Downloads\Imports C:\badlion-packs\lunar-norisk
+```
+
+Write it to its own pack folder (not the Badlion one) and turn both packs on. `--name basti,katana` converts
+only cosmetics whose name or path contains one of the words; `--max-texture` and `--no-quantize` work as for
+Badlion. The report (`import-report.md`) lists every cosmetic with its slot and kind, and anything skipped.
+
+- **Lunar**: every `<name>.gek.json` is a cosmetic. Its model (`.geo.json`), animations (`.anim.json`) and
+  texture (`.webp`) are found by the names it gives, in its folder or the one above (`butterfly_aura/textures/
+  pink.gek.json` uses the aura's model one folder up). Its `state_machine` becomes the cosmetic's
+  `model_states`, so wings glide while you glide and an aura shows its menu pose in the Wardrobe pictures.
+  Wings go on the back, auras (by their names) around the player, shields in your hand; anything else is worn
+  where it was modelled. A folder with a texture and no `.gek.json` is a cape. Animated textures (`.mcmeta`
+  with frame sizes, frame times in ticks) keep animating.
+- **NoRisk**: every `<name>.norisk.json` under `cosmetics/` is a cosmetic (the shop's files are left out):
+  capes from their `.png` strips (frame times in milliseconds); hats, accessories and the rest from their
+  `.geo.json`, which is built on the player's skeleton, so a sword in the right arm swings with your arm
+  (`"skeleton": "player"`). The `nrc.idle` animation plays (the shop's preview doesn't); `defaultSettings`
+  `scale` is kept. `variants/` are cosmetics of their own, and so is every texture in a `textures/` folder
+  (one per country flag).
+
+Their names come from the folders (Lunar) or the descriptors (NoRisk). They show up in the Wardrobe next to your
+other cosmetics.
+
 #### Settings file
 
 Every key is optional:
@@ -192,5 +222,5 @@ pip install ".[test]"
 python -m pytest -q
 ```
 
-The tests build small synthetic jars, definitions, AVIF files and models of their own. They never use
-Badlion files.
+The tests build small synthetic jars, definitions, AVIF files and models of their own, and made-up Lunar and
+NoRisk folders. They never use any client's real files.

@@ -57,7 +57,7 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:explorer_backpack`
   - `cosmeticsmod:feather_wings` (flapping)
   - `cosmeticsmod:glider_wings` (flap faster when moving or flying, fold when sneaking)
-  - `cosmeticsmod:crown` (glowing gems; made in Blockbench as a Bedrock model)
+  - `cosmeticsmod:crown` (glowing, shimmering gems; made and animated in Blockbench as a Bedrock model)
   - `cosmeticsmod:orbit_ring` (a smooth-shaded gold ring from an OBJ mesh, circling the head)
   - `cosmeticsmod:starlight_cape` (with a glowing emblem)
   - `cosmeticsmod:ember_cape` (an animated texture)
@@ -69,9 +69,11 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
   - `cosmeticsmod:wristband` (on the left arm) and `cosmeticsmod:cloud_boots` (on both feet, puffing little clouds as
     you walk)
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
-  model in Blockbench (a Bedrock Entity `.geo.json`, or the meshes of a `.bbmodel`), use an `.obj`
-  from Blender, or an animated `.md5mesh` with `.md5anim` files. See
-  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
+  model in Blockbench (a Bedrock Entity `.geo.json` with its Bedrock / GeckoLib animations, Molang included,
+  or the meshes of a `.bbmodel`), use an `.obj` from Blender, or an animated `.md5mesh` with `.md5anim`
+  files. See [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md).
+- **Your own cosmetics from other clients**: the [importer](tools/badlion-import/README.md) turns the Badlion,
+  Lunar and NoRisk cosmetics you own into a resource pack, for your personal use.
 
 ### Emotes
 
@@ -137,7 +139,7 @@ repaired on load.
 
 ### Personal builds (your own cosmetics pack inside the jar)
 
-For your own use only: bundle a resource pack, such as the one the [Badlion importer](tools/badlion-import/README.md)
+For your own use only: bundle a resource pack, such as one the [importer](tools/badlion-import/README.md)
 writes into your private `cosmetics-personal` repository, into the mod jar.
 
 ```

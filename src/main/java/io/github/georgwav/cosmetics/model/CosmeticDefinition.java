@@ -24,6 +24,7 @@ import java.util.List;
  * @param petPosition   for a pet, where it sits unless the player moves it
  * @param kind          what it counts as when a player wears one of a kind at a time ("hat", "ears", ...), or
  *                      null for its slot (or "wings" for wings)
+ * @param bones         the bones of its Blockbench model and their animations, when it has any; else null
  */
 public record CosmeticDefinition(
         String id,
@@ -41,7 +42,8 @@ public record CosmeticDefinition(
         int sides,
         boolean prop,
         PetPosition petPosition,
-        String kind
+        String kind,
+        BoneRig bones
 ) {
     public static final int WHITE = 0xFFFFFF;
     public static final int LEFT = 1;
@@ -50,7 +52,7 @@ public record CosmeticDefinition(
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
         this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
-                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null);
+                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null, null);
     }
 
     /**
@@ -137,15 +139,26 @@ public record CosmeticDefinition(
      * @param tinted     takes the cosmetic's tint colour; false keeps the texture's own colours whatever the
      *                   player picks (for example everything except the one coloured layer)
      * @param wing       which wing this part is, for the cosmetic's {@link Wings}; null for other parts
+     * @param bone       for a part of a Blockbench model with bones, the bone ({@link BoneRig#driver}) that moves
+     *                   it; -1 for one that never moves
      */
     public record Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
-                       List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted, WingPart wing) {
+                       List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted, WingPart wing, int bone) {
         public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations) {
-            this(name, mode, texture, cubes, animations, List.of(), null, true, null);
+            this(name, mode, texture, cubes, animations, List.of(), null, true, null, -1);
+        }
+
+        public Part(String name, RenderMode mode, String texture, List<Cube> cubes, List<Animation> animations,
+                    List<Mesh> meshes, TextureAnimation textureAnimation, boolean tinted, WingPart wing) {
+            this(name, mode, texture, cubes, animations, meshes, textureAnimation, tinted, wing, -1);
         }
 
         public Part withTextureAnimation(TextureAnimation animation) {
-            return new Part(name, mode, texture, cubes, animations, meshes, animation, tinted, wing);
+            return new Part(name, mode, texture, cubes, animations, meshes, animation, tinted, wing, bone);
+        }
+
+        public Part withBone(int bone) {
+            return new Part(name, mode, texture, cubes, animations, meshes, textureAnimation, tinted, wing, bone);
         }
     }
 

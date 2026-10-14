@@ -34,6 +34,7 @@ stops the game or the other cosmetics.
 | `parts` | yes, unless `model` is set | One or more parts. |
 | `model` | no | A Blockbench / Bedrock model to use instead of (or as well as) `parts`. See [Blockbench models](#blockbench-models). |
 | `bones` | no | Per-bone settings for `model`. |
+| `model_animations`, `model_states`, `skeleton` | no | Blockbench / GeckoLib animations for `model`, and bones that follow the player's body parts. See [Model animations](#model-animations). |
 | `animation` | no | Movement for every part that doesn't set its own. See [Animation](#animation). |
 | `texture_animation` | no | Flip-book animation of `texture`, for every part drawn with it. See [Animated textures](#animated-textures). |
 | `options` | no | Which settings players may change on the cosmetic's page. See [Player settings](#player-settings). |
@@ -358,8 +359,9 @@ The bundled `cosmeticsmod:crown` is made exactly like this.
   slot, build the cape relative to the top center of the back.
 - **Supported**: bones with parents, pivots and rotations, cube pivots and rotations, `inflate`, `mirror`,
   box UV and per-face UV. Texture size comes from the model's `texture_width` / `texture_height`.
-- **Not used**: Bedrock animations, locators and `poly_mesh`. Use [Animation](#animation) instead, and
-  [Meshes](#meshes) for free-form shapes.
+- **Animations**: Bedrock / GeckoLib animations play with `model_animations` (see
+  [Model animations](#model-animations)); the simple movements of [Animation](#animation) work too.
+- **Not used**: locators and `poly_mesh`. Use [Meshes](#meshes) for free-form shapes.
 
 `bones` keys are bone names (case-insensitive):
 
@@ -378,6 +380,48 @@ Bedrock and Java entity formats:
 
 So a model lines up with the player the way it did in Blockbench, and the vanilla Bedrock player model
 converts to exactly the Java one.
+
+### Model animations
+
+Animate the model in Blockbench (Animate tab) and **File → Export → Export Bedrock Animations** to
+`assets/<ns>/cosmetic_models/crown.animation.json`. GeckoLib animation files work as they are.
+
+```json
+{
+  "slot": "back",
+  "texture": "<ns>:textures/cosmetic/dragon_wings.png",
+  "model": "<ns>:dragon_wings",
+  "model_animations": "<ns>:dragon_wings.animation",
+  "model_states": [
+    { "animation": "glide", "when": "q.is_elytra_flying", "blend": 0.3 },
+    { "animation": "swim", "when": "q.is_swimming", "blend": 0.4 },
+    { "animation": "idle" }
+  ]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `model_animations` | The animation file, `namespace:name` for `assets/<ns>/cosmetic_models/name.json` (so `dragon_wings.animation` for `dragon_wings.animation.json`). |
+| `model_states` | Which animation plays when: the first state whose `when` holds plays (no `when`: always). `blend` is how many seconds it takes to blend in from the one before. A state without `animation` leaves the bones at rest. A list of such lists is several controllers playing at once (for example one for the wings and one that hides a strap in first person). Without `model_states` the file's first animation plays. |
+| `model_placement` | Moves the whole model around the anchor's pivot: `{"offset": [x, y, z], "rotation": [x, y, z], "scale": 1.5}` (pixels, degrees; `scale` may be `[x, y, z]`, negative mirrors). Scaled, then turned, then moved. Works without animations too. |
+| `skeleton` | `"player"`: bones named like the player's parts follow them, with everything inside them. Names: `head`, `body`, `rightArm`, `leftArm`, `rightLeg`, `leftLeg`, also with a `biped` or `armor` prefix (`bipedHead`, `armorRightArm`, as GeckoLib armor models have them). Build the model on the player as usual; a sword in `armorRightArm` then swings with the arm. |
+
+What is supported in animation files:
+
+- `rotation` (degrees), `position` (pixels, Bedrock axes: +Y is up) and `scale` per bone; children move with
+  their parents, and rotations turn around the bone's pivot like in Blockbench.
+- Keyframes by time in seconds, `pre`/`post` values, Bedrock's `lerp_mode` (`linear`, `catmullrom`, `step`) and
+  GeckoLib's `easing` (`easeInOutSine` and the rest), or one value for all time.
+- `loop` (`true`, `false`, `"hold_on_last_frame"`) and `animation_length`.
+- Molang in any value or `when`: arithmetic, comparisons, `&& || !`, `? :`, `math.*` (`sin`, `cos`, `abs`,
+  `clamp`, `lerp`, `random`, ... in degrees as in Bedrock), `v.name = ...; return ...;`, and these queries:
+  `q.anim_time` (seconds into the animation), `q.life_time`, `q.is_in_gui` (Wardrobe pictures), `q.is_first_person`
+  (a held shield in first person), `q.is_elytra_flying` / `q.is_gliding`, `q.is_swimming`, `q.is_sneaking`,
+  `q.is_flying`, `q.is_blocking`, `q.is_moving`, `q.is_on_ground`, `q.is_sprinting`, `q.is_riding`,
+  `q.ground_speed` (blocks per second) and `q.modified_distance_moved`. Other queries and functions are 0.
+
+The cosmetic's **Animate** and **Animation speed** settings apply: off holds every animation at its start.
 
 ## Animation
 

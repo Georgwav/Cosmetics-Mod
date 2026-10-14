@@ -111,10 +111,10 @@ jobs:
         run: |
           python -m pip install --quiet ".[test]"
           python -m tests.make_packs "$RUNNER_TEMP/import"
-      - name: Load every cosmetic of both packs with the mod's parser
+      - name: Load every cosmetic of the packs with the mod's parser
         run: |
           report=versions/1.21.11/build/test-results/test/TEST-io.github.georgwav.cosmetics.model.ImportedPackTest.xml
-          for pack in pack calibration; do
+          for pack in pack calibration clients; do
             ./gradlew :1.21.11:test --tests 'io.github.georgwav.cosmetics.model.ImportedPackTest' \
               "-Pcosmetics.validatePack=$RUNNER_TEMP/import/$pack"
             # A skipped test would pass silently: make sure it really ran.

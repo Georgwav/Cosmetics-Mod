@@ -225,6 +225,13 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         info.chestArmor = !chest.isEmpty() && !info.elytra;
         info.sneaking = player.isCrouching();
         info.flying = player.getAbilities().flying || player.isFallFlying();
+        info.gliding = player.isFallFlying();
+        info.swimming = player.isSwimming();
+        info.blocking = player.isBlocking();
+        info.onGround = player.onGround();
+        info.sprinting = player.isSprinting();
+        info.riding = player.isPassenger();
+        info.walked = player.walkAnimation.position();
         double dx = player.getX() - player.xo;
         double dz = player.getZ() - player.zo;
         info.moveSpeed = (float) Math.sqrt(dx * dx + dz * dz);
