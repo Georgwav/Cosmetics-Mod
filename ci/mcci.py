@@ -509,6 +509,8 @@ def log_screenshot(name, width, height, rows):
     import base64
     if name.startswith("screenshot-ui"):
         step, x0, y0, x1, y1 = 4, 0, 0, width, height
+    elif name.startswith("screenshot-shield"):
+        step, x0, y0, x1, y1 = 2, 0, 0, width, height  # first person: the shield is low on the left
     else:
         size = min(512, width, height)
         x0, y0 = (width - size) // 2, max(0, (height - size) // 2 - 40)

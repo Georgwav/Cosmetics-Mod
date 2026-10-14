@@ -132,7 +132,7 @@ def cosmetics_json() -> dict:
 
 def models_json() -> dict:
     return {"modelData": {
-        "HAT": {"tophat": {"scale": 0.0, "translation": {"x": 0, "y": 1, "z": 0}, "flipUVs": False,
+        "HAT": {"tophat": {"scale": 0.0625, "translation": {"x": 0, "y": 0.5, "z": 0}, "flipUVs": False,
                            "applyChroma": False, "md5format": False, "subModelTexture": False, "useSubFolder": False}},
         "WINGS": {"angel": {"scale": 1.0, "flipUVs": True, "md5format": False}},
     }}
@@ -210,9 +210,12 @@ IMPORT_COSMETICS = {
 }
 IMPORT_MODELS = {
     "WINGS": {"bat_wings": {"scale": 0, "md5format": True, "flipUVs": False}},
-    "BACK": {"pack": {"scale": 2.0, "translation": {"x": 0, "y": -1, "z": 0}, "applyChroma": False,
+    "BACK": {"pack": {"scale": 0.125, "translation": {"x": 0, "y": -0.5, "z": 0}, "applyChroma": False,
                       "flipUVs": True, "md5format": False}},
-    "SHIELD": {"roundshield": {"scale": 1.5, "md5format": False, "flipUVs": False}},
+    "SHIELD": {"roundshield": {"scale": 0.0, "md5format": False, "flipUVs": False,
+                               "sizingData": {"offsetX": 0, "offsetY": 0.4, "offsetZ": 0, "scale": 1.2},
+                               "shieldModelData": {"armScale": 0.125, "thirdPerson": {
+                                   "rotate": {"w": 180.0, "x": 0.0, "y": 1.0, "z": 0.0}}}}},
     "PET": {"dragon": {"scale": 0, "md5format": True, "flipUVs": False}},
     "BOOTS": {"fire_boots": {"scale": 0, "md5format": False, "flipUVs": False}},
     "ARM_BAND": {"fire_fist": {"scale": 0, "md5format": False, "flipUVs": False}},

@@ -191,32 +191,38 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     strip = Image.open(out / "assets/blc_import/textures/cosmetic/cloak/cape_7.png")
     assert strip.size == (16, 48)
 
-    # A hat: OBJ axes, the model's translation and the cosmetic's sizing, plus its glow layer.
+    # A hat: OBJ axes, made in pixels (scale 0.0625 blocks a unit), moved half a block up (translation is in
+    # blocks, in the model's Y-up axes) and sized by the cosmetic's sizing, plus its glow layer.
     hat = cosmetic(out, "hat_1_*.json")
     assert hat["slot"] == "head"
     hat_mesh = hat["parts"][0]["meshes"][0]
     assert same_rotation(hat_mesh["rotation"], [180, 0, 0])
-    assert hat_mesh["scale"] == 1.2 and hat_mesh["offset"] == [0, -1, 0]
+    assert hat_mesh["scale"] == 1.2 and hat_mesh["offset"] == [0, -8, 0]
     assert hat["parts"][1]["mode"] == "emissive"
     assert hat["parts"][1]["texture"] == "blc_import:textures/cosmetic/hat/hat_1_glow.png"
 
-    # A backpack from the feet up, see-through, untinted, with its own colour and V flipped (flipUVs).
+    # A backpack, placed from the middle of the back (its translation, half a block down, in blocks; 0.125
+    # blocks a unit is 2 pixels), see-through, untinted, with its own colour and V flipped (flipUVs).
     back = cosmetic(out, "back_4_*.json")
     part = back["parts"][0]
     assert back["slot"] == "back" and part["mode"] == "translucent" and part["tint"] is False
     assert back["default_color"] == "#FF8000"
-    assert part["meshes"][0]["offset"] == [0, 25, 0] and part["meshes"][0]["scale"] == 2.0
+    assert part["meshes"][0]["offset"] == [0, 14, 2] and part["meshes"][0]["scale"] == 2.0
     assert part["meshes"][0]["flip_v"] is True
     assert back["texture_size"] == [64, 32]
     obj = (out / "assets/blc_import/models/cosmetic/back/pack.obj").read_text()
     assert "100000" not in obj
 
-    # A shield: in place of the held shield, OBJ axes, centred on the vanilla shield's plate, the model's scale.
+    # A shield: in place of the held shield, at its arm scale (0.125 blocks a unit), turned half round as
+    # Badlion turns it in third person, its middle on the vanilla shield's plate.
     shield = cosmetic(out, "shield_3_*.json")
     assert shield["slot"] == "shield"
     shield_mesh = shield["parts"][0]["meshes"][0]
-    assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
-    assert shield_mesh["scale"] == 1.5 and shield_mesh["offset"] == [0, 0, -1.5]
+    assert same_rotation(shield_mesh["rotation"], [180, 180, 0])
+    assert shield_mesh["scale"] == 2.0
+    m = convert.rotation_matrix(shield_mesh["rotation"])
+    middle = convert.apply(m, [0, -10 * 2.0, -4 * 2.0])  # the hat box's middle, scaled
+    assert close([middle[i] + shield_mesh["offset"][i] for i in range(3)], [0, 0, -1.5])
 
     # Boots on the feet slot (both legs, standing on the sole); armbands (from the armband folder) on an arm.
     assert cosmetic(out, "boots_2_*.json")["slot"] == "feet"
@@ -251,6 +257,51 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert "model 'cloak' isn't in models.json; uses the built-in cape" in report
     assert "Capes without a model are a box like the vanilla cape" in report
     assert "| WINGS | 8 | Bat Wings | `blc_import:wings_8_bat_wings` |" in report
+
+
+def test_models_json_scale_is_blocks_per_model_unit():
+    def model(scale):
+        return badlion.Model("HAT", "m", {"scale": scale})
+    assert convert.model_scale(model(0.0625)) == 1.0  # made in pixels
+    assert close([convert.model_scale(model(0.004))], [0.064])  # 2019 glasses, 126 units: 8 pixels wide
+    assert convert.model_scale(model(0)) == 1.0 and convert.model_scale(None) == 1.0
+    assert close([convert.model_scale(model(-0.012))], [(0.0625 - 0.012) * 16])  # backpacks: off the default
+    assert convert.model_scale(model(-2.0)) == 1.0
+
+
+def test_translation_is_blocks_in_the_models_own_axes():
+    # Badlion's glasses: scale 0.004, translation (0, 0.1, 0.3) blocks: 1.6 px up and 4.8 px to the front.
+    glasses = badlion.Model("EYES", "glasses", {"scale": 0.004, "translation": {"x": 0, "y": 0.1, "z": 0.3}})
+    c = badlion.Cosmetic("EYES", 1, {"name": "Glasses", "modelName": "glasses"})
+    place = convert.placement(c, glasses, False, convert.RULES["EYES"], convert.TypeSettings())
+    assert close([place.scale], [0.064])
+    assert close(place.offset, [0, -1.6, -4.8])
+    # A rotation with no angle (w) doesn't turn it.
+    crown = badlion.Model("HAT", "crown", {"scale": 0.034, "rotation": {"w": 0.0, "x": 180.0, "y": 0.0, "z": 1.0}})
+    place = convert.placement(badlion.Cosmetic("HAT", 2, {"name": "Crown"}), crown, False, convert.RULES["HAT"],
+                              convert.TypeSettings())
+    assert same_rotation(place.rotation, [180, 0, 0])
+
+
+def test_small_sizing_scales_are_blocks_per_unit():
+    wings = badlion.Model("WINGS", "crystal_wings", {"scale": 0.0})
+    small = badlion.Cosmetic("WINGS", 10, {"name": "Crystal", "sizingData": {"scale": 0.08}})
+    big = badlion.Cosmetic("WINGS", 11, {"name": "Cupid", "sizingData": {"scale": 1.0, "offsetZ": -1.0}})
+    rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
+    assert close([convert.placement(small, wings, False, rule, ts).scale], [1.28])
+    place = convert.placement(big, wings, False, rule, ts)
+    assert place.scale == 1.0 and close([place.offset[2]], [1.0 + rule.origin[2]])
+
+
+def test_shields_are_centred_and_mirrored_as_badlion_scales_them():
+    goat = badlion.Model("SHIELD", "goat_shield", {"scale": 0.0, "shieldModelData": {"armScale": 0.125, "thirdPerson": {
+        "rotate": {"w": 180.0, "x": 0.0, "y": 1.0, "z": 0.0}, "scale": {"x": 1.0, "y": 1.0, "z": -1.0}}}})
+    bounds = ((-4, -4, 0), (4, 4, 3.4))
+    place = convert.shield_placement(goat, bounds, False, convert.RULES["SHIELD"], convert.TypeSettings())
+    assert place.mirror and place.scale == 2.0
+    m = convert.rotation_matrix(place.rotation)
+    middle = convert.apply(m, [-0.0 * 2.0, 0.0, 1.7 * 2.0])  # mirrored X first, then turned
+    assert close([middle[i] + place.offset[i] for i in range(3)], [0, 0, -1.5])
 
 
 def test_pets_sit_on_the_head_float_or_stay_on_the_shoulder():
@@ -358,7 +409,7 @@ def test_settings_change_the_conversion(input_folder, tmp_path):
     out = tmp_path / "pack"
     run(input_folder, out, "--settings", str(settings), "--types", "HAT,CAPE")
     hat_mesh = cosmetic(out, "hat_1_*.json")["parts"][0]["meshes"][0]
-    assert hat_mesh["offset"] == [0, -1.5, 0] and hat_mesh["flip_v"] is True
+    assert hat_mesh["offset"] == [0, -8.5, 0] and hat_mesh["flip_v"] is True
     # A cloak instead of the box: the vanilla cape's space, its animations as styles.
     cape = cosmetic(out, "cape_1_*.json")
     mesh = cape["parts"][0]["meshes"][0]

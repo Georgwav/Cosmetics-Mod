@@ -196,6 +196,21 @@ def cmd_show(args) -> int:
     return 0
 
 
+def cmd_survey(args) -> int:
+    from . import survey
+
+    folder = Path(args.input)
+    if not folder.is_dir():
+        print(f"error: {folder} is not a folder", file=sys.stderr)
+        return 2
+    out = Path(args.out) if args.out else Path.cwd() / "SURVEY.md"
+    refuse_output(out, folder, allow_in_repo=True)
+    result = survey.run(folder, progress=_progress(args.quiet))
+    out.write_text(survey.markdown(result, folder.name, __version__), encoding="utf-8")
+    print(f"Surveyed {result.files} files ({result.bytes / 1_000_000:.1f} MB). Wrote {out}")
+    return 0
+
+
 def cmd_import(args) -> int:
     problem = avif.check_decoder()
     if problem:
@@ -267,6 +282,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="at most this many (default 10)")
     p.add_argument("--settings", help="JSON file with conversion settings (see the README)")
     p.set_defaults(func=cmd_show)
+
+    p = sub.add_parser("survey", help="describe any folder of cosmetic files (another client's, say) for planning an "
+                                      "importer: writes SURVEY.md, structure only")
+    p.add_argument("input", help="the folder to look through (archives in it are looked into too)")
+    p.add_argument("--out", help="where to write SURVEY.md (default: the current folder)")
+    p.add_argument("--quiet", action="store_true", help="no progress messages")
+    p.set_defaults(func=cmd_survey)
 
     p = sub.add_parser("import", help="convert the cosmetics in your jars into a resource pack for the mod")
     p.add_argument("input", help="folder with your trimmed data0.jar ... data9.jar and assets.json")

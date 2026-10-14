@@ -55,8 +55,8 @@ public final class DevScenario {
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
-    /** Ticks the player blocks with a shield, with the mod on and then off. */
-    private static final int SHIELD_TICKS = 80;
+    /** Ticks the player blocks with a shield, with the mod on and then off (CI screenshots 4 s in). */
+    private static final int SHIELD_TICKS = 200;
     /** Ticks an emote plays during the emote check. */
     private static final int EMOTE_TICKS = 100;
     /** Ticks the elytra emote plays while gliding. */
@@ -170,9 +170,9 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back");
                     if (smoke) {
-                        // A plain held shield, blocking, with the mod on but nothing of it showing (only a cape,
-                        // behind), then with the mod off: the two screenshots must show the same shield.
-                        client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                        // A plain held shield, blocking, in first person, with the mod on but nothing of it showing
+                        // (only a cape), then with the mod off: the two screenshots must show the same shield.
+                        client.options.setCameraType(CameraType.FIRST_PERSON);
                         CosmeticsConfig config = CosmeticsConfig.get();
                         for (CosmeticSlot slot : CosmeticSlot.values()) {
                             config.slotVisible.put(slot, slot == CosmeticSlot.CAPE);
@@ -198,6 +198,7 @@ public final class DevScenario {
                 client.options.keyUse.setDown(true);
                 if (ticks >= SHIELD_TICKS) {
                     client.options.keyUse.setDown(false);
+                    client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     CosmeticsConfig config = CosmeticsConfig.get();
                     config.enabled = true;
                     for (CosmeticSlot slot : CosmeticSlot.values()) {
