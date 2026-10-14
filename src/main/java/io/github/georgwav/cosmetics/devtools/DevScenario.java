@@ -11,7 +11,9 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
+import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
+import io.github.georgwav.cosmetics.render.CapeElytra;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
 import io.github.georgwav.cosmetics.render.NameTags;
@@ -21,6 +23,7 @@ import io.github.georgwav.cosmetics.model.ColorStyle;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
+import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.hub.HubScreen;
@@ -49,8 +52,9 @@ import java.util.List;
  *
  * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
  * the emote wheel and an emote, an elytra seen from the side (during the emote, and standing with the mod on and
- * off, also three-quarters from behind), an elytra emote while gliding, every page of the settings screen (and, with Mod Menu, the screen its
- * "Configure" button opens),
+ * off, also three-quarters from behind), a cape on the elytra from behind, an elytra emote while gliding, every page
+ * of the settings screen (and, with Mod Menu, the screen its "Configure" button opens; a cape's page with the preview
+ * wearing an elytra),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
  * The benchmark instead runs the back view and the shaders-on view three times each: at its stress load (every
  * cosmetic drawn {@code benchmark.copies} times), at a normal load (once), and with the mod switched off, so the
@@ -66,7 +70,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -82,6 +86,8 @@ public final class DevScenario {
      */
     private static final float SIDE_VIEW = 90f;
     private static final float ANGLE_VIEW = 40f;
+    /** Nearly straight from behind, for a cape on the elytra. */
+    private static final float BACK_VIEW = 15f;
     /** Field of view for the elytra close-ups (the whole player in view), and the game's default to go back to. */
     private static final int ZOOMED_FOV = 45;
     private static final int NORMAL_FOV = 70;
@@ -115,6 +121,8 @@ public final class DevScenario {
     private long emoteFramesAtStart;
     private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
+    /** Whether the elytra emote still played after a right-click mid-flight; null when it wasn't tried. */
+    private Boolean elytraEmoteKeptAfterUse;
     private long elytraFramesAtStart;
     private long fittedFramesAtStart;
     private double[] groundPosition;
@@ -199,6 +207,14 @@ public final class DevScenario {
             }
             case WARMUP -> {
                 if (ticks >= 100) {
+                    if (smoke) {
+                        // The top hat's own red band swapped to green (its colours are known once textures load).
+                        int[] hatColours = colours("cosmeticsmod:top_hat");
+                        if (hatColours.length > 0) {
+                            CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat").swaps = new ArrayList<>(
+                                    List.of(new CosmeticsConfig.ColorSwap(hatColours[0], 0x22CC44)));
+                        }
+                    }
                     enter(Phase.FRONT);
                 }
             }
@@ -226,6 +242,16 @@ public final class DevScenario {
                         }
                     }
                     if (smoke) {
+                        // A cosmetic's own colours, to change one by one: the knight shield is blue, gold and wood.
+                        int shieldColours = colours("cosmeticsmod:knight_shield").length;
+                        phases.getAsJsonObject("vanilla_front").addProperty("knightShieldColours", shieldColours);
+                        phases.getAsJsonObject("vanilla_front").addProperty("swappedTextures", RecoloredTextures.swapped());
+                        if (shieldColours < 2) {
+                            failures.add("the knight shield's own colours (blue, gold) weren't found");
+                        }
+                        if (Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.swapped() <= 0) {
+                            failures.add("the top hat with its red swapped to green was never painted");
+                        }
                         // The settings screen's key binds are the game's own: changing one changes it in Controls.
                         for (String problem : KeyBinds.selfTest()) {
                             failures.add("key binds: " + problem);
@@ -414,8 +440,26 @@ public final class DevScenario {
             case ELYTRA_ANGLE_OFF -> {
                 sideView(client, ANGLE_VIEW, 25f);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
+                    // The mod on again with capes shown: the cape's design is on the elytra (and the cape isn't
+                    // drawn, as with the game's capes).
+                    CosmeticsConfig.get().enabled = true;
+                    CosmeticsConfig.get().slotVisible.put(CosmeticSlot.CAPE, true);
+                    elytraFramesAtStart = CapeElytra.frames;
+                    enter(Phase.ELYTRA_CAPE);
+                }
+            }
+            case ELYTRA_CAPE -> {
+                sideView(client, BACK_VIEW, 15f);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
+                    long caped = CapeElytra.frames - elytraFramesAtStart;
+                    phases.getAsJsonObject("elytra_look").addProperty("capeFrames", caped);
+                    phases.getAsJsonObject("elytra_look").addProperty("capeTextures", CapeElytra.made);
+                    boolean wearsCape = java.util.Arrays.stream(EquippedCosmetics.forPlayer(client.player.getUUID(), true))
+                            .anyMatch(c -> c.slot() == CosmeticSlot.CAPE);
+                    if (wearsCape && client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && caped <= 0) {
+                        failures.add("the elytra wasn't drawn with the cape on it");
+                    }
                     CosmeticsConfig config = CosmeticsConfig.get();
-                    config.enabled = true;
                     for (CosmeticSlot slot : CosmeticSlot.values()) {
                         config.slotVisible.put(slot, true);
                     }
@@ -453,13 +497,28 @@ public final class DevScenario {
                 }
             }
             case ELYTRA_EMOTE -> {
+                // Right-click (a rocket) mid-flight: the elytra emote goes on.
+                if (ticks == 40) {
+                    client.options.keyUse.setDown(true);
+                } else if (ticks == 46) {
+                    client.options.keyUse.setDown(false);
+                } else if (ticks == 50 && client.player.isFallFlying()) {
+                    elytraEmoteKeptAfterUse = EmotePlayer.playing() != null;
+                }
                 if (ticks >= ELYTRA_TICKS || (ticks > 20 && !client.player.isFallFlying())) {
+                    client.options.keyUse.setDown(false);
                     JsonObject elytra = phases.getAsJsonObject("elytra");
                     elytra.addProperty("ticks", ticks);
                     elytra.addProperty("posedFrames", EmotePlayer.posedFrames - emoteFramesAtStart);
                     elytra.addProperty("uprightFrames", ElytraUpright.frames - uprightFramesAtStart);
                     elytra.addProperty("elytraHiddenFrames", ElytraLook.hiddenFrames - elytraFramesAtStart);
                     elytra.addProperty("stillPlaying", EmotePlayer.playing() != null);
+                    if (elytraEmoteKeptAfterUse != null) {
+                        elytra.addProperty("keptAfterRightClick", elytraEmoteKeptAfterUse);
+                        if (!elytraEmoteKeptAfterUse) {
+                            failures.add("right-clicking (a rocket) stopped the elytra emote");
+                        }
+                    }
                     CosmeticsMod.LOGGER.info("Dev scenario elytra: {}", elytra);
                     if (elytra.get("gliding").getAsBoolean()) {
                         if (!elytra.get("elytraWheel").getAsBoolean()) {
@@ -493,6 +552,14 @@ public final class DevScenario {
                     phases.add("settings_ui", ui);
                     if (frames <= 0) {
                         failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
+                    }
+                    if (CosmeticsScreen.testPageName(uiTab).equals("cape_elytra")) {
+                        // The preview wore an elytra with the cape on it.
+                        long previewed = CapeElytra.previewFrames - elytraFramesAtStart;
+                        ui.addProperty("elytra_preview_frames", previewed);
+                        if (uiScreen != null && uiScreen.showsPreview() && previewed <= 0) {
+                            failures.add("the preview never wore an elytra on a cape's page with \"Preview with an elytra\" on");
+                        }
                     }
                     if (uiTab == 0) {
                         // The Wardrobe's tiles draw each cosmetic's picture.
@@ -677,6 +744,16 @@ public final class DevScenario {
         }
     }
 
+    /** The own colours of a cosmetic's textures (see RecoloredTextures.palette); none if it isn't loaded. */
+    private static int[] colours(String cosmeticId) {
+        BakedCosmetic cosmetic = CosmeticRegistry.get(cosmeticId);
+        if (cosmetic == null) {
+            return new int[0];
+        }
+        return RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture)
+                .distinct().toList());
+    }
+
     /** Benchmark: every cosmetic drawn once, as on a normal server, instead of the stress load. */
     private static void normalLoad() {
         RenderStats.copies = 1;
@@ -789,6 +866,7 @@ public final class DevScenario {
 
     private void openSettingsTab(Minecraft client) {
         uiFramesAtTabStart = CosmeticsScreen.framesRendered;
+        elytraFramesAtStart = CapeElytra.previewFrames;
         uiScreen = CosmeticsScreen.testPage(uiTab);
         ScreenOpener.open(uiScreen);
     }

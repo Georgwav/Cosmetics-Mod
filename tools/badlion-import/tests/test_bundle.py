@@ -63,6 +63,18 @@ def test_packs_go_into_a_personal_copy_of_the_jar(tmp_path):
     assert bundle.STAMP not in _contents(jar)
 
 
+def test_says_how_many_cosmetics_and_emotes_and_warns_without_emotes(tmp_path, capsys):
+    jar = _mod_jar(tmp_path / "Downloads" / "cosmeticsmod-1.0+mc26.2.jar")
+    badlion, emotes = _packs(tmp_path)
+    assert cli.main(["bundle", str(jar), str(badlion), str(emotes)]) == 0
+    out = capsys.readouterr()
+    assert "1 cosmetic(s) and 1 emote file(s)" in out.out
+    assert "none of these packs has emotes" not in out.err
+    # Only the cosmetics pack: the emote wheel would have only the mod's own emotes.
+    assert cli.main(["bundle", str(jar), str(badlion)]) == 0
+    assert "none of these packs has emotes" in capsys.readouterr().err
+
+
 def test_bundling_again_replaces_the_earlier_bundle(tmp_path):
     jar = _mod_jar(tmp_path / "mods-source" / "cosmeticsmod-1.0+mc26.2.jar")
     badlion, emotes = _packs(tmp_path)

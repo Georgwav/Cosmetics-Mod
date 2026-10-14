@@ -230,6 +230,13 @@ public final class BoneAnimationParser {
     }
 
     private static Molang.Expr value(JsonElement json, float neutral, String where, Consumer<String> warnings) {
+        // Wrapped once more by some exporters: {"vector": ...} or [value].
+        if (json.isJsonObject() && json.getAsJsonObject().has("vector")) {
+            return value(json.getAsJsonObject().get("vector"), neutral, where, warnings);
+        }
+        if (json.isJsonArray() && json.getAsJsonArray().size() == 1) {
+            return value(json.getAsJsonArray().get(0), neutral, where, warnings);
+        }
         if (json.isJsonPrimitive()) {
             JsonPrimitive p = json.getAsJsonPrimitive();
             if (p.isNumber()) {
@@ -256,7 +263,9 @@ public final class BoneAnimationParser {
                 return Molang.constant(p.getAsBoolean() ? 1 : 0);
             }
         }
-        throw new JsonParseException(where + ": expected a number or Molang");
+        // Anything else (null, a list where a number goes, ...) is that one value left out, not the whole cosmetic.
+        warnings.accept(where + ": can't read " + shorten(json.toString()) + " as a number or Molang; uses " + neutral);
+        return Molang.constant(neutral);
     }
 
     private static String shorten(String text) {

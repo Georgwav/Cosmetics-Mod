@@ -434,6 +434,16 @@ class Md5Test {
     }
 
     @Test
+    void textureCoordinatesRoundedJustOutsideAreKept() {
+        // Badlion's cat pets: "vert 27 has texture coordinate (-0.0024510198, 1.0)".
+        String mesh = MESH.replace("vert 0 ( 0 0 )", "vert 0 ( -0.0024510198 1.0 )");
+        CosmeticDefinition definition = CosmeticParser.parse("t:x", new StringReader(
+                "{\"slot\":\"head\",\"texture\":\"t:a.png\",\"parts\":[{\"meshes\":[{\"model\":\"t:m.md5mesh\"}]}]}"),
+                context(Map.of("t:m.md5mesh", mesh), new ArrayList<>()));
+        assertEquals(1, definition.parts().get(0).meshes().size());
+    }
+
+    @Test
     void brokenFilesAreClearErrors() {
         String[][] bad = {
                 {"MD5Version 11\n", "only 10"},

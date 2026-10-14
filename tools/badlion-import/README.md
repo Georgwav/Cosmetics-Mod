@@ -191,7 +191,8 @@ Badlion. The report (`import-report.md`) lists every cosmetic with its slot and 
   `scale` is kept. `variants/` are cosmetics of their own, and so is every texture in a `textures/` folder
   (one per country flag).
 
-Their names come from the folders (Lunar) or the descriptors (NoRisk). They show up in the Wardrobe next to your
+A cosmetic whose model is only empty bones (NoRisk's enchant aura: the client draws it itself, as particles) is left
+out, and the report says so. Their names come from the folders (Lunar) or the descriptors (NoRisk). They show up in the Wardrobe next to your
 other cosmetics.
 
 ### `emotes`: emotes from any client's files
@@ -230,13 +231,15 @@ Instead of copying packs into `resourcepacks` and turning them on, put them into
 in your `mods` folder with all your cosmetics and emotes.
 
 ```powershell
-badlion-import bundle C:\Users\Pc\Downloads\cosmeticsmod-<version>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk C:\badlion-packs\emotes-norisk --out C:\Users\Pc\AppData\Roaming\.minecraft\mods
+badlion-import bundle C:\Users\Pc\Downloads\jars\cosmeticsmod-<version>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk C:\badlion-packs\emotes-appdata --out C:\badlion-packs
 ```
 
 - The first argument is the mod's jar for your Minecraft version (from a build's `jars` download), then any number
-  of pack folders written by `import` and `emotes`.
+  of pack folders written by `import` and `emotes`. It says how many cosmetics and emotes went in, and warns when
+  none of the packs has emotes (the emotes pack left out: the emote wheel would have only the mod's own).
 - It writes `cosmeticsmod-<version>+mc<minecraft>-personal.jar`: next to the mod's jar, or into the folder (or as
-  the file) `--out` names. Never into this repository: like the packs, it is for your own use.
+  the file) `--out` names, such as the folder your packs are in. Never into this repository: like the packs, it is
+  for your own use. Copy it into your launcher's `mods` folder (or point `--out` there).
 - Only each pack's `assets/` goes in; the mod reads it from the jar exactly as from the pack. Where two packs have
   the same file the later one's is taken (as the higher resource pack's would be), and listed; translations
   (`lang/*.json`) are merged.

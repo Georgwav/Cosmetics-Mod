@@ -285,6 +285,19 @@ class MeshTest {
     }
 
     @Test
+    void uvsRoundedJustOutsideTheTextureArePulledOntoIt() {
+        // As Badlion's cat pets' exporter wrote them: -0.00245 and 1.004.
+        String obj = "v 0 0 0\nv 1 0 0\nv 0 1 0\nvt -0.00245 1.0\nvt 1.004 0\nvt 0 0\nf 1/1 2/2 3/3\n";
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("{\"model\": \"test:models/cosmetic/n.obj\"}"),
+                Map.of("test:models/cosmetic/n.obj", obj)));
+        float[] corners = mesh.corners();
+        for (int i = 0; i < corners.length; i += CosmeticDefinition.Mesh.FLOATS_PER_CORNER) {
+            assertTrue(corners[i + 3] >= 0f && corners[i + 3] <= 16f, "u " + corners[i + 3]);
+            assertTrue(corners[i + 4] >= 0f && corners[i + 4] <= 16f, "v " + corners[i + 4]);
+        }
+    }
+
+    @Test
     void objErrorsNameTheFileAndLine() {
         assertMessage("n.obj:3", "v 0 0 0\nvt 0 0\nf 1/1 2/1 3/1\n");                 // index out of range
         assertMessage("n.obj:4", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");             // no texture coordinate
@@ -441,7 +454,7 @@ class MeshTest {
         String huge = "#" + "x".repeat(CosmeticParser.MAX_OBJ_BYTES) + "\n";
         RuntimeException e = assertThrows(RuntimeException.class, () -> parse(withMesh("{\"model\": \"test:models/cosmetic/big.obj\"}"),
                 Map.of("test:models/cosmetic/big.obj", huge)));
-        assertTrue(e.getMessage().contains("larger than 4 MiB"), e.getMessage());
+        assertTrue(e.getMessage().contains("larger than 16 MiB"), e.getMessage());
     }
 
     @Test

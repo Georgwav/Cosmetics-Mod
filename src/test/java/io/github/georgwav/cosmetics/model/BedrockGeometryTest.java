@@ -129,6 +129,19 @@ class BedrockGeometryTest {
         assertArrayEquals(fromBox.data(), fromFaces.data(), EPS);
     }
 
+    @Test
+    void aCubeWithANegativeSizeIsTheSameBoxFromTheOtherCorner() {
+        // Lunar's cherry blossom auras have petals dragged inside out in Blockbench.
+        CosmeticDefinition.Cube flipped = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [2, 0, 1], "size": [-2, 3, -1], "uv": [0, 0]}]}]
+                """));
+        CosmeticDefinition.Cube plain = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [2, 3, 1], "uv": [0, 0]}]}]
+                """));
+        assertArrayEquals(plain.from(), flipped.from(), EPS);
+        assertArrayEquals(plain.to(), flipped.to(), EPS);
+    }
+
     private static CosmeticDefinition definition(CosmeticDefinition.Cube cube) {
         return new CosmeticDefinition("t:c", "C", CosmeticSlot.HEAD, "t:t.png", 64, 64,
                 List.of(new CosmeticDefinition.Part("p", RenderMode.CUTOUT, "t:t.png", List.of(cube), List.of())));
@@ -163,5 +176,58 @@ class BedrockGeometryTest {
         assertThrows(RuntimeException.class, () -> CosmeticParser.parse("pack:thing", new StringReader("""
                 {"slot": "head", "texture": "t.png", "model": "thing"}
                 """), modelId -> new StringReader("{\"parent\": \"block/cube\"}")));
+    }
+
+    @Test
+    void blockbenchMeshesLoadAsMeshesFacingTheirNormals() {
+        // A Blockbench mesh as Bedrock writes it: one square facing +Z (the player's back), 4 px from the feet up.
+        BedrockGeometry.Model model = convert("""
+                [{"name": "rune", "pivot": [0, 0, 0], "poly_mesh": {"normalized_uvs": true,
+                  "positions": [[-2, 4, 3], [2, 4, 3], [2, 8, 3], [-2, 8, 3]],
+                  "normals": [[0, 0, 1]],
+                  "uvs": [[0, 0], [0.5, 0], [0.5, 0.25], [0, 0.25]],
+                  "polys": [[[0, 0, 0], [1, 0, 1], [2, 0, 2], [3, 0, 3]]]}}]
+                """);
+        assertEquals(1, model.parts().size());
+        CosmeticDefinition.Part part = model.parts().get(0);
+        assertEquals(0, part.cubes().size());
+        CosmeticDefinition.Mesh mesh = part.meshes().get(0);
+        assertEquals(2, mesh.triangles());
+        float[] c = mesh.corners();
+        int n = CosmeticDefinition.Mesh.FLOATS_PER_CORNER;
+        float minY = Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
+        for (int i = 0; i < c.length; i += n) {
+            // Feet-up +Y turned into our neck-down +Y: 4..8 up is 16..20 down.
+            minY = Math.min(minY, c[i + 1]);
+            maxY = Math.max(maxY, c[i + 1]);
+            assertEquals(3f, c[i + 2], EPS);
+            // UVs from the texture's bottom: 0..0.25 is the bottom quarter of the 64 px texture.
+            assertEquals(true, c[i + 4] >= 48f - EPS && c[i + 4] <= 64f + EPS, "v " + c[i + 4]);
+            assertArrayEquals(new float[]{0, 0, 1}, new float[]{c[i + 5], c[i + 6], c[i + 7]}, EPS);
+        }
+        assertEquals(16f, minY, EPS);
+        assertEquals(20f, maxY, EPS);
+        // Wound to face its normal (counter-clockwise seen from +Z): the cross product of its first two edges.
+        float[] a = {c[n] - c[0], c[n + 1] - c[1], c[n + 2] - c[2]};
+        float[] b = {c[2 * n] - c[0], c[2 * n + 1] - c[1], c[2 * n + 2] - c[2]};
+        assertEquals(true, a[0] * b[1] - a[1] * b[0] > 0f);
+    }
+
+    @Test
+    void meshListsWithoutPolygonsReadTheirCornersInStep() {
+        BedrockGeometry.Model model = convert("""
+                [{"name": "tris", "poly_mesh": {"positions": [[0, 0, 0], [4, 0, 0], [0, 4, 0]],
+                  "uvs": [[0, 0], [4, 0], [0, 4]], "polys": "tri_list"}}]
+                """);
+        assertEquals(1, model.parts().get(0).meshes().get(0).triangles());
+    }
+
+    @Test
+    void aModelOfEmptyBonesSaysSo() {
+        RuntimeException e = assertThrows(RuntimeException.class, () -> convert("""
+                [{"name": "root", "pivot": [0, 0, 0]}, {"name": "locator_bone", "parent": "root"}]
+                """));
+        assertEquals(true, e.getMessage().contains("no cubes or meshes"), e.getMessage());
     }
 }

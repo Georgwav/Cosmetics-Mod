@@ -14,7 +14,9 @@ import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.PetPosition;
+import io.github.georgwav.cosmetics.render.CapeElytra;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
+import io.github.georgwav.cosmetics.render.RecoloredTextures;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
@@ -128,6 +130,8 @@ public final class CosmeticsScreen extends Screen {
     /** How far you turned the preview round and tipped it (degrees), kept while the game runs. */
     private static float previewSpin;
     private static float previewPitch;
+    /** The preview shows you wearing an elytra (to see a cape on it), kept while the game runs. */
+    private static boolean previewElytra;
     private static final float MAX_PREVIEW_PITCH = 80f;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
@@ -143,6 +147,10 @@ public final class CosmeticsScreen extends Screen {
     private final List<FlatWidget> content = new ArrayList<>();
     /** The key bind waiting for a key (its row was clicked), or null. */
     private KeyMapping listeningFor;
+    /** How many load failures "Copy all" last put on the clipboard (-1: not copied). */
+    private int copiedFailures = -1;
+    /** Which of the open cosmetic's own colours is being changed (-1: none). */
+    private int swatch = -1;
     private final List<Integer> contentOffsets = new ArrayList<>();
     private Tab tab = lastTab;
     /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
@@ -213,21 +221,36 @@ public final class CosmeticsScreen extends Screen {
         return screen;
     }
 
-    /** Pages the in-game test opens: every tab, a cosmetic's own page, then the wardrobe's outfits. */
-    public static final int TEST_PAGE_COUNT = TAB_COUNT + 2;
+    /**
+     * Pages the in-game test opens: every tab, a cosmetic's own page, the wardrobe's outfits, then a cape's page with
+     * the preview wearing an elytra.
+     */
+    public static final int TEST_PAGE_COUNT = TAB_COUNT + 3;
 
     public static String testPageName(int page) {
-        return page < TAB_COUNT ? tabName(page) : page == TAB_COUNT ? "cosmetic" : "outfits";
+        return page < TAB_COUNT ? tabName(page) : page == TAB_COUNT ? "cosmetic"
+                : page == TAB_COUNT + 1 ? "outfits" : "cape_elytra";
     }
 
     public static CosmeticsScreen testPage(int page) {
         if (page < TAB_COUNT) {
             return new CosmeticsScreen(null, page);
         }
-        if (page > TAB_COUNT) {
+        if (page == TAB_COUNT + 1) {
             CosmeticsScreen outfits = new CosmeticsScreen(null, Tab.WARDROBE.ordinal());
             outfits.view = View.OUTFITS;
             return outfits;
+        }
+        if (page == TAB_COUNT + 2) {
+            // A cape's page, the preview wearing an elytra with the cape on it.
+            BakedCosmetic cape = null;
+            for (BakedCosmetic cosmetic : wardrobe()) {
+                if (cosmetic.slot() == CosmeticSlot.CAPE && (cape == null || cosmetic.hasEmissive())) {
+                    cape = cosmetic;
+                }
+            }
+            previewElytra = true;
+            return forCosmetic(null, cape != null ? cape.id() : "");
         }
         // Prefer a cosmetic with every option (glow and animation) so the whole page gets drawn.
         BakedCosmetic pick = null;
@@ -237,6 +260,11 @@ public final class CosmeticsScreen extends Screen {
             }
         }
         return forCosmetic(null, pick != null ? pick.id() : "");
+    }
+
+    /** Whether the page has room for the preview of you, so draws it (for the in-game test). */
+    public boolean showsPreview() {
+        return showPreview;
     }
 
     /** Wardrobe tile pictures made since the game started (for the in-game test). */
@@ -285,6 +313,10 @@ public final class CosmeticsScreen extends Screen {
             previewX = left;
             left += previewW + Theme.PAD;
             int top = py + Theme.HEADER_HEIGHT + 6;
+            // Before the drag area, so a click on it isn't a drag.
+            int chipW = Math.min(previewW - 8, font.width(t("preview.elytra")) + 12);
+            addChrome(new Rows.Button(previewX + previewW - chipW - 4, top + 4, chipW, 14, t("preview.elytra"),
+                    () -> previewElytra, () -> previewElytra = !previewElytra));
             addChrome(new Rows.DragArea(previewX, top, previewW, py + ph - Theme.FOOTER_HEIGHT - 6 - top,
                     (dx, dy) -> {
                         previewSpin += (float) dx * 2f;
@@ -512,6 +544,7 @@ public final class CosmeticsScreen extends Screen {
 
     private void openDetail(String cosmeticId) {
         detailId = cosmeticId;
+        swatch = -1;
         scroll = 0;
         rebuildWidgets();
     }
@@ -640,10 +673,72 @@ public final class CosmeticsScreen extends Screen {
         }
         List<String> failed = CosmeticLoader.failures();
         if (!failed.isEmpty()) {
-            add(new Rows.Info(listX, 0, listW, t("wardrobe.failed", failed.size()), () -> "", Theme.WARN));
+            // Copy all of them (to paste them somewhere) without digging through the log.
+            add(new Rows.Actions(listX, 0, listW, t("wardrobe.failed", failed.size()),
+                    () -> copiedFailures == failed.size() ? t("wardrobe.failed_copied") : "",
+                    List.of(t("wardrobe.failed_copy")), List.of(() -> {
+                        minecraft.keyboardHandler.setClipboard(String.join("\n", failed));
+                        copiedFailures = failed.size();
+                    })));
             for (String why : failed.subList(0, Math.min(3, failed.size()))) {
                 add(new Rows.Info(listX, 0, listW, why, () -> "", Theme.TEXT_DIM));
             }
+        }
+    }
+
+    /**
+     * The cosmetic's own colours (the red and the gold of a red and gold cape), each to change on its own: pick one,
+     * then its colour below; the others stay as they are.
+     */
+    private void addSwaps(BakedCosmetic cosmetic, CosmeticsConfig config) {
+        String id = cosmetic.id();
+        int[] palette = RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers())
+                .map(BakedCosmetic.Layer::texture).distinct().toList());
+        if (palette.length == 0) {
+            return;
+        }
+        add(new Rows.Swatches(listX, 0, listW, t("swaps"), palette, i -> swappedTo(config, id, palette[i]),
+                () -> swatch, i -> {
+                    swatch = i;
+                    rebuildWidgets();
+                }));
+        if (swatch >= 0 && swatch < palette.length) {
+            int from = palette[swatch];
+            add(new Rows.ColorPicker(listX, 0, listW, () -> swappedTo(config, id, from),
+                    v -> swap(config, id, palette, from, v), () -> swap(config, id, palette, from, from),
+                    COLORS, t("swaps.keep")));
+        }
+        add(new Rows.Info(listX, 0, listW, t(config.options(id).color != null || config.options(id).rainbow
+                ? "swaps.hint_painted" : "swaps.hint"), () -> "", Theme.TEXT_DIM));
+    }
+
+    /** What the cosmetic's colour {@code from} is changed to (itself when it isn't). */
+    private static int swappedTo(CosmeticsConfig config, String id, int from) {
+        List<CosmeticsConfig.ColorSwap> swaps = config.options(id).swaps;
+        if (swaps != null) {
+            for (CosmeticsConfig.ColorSwap c : swaps) {
+                if (c.from == (from & 0xFFFFFF)) {
+                    return c.to;
+                }
+            }
+        }
+        return from & 0xFFFFFF;
+    }
+
+    /**
+     * Changes the cosmetic's colour {@code from} to {@code to}. Every colour of its palette is kept in the list (as
+     * itself if unchanged), so the kept ones hold their colours; none changed is no list at all.
+     */
+    private static void swap(CosmeticsConfig config, String id, int[] palette, int from, int to) {
+        CosmeticsConfig.CosmeticOptions options = config.editOptions(id);
+        List<CosmeticsConfig.ColorSwap> swaps = new ArrayList<>();
+        for (int colour : palette) {
+            int target = colour == from ? to : swappedTo(config, id, colour);
+            swaps.add(new CosmeticsConfig.ColorSwap(colour, target));
+        }
+        options.swaps = swaps;
+        if (!options.swapsAny()) {
+            options.swaps = null;
         }
     }
 
@@ -842,6 +937,13 @@ public final class CosmeticsScreen extends Screen {
                     v -> config.editOptions(id).petPosition = v == defaultPosition ? null : v,
                     v -> t("pet_position." + v.name().toLowerCase(Locale.ROOT))));
         }
+        if (cosmetic.slot() == CosmeticSlot.CAPE) {
+            section("section.elytra");
+            add(new Rows.Toggle(listX, 0, listW, t("elytra"), null,
+                    () -> config.options(id).elytra, v -> config.editOptions(id).elytra = v));
+            add(new Rows.Toggle(listX, 0, listW, t("preview_elytra"), null,
+                    () -> previewElytra, v -> previewElytra = v));
+        }
         boolean tint = config.allows(cosmetic, CosmeticOption.TINT);
         boolean rainbow = config.allows(cosmetic, CosmeticOption.RAINBOW);
         boolean saturation = config.allows(cosmetic, CosmeticOption.SATURATION);
@@ -896,6 +998,7 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Slider(listX, 0, listW, t("brightness"), 0, 2, 0.05,
                     () -> config.options(id).brightness, v -> config.editOptions(id).brightness = (float) v,
                     v -> Math.round(v * 100) + "%"));
+            addSwaps(cosmetic, config);
         }
 
         boolean size = cosmetic.allows(CosmeticOption.SIZE);
@@ -911,6 +1014,8 @@ public final class CosmeticsScreen extends Screen {
         if (size || position) {
             add(new Rows.Toggle(listX, 0, listW, t("turned"), null,
                     () -> config.options(id).turned, v -> config.editOptions(id).turned = v));
+            add(new Rows.Toggle(listX, 0, listW, t("upside_down"), null,
+                    () -> config.options(id).upsideDown, v -> config.editOptions(id).upsideDown = v));
         }
         if (position) {
             add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,
@@ -935,7 +1040,11 @@ public final class CosmeticsScreen extends Screen {
         }
         if (glow) {
             add(new Rows.Toggle(listX, 0, listW, t("glow"), config.emissiveParts ? null : t("glow.off_globally"),
-                    () -> config.options(id).glow, v -> config.editOptions(id).glow = v));
+                    () -> config.options(id).glow, v -> {
+                        config.editOptions(id).glow = v;
+                        // A cape's elytra has its glowing parts drawn in.
+                        CapeElytra.forget(id);
+                    }));
         }
         if (animation) {
             add(new Rows.Toggle(listX, 0, listW, t("animation"), null,
@@ -1031,6 +1140,7 @@ public final class CosmeticsScreen extends Screen {
                 () -> c.emoteCamera, v -> c.emoteCamera = v,
                 v -> t("emote_camera." + v.name().toLowerCase(Locale.ROOT))));
         toggle("emote_stop_on_move", () -> c.emoteStopOnMove, v -> c.emoteStopOnMove = v);
+        toggle("elytra_emote_rockets", () -> c.elytraEmoteRockets, v -> c.elytraEmoteRockets = v);
     }
 
     private void buildPerformance() {
@@ -1299,16 +1409,21 @@ public final class CosmeticsScreen extends Screen {
         g.fill(x1, y1, x2, y2, Theme.PREVIEW_BG);
         int scale = Math.max(20, (int) ((y2 - y1) / 2.9f));
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
-        // Capes, wings and backpacks are worn on the back: turn round to show them.
-        boolean back = shown != null && (shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK
-                || shown.wings() != null);
+        // Capes, wings and backpacks are worn on the back: turn round to show them, and the elytra when it shows.
+        boolean back = shown != null ? shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK
+                || shown.wings() != null : previewElytra;
         float target = previewSpin + (back ? 180f : 0f);
         shownSpin += (target - shownSpin) * 0.2f;
         if (Math.abs(target - shownSpin) < 0.5f) {
             shownSpin = target;
         }
         shownPitch += (previewPitch - shownPitch) * 0.3f;
-        g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
+        if (previewElytra) {
+            CapeElytra.wearingElytra(minecraft.player, () -> g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f,
+                    mouseX, mouseY, minecraft.player, shownSpin, shownPitch));
+        } else {
+            g.entityTurned(x1, y1 + 6, x2, y2 - 18, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
+        }
         // The particles of auras, drawn the way the preview turns the player.
         float bodyYaw = 180f + shownSpin;
         previewParticles.update(EquippedCosmetics.forPlayer(minecraft.player.getUUID(), true), bodyYaw);

@@ -152,7 +152,7 @@ A vertex with a different UV on two faces (a texture seam) is written twice.
 `"cosmeticsmod:models/cosmetic/orbit_ring.obj"` for `assets/cosmeticsmod/models/cosmetic/orbit_ring.obj`. Use
 either `model` or inline geometry in one mesh, not both.
 
-- **OBJ** (`.obj`, up to 4 MiB):
+- **OBJ** (`.obj`, up to 16 MiB):
   - Reads `v`, `vt`, `vn` and `f` lines. Faces can be triangles, quads or larger polygons (split into a fan
     of triangles), with 1-based or negative indices.
   - Every face corner needs a texture coordinate. OBJ texture coordinates (0 to 1, V up) are converted to
@@ -205,7 +205,8 @@ A mirror or negative scale also turns the faces around, so they still face outwa
   include:
   - out-of-range indices;
   - numbers that aren't finite;
-  - UVs outside the texture;
+  - UVs outside the texture (a texture coordinate up to 1% outside 0..1, as exporters round them, is put on its
+    edge instead);
   - `uvs` or `normals` lists that don't have one entry per vertex;
   - a scale of 0;
   - files that are missing or too big.
@@ -360,10 +361,12 @@ The bundled `cosmeticsmod:crown` is made exactly like this.
   both pivot at the neck (24 px up), so cosmetics follow head turns and body movement. For the `cape`
   slot, build the cape relative to the top center of the back.
 - **Supported**: bones with parents, pivots and rotations, cube pivots and rotations, `inflate`, `mirror`,
-  box UV and per-face UV. Texture size comes from the model's `texture_width` / `texture_height`.
+  box UV and per-face UV, and Blockbench meshes (`poly_mesh`: `positions`, `normals`, `uvs`, `normalized_uvs`, and
+  `polys` as a list of polygons or `tri_list` / `quad_list`), each polygon facing the way its normals point. Texture
+  size comes from the model's `texture_width` / `texture_height`.
 - **Animations**: Bedrock / GeckoLib animations play with `model_animations` (see
   [Model animations](#model-animations)); the simple movements of [Animation](#animation) work too.
-- **Not used**: locators and `poly_mesh`. Use [Meshes](#meshes) for free-form shapes.
+- **Not used**: locators.
 
 `bones` keys are bone names (case-insensitive):
 
@@ -495,6 +498,25 @@ the texture coordinates or swaps the texture, so it costs nothing extra to draw.
 - Texture animation follows the cosmetic's animation settings: off shows the first frame, and the speed
   setting speeds it up or slows it down.
 - Frame times are whole milliseconds, 1 to 600 000.
+
+## Capes on the elytra
+
+A player wearing a cape and an elytra has the cape's design on the elytra, as the game does with its own capes
+("Show on elytra" on the cape's page, on by default). The elytra's texture is the first of:
+
+1. `<texture>_elytra.png` beside the cape's texture (for `ns:textures/cosmetic/cape.png`,
+   `ns:textures/cosmetic/cape_elytra.png`): an elytra texture in the game's 64 x 32 cape layout (the wings are
+   drawn from blocks 22 to 46 across and 0 to 22 down), at any size twice as wide as high. For an animated cape, a
+   vertical strip of as many frames as the cape has, shown in step with it.
+2. The cape's own texture, when it is the 64 x 32 layout and its elytra part is drawn on, as the game's capes are.
+3. Made from the cape's design: the cape's outside (its first cube's north face; for a cape without cubes, the
+   vanilla cape's place in a 64 x 32 texture, else in the 22 blocks wide layout of other clients' capes) on the
+   outside of each wing, stretched from the cape's 10 x 16 to the wing's 10 x 20 so it covers it, its inside on the
+   wing's inside and the edges of both on the wing's edges. Glowing parts are drawn in (an elytra can't glow).
+   Then it is cut to the shape of the game's elytra texture (a resource pack's, when one changes it), so it is
+   an elytra in the cape's design, not a plate.
+
+The elytra is recoloured and tinted as the cape is, and an animated cape's elytra plays its frames.
 
 ## Particles
 

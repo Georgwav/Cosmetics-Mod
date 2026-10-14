@@ -115,16 +115,20 @@ public final class EmotePlayer {
     }
 
     /**
-     * Doing something always stops an emote, an elytra emote too: attacking (or punching), using an item (a
-     * rocket while gliding, eating, blocking) or sneaking.
+     * Doing something stops an emote: attacking (or punching), using an item (eating, blocking) or sneaking. During
+     * an elytra emote using an item doesn't, when "Rockets keep elytra emotes" is on (the default): you fly on with
+     * rockets while it plays.
      */
     private static boolean acted(Minecraft client, LocalPlayer player) {
         if (seconds(startNanos) < ACTION_GRACE_SECONDS) {
             return false;
         }
         var options = client.options;
-        return options.keyAttack.isDown() || options.keyUse.isDown() || options.keyShift.isDown()
-                || player.isUsingItem();
+        boolean using = options.keyUse.isDown() || player.isUsingItem();
+        if (using && elytra && CosmeticsConfig.get().elytraEmoteRockets) {
+            using = false;
+        }
+        return options.keyAttack.isDown() || options.keyShift.isDown() || using;
     }
 
     private static boolean interrupted(LocalPlayer player) {

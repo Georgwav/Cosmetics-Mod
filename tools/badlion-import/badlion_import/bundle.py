@@ -28,6 +28,8 @@ MOD_ID = "cosmeticsmod"
 STAMP = "cosmeticsmod-personal.json"
 SUFFIX = "-personal"
 _LANG = re.compile(r"^assets/[^/]+/lang/[^/]+\.json$")
+_EMOTE = re.compile(r"^assets/[^/]+/emotes/.+\.json$")
+_COSMETIC = re.compile(r"^assets/[^/]+/cosmetics/.+\.json$")
 
 
 @dataclass
@@ -39,6 +41,9 @@ class Bundled:
     merged: list[str] = field(default_factory=list)
     # Files of an earlier bundle that were taken out.
     dropped: int = 0
+    # Cosmetic and emote files bundled.
+    cosmetics: int = 0
+    emotes: int = 0
 
 
 def mod_id(jar: Path) -> str | None:
@@ -133,6 +138,8 @@ def bundle(jar: Path, packs: list[Path], output: Path) -> Bundled:
         Path(temp).unlink(missing_ok=True)
         raise
     result.files = len(files)
+    result.cosmetics = sum(1 for path in files if _COSMETIC.match(path))
+    result.emotes = sum(1 for path in files if _EMOTE.match(path))
     return result
 
 

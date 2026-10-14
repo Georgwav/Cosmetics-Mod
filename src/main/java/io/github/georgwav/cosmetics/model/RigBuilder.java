@@ -30,6 +30,12 @@ final class RigBuilder {
     /** Weights weaker than this are ignored when deciding whether a vertex follows one joint. */
     static final float NEGLIGIBLE_WEIGHT = 1.0e-4f;
 
+    /**
+     * How far (as a share of the texture) a model's texture coordinate may stray outside the texture, rounded there by
+     * its exporter, before it is an error (a texture meant to repeat, which isn't supported).
+     */
+    static final float UV_SLACK = 0.01f;
+
     private RigBuilder() {
     }
 
@@ -260,7 +266,8 @@ final class RigBuilder {
                 maxZ = Math.max(maxZ, p[v * 3 + 2]);
                 float u = block.uvs()[v * 2];
                 float t = block.uvs()[v * 2 + 1];
-                if (u < -1.0e-4f || u > 1.0001f || t < -1.0e-4f || t > 1.0001f) {
+                // Exporters round to just outside the texture (-0.0025, 1.0001): up to 1% out is pulled onto it.
+                if (u < -UV_SLACK || u > 1f + UV_SLACK || t < -UV_SLACK || t > 1f + UV_SLACK) {
                     throw new JsonParseException(source + ": vert " + v + " has texture coordinate (" + u + ", " + t
                             + ") outside 0..1 (wrapping textures aren't supported)");
                 }

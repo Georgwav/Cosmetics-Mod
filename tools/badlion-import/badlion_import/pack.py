@@ -23,8 +23,8 @@ DEFAULT_MAX_TRIANGLES = 100_000  # the mod's default maxMeshTriangles
 # The conversion's format, stamped into the pack (assets/<namespace>/cosmetics_import.json): the mod asks for a new
 # import when a pack's is older than its fixes need (CosmeticLoader.IMPORT_FORMATS). 2: capes the vanilla length,
 # wings sized and placed as Badlion has them. 3: shields facing as Badlion has them in each view. 4: every wing
-# model bending forward turned around.
-IMPORT_FORMAT = 4
+# model bending forward turned around. 5: shields upright.
+IMPORT_FORMAT = 5
 IMPORT_STAMP = "cosmetics_import.json"
 
 PACK_MCMETA = {

@@ -44,7 +44,7 @@ public final class CosmeticParser {
     };
 
     /** Largest mesh files read, in bytes. */
-    static final int MAX_OBJ_BYTES = 4 << 20;
+    static final int MAX_OBJ_BYTES = 16 << 20;
     static final int MAX_BBMODEL_BYTES = 16 << 20;
     static final int MAX_MD5MESH_BYTES = 8 << 20;
     static final int MAX_MD5ANIM_BYTES = 16 << 20;
@@ -112,7 +112,8 @@ public final class CosmeticParser {
         BoneRig boneRig = null;
         if (json.has("model")) {
             float[] placement = json.has("model_placement") ? modelPlacement(json.get("model_placement")) : null;
-            BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models, placement);
+            BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models, placement,
+                    context.warnings());
             boneRig = boneRig(json, namespace, model, models, context.warnings(), placement);
             for (CosmeticDefinition.Part part : model.parts()) {
                 // Parts that move share a layer per moving bone; without bone animations the model is one piece.
@@ -657,7 +658,7 @@ public final class CosmeticParser {
      */
     private static BedrockGeometry.Model loadModel(JsonObject json, String namespace, String texture,
                                                    List<CosmeticDefinition.Animation> defaultAnimations,
-                                                   ModelSource models, float[] placement) {
+                                                   ModelSource models, float[] placement, Consumer<String> warnings) {
         String modelId = json.get("model").getAsString();
         if (modelId.indexOf(':') < 0) {
             modelId = namespace + ":" + modelId;
@@ -692,7 +693,7 @@ public final class CosmeticParser {
             }
         }
         return BedrockGeometry.convert(geometry.getAsJsonObject(), "model '" + modelId + "'", texture,
-                new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations, placement);
+                new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations, placement, warnings);
     }
 
     /**

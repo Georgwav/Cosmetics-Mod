@@ -511,7 +511,8 @@ def log_screenshot(name, width, height, rows):
         step, x0, y0, x1, y1 = 4, 0, 0, width, height
     elif name.startswith("screenshot-shield"):
         step, x0, y0, x1, y1 = 2, 0, 0, width, height  # first person: the shield is low on the left
-    elif name.startswith(("screenshot-elytra_stand", "screenshot-elytra_angle", "screenshot-emote_elytra")):
+    elif name.startswith(("screenshot-elytra_stand", "screenshot-elytra_angle", "screenshot-elytra_cape",
+                          "screenshot-emote_elytra")):
         # Zoomed close-ups of the elytra on the back, shoulders to feet (the lower part of the screen): full size,
         # so a gap of a pixel shows.
         crop_w, crop_h = min(480, width), min(400, height)
@@ -632,7 +633,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 break
             for marker in game_dir.glob("cosmeticsmod-phase-*"):
                 phase = marker.name[len("cosmeticsmod-phase-"):]
-                if phase not in seen_markers and (phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
+                if phase not in seen_markers and (phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_cape", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
                     seen_markers.add(phase)
                     time.sleep(1 if phase.startswith("ui_") else 4)  # let the phase settle
                     png = game_dir / f"screenshot-{phase}.png"

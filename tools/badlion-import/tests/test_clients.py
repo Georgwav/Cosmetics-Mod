@@ -30,6 +30,8 @@ def test_import_finds_both_clients_and_leaves_the_shop_out(tmp_path):
                           "tophat", "wm_flag", "wm_flag_ger", "cape_gamescom25"])
     report = (out / clients.REPORT).read_text(encoding="utf-8")
     assert "## Lunar" in report and "## Norisk" in report
+    # A cosmetic whose model is only empty bones (NoRisk's enchant aura) is left out, saying why.
+    assert "enchant_aura" in report and "no shapes" in report
     # Never written into the input.
     assert not (source / "pack.mcmeta").exists()
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["description"].startswith("Your own Lunar")
