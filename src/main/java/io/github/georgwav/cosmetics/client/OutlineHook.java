@@ -4,10 +4,12 @@ package io.github.georgwav.cosmetics.client;
 // colour, and skip the game's own. Up to 1.21.8 it hands over the block and a line buffer; from 1.21.9 the outline's
 // render state, and the game may ask once for each of its passes, so each frame's outline (a new render state) is
 // drawn once, as wide as the game draws its own (2.5 pixels on a 1080p window, wider on bigger ones). framesDrawn
-// counts the frames the client drew it in, for the in-game test. 26.x has no such event yet.
+// counts the frames the client drew it in, for the in-game test; available says the event was there to hook (some
+// Fabric API builds for 1.21.9 lack it). 26.x has no such event yet.
 //? if >=26.1 {
 /*public final class OutlineHook {
     public static int framesDrawn;
+    public static boolean available;
 
     private OutlineHook() {
     }
@@ -26,6 +28,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class OutlineHook {
     public static int framesDrawn;
+    public static boolean available;
     private static BlockOutlineRenderState drawn;
 
     private OutlineHook() {
@@ -47,6 +50,7 @@ public final class OutlineHook {
             }
             return false;
         });
+        available = true;
     }
 
     private static float lineWidth() {
@@ -63,6 +67,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class OutlineHook {
     public static int framesDrawn;
+    public static boolean available;
     private static BlockOutlineRenderState drawn;
 
     private OutlineHook() {
@@ -84,6 +89,7 @@ public final class OutlineHook {
             }
             return false;
         });
+        available = true;
     }
 }
 *///?} else {
@@ -96,6 +102,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class OutlineHook {
     public static int framesDrawn;
+    public static boolean available;
 
     private OutlineHook() {
     }
@@ -112,6 +119,7 @@ public final class OutlineHook {
             framesDrawn++;
             return false;
         });
+        available = true;
     }
 
     private static void draw(PoseStack poseStack, VertexConsumer lines, VoxelShape shape, double x, double y, double z,

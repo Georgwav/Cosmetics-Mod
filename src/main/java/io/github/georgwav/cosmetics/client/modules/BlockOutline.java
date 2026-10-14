@@ -1,13 +1,14 @@
 package io.github.georgwav.cosmetics.client.modules;
 
 import io.github.georgwav.cosmetics.client.Module;
+import io.github.georgwav.cosmetics.client.OutlineHook;
 import io.github.georgwav.cosmetics.client.Setting;
 
 import java.util.List;
 
 /**
  * The outline around the block you look at, in your colour and opacity instead of the game's faint black. Drawn
- * through Fabric's block outline event (see OutlineHook); not on 26.x yet.
+ * through Fabric's block outline event (see OutlineHook), where the game's Fabric API has one; not on 26.x yet.
  */
 public final class BlockOutline extends Module {
     private static final List<String> COLORS = List.of("black", "white", "red", "green", "cyan", "yellow", "pink");
@@ -23,11 +24,11 @@ public final class BlockOutline extends Module {
 
     /** Whether this Minecraft version can draw it yet. */
     public static boolean supported() {
-        //? if >=26.1 {
-        /*return false;
-        *///?} else {
-        return true;
-        //?}
+        try {
+            return OutlineHook.available;
+        } catch (LinkageError e) {
+            return false;
+        }
     }
 
     @Override

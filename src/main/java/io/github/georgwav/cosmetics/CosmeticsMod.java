@@ -40,7 +40,12 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyBinds.emotes = emoteKey;
         Modules.init(VersionHooks::registerUnboundKey);
         Hud.register();
-        OutlineHook.register();
+        try {
+            OutlineHook.register();
+        } catch (LinkageError e) {
+            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: the outline stays the game's.
+            LOGGER.warn("No block outline event in this Fabric API, the outline colour is off: {}", e.toString());
+        }
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpenHub();
