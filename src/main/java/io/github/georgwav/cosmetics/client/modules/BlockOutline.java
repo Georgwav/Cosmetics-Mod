@@ -8,7 +8,8 @@ import java.util.List;
 
 /**
  * The outline around the block you look at, in your colour and opacity instead of the game's faint black. Drawn
- * through Fabric's block outline event (see OutlineHook), where the game's Fabric API has one; not on 26.x yet.
+ * through Fabric's block outline event where the game's Fabric API has one, and on 26.x by giving the game's own
+ * outline this colour (see OutlineHook).
  */
 public final class BlockOutline extends Module {
     private static final List<String> COLORS = List.of("black", "white", "red", "green", "cyan", "yellow", "pink");

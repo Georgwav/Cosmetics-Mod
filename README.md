@@ -49,7 +49,7 @@ button.
 | Toggle Sprint / Sneak | Switches the game's own toggles. |
 | Weather changer, Time changer | Your own weather and time of day, on your screen only. |
 | Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
-| Block outline | The outline around the block you look at, in your colour and opacity. Off with a Fabric API that has no block outline event (older 1.21.9 builds), and not on 26.x yet. |
+| Block outline | The outline around the block you look at, in your colour and opacity. Off with a Fabric API that has no block outline event (older 1.21.9 builds). |
 | Keystrokes, FPS, Ping, Clock, Coordinates, Armor, Effect timers | HUD modules. Each has a size and a dark backing; the text ones also have a text shadow, a font (Minecraft or Geist) and a colour. |
 
 **HUD editor:**
