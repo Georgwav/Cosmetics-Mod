@@ -16,12 +16,26 @@ public final class WeatherChanger extends Module {
 
     /** The rain level to show (0 to 1), or a negative number for the server's. */
     public static float rain() {
+        if (io.github.georgwav.cosmetics.devtools.SolScenario.lockedTime >= 0L) {
+            return 0f;
+        }
+        float atmosphere = io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.lockedRain();
+        if (atmosphere >= 0f) {
+            return atmosphere;
+        }
         WeatherChanger m = Modules.WEATHER;
         return !m.enabled() ? -1f : m.weather.get().equals("clear") ? 0f : 1f;
     }
 
     /** The thunder level to show (0 to 1), or a negative number for the server's. */
     public static float thunder() {
+        if (io.github.georgwav.cosmetics.devtools.SolScenario.lockedTime >= 0L) {
+            return 0f;
+        }
+        float atmosphere = io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.lockedThunder();
+        if (atmosphere >= 0f) {
+            return atmosphere;
+        }
         WeatherChanger m = Modules.WEATHER;
         return !m.enabled() ? -1f : m.weather.get().equals("thunder") ? 1f : 0f;
     }

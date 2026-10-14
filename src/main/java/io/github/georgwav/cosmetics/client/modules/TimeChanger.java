@@ -16,6 +16,14 @@ public final class TimeChanger extends Module {
 
     /** The day time to show (0 is 06:00, 6000 noon), or -1 for the server's. */
     public static long dayTime() {
+        long sol = io.github.georgwav.cosmetics.devtools.SolScenario.lockedTime;
+        if (sol >= 0L) {
+            return sol;
+        }
+        long atmosphere = io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.lockedTime();
+        if (atmosphere >= 0L) {
+            return atmosphere;
+        }
         TimeChanger m = Modules.TIME;
         return m.enabled() ? Math.round(m.time.get()) : -1L;
     }

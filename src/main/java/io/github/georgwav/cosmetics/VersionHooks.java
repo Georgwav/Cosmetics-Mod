@@ -142,6 +142,7 @@ final class VersionHooks {
             @Override
             public void onResourceManagerReload(ResourceManager manager) {
                 CosmeticLoader.reload(manager);
+                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
             }
         });
         *///?} elif <1.21.11 {
@@ -162,6 +163,7 @@ final class VersionHooks {
             @Override
             public void onResourceManagerReload(ResourceManager manager) {
                 CosmeticLoader.reload(manager);
+                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
             }
         };
     }

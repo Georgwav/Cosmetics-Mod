@@ -55,8 +55,10 @@ public final class Modules {
     public static final CoordsHud COORDS = new CoordsHud();
     public static final ArmorHud ARMOR = new ArmorHud();
     public static final EffectsHud EFFECTS = new EffectsHud();
+    public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
+            new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(FULLBRIGHT, CROSSHAIR, OUTLINE, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, FULLBRIGHT, CROSSHAIR, OUTLINE, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
             PING, CLOCK, COORDS, ARMOR, EFFECTS);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, FPS, PING, CLOCK, COORDS, ARMOR, EFFECTS);
 
@@ -273,6 +275,7 @@ public final class Modules {
             return;
         }
         JsonObject modules = toJson();
+        io.github.georgwav.cosmetics.sol.config.SolProfiles.changed();
         JsonObject instance = new JsonObject();
         if (MainFolder.chosen != null) {
             instance.addProperty("mainFolder", MainFolder.chosen.toString());

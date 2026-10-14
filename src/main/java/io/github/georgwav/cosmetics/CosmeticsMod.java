@@ -40,6 +40,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyBinds.emotes = emoteKey;
         Modules.init(VersionHooks::registerUnboundKey);
         Hud.register();
+        io.github.georgwav.cosmetics.sol.Sol.init();
         try {
             OutlineHook.register();
         } catch (LinkageError e) {
