@@ -547,9 +547,12 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         # Shaders start off; the mod's scenario switches them on through the Iris API mid-run.
         (game_dir / "config" / "iris.properties").write_text(
             f"shaderPack={Path(shaderpack).name}\nenableShaders=false\n")
+    # The benchmark compares frame rates, so nothing may cap them: no frame limit (260 = unlimited), and no
+    # "inactivity" limit, which drops the game to 30 FPS after a minute without input (from 1.21.2).
+    fps = ["maxFps:260", 'inactivityFpsLimit:"minimized"'] if mode == "benchmark" else ["maxFps:60"]
     (game_dir / "options.txt").write_text("\n".join([
         "onboardAccessibility:false", "skipMultiplayerWarning:true", "tutorialStep:none", "joinedFirstServer:true",
-        "pauseOnLostFocus:false", "renderDistance:4", "simulationDistance:5", "maxFps:60", "enableVsync:false",
+        "pauseOnLostFocus:false", "renderDistance:4", "simulationDistance:5", *fps, "enableVsync:false",
         "fullscreen:false", "narrator:0", "soundCategory_master:0.0", "guiScale:2", ""]))
 
     jvm = [

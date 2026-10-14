@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.BakedMesh;
 import io.github.georgwav.cosmetics.model.Cloth;
@@ -12,9 +13,8 @@ import io.github.georgwav.cosmetics.model.SkinnedMesh;
  * are written: no custom GL buffers, no GL state, no wrapping of the consumer (Sodium requires the
  * consumer it handed out to be used directly).
  *
- * <p>Each vertex goes in with the one-call {@code addVertex} that vanilla's own model parts use: for the
- * entity vertex format the buffer writes it straight to memory, instead of element by element. A shader pack's
- * wider format falls back to the element-by-element writes, exactly as before.
+ * <p>Without a shader pack each vertex goes in with the one-call {@code addVertex} that vanilla's own model parts
+ * use, which the buffer writes straight to memory for the entity vertex format; see {@link #vertex}.
  */
 public final class MeshEmitter {
     /** {@code LightTexture.FULL_BRIGHT}; a literal because the light class was renamed in 26.x. */
@@ -33,39 +33,60 @@ public final class MeshEmitter {
      */
     public static void emitLayer(BakedCosmetic.Layer layer, float vOffset, int clip, float clipTime, PoseStack.Pose pose,
                                  VertexConsumer consumer, int light, int color, Cloth.Shape cloth) {
+        boolean oneCall = !Compat.isShaderPackActive();
         SkinnedMesh skin = layer.skin();
         if (cloth != null && skin == null) {
-            emitCloth(layer.clothMesh().mesh(), cloth, pose, consumer, light, color, vOffset);
+            emitCloth(layer.clothMesh().mesh(), cloth, pose, consumer, light, color, vOffset, oneCall);
             Cloth.Mesh smooth = layer.clothSmoothMesh();
             if (smooth != null) {
-                emitCloth(smooth.mesh(), cloth, pose, consumer, light, color, vOffset);
+                emitCloth(smooth.mesh(), cloth, pose, consumer, light, color, vOffset, oneCall);
             }
             return;
         }
         if (skin != null) {
             BakedMesh skinned = skin.update(clip, clipTime);
             if (vOffset == 0f) {
-                emitSmooth(skinned, pose, consumer, light, color);
+                emitSmooth(skinned, pose, consumer, light, color, oneCall);
             } else {
-                emitFrame(skinned, pose, consumer, light, color, vOffset);
+                emitFrame(skinned, pose, consumer, light, color, vOffset, oneCall);
             }
             return;
         }
         BakedMesh smooth = layer.smoothMesh();
         if (vOffset == 0f) {
-            emit(layer.mesh(), pose, consumer, light, color);
+            emit(layer.mesh(), pose, consumer, light, color, oneCall);
             if (smooth != null) {
-                emitSmooth(smooth, pose, consumer, light, color);
+                emitSmooth(smooth, pose, consumer, light, color, oneCall);
             }
         } else {
-            emitFrame(layer.mesh(), pose, consumer, light, color, vOffset);
+            emitFrame(layer.mesh(), pose, consumer, light, color, vOffset, oneCall);
             if (smooth != null) {
-                emitFrame(smooth, pose, consumer, light, color, vOffset);
+                emitFrame(smooth, pose, consumer, light, color, vOffset, oneCall);
             }
         }
     }
 
-    public static void emit(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color) {
+    /**
+     * One vertex. Without a shader pack it goes in with the one-call {@code addVertex}, which the vanilla buffer
+     * writes straight to memory. With one, Iris's wider vertex format takes that call slower than the
+     * element-by-element writes (the benchmark measured about 10% more time), so those stay.
+     */
+    private static void vertex(VertexConsumer consumer, boolean oneCall, float x, float y, float z, int color, float u,
+                               float v, int light, float nx, float ny, float nz) {
+        if (oneCall) {
+            consumer.addVertex(x, y, z, color, u, v, NO_OVERLAY, light, nx, ny, nz);
+        } else {
+            consumer.addVertex(x, y, z)
+                    .setColor(color)
+                    .setUv(u, v)
+                    .setOverlay(NO_OVERLAY)
+                    .setLight(light)
+                    .setNormal(nx, ny, nz);
+        }
+    }
+
+    public static void emit(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color,
+                            boolean oneCall) {
         // `var` because these are Matrix4fc/Matrix3fc on newer versions and Matrix4f/Matrix3f on older ones.
         var m = pose.pose();
         var n = pose.normal();
@@ -94,11 +115,11 @@ public final class MeshEmitter {
             }
             for (int v = 0; v < BakedMesh.VERTICES_PER_QUAD; v++) {
                 float x = d[i], y = d[i + 1], z = d[i + 2];
-                consumer.addVertex(
+                vertex(consumer, oneCall,
                         m00 * x + m10 * y + m20 * z + m30,
                         m01 * x + m11 * y + m21 * z + m31,
                         m02 * x + m12 * y + m22 * z + m32,
-                        color, d[i + 3], d[i + 4], NO_OVERLAY, light, nx, ny, nz);
+                        color, d[i + 3], d[i + 4], light, nx, ny, nz);
                 i += BakedMesh.FLOATS_PER_VERTEX;
             }
         }
@@ -109,7 +130,8 @@ public final class MeshEmitter {
      * Like {@link #emit}, for smooth-shaded mesh geometry: every vertex has its own normal, so each one
      * is transformed (instead of one per quad). Only layers with smooth meshes call this; cubes never do.
      */
-    public static void emitSmooth(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color) {
+    public static void emitSmooth(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color,
+                                  boolean oneCall) {
         var m = pose.pose();
         var n = pose.normal();
         float m00 = m.m00(), m01 = m.m01(), m02 = m.m02();
@@ -135,11 +157,11 @@ public final class MeshEmitter {
                 ny /= len;
                 nz /= len;
             }
-            consumer.addVertex(
+            vertex(consumer, oneCall,
                     m00 * x + m10 * y + m20 * z + m30,
                     m01 * x + m11 * y + m21 * z + m31,
                     m02 * x + m12 * y + m22 * z + m32,
-                    color, d[i + 3], d[i + 4], NO_OVERLAY, light, nx, ny, nz);
+                    color, d[i + 3], d[i + 4], light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
         RenderStats.countVertices(vertices);
@@ -150,7 +172,7 @@ public final class MeshEmitter {
      * shape and its normal turned with it, then drawn like {@link #emitFrame}.
      */
     static void emitCloth(BakedMesh mesh, Cloth.Shape shape, PoseStack.Pose pose, VertexConsumer consumer, int light,
-                          int color, float vOffset) {
+                          int color, float vOffset, boolean oneCall) {
         var m = pose.pose();
         var n = pose.normal();
         float m00 = m.m00(), m01 = m.m01(), m02 = m.m02();
@@ -178,11 +200,11 @@ public final class MeshEmitter {
                 ny /= len;
                 nz /= len;
             }
-            consumer.addVertex(
+            vertex(consumer, oneCall,
                     m00 * x + m10 * y + m20 * z + m30,
                     m01 * x + m11 * y + m21 * z + m31,
                     m02 * x + m12 * y + m22 * z + m32,
-                    color, d[i + 3], d[i + 4] + vOffset, NO_OVERLAY, light, nx, ny, nz);
+                    color, d[i + 3], d[i + 4] + vOffset, light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
         RenderStats.countVertices(vertices);
@@ -194,7 +216,7 @@ public final class MeshEmitter {
      * normals are equal). Only animated layers ever get here.
      */
     static void emitFrame(BakedMesh mesh, PoseStack.Pose pose, VertexConsumer consumer, int light, int color,
-                          float vOffset) {
+                          float vOffset, boolean oneCall) {
         var m = pose.pose();
         var n = pose.normal();
         float m00 = m.m00(), m01 = m.m01(), m02 = m.m02();
@@ -220,11 +242,11 @@ public final class MeshEmitter {
                 ny /= len;
                 nz /= len;
             }
-            consumer.addVertex(
+            vertex(consumer, oneCall,
                     m00 * x + m10 * y + m20 * z + m30,
                     m01 * x + m11 * y + m21 * z + m31,
                     m02 * x + m12 * y + m22 * z + m32,
-                    color, d[i + 3], d[i + 4] + vOffset, NO_OVERLAY, light, nx, ny, nz);
+                    color, d[i + 3], d[i + 4] + vOffset, light, nx, ny, nz);
             i += BakedMesh.FLOATS_PER_VERTEX;
         }
         RenderStats.countVertices(vertices);
