@@ -11,6 +11,8 @@ name: CI
 # - a commit message containing [bench]: A/B benchmark of this commit against main (built from main here) on
 #                       1.21.11 and 26.3, same scene, alternating runs; medians and ranges in the job summary.
 # - a commit message containing [api-dump]: prints Minecraft class APIs listed in ci/api-dump.txt.
+# - a commit message containing [shots]: the in-game runs' screenshots of the mod's screens go to the
+#                       ci-screenshots branch (one commit, replaced each time), to look at them with git alone.
 # Normal CI never reads the private cosmetics pack; only personal-release.yml (manual) does.
 on:
   push:
@@ -211,6 +213,38 @@ jobs:
             ci/work/runs/*/crash-reports/
             ci/work/runs/*/.mixin.out/
           if-no-files-found: warn
+
+  shots:
+    # A commit message containing [shots]: the in-game runs' screenshots of the mod's screens, full size, as one
+    # commit on the ci-screenshots branch (replacing the last), so they can be looked at with git alone.
+    name: Screen screenshots to the ci-screenshots branch
+    needs: runtime
+    if: ${{ !cancelled() && contains(github.event.head_commit.message, '[shots]') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          path: artifacts
+      - name: Push them
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          mkdir pub
+          for dir in artifacts/runtime-*; do
+            node="${dir#artifacts/runtime-}"
+            mkdir -p "pub/$node"
+            (cd "$dir" && find . -name 'screenshot-ui*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;)
+          done
+          cd pub
+          echo "$GITHUB_SHA" > commit.txt
+          git init -q -b ci-screenshots
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Screenshots of ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots
 
   compat:
     name: Compat ${{ matrix.node }}
