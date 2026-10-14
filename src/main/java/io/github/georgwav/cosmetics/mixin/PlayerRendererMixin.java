@@ -37,11 +37,11 @@ abstract class PlayerRendererMixin {
         ElytraUpright.end(poseStack, bodyRot);
     }
 
-    // The elytra close to the back while not gliding (ElytraLook).
+    // The elytra close to the back (ElytraLook).
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("RETURN"))
     private void cosmeticsmod$tuckElytra(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
-        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.isCrouching, state.isFallFlying);
+        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.elytraRotZ);
     }
 
     @Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
@@ -89,11 +89,11 @@ abstract class PlayerRendererMixin {
         ElytraUpright.end(poseStack, bodyRot);
     }
 
-    // The elytra close to the back while not gliding (ElytraLook).
+    // The elytra close to the back (ElytraLook).
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("RETURN"))
     private void cosmeticsmod$tuckElytra(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
-        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.isCrouching, state.isFallFlying);
+        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.elytraRotZ);
     }
 
     @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
@@ -141,12 +141,12 @@ abstract class PlayerRendererMixin {
         ElytraUpright.end(poseStack, bodyRot);
     }
 
-    // The elytra close to the back while not gliding (ElytraLook).
+    // The elytra close to the back (ElytraLook).
     @Inject(method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V",
             at = @At("RETURN"))
     private void cosmeticsmod$tuckElytra(AbstractClientPlayer player, PlayerRenderState state, float partialTick,
                                          CallbackInfo ci) {
-        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.isCrouching, state.isFallFlying);
+        state.elytraRotX = ElytraLook.tucked(state.elytraRotX, state.elytraRotZ);
     }
 
     @Inject(method = "renderNameTag(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;Lnet/minecraft/network/chat/Component;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",

@@ -556,7 +556,7 @@ off for one cosmetic. A setting that is off is hidden on the page and ignored wh
 |---|---|---|
 | `tint` | Tint colour | The `default_color` is used. |
 | `rainbow` | Rainbow and its speed | No rainbow. |
-| `saturation` | How strong the tint or rainbow colour is (0 to 100 %) | Full strength. |
+| `saturation` | Saturation (of the tint or rainbow colour, or of the texture itself when untinted), and the texture's hue and brightness | Full strength, the texture's own colours. |
 | `size` | Size | Normal size. |
 | `position` | Move sideways, up, forward | Where the creator put it. |
 | `glow` | Glow on or off (only shown when the cosmetic has `emissive` parts) | Always glows. |

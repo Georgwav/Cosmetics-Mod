@@ -8,15 +8,38 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RecolorTest {
+    private static final int WHITE = 0xFFFFFF;
+
     @Test
     void untouchedSettingsLeaveTheTextureAlone() {
         CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
-        assertNull(Recolor.of(options, CosmeticOption.ALL));
+        assertNull(Recolor.of(options, CosmeticOption.ALL, WHITE));
         options.hue = 0.3f; // rounds to no turn
-        assertNull(Recolor.of(options, CosmeticOption.ALL));
+        assertNull(Recolor.of(options, CosmeticOption.ALL, WHITE));
         options.hue = 120f;
-        assertNull(Recolor.of(options, 0), "a cosmetic that doesn't allow colour changes keeps its texture");
-        assertEquals(new Recolor(120, 1f, 1f), Recolor.of(options, CosmeticOption.ALL));
+        assertNull(Recolor.of(options, 0, WHITE), "a cosmetic that doesn't allow colour changes keeps its texture");
+        assertEquals(new Recolor(120, 1f, 1f), Recolor.of(options, CosmeticOption.ALL, WHITE));
+    }
+
+    @Test
+    void saturationPalesTheTintOfATintedCosmeticNotItsTextureToo() {
+        CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
+        options.saturation = 0.5f;
+        assertEquals(new Recolor(0, 0.5f, 1f), Recolor.of(options, CosmeticOption.ALL, WHITE));
+        // A colour picked, the cosmetic's own colour, or the rainbow: the tint takes it (Tint).
+        options.color = 0x3366FF;
+        assertNull(Recolor.of(options, CosmeticOption.ALL, WHITE));
+        options.hue = 90f;
+        assertEquals(new Recolor(90, 1f, 1f), Recolor.of(options, CosmeticOption.ALL, WHITE));
+        options.color = null;
+        assertEquals(new Recolor(90, 1f, 1f), Recolor.of(options, CosmeticOption.ALL, 0xFF0000));
+        options.rainbow = true;
+        assertEquals(new Recolor(90, 1f, 1f), Recolor.of(options, CosmeticOption.ALL, WHITE));
+        // A colour the cosmetic doesn't take leaves the saturation to its texture.
+        options.rainbow = false;
+        options.color = 0x3366FF;
+        int noTint = CosmeticOption.ALL & ~CosmeticOption.TINT.bit() & ~CosmeticOption.RAINBOW.bit();
+        assertEquals(new Recolor(90, 0.5f, 1f), Recolor.of(options, noTint, WHITE));
     }
 
     @Test

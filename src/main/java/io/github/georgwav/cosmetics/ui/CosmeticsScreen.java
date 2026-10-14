@@ -343,6 +343,8 @@ public final class CosmeticsScreen extends Screen {
             case COMPATIBILITY -> buildCompatibility();
         }
         if (settingsNeedle != null && content.isEmpty()) {
+            // No section header above it: the last one searched is still pending.
+            pendingSection = null;
             add(new Rows.Info(listX, 0, listW, t("settings_search.none", settingsQuery.trim()), () -> "", Theme.TEXT_DIM));
         }
         settingsNeedle = null;
