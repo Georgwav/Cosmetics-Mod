@@ -10,7 +10,8 @@ package io.github.georgwav.cosmetics.render;
  * blocks wide, as Badlion's) have no such part, and a 64 x 32 one may leave it empty, so here it is made from the
  * cape's own design: the cape's outside on each wing's outside, stretched from the cape's 10 x 16 to the wing's
  * 10 x 20 so it covers all of it; the cape's inside on the wing's inside; and the edges of the two on the wing's
- * edges. A wing's outside then shows the cape as the cape shows it, seen from behind.
+ * edges. A wing's outside then shows the cape as the cape shows it, seen from behind. Cut to the game's elytra
+ * texture's shape ({@link #shape}), it is an elytra in the cape's design rather than a plate.
  */
 public final class ElytraArt {
     /** The elytra layout, in blocks: the game's 64 x 32 cape texture. */
@@ -177,6 +178,24 @@ public final class ElytraArt {
 
     private static int clamp(int value, int limit) {
         return Math.max(0, Math.min(limit - 1, value));
+    }
+
+    /**
+     * Cuts the elytra layout {@code argb} ({@code width} x {@code height}) to the shape of the game's elytra texture
+     * ({@code mask}, the same layout at its own size): each pixel shows only as much as the elytra texture's pixel
+     * there is seen, so the cape's design takes the elytra's wing shape and thin edges instead of a full plate.
+     */
+    public static void shape(int[] argb, int width, int height, int[] mask, int maskWidth, int maskHeight) {
+        for (int y = 0; y < height; y++) {
+            int my = Math.min(maskHeight - 1, y * maskHeight / height);
+            for (int x = 0; x < width; x++) {
+                int mx = Math.min(maskWidth - 1, x * maskWidth / width);
+                int seen = mask[my * maskWidth + mx] >>> 24;
+                int i = y * width + x;
+                int c = argb[i];
+                argb[i] = ((c >>> 24) * seen / 255) << 24 | (c & 0xFFFFFF);
+            }
+        }
     }
 
     /**

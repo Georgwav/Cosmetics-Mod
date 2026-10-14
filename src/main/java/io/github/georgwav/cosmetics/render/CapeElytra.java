@@ -32,7 +32,8 @@ import java.util.Objects;
  *
  * <p>The texture is made once per cape: from a texture of its own beside the cape's ({@code <texture>_elytra.png},
  * the 64 x 32 layout, a vertical strip of frames for an animated one), else from a 64 x 32 cape texture's own elytra
- * part when it is drawn on, else from the cape's design ({@link ElytraArt}), with its glowing parts drawn in. A cape
+ * part when it is drawn on, else from the cape's design ({@link ElytraArt}), with its glowing parts drawn in, in the
+ * shape of the game's elytra texture (the resource pack's, when it changes it). A cape
  * with a texture animation gets one texture per frame, shown as the cape shows them, smaller when it has many (one
  * cape's elytra takes at most {@link #BUDGET} bytes). Recoloured and tinted as the cape is, each frame repainted (at
  * most every {@link #REPAINT_NANOS}) when that changes. All dropped on resource reload. Render thread only.
@@ -47,6 +48,9 @@ public final class CapeElytra {
     /** The chest's slot in the player's inventory (36 to 39 are the armour, feet to head). */
     private static final int CHEST_SLOT = 38;
     private static final int WHITE = 0xFFFFFFFF;
+    /** The game's elytra texture, whose shape an elytra made from a cape takes: from 1.21.2, then before. */
+    private static final String[] ELYTRA_TEXTURES = {"minecraft:textures/entity/equipment/wings/elytra.png",
+            "minecraft:textures/entity/elytra.png"};
 
     /** Frames an elytra was drawn with a cape on it, and textures made for that (read by the in-game test). */
     public static long frames;
@@ -319,8 +323,23 @@ public final class CapeElytra {
                         source.frameHeight, r[0], r[1], scale));
             }
         }
-        elytra.width = ElytraArt.WIDTH * scale;
-        elytra.height = ElytraArt.HEIGHT * scale;
+        int width = ElytraArt.WIDTH * scale;
+        int height = ElytraArt.HEIGHT * scale;
+        // In the shape of the game's elytra (its texture at its 1.21.2+ place, else the older one).
+        int[][] mask = null;
+        for (String texture : ELYTRA_TEXTURES) {
+            mask = RecoloredTextures.read(texture);
+            if (mask != null) {
+                break;
+            }
+        }
+        if (mask != null) {
+            for (int[] frame : frames) {
+                ElytraArt.shape(frame, width, height, mask[1], mask[0][0], mask[0][1]);
+            }
+        }
+        elytra.width = width;
+        elytra.height = height;
         elytra.frames = frames;
         return true;
     }
