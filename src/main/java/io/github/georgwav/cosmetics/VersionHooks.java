@@ -86,12 +86,9 @@ final class VersionHooks {
         //?}
     }
 
-    /**
-     * "Open Cosmetics" key. Unbound by default so it can never clash with another mod's key; players
-     * bind it in Controls, or use /cosmetics or Mod Menu.
-     */
+    /** "Open the hub" key: Right Shift, like other clients' menus. /cosmetics and Mod Menu open the settings. */
     static KeyMapping registerKeyMapping() {
-        return registerKeyMapping("key.cosmeticsmod.open", InputConstants.UNKNOWN.getValue());
+        return registerKeyMapping("key.cosmeticsmod.open", InputConstants.KEY_RSHIFT);
     }
 
     /** "Emote wheel" key, B by default like Lunar's (vanilla uses B only with Ctrl, for the narrator). */

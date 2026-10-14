@@ -23,6 +23,7 @@ import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
+import io.github.georgwav.cosmetics.ui.hub.HubScreen;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -62,7 +63,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -104,6 +105,7 @@ public final class DevScenario {
     private int uiFramesAtTabStart;
     /** The settings page the UI check has open. */
     private CosmeticsScreen uiScreen;
+    private int hubFramesAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -504,6 +506,28 @@ public final class DevScenario {
                     if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
                         openSettingsTab(client);
                         writeMarker("ui_" + CosmeticsScreen.testPageName(uiTab));
+                    } else {
+                        // The hub (Right Shift), then its mods sphere.
+                        hubFramesAtStart = HubScreen.framesRendered;
+                        ScreenOpener.open(new HubScreen(null));
+                        enter(Phase.HUB);
+                        writeMarker("ui_hub");
+                    }
+                }
+            }
+            case HUB, HUB_MODS -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = HubScreen.framesRendered - hubFramesAtStart;
+                    String page = phase == Phase.HUB ? "hub" : "hub_mods";
+                    phases.getAsJsonObject("settings_ui").addProperty(page, frames);
+                    if (frames <= 0) {
+                        failures.add("the hub (" + page + ") never rendered");
+                    }
+                    if (phase == Phase.HUB) {
+                        hubFramesAtStart = HubScreen.framesRendered;
+                        ScreenOpener.open(HubScreen.inMods());
+                        enter(Phase.HUB_MODS);
+                        writeMarker("ui_hub_mods");
                     } else if (FabricLoader.getInstance().isModLoaded("modmenu")) {
                         openThroughModMenu();
                         enter(Phase.MOD_MENU);

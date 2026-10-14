@@ -37,7 +37,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyBinds.emotes = emoteKey;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
-                ScreenOpener.requestOpen();
+                ScreenOpener.requestOpenHub();
             }
             while (emoteKey.consumeClick()) {
                 EmoteWheelScreen.openIfAllowed(client);

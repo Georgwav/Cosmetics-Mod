@@ -199,6 +199,13 @@ public final class CosmeticsScreen extends Screen {
         return screen;
     }
 
+    /** Opens the wardrobe on its Emotes page (the hub's Emotes orb). */
+    public static CosmeticsScreen emotes(Screen parent) {
+        CosmeticsScreen screen = new CosmeticsScreen(parent, Tab.WARDROBE.ordinal());
+        screen.view = View.EMOTES;
+        return screen;
+    }
+
     /** Pages the in-game test opens: every tab, a cosmetic's own page, then the wardrobe's outfits. */
     public static final int TEST_PAGE_COUNT = TAB_COUNT + 2;
 

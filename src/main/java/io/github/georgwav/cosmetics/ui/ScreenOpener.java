@@ -1,11 +1,13 @@
 package io.github.georgwav.cosmetics.ui;
 
+import io.github.georgwav.cosmetics.ui.hub.HubScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
 /** Opens screens; the one place to adapt if a Minecraft version moves screen handling. */
 public final class ScreenOpener {
     private static boolean openRequested;
+    private static boolean hubRequested;
 
     private ScreenOpener() {
     }
@@ -35,11 +37,22 @@ public final class ScreenOpener {
         openRequested = true;
     }
 
+    /** Opens the hub (the Right Shift key) on the next client tick. */
+    public static void requestOpenHub() {
+        hubRequested = true;
+    }
+
     /** Called every client tick. */
     public static void tick() {
         if (openRequested) {
             openRequested = false;
             open(new CosmeticsScreen(null));
+        }
+        if (hubRequested) {
+            hubRequested = false;
+            if (current() == null) {
+                open(new HubScreen(null));
+            }
         }
     }
 }

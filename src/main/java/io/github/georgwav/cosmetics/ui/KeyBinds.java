@@ -13,7 +13,7 @@ import net.minecraft.client.input.KeyEvent;
  * options.
  */
 public final class KeyBinds {
-    /** Opens the settings screen. */
+    /** Opens the hub. */
     public static KeyMapping open;
     /** Opens the emote wheel (held: release to play). */
     public static KeyMapping emotes;

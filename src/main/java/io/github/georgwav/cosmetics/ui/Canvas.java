@@ -83,6 +83,83 @@ public final class Canvas {
     }
     *///?}
 
+    /**
+     * A {@code regionWidth} x {@code regionHeight} part of a texture, from ({@code u}, {@code v}) in a
+     * {@code textureWidth} x {@code textureHeight} texture, drawn into a width x height rectangle (a skin's face).
+     */
+    //? if >=1.21.11 {
+    public void blitRegion(Identifier texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(texture, x, y, x + width, y + height, u / textureWidth, (u + regionWidth) / textureWidth,
+                v / textureHeight, (v + regionHeight) / textureHeight);
+    }
+    //?} elif >=1.21.6 {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(texture, x, y, x + width, y + height, u / textureWidth, (u + regionWidth) / textureWidth,
+                v / textureHeight, (v + regionHeight) / textureHeight);
+    }
+    *///?} elif >=1.21.2 {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(RenderType::guiTextured, texture, x, y, u, v, width, height, regionWidth, regionHeight,
+                textureWidth, textureHeight);
+    }
+    *///?} else {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        RenderSystem.enableBlend();
+        raw.blit(texture, x, y, width, height, u, v, regionWidth, regionHeight, textureWidth, textureHeight);
+        RenderSystem.disableBlend();
+    }
+    *///?}
+
+    // The hub draws in screen pixels and scales its text: the transform is saved, scaled and moved here.
+    // 1.21.6 made the GUI transform two-dimensional.
+
+    /** Saves the current transform until {@link #pop()}. */
+    public void push() {
+        //? if >=1.21.6 {
+        raw.pose().pushMatrix();
+        //?} else {
+        /*raw.pose().pushPose();
+        *///?}
+    }
+
+    public void pop() {
+        //? if >=1.21.6 {
+        raw.pose().popMatrix();
+        //?} else {
+        /*raw.pose().popPose();
+        *///?}
+    }
+
+    public void translate(float x, float y) {
+        //? if >=1.21.6 {
+        raw.pose().translate(x, y);
+        //?} else {
+        /*raw.pose().translate(x, y, 0f);
+        *///?}
+    }
+
+    public void scale(float x, float y) {
+        //? if >=1.21.6 {
+        raw.pose().scale(x, y);
+        //?} else {
+        /*raw.pose().scale(x, y, 1f);
+        *///?}
+    }
+
+    /**
+     * What is drawn after this goes over what was drawn before, text included. From 1.21.6 the game draws text
+     * after the shapes it was drawn among, so without this a later shape can't cover earlier text.
+     */
+    public void nextLayer() {
+        //? if >=1.21.6 {
+        raw.nextStratum();
+        //?}
+    }
+
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {
         //? if >=26.1 {
