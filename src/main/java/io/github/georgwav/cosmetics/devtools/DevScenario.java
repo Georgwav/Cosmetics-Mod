@@ -53,7 +53,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_STAND_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_STAND_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -205,13 +205,21 @@ public final class DevScenario {
             case SHIELD_OFF -> {
                 client.options.keyUse.setDown(true);
                 if (ticks >= SHIELD_TICKS) {
-                    client.options.keyUse.setDown(false);
-                    client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                    // Then blocking with the shield cosmetic in first person (the screenshot shows how it sits
+                    // next to the vanilla one above).
                     CosmeticsConfig config = CosmeticsConfig.get();
                     config.enabled = true;
                     for (CosmeticSlot slot : CosmeticSlot.values()) {
                         config.slotVisible.put(slot, true);
                     }
+                    enter(Phase.SHIELD_COSMETIC);
+                }
+            }
+            case SHIELD_COSMETIC -> {
+                client.options.keyUse.setDown(true);
+                if (ticks >= SHIELD_TICKS) {
+                    client.options.keyUse.setDown(false);
+                    client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     // The emote wheel (a few emotes in its slots, the rest empty), then an emote on the player.
                     for (String name : new String[]{"wave", "dance", "dab", "cheer", "salute"}) {
                         Emotes.setOnWheel(CosmeticsMod.MOD_ID + ":" + name, false, true);

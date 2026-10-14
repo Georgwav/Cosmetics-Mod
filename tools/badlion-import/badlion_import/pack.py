@@ -19,7 +19,7 @@ from .archive import Archive, LayoutError
 
 MARKER = ".blc-import-cache.json"
 REPORT = "import-report.md"
-DEFAULT_MAX_TRIANGLES = 20_000
+DEFAULT_MAX_TRIANGLES = 100_000  # the mod's default maxMeshTriangles
 
 PACK_MCMETA = {
     "pack": {

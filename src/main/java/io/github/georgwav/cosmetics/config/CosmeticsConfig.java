@@ -34,7 +34,7 @@ public final class CosmeticsConfig {
      * 2 made capes override the vanilla cape.
      */
     public int configVersion;
-    static final int CONFIG_VERSION = 3;
+    static final int CONFIG_VERSION = 4;
 
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
@@ -152,9 +152,11 @@ public final class CosmeticsConfig {
     public int shadowDistance = 32;
     /**
      * Most mesh triangles (a quad counts as two) one cosmetic may have. A cosmetic over the limit isn't
-     * loaded (with a clear message), so a heavy model can never cause stutter. Applies on resource reload.
+     * loaded (with a clear message), so a runaway model can never cause stutter. Applies on resource reload.
+     * Imported wings draw their model once per side (and again for a glow layer): 11,000-triangle wings are
+     * 44,000.
      */
-    public int maxMeshTriangles = 20_000;
+    public int maxMeshTriangles = 100_000;
 
     // ---------------------------------------------------------------- compatibility
 
@@ -442,6 +444,10 @@ public final class CosmeticsConfig {
             // The wheels were lists (empty: every emote); now they are slots, empty until you fill them.
             emoteWheelSlots = cleanIds(emoteWheel);
             elytraWheelSlots = cleanIds(elytraEmoteWheel);
+        }
+        if (configVersion < 4 && maxMeshTriangles == 20_000) {
+            // The old default left out detailed imported wings (each side counts); a limit someone set stays.
+            maxMeshTriangles = new CosmeticsConfig().maxMeshTriangles;
         }
         emoteWheel = new ArrayList<>();
         elytraEmoteWheel = new ArrayList<>();

@@ -295,8 +295,33 @@ def test_small_sizing_scales_are_blocks_per_unit():
     big = badlion.Cosmetic("WINGS", 11, {"name": "Cupid", "sizingData": {"scale": 1.0, "offsetZ": -1.0}})
     rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
     assert close([convert.placement(small, wings, False, rule, ts).scale], [1.28])
+    # A factor scales wings' own default size (0.1 blocks a unit); the offset is in the player's axes: -Z is
+    # forward, towards the back.
     place = convert.placement(big, wings, False, rule, ts)
-    assert place.scale == 1.0 and close([place.offset[2]], [1.0 + rule.origin[2]])
+    assert close([place.scale], [1.6]) and close([place.offset[2]], [rule.origin[2] - 1.0])
+    # Offsets lift up the back with -Y; other types keep a pixel a unit by default.
+    lifted = badlion.Cosmetic("WINGS", 12, {"name": "Butterfly", "sizingData": {"scale": 1.0, "offsetY": -3.2}})
+    assert close([convert.placement(lifted, wings, False, rule, ts).offset[1]], [rule.origin[1] - 3.2])
+    hat = badlion.Model("HAT", "cap", {"scale": 0.0})
+    assert convert.placement(badlion.Cosmetic("HAT", 3, {"name": "Cap"}), hat, False, convert.RULES["HAT"],
+                             ts).scale == 1.0
+
+
+def test_wings_made_facing_forward_are_turned_around():
+    wings = badlion.Model("WINGS", "zickzack", {"scale": 0.0})
+    rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
+    place = convert.placement(badlion.Cosmetic("WINGS", 1, {"name": "ZickZack"}), wings, False, rule, ts)
+    # OBJ +Z is the player's front: a wing curving 4.27 forward and 0.65 back reaches into the body.
+    assert convert.wing_faces_forward(place, ((-12.1, -3.54, -0.65), (-2.2, 8.75, 4.27)))
+    # Flat wings, and ones reaching back, stay as they are.
+    assert not convert.wing_faces_forward(place, ((-9.75, -6.45, -0.19), (-1.1, 7.75, 0.19)))
+    assert not convert.wing_faces_forward(place, ((-10.2, -7.2, -4.96), (0.942, 8.4, 0.652)))
+    assert not convert.wing_faces_forward(place, ((-14.2, -5.4, -2.06), (-0.197, 4.49, 3.45)))
+    # Turned: the right wing (mirrored on X, then turned) is the original with Z mirrored after the placement.
+    r = convert.rotation_matrix(convert.turned_front_to_back(place))
+    mirrored = convert.multiply(r, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
+    want = convert.multiply([[1.0, 0, 0], [0, 1.0, 0], [0, 0, -1.0]], place.matrix)
+    assert all(close(mirrored[i], want[i]) for i in range(3))
 
 
 def test_shields_are_centred_and_mirrored_as_badlion_scales_them():

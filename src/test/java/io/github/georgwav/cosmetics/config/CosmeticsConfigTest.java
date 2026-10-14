@@ -84,6 +84,24 @@ class CosmeticsConfigTest {
     }
 
     @Test
+    void oldFilesGetTheHigherTriangleLimitUnlessTheyChoseTheirOwn() {
+        CosmeticsConfig old = new CosmeticsConfig();
+        old.configVersion = 3;
+        old.maxMeshTriangles = 20_000;
+        old.sanitize();
+        assertEquals(new CosmeticsConfig().maxMeshTriangles, old.maxMeshTriangles);
+        CosmeticsConfig chosen = new CosmeticsConfig();
+        chosen.configVersion = 3;
+        chosen.maxMeshTriangles = 30_000;
+        chosen.sanitize();
+        assertEquals(30_000, chosen.maxMeshTriangles);
+        // Once migrated, 20,000 is a choice like any other.
+        chosen.maxMeshTriangles = 20_000;
+        chosen.sanitize();
+        assertEquals(20_000, chosen.maxMeshTriangles);
+    }
+
+    @Test
     void outfitsSaveAndPutOnExactlyWhatWasWorn() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.localEquipped().addAll(List.of("a:hat", "a:cape"));

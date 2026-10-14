@@ -123,7 +123,7 @@ repaired on load.
 | `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
 | `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |
 | `shadowDistance` | `32` | Only players within this many blocks cast cosmetic shadows (`0` = no limit). |
-| `maxMeshTriangles` | `20000` | Most mesh triangles one cosmetic may have (1000 to 200000). Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
+| `maxMeshTriangles` | `100000` | Most mesh triangles one cosmetic may have (1000 to 200000); wings count once per side. Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
 | `slotPriority` | `CAPE` `OVERRIDE`, the rest `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes, so a cape you put on is the one you see. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
