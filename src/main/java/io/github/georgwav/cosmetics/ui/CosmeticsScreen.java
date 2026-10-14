@@ -124,6 +124,8 @@ public final class CosmeticsScreen extends Screen {
     private static final float MAX_PREVIEW_PITCH = 80f;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
+    /** What the settings tabs' search field holds (kept while the game runs, like the wardrobe's). */
+    private static String settingsQuery = "";
     private static final int SEARCH_HEIGHT = 16;
     /** Frames drawn since start; read by the in-game test to prove the screen renders on every version. */
     public static int framesRendered;
@@ -156,8 +158,13 @@ public final class CosmeticsScreen extends Screen {
     /** Aura particles around the preview. */
     private final PreviewParticles previewParticles = new PreviewParticles();
     private String query = lastQuery;
-    /** The wardrobe's search field, when the wardrobe list is showing. */
+    /** The wardrobe's search field, when the wardrobe list is showing, or the settings tabs' one. */
     private EditBox searchBox;
+    /** While a settings tab is built with a search: its words, lowercase (null when not searching). */
+    private String settingsNeedle;
+    /** A section header held back until a row under it matches the search, and whether the header itself does. */
+    private String pendingSection;
+    private boolean sectionMatches;
 
     public CosmeticsScreen(Screen parent) {
         super(Component.translatable("cosmeticsmod.screen.title"));
@@ -301,7 +308,28 @@ public final class CosmeticsScreen extends Screen {
             addWidget(searchBox);
             listY += SEARCH_HEIGHT + 4;
             listH -= SEARCH_HEIGHT + 4;
+        } else if (tab != Tab.WARDROBE) {
+            // The settings tabs: a search over every setting's name (and its section's).
+            Component hint = Component.translatable("cosmeticsmod.screen.settings_search").withStyle(ChatFormatting.DARK_GRAY);
+            searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
+            searchBox.setMaxLength(64);
+            searchBox.setValue(settingsQuery);
+            searchBox.setHint(hint);
+            searchBox.setResponder(this::searchSettings);
+            addWidget(searchBox);
+            listY += SEARCH_HEIGHT + 4;
+            listH -= SEARCH_HEIGHT + 4;
         }
+        buildTab(detail);
+        scroll = Math.max(0, Math.min(scroll, maxScroll()));
+        layoutContent();
+    }
+
+    /** The open tab's rows (a settings tab only those matching its search). */
+    private void buildTab(BakedCosmetic detail) {
+        String needle = settingsQuery.trim().toLowerCase(Locale.ROOT);
+        settingsNeedle = tab != Tab.WARDROBE && !needle.isEmpty() ? needle : null;
+        pendingSection = null;
         switch (tab) {
             case WARDROBE -> {
                 if (detail != null) {
@@ -314,7 +342,27 @@ public final class CosmeticsScreen extends Screen {
             case PERFORMANCE -> buildPerformance();
             case COMPATIBILITY -> buildCompatibility();
         }
-        scroll = Math.max(0, Math.min(scroll, maxScroll()));
+        if (settingsNeedle != null && content.isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("settings_search.none", settingsQuery.trim()), () -> "", Theme.TEXT_DIM));
+        }
+        settingsNeedle = null;
+        pendingSection = null;
+    }
+
+    private void searchSettings(String text) {
+        if (text.equals(settingsQuery)) {
+            return;
+        }
+        settingsQuery = text;
+        // Only the rows; rebuilding everything would take the focus away from the search field.
+        for (FlatWidget widget : content) {
+            removeWidget(widget);
+        }
+        content.clear();
+        contentOffsets.clear();
+        contentHeight = 0;
+        scroll = 0;
+        buildTab(null);
         layoutContent();
     }
 
@@ -422,6 +470,24 @@ public final class CosmeticsScreen extends Screen {
     }
 
     private <W extends FlatWidget> W add(W widget) {
+        if (settingsNeedle != null && !(widget instanceof Rows.Section)) {
+            // Searching the settings: a row shows when its name matches, or its section's does (with the header).
+            if (!sectionMatches && !widget.getMessage().getString().toLowerCase(Locale.ROOT).contains(settingsNeedle)) {
+                return widget;
+            }
+            if (pendingSection != null) {
+                String header = pendingSection;
+                pendingSection = null;
+                addRow(new Rows.Section(listX, 0, listW, header), true);
+            }
+        }
+        return addRow(widget, false);
+    }
+
+    private <W extends FlatWidget> W addRow(W widget, boolean sectionHeader) {
+        if (sectionHeader && contentHeight > 0) {
+            contentHeight += 4;
+        }
         contentOffsets.add(contentHeight);
         contentHeight += widget.getHeight() + Theme.ROW_GAP;
         content.add(widget);
@@ -446,6 +512,12 @@ public final class CosmeticsScreen extends Screen {
     // ------------------------------------------------------------------ tabs
 
     private void section(String key) {
+        if (settingsNeedle != null) {
+            // Shown only with a row under it (see add); every row under it shows when the header matches.
+            pendingSection = t(key);
+            sectionMatches = pendingSection.toLowerCase(Locale.ROOT).contains(settingsNeedle);
+            return;
+        }
         if (contentHeight > 0) {
             contentHeight += 4;
         }

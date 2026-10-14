@@ -32,7 +32,8 @@ There are three ways to open it:
   in Options → Controls.
 
 It is a flat, minimal screen with a live preview of your player (drag it to turn and tilt it; your head looks
-at the mouse) and four tabs:
+at the mouse) and four tabs. The settings tabs have a search field at the top: type "cape" or "elytra" and only
+those settings show (a section's name finds all of it):
 
 | Tab | What's there |
 |---|---|

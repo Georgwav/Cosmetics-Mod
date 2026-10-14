@@ -28,6 +28,8 @@
   "cosmeticsmod.screen.wardrobe.note": "Note",
   "cosmeticsmod.screen.wardrobe.hidden": "Your cosmetics are hidden (see Display)",
   "cosmeticsmod.screen.wardrobe.search": "Search cosmetics",
+  "cosmeticsmod.screen.settings_search": "Search settings",
+  "cosmeticsmod.screen.settings_search.none": "No setting matches \"%s\"",
   "cosmeticsmod.screen.wardrobe.more": "%s more: search to find them",
   "cosmeticsmod.screen.wardrobe.no_match": "Nothing matches \"%s\"",
   "cosmeticsmod.screen.wardrobe.empty_view": "Nothing here yet",
