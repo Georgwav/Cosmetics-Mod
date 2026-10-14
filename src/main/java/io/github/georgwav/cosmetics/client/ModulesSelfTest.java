@@ -92,6 +92,7 @@ public final class ModulesSelfTest {
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").set(true);
         ModulesSelfTest.<String>setting(Modules.FPS, "font").set("geist");
         ModulesSelfTest.<String>setting(Modules.CLOCK, "font").set("geist");
+        ModulesSelfTest.<String>setting(Modules.CLOCK, "color").set("yellow");
         if (mc.player != null) {
             mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 95, 0));
             pitchBefore = mc.player.getXRot();
@@ -120,6 +121,7 @@ public final class ModulesSelfTest {
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
         ModulesSelfTest.<String>setting(Modules.FPS, "font").reset();
         ModulesSelfTest.<String>setting(Modules.CLOCK, "font").reset();
+        ModulesSelfTest.<String>setting(Modules.CLOCK, "color").reset();
         Modules.OUTLINE.setEnabled(false);
         ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").reset();
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").reset();

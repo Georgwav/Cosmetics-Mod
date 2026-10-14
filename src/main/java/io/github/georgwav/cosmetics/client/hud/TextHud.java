@@ -13,6 +13,9 @@ public abstract class TextHud extends HudModule {
     protected final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false));
     /** The game's pixel font, or the client's own (Geist, sharp at any size). */
     protected final Setting.Choice typeface = add(new Setting.Choice("font", "minecraft", List.of("minecraft", "geist")));
+    private static final List<String> COLORS = List.of("white", "grey", "yellow", "green", "cyan", "pink", "red");
+    private static final int[] RGB = {0xFFFFFF, 0xC8C8C8, 0xFFE040, 0x4CFF4C, 0x40E8FF, 0xFF60D0, 0xFF4040};
+    protected final Setting.Choice color = add(new Setting.Choice("color", "white", COLORS));
 
     protected TextHud(String id, String icon, float anchorX, float anchorY, float offsetX, float offsetY) {
         super(id, icon, anchorX, anchorY, offsetX, offsetY);
@@ -38,6 +41,11 @@ public abstract class TextHud extends HudModule {
     private List<String> shown(Minecraft mc) {
         List<String> lines = lines(mc);
         return lines.isEmpty() && preview() ? sample(mc) : lines;
+    }
+
+    /** The text's colour, ARGB. */
+    protected int textColor() {
+        return 0xFF000000 | RGB[Math.max(0, COLORS.indexOf(color.get()))];
     }
 
     private boolean geist() {
@@ -100,7 +108,7 @@ public abstract class TextHud extends HudModule {
                 if (shadow.get()) {
                     f.draw(g, line, textX * k + Math.max(1, Math.round(k / 2f)), baseline + Math.max(1, Math.round(k / 2f)), 0xFF3F3F3F);
                 }
-                f.draw(g, line, textX * k, baseline, 0xFFFFFFFF);
+                f.draw(g, line, textX * k, baseline, textColor());
                 y += 10;
             }
             g.pop();
@@ -108,7 +116,7 @@ public abstract class TextHud extends HudModule {
         }
         int y = PAD;
         for (String line : shown(mc)) {
-            g.text(mc.font, line, textX, y, 0xFFFFFFFF, shadow.get());
+            g.text(mc.font, line, textX, y, textColor(), shadow.get());
             y += 10;
         }
     }
