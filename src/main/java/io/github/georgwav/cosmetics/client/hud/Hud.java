@@ -49,7 +49,8 @@ public final class Hud {
     private static void draw(Canvas g) {
         Minecraft mc = Minecraft.getInstance();
         countClicks(mc);
-        if (editing || mc.options.hideGui || mc.player == null) {
+        // The game's HUD (and so this) isn't drawn while the HUD is hidden (F1).
+        if (editing || mc.player == null) {
             return;
         }
         int w = mc.getWindow().getGuiScaledWidth();
