@@ -205,8 +205,8 @@ public final class Canvas {
     }
 
     /**
-     * A mob effect's icon, the one the inventory shows, size x size with its top left at (x, y). Up to 1.21.1 the
-     * icons have an atlas of their own; from 1.21.2 they are GUI sprites named mob_effect/&lt;effect&gt;.
+     * A mob effect's icon, the one the inventory shows, size x size with its top left at (x, y). Up to 1.21.5 the
+     * icons have an atlas of their own; from 1.21.6 they are GUI sprites named mob_effect/&lt;effect&gt;.
      */
     public void mobEffect(Holder<MobEffect> effect, int x, int y, int size) {
         //? if >=1.21.6 {
@@ -215,10 +215,7 @@ public final class Canvas {
             raw.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, size, size);
         }
         //?} elif >=1.21.2 {
-        /*var sprite = mobEffectSprite(effect);
-        if (sprite != null) {
-            raw.blitSprite(RenderType::guiTextured, sprite, x, y, size, size);
-        }
+        /*raw.blitSprite(RenderType::guiTextured, Minecraft.getInstance().getMobEffectTextures().get(effect), x, y, size, size);
         *///?} else {
         /*var sprite = Minecraft.getInstance().getMobEffectTextures().get(effect);
         RenderSystem.enableBlend();
@@ -232,7 +229,7 @@ public final class Canvas {
         Identifier key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
         return key == null ? null : key.withPrefix("mob_effect/");
     }
-    //?} elif >=1.21.2 {
+    //?} elif >=1.21.6 {
     /*private static ResourceLocation mobEffectSprite(Holder<MobEffect> effect) {
         ResourceLocation key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
         return key == null ? null : key.withPrefix("mob_effect/");

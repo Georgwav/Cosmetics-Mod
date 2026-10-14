@@ -437,7 +437,7 @@ public final class HudEditorScreen extends Screen {
         String modules = t("modules");
         float bw = ui.buttonWidth(done) + ui.buttonWidth(modules) + 8f + (reset != null ? ui.buttonWidth(reset) + 8f : 0f);
         float textW = Math.max(ui.textWidth(name, Ui.NAME, true), ui.textWidth(line, Ui.SMALL, false));
-        float w = Math.max(440f, Math.min(820f, 62f + textW + 12f + bw + 18f));
+        float w = Math.max(440f, Math.min(1000f, 62f + textW + 12f + bw + 18f));
         float left = CX - w / 2f;
         float top = 20f;
         ui.roundRect(left - 4f, top + 10f, w + 8f, 68f, 34f, 0x30000000);
