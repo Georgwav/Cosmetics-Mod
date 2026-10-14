@@ -99,6 +99,7 @@ public final class CosmeticLoader {
         }
         CosmeticRegistry.replace(loaded);
         RenderGuard.reset();
+        io.github.georgwav.cosmetics.render.RecoloredTextures.clear();
         CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s) in {} ms", loaded.size(), (System.nanoTime() - start) / 1_000_000);
         Emotes.reload(manager);
     }

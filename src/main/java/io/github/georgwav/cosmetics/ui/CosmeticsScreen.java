@@ -692,6 +692,13 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,
                     () -> config.options(id).saturation, v -> config.editOptions(id).saturation = (float) v,
                     v -> Math.round(v * 100) + "%"));
+            // The texture's own colours: turned around the colour wheel, darker or lighter.
+            add(new Rows.Slider(listX, 0, listW, t("hue"), -180, 180, 5,
+                    () -> config.options(id).hue, v -> config.editOptions(id).hue = (float) v,
+                    v -> (v > 0 ? "+" : "") + Math.round(v) + "\u00b0"));
+            add(new Rows.Slider(listX, 0, listW, t("brightness"), 0, 2, 0.05,
+                    () -> config.options(id).brightness, v -> config.editOptions(id).brightness = (float) v,
+                    v -> Math.round(v * 100) + "%"));
         }
 
         boolean size = cosmetic.allows(CosmeticOption.SIZE);

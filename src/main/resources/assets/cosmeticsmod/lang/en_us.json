@@ -95,6 +95,8 @@
   "cosmeticsmod.screen.rainbow": "Rainbow",
   "cosmeticsmod.screen.rainbow_speed": "Rainbow speed",
   "cosmeticsmod.screen.saturation": "Saturation",
+  "cosmeticsmod.screen.hue": "Hue",
+  "cosmeticsmod.screen.brightness": "Brightness",
   "cosmeticsmod.screen.size": "Size",
   "cosmeticsmod.screen.offset_x": "Move sideways",
   "cosmeticsmod.screen.offset_y": "Move up",

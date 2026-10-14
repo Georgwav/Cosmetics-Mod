@@ -30,9 +30,17 @@ public final class CosmeticRenderTypes {
         return (RenderType) cached;
     }
 
-    /** The render type for one frame of the layer; frames with their own texture each have their own. */
+    /**
+     * The render type for one frame of the layer; frames with their own texture each have their own. While a
+     * recoloured cosmetic is drawn (see {@link RecoloredTextures}), its recoloured copy of the texture.
+     */
     public static RenderType get(BakedCosmetic.Layer layer, int frame) {
         TextureFrames frames = layer.textureFrames();
+        RenderType recolored = RecoloredTextures.renderType(frames == null || frames.strip() ? layer.texture()
+                : frames.texture(frame), layer.mode());
+        if (recolored != null) {
+            return recolored;
+        }
         if (frames == null || frames.strip()) {
             return get(layer);
         }
@@ -44,7 +52,7 @@ public final class CosmeticRenderTypes {
         return (RenderType) cached;
     }
 
-    private static RenderType create(String texture, RenderMode mode) {
+    static RenderType create(String texture, RenderMode mode) {
         //? if >=26.1 {
         /*Identifier id = Identifier.parse(texture);
         // 26.1 renamed entityCutoutNoCull to entityCutout (the culling one is now entityCutoutCull).

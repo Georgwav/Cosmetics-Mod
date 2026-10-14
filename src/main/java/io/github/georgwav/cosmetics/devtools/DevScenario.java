@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
 import io.github.georgwav.cosmetics.render.NameTags;
+import io.github.georgwav.cosmetics.render.RecoloredTextures;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
@@ -116,10 +117,13 @@ public final class DevScenario {
             CosmeticsMod.LOGGER.warn("Dev scenario without -D{}equipAll=true: only cosmetics equipped in the config are drawn", PREFIX);
         }
         if (smoke) {
-            // Exercise the per-cosmetic options in the world too: a tinted, larger hat and a rainbow halo.
+            // Exercise the per-cosmetic options in the world too: a tinted, larger hat whose texture is recoloured,
+            // and a rainbow halo.
             CosmeticsConfig.CosmeticOptions hat = CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat");
             hat.color = 0xFF5555;
             hat.scale = 1.1f;
+            hat.hue = 120f;
+            hat.brightness = 1.2f;
             CosmeticsConfig.get().editOptions("cosmeticsmod:halo").rainbow = true;
         }
         DevScenario scenario = new DevScenario(smoke, benchmark);
@@ -167,6 +171,10 @@ public final class DevScenario {
                     // Every cosmetic is worn, the top hat among them, so the name tag must go up.
                     float lift = NameTags.lift(client.player);
                     phases.getAsJsonObject("vanilla_front").addProperty("nameTagLift", lift);
+                    phases.getAsJsonObject("vanilla_front").addProperty("recoloredTextures", RecoloredTextures.made());
+                    if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.made() <= 0) {
+                        failures.add("the recoloured hat's texture was never made");
+                    }
                     if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && lift <= 0f) {
                         failures.add("head cosmetics didn't raise the name tag");
                     }

@@ -194,8 +194,15 @@ public final class CosmeticsConfig {
         public boolean rainbow = false;
         /** Rainbow cycles per 10 seconds, 0.1..5. */
         public float rainbowSpeed = 1.0f;
-        /** How strong the tint or rainbow colour is, 0 (none) to 1 (as picked). */
+        /**
+         * How colourful it is, 0 (black and white) to 1 (as made): the tint or rainbow colour and the texture
+         * itself (see {@link io.github.georgwav.cosmetics.render.Recolor}).
+         */
         public float saturation = 1.0f;
+        /** Degrees the texture's colours turn around the colour wheel, -180..180. */
+        public float hue = 0f;
+        /** The texture's brightness, 0..2 (1 = as made). */
+        public float brightness = 1.0f;
         /** Size, 0.5..3. */
         public float scale = 1.0f;
         /** Position offset in pixels, -8..8 (+Y is down, -Z is the front). */
@@ -226,7 +233,7 @@ public final class CosmeticsConfig {
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
-                    && saturation == d.saturation && scale == d.scale
+                    && saturation == d.saturation && hue == d.hue && brightness == d.brightness && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
@@ -239,6 +246,8 @@ public final class CosmeticsConfig {
             }
             rainbowSpeed = clamp(rainbowSpeed, 0.1f, 5f, 1f);
             saturation = clamp(saturation, 0f, 1f, 1f);
+            hue = clamp(hue, -180f, 180f, 0f);
+            brightness = clamp(brightness, 0f, 2f, 1f);
             scale = clamp(scale, 0.5f, MAX_SCALE, 1f);
             offsetX = clamp(offsetX, -8f, 8f, 0f);
             offsetY = clamp(offsetY, -8f, 8f, 0f);

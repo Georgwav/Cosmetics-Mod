@@ -213,71 +213,77 @@ public final class CosmeticRenderer {
                                    Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         BoneRig bones = cosmetic.bones();
-        for (BakedCosmetic.Layer layer : cosmetic.layers()) {
-            if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
-                    || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
-                continue;
-            }
-            int bone = bones != null ? layer.bone() : -1;
-            // Only the layers following this body part (those that follow none at the cosmetic's own anchor), and
-            // none whose bone is scaled to nothing.
-            if ((only != null && bones != null && bones.follow(bone) != only) || (bone >= 0 && bones.isHidden(bone))) {
-                continue;
-            }
-            int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
-            // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be.
-            int layerColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer()) ? color : WHITE;
-            TextureFrames frames = layer.textureFrames();
-            int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
-            // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
-            // the rest of the player) still sees the stack it expects.
-            int pushes = 0;
-            try {
-                if (animate && layer.animations().length > 0) {
-                    poseStack.pushPose();
-                    pushes++;
-                    for (CosmeticDefinition.Animation animation : layer.animations()) {
-                        applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
+        // Its texture recoloured as its settings ask (CosmeticRenderTypes picks the copy up while drawing).
+        RecoloredTextures.begin(Recolor.of(config.options(cosmetic.id()), config.allowedOptions(cosmetic)));
+        try {
+            for (BakedCosmetic.Layer layer : cosmetic.layers()) {
+                if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
+                        || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
+                    continue;
+                }
+                int bone = bones != null ? layer.bone() : -1;
+                // Only the layers following this body part (those that follow none at the cosmetic's own anchor), and
+                // none whose bone is scaled to nothing.
+                if ((only != null && bones != null && bones.follow(bone) != only) || (bone >= 0 && bones.isHidden(bone))) {
+                    continue;
+                }
+                int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
+                // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be.
+                int layerColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer()) ? color : WHITE;
+                TextureFrames frames = layer.textureFrames();
+                int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
+                // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
+                // the rest of the player) still sees the stack it expects.
+                int pushes = 0;
+                try {
+                    if (animate && layer.animations().length > 0) {
+                        poseStack.pushPose();
+                        pushes++;
+                        for (CosmeticDefinition.Animation animation : layer.animations()) {
+                            applyAnimation(poseStack, animation, animation.valueAt(seconds, animationSpeed));
+                        }
+                    }
+                    CosmeticDefinition.WingPart wingPart = layer.wing();
+                    if (wingPart != null && wings != null) {
+                        poseStack.pushPose();
+                        pushes++;
+                        applyWing(poseStack, wings, wingPart, wingAngle);
+                    }
+                    MeshRig rig = layer.rig();
+                    int clip = 0;
+                    float clipTime = 0f;
+                    if (rig != null) {
+                        clip = rig.clipForStyle(style);
+                        // With wings, a skeletal mesh plays one loop of its clip per flap.
+                        clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
+                                : rig.clipTime(clip, seconds, animate ? animationSpeed * capeMotion : 0f);
+                        poseStack.pushPose();
+                        pushes++;
+                        applyRig(poseStack, rig, layer.joint(), clip, clipTime);
+                    }
+                    if (bone >= 0 && !bones.isIdentity(bone)) {
+                        poseStack.pushPose();
+                        pushes++;
+                        applyBone(poseStack, bones.correction(), bone * 12);
+                    }
+                    // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
+                    Cloth.Shape shape = cloth != null && rig == null
+                            ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2], clothLag) : null;
+                    for (int copy = 0; copy < RenderStats.COPIES; copy++) {
+                        sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime, shape);
+                    }
+                } finally {
+                    for (; pushes > 0; pushes--) {
+                        poseStack.popPose();
                     }
                 }
-                CosmeticDefinition.WingPart wingPart = layer.wing();
-                if (wingPart != null && wings != null) {
-                    poseStack.pushPose();
-                    pushes++;
-                    applyWing(poseStack, wings, wingPart, wingAngle);
-                }
-                MeshRig rig = layer.rig();
-                int clip = 0;
-                float clipTime = 0f;
-                if (rig != null) {
-                    clip = rig.clipForStyle(style);
-                    // With wings, a skeletal mesh plays one loop of its clip per flap.
-                    clipTime = wings != null ? rig.clipTimeAtCycle(clip, wingPhase)
-                            : rig.clipTime(clip, seconds, animate ? animationSpeed * capeMotion : 0f);
-                    poseStack.pushPose();
-                    pushes++;
-                    applyRig(poseStack, rig, layer.joint(), clip, clipTime);
-                }
-                if (bone >= 0 && !bones.isIdentity(bone)) {
-                    poseStack.pushPose();
-                    pushes++;
-                    applyBone(poseStack, bones.correction(), bone * 12);
-                }
-                // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
-                Cloth.Shape shape = cloth != null && rig == null
-                        ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2], clothLag) : null;
-                for (int copy = 0; copy < RenderStats.COPIES; copy++) {
-                    sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime, shape);
-                }
-            } finally {
-                for (; pushes > 0; pushes--) {
-                    poseStack.popPose();
+                RenderStats.meshesDrawn++;
+                if (shadowPass) {
+                    RenderStats.shadowPassMeshes++;
                 }
             }
-            RenderStats.meshesDrawn++;
-            if (shadowPass) {
-                RenderStats.shadowPassMeshes++;
-            }
+        } finally {
+            RecoloredTextures.end();
         }
     }
 
