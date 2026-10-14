@@ -171,6 +171,15 @@ final class Ui {
         return type(size, semibold).fit(text, room * u);
     }
 
+    /** Its end, after an ellipsis, when it doesn't fit {@code room} design pixels (a path's folder names). */
+    String fitEnd(String text, float room, float size, boolean semibold) {
+        HubFont f = type(size, semibold);
+        if (f.width(text) <= room * u) {
+            return text;
+        }
+        return "…" + f.fitEnd(text, room * u - f.width("…"));
+    }
+
     // ------------------------------------------------------------------ controls
 
     /** A pill button's width for {@code label}. */

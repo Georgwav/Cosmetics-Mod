@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.ui.hub;
 
+import io.github.georgwav.cosmetics.client.MainFolder;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
@@ -9,11 +10,13 @@ import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
+import io.github.georgwav.cosmetics.ui.FolderPicker;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -32,7 +35,7 @@ import java.util.function.Supplier;
  */
 final class SettingsPage implements HubPage {
     private static final String[] SECTIONS = {"general", "keys", "slots", "details", "particles", "emotes", "performance",
-            "compatibility", "maintenance"};
+            "compatibility", "folder", "maintenance"};
     private static final float LEFT = 148f;
     private static final float RIGHT = 1292f;
     private static final float NAV_W = 212f;
@@ -166,6 +169,37 @@ final class SettingsPage implements HubPage {
         };
     }
 
+    private static String h(String key, Object... args) {
+        return Component.translatable("cosmeticsmod.hub.settings." + key, args).getString();
+    }
+
+    /** The main folder: its name on the left, where it is on the right. */
+    private static Row folderRow() {
+        return (ui, y, textX, right) -> {
+            String name = h("folder.name");
+            String where = MainFolder.folder() + (MainFolder.isDefault() ? "  " + h("folder.default") : "");
+            float nameRight = textX + ui.textWidth(name, Ui.NAME, false) + 24f;
+            ui.textMidRight(ui.fitEnd(where, right - nameRight, Ui.SMALL, true), right, y + ROW / 2f, Ui.TEXT_DIM, Ui.SMALL, true);
+            name(ui, name, y, textX, nameRight);
+        };
+    }
+
+    private void pickFolder() {
+        try {
+            Path picked = FolderPicker.pick(h("folder.choose_title"), MainFolder.folder());
+            if (picked != null) {
+                useFolder(picked);
+            }
+        } catch (UnsupportedOperationException e) {
+            hub.notify(Component.translatable("cosmeticsmod.hub.skins.no_picker").getString());
+        }
+    }
+
+    private void useFolder(Path folder) {
+        MainFolder.choose(folder);
+        hub.notify(h("folder.set", MainFolder.folder().getFileName()));
+    }
+
     private static void name(Ui ui, String name, float y, float textX, float room) {
         ui.textMid(ui.fit(name, room - textX, Ui.NAME, false), textX, y + ROW / 2f, Ui.TEXT, Ui.NAME, false);
     }
@@ -256,6 +290,19 @@ final class SettingsPage implements HubPage {
                 rows.add(toggle("defer_figura", () -> c.deferToFigura, v -> c.deferToFigura = v));
                 Map<String, String> mods = Compat.detectedMods();
                 mods.forEach((name, version) -> rows.add(info(name, () -> version, 0xFF8EE08E)));
+            }
+            case "folder" -> {
+                rows.add(folderRow());
+                rows.add(button(h("folder.choose_name"), h("folder.choose"), this::pickFolder));
+                Path launcher = MainFolder.launcherFolder();
+                if (launcher != null && !launcher.equals(MainFolder.folder())) {
+                    rows.add(button(h("folder.launcher_name", launcher), h("folder.use_launcher"), () -> useFolder(launcher)));
+                }
+                if (!MainFolder.isDefault()) {
+                    rows.add(button(h("folder.default_name"), h("folder.use_default"), () -> useFolder(null)));
+                }
+                rows.add(info(h("folder.skins"), () -> MainFolder.database() != null ? h("folder.skins_yes") : h("folder.skins_no"),
+                        MainFolder.database() != null ? 0xFF8EE08E : Ui.TEXT_DIM));
             }
             case "maintenance" -> {
                 rows.add(info(t("loaded"), () -> String.valueOf(CosmeticRegistry.all().size()), Ui.TEXT_DIM));

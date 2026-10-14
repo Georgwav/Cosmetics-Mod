@@ -132,14 +132,14 @@ public final class Modules {
         }
     }
 
-    /** This instance's file: which main folder (and the modules, while there is no main folder). */
+    /** This instance's file: which main folder (and the modules, when the main folder can't be written). */
     private static Path instanceFile() {
         return FabricLoader.getInstance().getConfigDir().resolve(CosmeticsMod.MOD_ID + "-client.json");
     }
 
-    /** The modules' file in the main folder, which every instance shares, or null without a main folder. */
+    /** The modules' file in the main folder, which every instance shares. */
     private static Path sharedFile() {
-        return MainFolder.appFolder() == null ? null : MainFolder.clientFolder().resolve("modules.json");
+        return MainFolder.clientFolder().resolve("modules.json");
     }
 
     private static JsonObject read(Path file) throws IOException {
@@ -160,7 +160,7 @@ public final class Modules {
             }
             // The main folder's modules when it has them; else this instance's (moved there on the next save).
             Path shared = sharedFile();
-            if (shared != null && Files.isRegularFile(shared)) {
+            if (Files.isRegularFile(shared)) {
                 file = shared;
                 root = read(shared);
             }
@@ -216,6 +216,26 @@ public final class Modules {
     }
 
     /**
+     * After the main folder changed: the modules saved in it when it has them (another instance's), else this
+     * instance's go into it.
+     */
+    public static void mainFolderChanged() {
+        Path shared = sharedFile();
+        try {
+            if (Files.isRegularFile(shared)) {
+                JsonObject root = read(shared);
+                if (root.has("modules") && root.get("modules").isJsonObject()) {
+                    apply(root.getAsJsonObject("modules"));
+                    return;
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            CosmeticsMod.LOGGER.warn("Couldn't read {}; keeping this instance's modules", shared, e);
+        }
+        save();
+    }
+
+    /**
      * Puts modules as {@link #toJson()} wrote them (a profile): their settings, then each switched on or off the way
      * a click would, so what they change in the game follows. Modules it doesn't mention stay as they are.
      */
@@ -244,8 +264,9 @@ public final class Modules {
     }
 
     /**
-     * Saves the modules: into the main folder when there is one (shared by every instance), else into this
-     * instance's file, which always says which main folder it uses.
+     * Saves the modules into the main folder (shared by every instance; its client folder is made when missing),
+     * or into this instance's file when the main folder can't be written. This instance's file always says which
+     * main folder it uses.
      */
     public static void save() {
         if (loading) {
@@ -256,23 +277,22 @@ public final class Modules {
         if (MainFolder.chosen != null) {
             instance.addProperty("mainFolder", MainFolder.chosen.toString());
         }
-        Path shared = sharedFile();
-        if (shared != null) {
-            JsonObject root = new JsonObject();
-            root.add("modules", modules);
-            write(shared, root);
-        } else {
+        JsonObject root = new JsonObject();
+        root.add("modules", modules);
+        if (!write(sharedFile(), root)) {
             instance.add("modules", modules);
         }
         write(instanceFile(), instance);
     }
 
-    private static void write(Path file, JsonObject root) {
+    private static boolean write(Path file, JsonObject root) {
         try {
             Files.createDirectories(file.getParent());
             Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            return true;
+        } catch (IOException | RuntimeException e) {
             CosmeticsMod.LOGGER.warn("Couldn't save {}", file, e);
+            return false;
         }
     }
 }

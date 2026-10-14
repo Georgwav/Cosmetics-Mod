@@ -12,54 +12,91 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The client's main folder: the launcher's app folder (Threadrinth, or the Modrinth App it is built on), which holds
- * its database (saved skins) and its instances under {@code profiles/}; the client keeps its own things in
- * {@code client/} there. Set once in the client's settings, or found: the game running from
- * {@code <app folder>/profiles/<instance>}, or the launcher's settings folder (which points to a moved app folder).
+ * The client's main folder. By default the game's own {@code .minecraft} folder (where the Minecraft Launcher keeps
+ * it); it can be set to another one, such as Threadrinth's app folder (or the Modrinth App's it is built on). Either
+ * way it is laid out the way Threadrinth lays out its folder: the client keeps its own things in {@code client/}
+ * (created when first needed), and a Threadrinth folder's database ({@code app.db}) has the skins saved in the
+ * launcher, which the Skins page shows.
  */
 public final class MainFolder {
-    /** The folder chosen in the settings, or null to find it. */
+    /** The folder chosen in the settings, or null for {@code .minecraft}. */
     static Path chosen;
-    private static Path found;
+    private static Path launcher;
     private static boolean searched;
 
     private MainFolder() {
     }
 
-    /** The launcher's app folder, or null when there is none. */
-    public static Path appFolder() {
+    /** The main folder: the one chosen, else {@code .minecraft}. */
+    public static Path folder() {
         if (chosen != null) {
             return chosen;
         }
-        if (!searched) {
-            searched = true;
-            found = find(FabricLoader.getInstance().getGameDir());
-        }
-        return found;
+        Path minecraft = minecraftFolder();
+        return minecraft != null ? minecraft : FabricLoader.getInstance().getGameDir();
     }
 
-    /** Where the client keeps its own things: {@code client/} in the app folder, else in this instance. */
+    /** Whether it is the default ({@code .minecraft}), not one chosen. */
+    public static boolean isDefault() {
+        return chosen == null;
+    }
+
+    /** Where the client keeps its own things: {@code client/} in the main folder. */
     public static Path clientFolder() {
-        Path app = appFolder();
-        return app != null ? app.resolve("client") : FabricLoader.getInstance().getGameDir().resolve("cosmeticsmod");
+        return folder().resolve("client");
     }
 
-    /** The launcher's database, or null. */
+    /** The main folder's Threadrinth database (saved skins), or null when it has none. */
     public static Path database() {
-        Path app = appFolder();
-        Path db = app == null ? null : app.resolve("app.db");
-        return db != null && Files.isRegularFile(db) ? db : null;
+        Path db = folder().resolve("app.db");
+        return Files.isRegularFile(db) ? db : null;
     }
 
+    /** The folder chosen, or null for the default. */
     public static Path chosen() {
         return chosen;
     }
 
-    /** Sets the folder (null: find it again) and saves the choice. */
+    /**
+     * Sets the folder (null: back to {@code .minecraft}) and saves the choice; the modules saved in that folder
+     * (by another instance) are taken over, else this instance's go into it.
+     */
     public static void choose(Path folder) {
         chosen = folder;
-        searched = false;
-        Modules.save();
+        Modules.mainFolderChanged();
+    }
+
+    /**
+     * Threadrinth's (or the Modrinth App's) app folder on this computer, or null: the one this game was started
+     * from, or the one in the launcher's settings folder. Offered as a main folder, never used without asking.
+     */
+    public static Path launcherFolder() {
+        if (!searched) {
+            searched = true;
+            launcher = find(FabricLoader.getInstance().getGameDir());
+        }
+        return launcher;
+    }
+
+    /**
+     * {@code .minecraft}, where the Minecraft Launcher keeps it: {@code %APPDATA%\.minecraft} on Windows,
+     * {@code ~/Library/Application Support/minecraft} on macOS, {@code ~/.minecraft} elsewhere.
+     */
+    public static Path minecraftFolder() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String home = System.getProperty("user.home");
+        try {
+            if (os.contains("win")) {
+                String appData = System.getenv("APPDATA");
+                return appData != null ? Path.of(appData, ".minecraft") : home != null ? Path.of(home, ".minecraft") : null;
+            }
+            if (os.contains("mac")) {
+                return home != null ? Path.of(home, "Library", "Application Support", "minecraft") : null;
+            }
+            return home != null ? Path.of(home, ".minecraft") : null;
+        } catch (InvalidPathException e) {
+            return null;
+        }
     }
 
     static Path find(Path gameDir) {

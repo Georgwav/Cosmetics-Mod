@@ -60,8 +60,13 @@ button.
 - **Modules** in the island opens the list that switches them on and off.
 
 **Main folder:**
-- The client keeps its settings and profiles in the Threadrinth app folder, so every instance shares them.
-- It finds the folder by itself; you can also choose it on the Skins page.
+- By default the client uses the game's own `.minecraft` folder (`%APPDATA%\.minecraft` on Windows) and creates
+  what it needs there: `client/` with its settings (`modules.json`) and profiles.
+- You can choose another folder in Settings → Main folder or on the Skins page. Threadrinth's app folder (or the
+  Modrinth App's) has the same layout plus the launcher's database (`app.db`), so with it chosen the Skins page shows
+  the skins saved in Threadrinth. When the client finds Threadrinth on the computer, it offers "Use Threadrinth".
+- Every instance using the same main folder shares the client's settings. Switching to a folder that already has
+  them takes them over.
 
 The hub's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/GEIST-OFL.txt`).
 

@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.client.MainFolder;
 import io.github.georgwav.cosmetics.client.skins.OwnSkin;
 import io.github.georgwav.cosmetics.client.skins.SkinLibrary;
 import io.github.georgwav.cosmetics.client.skins.SkinUploader;
+import io.github.georgwav.cosmetics.ui.FolderPicker;
 import io.github.georgwav.cosmetics.ui.PictureTexture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -13,7 +14,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -171,21 +171,28 @@ final class SkinsPage implements HubPage {
         load();
     }
 
-    /** The system's folder picker (LWJGL's tinyfd, which the game ships), looked up by name to stay optional. */
+    /** Asks for the main folder (Threadrinth's app folder has the launcher's skins). */
     private void chooseFolder() {
         try {
-            Class<?> dialogs = Class.forName("org.lwjgl.util.tinyfd.TinyFileDialogs");
-            Path start = MainFolder.appFolder();
-            Object picked = dialogs.getMethod("tinyfd_selectFolderDialog", CharSequence.class, CharSequence.class)
-                    .invoke(null, t("choose_title"), start != null ? start.toString() : "");
-            if (picked instanceof String path && !path.isBlank()) {
-                MainFolder.choose(Path.of(path));
-                reload();
-                hub.notify(MainFolder.database() != null ? t("folder_set") : t("no_database"));
+            Path picked = FolderPicker.pick(t("choose_title"), MainFolder.folder());
+            if (picked != null) {
+                useFolder(picked);
             }
-        } catch (ReflectiveOperationException | InvalidPathException | LinkageError e) {
+        } catch (UnsupportedOperationException e) {
             hub.notify(t("no_picker"));
         }
+    }
+
+    private void useFolder(Path folder) {
+        MainFolder.choose(folder);
+        reload();
+        hub.notify(MainFolder.database() != null ? t("folder_set") : t("no_database"));
+    }
+
+    /** Threadrinth's app folder when one was found on this computer and isn't the main folder already. */
+    private static Path launcherToOffer() {
+        Path launcher = MainFolder.launcherFolder();
+        return launcher != null && !launcher.equals(MainFolder.folder()) ? launcher : null;
     }
 
     // ------------------------------------------------------------------ the page
@@ -262,14 +269,20 @@ final class SkinsPage implements HubPage {
     public void draw(Ui ui, String query) {
         collect();
         Path db = MainFolder.database();
-        float headerRight = ui.buttonRight(t("choose"), RIGHT, 140f, 36f, false, this::chooseFolder) - 16f;
+        Path launcher = db == null ? launcherToOffer() : null;
+        float headerRight = ui.buttonRight(t("choose"), RIGHT, 140f, 36f, false, this::chooseFolder) - 8f;
+        if (launcher != null) {
+            headerRight = ui.buttonRight(t("use_launcher"), headerRight, 140f, 36f, true, () -> useFolder(launcher)) - 8f;
+        }
+        headerRight -= 8f;
         ui.text(ui.fit(t("title"), headerRight - LEFT, Ui.TITLE, true), LEFT, 136f, Ui.TEXT, Ui.TITLE, true);
-        String summary = db == null ? t("no_folder")
-                : t("summary", skins.size(), MainFolder.appFolder().getFileName());
+        String folder = String.valueOf(MainFolder.folder().getFileName());
+        String summary = db == null ? t("no_folder", folder) : t("summary", skins.size(), folder);
         ui.text(ui.fit(summary, headerRight - LEFT, Ui.SMALL, false), LEFT, 172f, Ui.TEXT_DIM, Ui.SMALL, false);
 
         ui.clip(LEFT, TOP, RIGHT, BOTTOM);
-        String empty = problem != null ? problem : db == null ? t("choose_hint")
+        String empty = problem != null ? problem
+                : db == null ? (launcher != null ? t("found_hint", launcher) : t("choose_hint"))
                 : !loading.isDone() ? t("loading") : skins.isEmpty() ? t("empty") : null;
         if (empty != null) {
             ui.text(ui.fit(empty, RIGHT - LEFT, Ui.SMALL, false), LEFT + 6f, TOP + 10f, Ui.TEXT_DIM, Ui.SMALL, false);
