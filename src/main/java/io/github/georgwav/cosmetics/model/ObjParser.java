@@ -62,11 +62,12 @@ final class ObjParser {
                 case "v" -> positions.add(numbers(tokens, 3, where, "v"));
                 case "vt" -> {
                     float[] t = numbers(tokens, 2, where, "vt");
-                    if (t[0] < -1.0e-4f || t[0] > 1.0001f || t[1] < -1.0e-4f || t[1] > 1.0001f) {
+                    if (t[0] < -RigBuilder.UV_SLACK || t[0] > 1f + RigBuilder.UV_SLACK || t[1] < -RigBuilder.UV_SLACK
+                            || t[1] > 1f + RigBuilder.UV_SLACK) {
                         throw new JsonParseException(where + ": texture coordinate (" + t[0] + ", " + t[1]
                                 + ") is outside 0..1 (wrapping textures aren't supported)");
                     }
-                    // Exporters round to 1.0001 and the like; pull those back onto the texture.
+                    // Exporters round to just outside the texture (1.0001, -0.0025); pull those back onto it.
                     float u = Math.max(0f, Math.min(1f, t[0]));
                     float v = Math.max(0f, Math.min(1f, t[1]));
                     uvs.add(new float[]{u * texW, (flipV ? v : 1f - v) * texH});
