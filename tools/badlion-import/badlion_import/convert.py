@@ -557,11 +557,17 @@ def first_person_turned(model: badlion.Model | None) -> bool:
     return difference[2][2] < 0
 
 
+# Badlion draws a shield's model in the held item's space, which the game turns upside down and back to front
+# (as for the vanilla shield's model); the model's axes, turned into the mod's, were that turn too many. The
+# facing was set right by shield_view, which leaves this half turn about the forward axis: upside down otherwise.
+SHIELD_UPRIGHT = rotation_matrix((0, 0, 180))
+
+
 def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeRule, ts: TypeSettings) -> Placement:
     """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), facing as Badlion
-    shows it in third person (shield_view; first person, where it differs, is first_person_turned), and centred on
-    the vanilla shield's plate (the type's origin), because Badlion's shields are each placed by their own
-    hand-tuned offsets we can't reproduce."""
+    shows it in third person (shield_view; first person, where it differs, is first_person_turned), upright
+    (SHIELD_UPRIGHT), and centred on the vanilla shield's plate (the type's origin), because Badlion's shields are
+    each placed by their own hand-tuned offsets we can't reproduce."""
     convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
     extra = rotation_matrix(ts.rotation)
     data = model.raw.get("shieldModelData") if model and isinstance(model.raw.get("shieldModelData"), dict) else {}
@@ -571,7 +577,7 @@ def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeR
     mirror = determinant(own) < 0
     if mirror:  # the mod mirrors X before turning
         own = multiply(own, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
-    total = multiply(extra, multiply(convert, own))
+    total = multiply(extra, multiply(SHIELD_UPRIGHT, multiply(convert, own)))
     middle = [(bounds[0][i] + bounds[1][i]) / 2 for i in range(3)] if bounds else [0.0, 0.0, 0.0]
     if mirror:
         middle[0] = -middle[0]

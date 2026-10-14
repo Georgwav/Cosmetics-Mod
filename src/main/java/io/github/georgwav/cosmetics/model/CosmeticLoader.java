@@ -37,9 +37,9 @@ public final class CosmeticLoader {
      * Imported packs' namespaces and the import format the mod's fixes need: a pack whose
      * {@code <namespace>:cosmetics_import.json} says less (or that has none) was made by an older importer, and the
      * Wardrobe says to import it again. Badlion 2: capes the vanilla length, wings sized and placed; 3: shields
-     * facing as Badlion has them in each view; 4: every forward-bending wing model turned around.
+     * facing as Badlion has them in each view; 4: every forward-bending wing model turned around; 5: shields upright.
      */
-    private static final Map<String, Integer> IMPORT_FORMATS = Map.of("blc_import", 4);
+    private static final Map<String, Integer> IMPORT_FORMATS = Map.of("blc_import", 5);
     private static final String IMPORT_STAMP = "cosmetics_import.json";
 
     /** Cosmetics the last reload couldn't load, as "id: why", and imported namespaces that are out of date. */
