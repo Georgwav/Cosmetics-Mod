@@ -128,6 +128,7 @@ public final class HubScreen extends Screen {
     // A page open over the hub (the Mods list), or null; how open it is (0 = the middle orb, 1 = open).
     static final String MODS_PAGE = "mods";
     static final String SKINS_PAGE = "skins";
+    static final String WARDROBE_PAGE = "wardrobe";
     private String page;
     private float pageP;
     private float pageV;
@@ -135,6 +136,7 @@ public final class HubScreen extends Screen {
     private String transPage;
     private final ModsPage modsPage = new ModsPage(this);
     private final SkinsPage skinsPage = new SkinsPage(this);
+    private final WardrobePage wardrobePage = new WardrobePage(this);
     /** The slider being dragged. */
     private Ui.Hit dragging;
     /** The key bind waiting for a key (or mouse button). */
@@ -173,6 +175,15 @@ public final class HubScreen extends Screen {
         return hub;
     }
 
+    /** For the in-game test: the Wardrobe already open. */
+    public static HubScreen onWardrobe() {
+        HubScreen hub = new HubScreen(null);
+        hub.page = WARDROBE_PAGE;
+        hub.pageP = 1f;
+        hub.spread = 0f;
+        return hub;
+    }
+
     /** For the in-game test: how many skins the last Skins page shows. */
     public static int skinsShown() {
         return SkinsPage.shown;
@@ -199,7 +210,7 @@ public final class HubScreen extends Screen {
                 .missing(() -> Compat.VOXY ? null : t("missing", "Voxy"));
         List<HubItem> main = List.of(
                 new HubItem("you", "you", HubItem.Kind.ACTION).you().button("customize")
-                        .action(() -> ScreenOpener.open(new CosmeticsScreen(this))),
+                        .action(() -> openPage(WARDROBE_PAGE)),
                 new HubItem("mods", "a", HubItem.Kind.LEVEL).icon("grid").to(MODS),
                 new HubItem("settings", "b", HubItem.Kind.ACTION).icon("sliders")
                         .action(() -> ScreenOpener.open(new CosmeticsScreen(this, 1))),
@@ -371,6 +382,7 @@ public final class HubScreen extends Screen {
     @Override
     public void removed() {
         skinsPage.release();
+        wardrobePage.release();
         super.removed();
     }
 
@@ -923,31 +935,35 @@ public final class HubScreen extends Screen {
     private void drawPage(Canvas g, float mx, float my) {
         float p = pageP;
         float q01 = Math.max(0f, Math.min(1f, p));
-        float start = 155f;
-        float a = (start + (1280f - start) * p) / 2f;
-        float b = (start + (640f - start) * p) / 2f;
-        float n = 2f + 6f * q01;
-        float amp = 3f + 2f * q01;
-        float cx = CX;
-        float cy = CY + 12f * p;
         double time = System.nanoTime() / 1e9;
-        int count = 160;
-        float[] xs = new float[count];
-        float[] ys = new float[count];
-        float e = 2f / n;
-        for (int i = 0; i < count; i++) {
-            double th = i * Math.PI * 2 / count;
-            double c = Math.cos(th);
-            double sn = Math.sin(th);
-            double x = a * Math.signum(c) * Math.pow(Math.abs(c), e);
-            double y = b * Math.signum(sn) * Math.pow(Math.abs(sn), e);
-            double r = Math.max(1e-6, Math.hypot(x, y));
-            double wave = amp * (0.5 * Math.sin(2 * th + time * 0.7 + 1.2) + 0.35 * Math.sin(3 * th - time * 1.1 + 2.4)
-                    + 0.25 * Math.sin(5 * th + time * 1.6 + 3.6));
-            xs[i] = sx((float) (cx + x + x / r * wave));
-            ys[i] = sy((float) (cy + y + y / r * wave));
+        // Each of the page's panels grows out of the middle orb to its place; squarer as it opens.
+        for (float[] panel : currentPage().panels()) {
+            float start = 155f;
+            float a = (start + (panel[2] - start) * p) / 2f;
+            float b = (start + (panel[3] - start) * p) / 2f;
+            float n = 2f + (panel.length > 5 ? panel[5] : 6f) * q01;
+            float amp = 3f + (panel.length > 6 ? panel[6] : 2f) * q01;
+            float cx = CX + (panel[0] - CX) * p;
+            float cy = CY + (panel[1] - CY) * p;
+            float seed = panel[4];
+            int count = 160;
+            float[] xs = new float[count];
+            float[] ys = new float[count];
+            float e = 2f / n;
+            for (int i = 0; i < count; i++) {
+                double th = i * Math.PI * 2 / count;
+                double c = Math.cos(th);
+                double sn = Math.sin(th);
+                double x = a * Math.signum(c) * Math.pow(Math.abs(c), e);
+                double y = b * Math.signum(sn) * Math.pow(Math.abs(sn), e);
+                double r = Math.max(1e-6, Math.hypot(x, y));
+                double wave = amp * (0.5 * Math.sin(2 * th + time * 0.7 + seed) + 0.35 * Math.sin(3 * th - time * 1.1 + seed * 2)
+                        + 0.25 * Math.sin(5 * th + time * 1.6 + seed * 3));
+                xs[i] = sx((float) (cx + x + x / r * wave));
+                ys[i] = sy((float) (cy + y + y / r * wave));
+            }
+            Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
         }
-        Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
         if (p > 0.85f) {
             Ui ui = new Ui(g, font, u, ox, oy, gs, mx, my, ACCENT, INK, hits, eased);
             currentPage().draw(ui, query);
@@ -955,7 +971,7 @@ public final class HubScreen extends Screen {
     }
 
     private HubPage currentPage() {
-        return SKINS_PAGE.equals(page) ? skinsPage : modsPage;
+        return SKINS_PAGE.equals(page) ? skinsPage : WARDROBE_PAGE.equals(page) ? wardrobePage : modsPage;
     }
 
     // Orbs drawn this frame, back to front; the tooltip needs the hovered one.

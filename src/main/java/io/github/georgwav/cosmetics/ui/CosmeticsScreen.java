@@ -206,6 +206,13 @@ public final class CosmeticsScreen extends Screen {
         return screen;
     }
 
+    /** Opens the wardrobe on its Outfits page (the hub's Wardrobe). */
+    public static CosmeticsScreen outfits(Screen parent) {
+        CosmeticsScreen screen = new CosmeticsScreen(parent, Tab.WARDROBE.ordinal());
+        screen.view = View.OUTFITS;
+        return screen;
+    }
+
     /** Pages the in-game test opens: every tab, a cosmetic's own page, then the wardrobe's outfits. */
     public static final int TEST_PAGE_COUNT = TAB_COUNT + 2;
 

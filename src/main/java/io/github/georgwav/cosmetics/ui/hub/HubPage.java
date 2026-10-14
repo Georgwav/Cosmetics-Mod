@@ -20,6 +20,14 @@ interface HubPage {
     /** The search field's hint. */
     String searchHint();
 
+    /**
+     * The page's panels when open, in design pixels: {centre x, centre y, width, height, wave seed} each. One wide
+     * panel unless the page has its own shape (the Wardrobe's two blobs).
+     */
+    default float[][] panels() {
+        return new float[][]{{720f, 412f, 1280f, 640f, 1.2f}};
+    }
+
     /** A button of the page's own in the island (next to Done), or null; and what it does. */
     default String actionLabel() {
         return null;
