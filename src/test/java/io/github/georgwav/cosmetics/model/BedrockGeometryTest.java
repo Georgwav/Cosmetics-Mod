@@ -129,6 +129,19 @@ class BedrockGeometryTest {
         assertArrayEquals(fromBox.data(), fromFaces.data(), EPS);
     }
 
+    @Test
+    void aCubeWithANegativeSizeIsTheSameBoxFromTheOtherCorner() {
+        // Lunar's cherry blossom auras have petals dragged inside out in Blockbench.
+        CosmeticDefinition.Cube flipped = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [2, 0, 1], "size": [-2, 3, -1], "uv": [0, 0]}]}]
+                """));
+        CosmeticDefinition.Cube plain = onlyCube(convert("""
+                [{"name": "b", "cubes": [{"origin": [0, 0, 0], "size": [2, 3, 1], "uv": [0, 0]}]}]
+                """));
+        assertArrayEquals(plain.from(), flipped.from(), EPS);
+        assertArrayEquals(plain.to(), flipped.to(), EPS);
+    }
+
     private static CosmeticDefinition definition(CosmeticDefinition.Cube cube) {
         return new CosmeticDefinition("t:c", "C", CosmeticSlot.HEAD, "t:t.png", 64, 64,
                 List.of(new CosmeticDefinition.Part("p", RenderMode.CUTOUT, "t:t.png", List.of(cube), List.of())));

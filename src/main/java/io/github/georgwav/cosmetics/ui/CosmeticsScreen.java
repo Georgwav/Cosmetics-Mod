@@ -143,6 +143,8 @@ public final class CosmeticsScreen extends Screen {
     private final List<FlatWidget> content = new ArrayList<>();
     /** The key bind waiting for a key (its row was clicked), or null. */
     private KeyMapping listeningFor;
+    /** How many load failures "Copy all" last put on the clipboard (-1: not copied). */
+    private int copiedFailures = -1;
     private final List<Integer> contentOffsets = new ArrayList<>();
     private Tab tab = lastTab;
     /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
@@ -626,7 +628,13 @@ public final class CosmeticsScreen extends Screen {
         }
         List<String> failed = CosmeticLoader.failures();
         if (!failed.isEmpty()) {
-            add(new Rows.Info(listX, 0, listW, t("wardrobe.failed", failed.size()), () -> "", Theme.WARN));
+            // Copy all of them (to paste them somewhere) without digging through the log.
+            add(new Rows.Actions(listX, 0, listW, t("wardrobe.failed", failed.size()),
+                    () -> copiedFailures == failed.size() ? t("wardrobe.failed_copied") : "",
+                    List.of(t("wardrobe.failed_copy")), List.of(() -> {
+                        minecraft.keyboardHandler.setClipboard(String.join("\n", failed));
+                        copiedFailures = failed.size();
+                    })));
             for (String why : failed.subList(0, Math.min(3, failed.size()))) {
                 add(new Rows.Info(listX, 0, listW, why, () -> "", Theme.TEXT_DIM));
             }

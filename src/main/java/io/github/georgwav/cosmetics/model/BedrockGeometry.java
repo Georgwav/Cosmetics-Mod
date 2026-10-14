@@ -192,8 +192,10 @@ public final class BedrockGeometry {
         float[] origin = floats(json.get("origin"), 3, where + ".origin");
         float[] size = floats(json.get("size"), 3, where + ".size");
         for (int axis = 0; axis < 3; axis++) {
+            // A cube dragged inside out in Blockbench has a negative size: it is the same box from the other corner.
             if (size[axis] < 0) {
-                throw new JsonParseException(where + ": size must not be negative");
+                origin[axis] += size[axis];
+                size[axis] = -size[axis];
             }
         }
         float[] from = {origin[0], PIVOT_HEIGHT - (origin[1] + size[1]), origin[2]};
