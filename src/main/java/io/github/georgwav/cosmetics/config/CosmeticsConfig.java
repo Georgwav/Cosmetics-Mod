@@ -259,6 +259,11 @@ public final class CosmeticsConfig {
         public boolean turned = false;
         /** How it takes the colour picked for it, or null to choose from its texture (see {@link io.github.georgwav.cosmetics.render.Recolor#paintFor}). */
         public io.github.georgwav.cosmetics.model.ColorStyle colorStyle = null;
+        /**
+         * Its own colours changed one by one (its gold kept, its red turned purple), or null for none: one entry per
+         * colour of its texture, a kept one to itself (see {@link io.github.georgwav.cosmetics.render.Recolor}).
+         */
+        public List<ColorSwap> swaps = null;
 
         /** A copy, to keep in an outfit (or take out of one) without the two changing together. */
         public CosmeticOptions copy() {
@@ -277,7 +282,12 @@ public final class CosmeticsConfig {
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
-                    && petPosition == null && turned == d.turned && colorStyle == null;
+                    && petPosition == null && turned == d.turned && colorStyle == null && !swapsAny();
+        }
+
+        /** Whether a swap changes any colour. */
+        public boolean swapsAny() {
+            return swaps != null && swaps.stream().anyMatch(c -> ((c.from ^ c.to) & 0xFFFFFF) != 0);
         }
 
         void sanitize() {
@@ -295,6 +305,36 @@ public final class CosmeticsConfig {
             animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
             particleAmount = clamp(particleAmount, 0f, 3f, 1f);
             particleSize = clamp(particleSize, 0.25f, 3f, 1f);
+            if (swaps != null) {
+                swaps.removeIf(java.util.Objects::isNull);
+                swaps.forEach(c -> {
+                    c.from &= 0xFFFFFF;
+                    c.to &= 0xFFFFFF;
+                });
+                if (swaps.size() > MAX_SWAPS) {
+                    swaps = new ArrayList<>(swaps.subList(0, MAX_SWAPS));
+                }
+                if (!swapsAny()) {
+                    swaps = null;
+                }
+            }
+        }
+    }
+
+    /** Most colours one cosmetic's swaps hold. */
+    public static final int MAX_SWAPS = 8;
+
+    /** One of a cosmetic's own colours (RGB) and the colour (RGB) it is changed to; the same to keep it. */
+    public static final class ColorSwap {
+        public int from;
+        public int to;
+
+        public ColorSwap() {
+        }
+
+        public ColorSwap(int from, int to) {
+            this.from = from & 0xFFFFFF;
+            this.to = to & 0xFFFFFF;
         }
     }
 

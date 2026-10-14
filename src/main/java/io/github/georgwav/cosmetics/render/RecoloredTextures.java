@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -17,6 +18,7 @@ import net.minecraft.resources.ResourceLocation;
 import java.io.InputStream;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -61,11 +63,16 @@ public final class RecoloredTextures {
 
     private static final Map<String, Copy> COPIES = new HashMap<>();
     private static final Map<String, Optional<Analysis>> ANALYSES = new HashMap<>();
+    private static final Map<List<String>, int[]> PALETTES = new HashMap<>();
+    /** Most colours a cosmetic's palette shows. */
+    private static final int PALETTE_COLOURS = CosmeticsConfig.MAX_SWAPS;
     private static Recolor current;
     /** Textures painted, by {@link Recolor.Paint} (read by the in-game test). */
     private static final int[] PAINTED = new int[Recolor.Paint.values().length];
     private static String currentCosmetic;
     private static int made;
+    /** Textures painted with some of their own colours swapped (read by the in-game test). */
+    private static int swapped;
 
     private RecoloredTextures() {
     }
@@ -89,6 +96,11 @@ public final class RecoloredTextures {
     /** How many times a texture was painted {@code paint}'s way since the game started (read by the in-game test). */
     public static int painted(Recolor.Paint paint) {
         return PAINTED[paint.ordinal()];
+    }
+
+    /** How many times a texture was painted with some of its own colours swapped (read by the in-game test). */
+    public static int swapped() {
+        return swapped;
     }
 
     /** The recolour of the part being drawn, or null (the Wardrobe's pictures paint with it too). */
@@ -124,6 +136,29 @@ public final class RecoloredTextures {
             ANALYSES.put(texture, known);
         }
         return known.orElse(null);
+    }
+
+    /**
+     * The colours of these textures together (a cosmetic's), most used first (see {@link Recolor#palette}); empty
+     * when none can be read or nothing in them is coloured. Worked out once, then remembered.
+     */
+    public static int[] palette(List<String> textures) {
+        return PALETTES.computeIfAbsent(List.copyOf(textures), key -> {
+            int[] all = new int[0];
+            for (String texture : key) {
+                try {
+                    int[][] read = read(texture);
+                    if (read != null) {
+                        int[] joined = java.util.Arrays.copyOf(all, all.length + read[1].length);
+                        System.arraycopy(read[1], 0, joined, all.length, read[1].length);
+                        all = joined;
+                    }
+                } catch (Exception | LinkageError e) {
+                    CosmeticsMod.LOGGER.warn("Couldn't read texture {}", texture, e);
+                }
+            }
+            return Recolor.palette(all, PALETTE_COLOURS);
+        });
     }
 
     /** The render type for {@code texture} in {@code mode} recoloured as the cosmetic being drawn asks, or null. */
@@ -168,6 +203,7 @@ public final class RecoloredTextures {
         }
         COPIES.clear();
         ANALYSES.clear();
+        PALETTES.clear();
     }
 
     /** {@code {{width, height}, argb pixels}} of a texture in the resource packs, or null when it isn't there. */
@@ -216,6 +252,9 @@ public final class RecoloredTextures {
         int h = copy.height;
         recolor.applyAll(copy.source, copy.painted);
         PAINTED[recolor.paint().ordinal()]++;
+        if (!recolor.swaps().isEmpty()) {
+            swapped++;
+        }
         NativeImage pixels = copy.texture.getPixels();
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
