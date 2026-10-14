@@ -24,7 +24,20 @@ public final class ElytraUpright {
     /** Frames a player was drawn upright (read by the in-game test). */
     public static long frames;
 
+    /**
+     * The elytra's wings as when standing (vanilla's resting pose, the left wing; the right one mirrors it), radians:
+     * during an elytra emote the elytra is drawn folded like this instead of spread for flight, so it doesn't
+     * stretch away from your upright back.
+     */
+    public static final float FOLDED_X = 0.2617994f;
+    public static final float FOLDED_Z = -0.2617994f;
+
     private ElytraUpright() {
+    }
+
+    /** How far to fold the elytra of the player {@code entityId} (0: as the game has it, 1: folded). */
+    public static float foldWeight(int entityId) {
+        return EmotePlayer.upright(entityId);
     }
 
     /** Before the renderer turns the player {@code entityId}. */

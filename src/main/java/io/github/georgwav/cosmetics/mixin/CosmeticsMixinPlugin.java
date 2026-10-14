@@ -21,7 +21,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         //?} elif >=1.21.2 {
         /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin");
         *///?} else {
-        /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin");
+        /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin");
         *///?}
     }
 

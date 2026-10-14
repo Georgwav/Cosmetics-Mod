@@ -86,7 +86,8 @@ attacking, using an item (a rocket while gliding, too) and Stop in the middle of
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
-are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud.
+are drawn upright to the ground instead of lying along your flight, with your elytra folded on your back, so you can
+surf through the sky on a cloud.
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
