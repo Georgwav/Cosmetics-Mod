@@ -3,7 +3,6 @@ package io.github.georgwav.cosmetics.client;
 import com.google.gson.JsonObject;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -78,7 +77,8 @@ public abstract class Module {
 
     private String settingKey(String settingId) {
         String own = "cosmeticsmod.module." + id + "." + settingId;
-        return I18n.exists(own) ? own : "cosmeticsmod.module.hud." + settingId;
+        // A missing translation comes back as its key (26.2 removed I18n.exists).
+        return !Component.translatable(own).getString().equals(own) ? own : "cosmeticsmod.module.hud." + settingId;
     }
 
     /** Adds a setting; {@code onChange} runs whenever its value changes. */
