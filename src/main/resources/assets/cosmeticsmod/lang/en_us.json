@@ -62,7 +62,7 @@
   "cosmeticsmod.hub.mods.title": "Mods",
   "cosmeticsmod.hub.mods.island": "%s of %s modules on",
   "cosmeticsmod.hub.mods.search": "Search mods and modules",
-  "cosmeticsmod.hub.mods.summary": "%s of %s modules on · %s mods installed",
+  "cosmeticsmod.hub.mods.summary": "%s of %s modules on · installed mods: %s",
   "cosmeticsmod.hub.mods.mod_menu": "Mod Menu",
   "cosmeticsmod.hub.mods.section.all": "All",
   "cosmeticsmod.hub.mods.section.on": "On",

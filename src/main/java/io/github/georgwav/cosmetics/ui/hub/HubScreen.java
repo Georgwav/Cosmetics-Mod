@@ -916,11 +916,6 @@ public final class HubScreen extends Screen {
             ys[i] = sy((float) (cy + y + y / r * wave));
         }
         Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
-        // A soft light at the top left, like the canvas's panel.
-        for (int ring = 0; ring < 4; ring++) {
-            float rr = (0.5f - ring * 0.1f) * Math.min(a, b);
-            Shapes.fill(g, Shapes.circle(sx(cx - a * 0.55f), sy(cy - b * 0.6f), rr * u), 0x0AFFFFFF);
-        }
         if (p > 0.85f) {
             Ui ui = new Ui(g, font, u, ox, oy, gs, textScale, mx, my, ACCENT, INK, hits, eased);
             modsPage.draw(ui, query);
