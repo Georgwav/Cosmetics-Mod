@@ -1,0 +1,89 @@
+package io.github.georgwav.cosmetics.client.skins;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * The skins saved in the launcher (Threadrinth, like the Modrinth App): its database's
+ * {@code custom_minecraft_skins} (whose skin, which texture, wide or slim arms, in which order) and
+ * {@code custom_minecraft_skin_textures} (the PNG of each texture). Only read, never written.
+ */
+public final class SkinLibrary {
+    /** One saved skin: its texture's key, its PNG, and whether its arms are slim. */
+    public record Skin(String key, byte[] png, boolean slim) {
+    }
+
+    private SkinLibrary() {
+    }
+
+    /**
+     * The skins saved for this player, in the launcher's order; when none are saved for them (another account), the
+     * skins of every account.
+     */
+    public static List<Skin> load(Path database, UUID player) throws IOException {
+        try (SqliteReader db = SqliteReader.open(database)) {
+            if (!db.hasTable("custom_minecraft_skins") || !db.hasTable("custom_minecraft_skin_textures")) {
+                return List.of();
+            }
+            Map<String, byte[]> textures = new HashMap<>();
+            for (Map<String, Object> row : db.table("custom_minecraft_skin_textures")) {
+                if (row.get("texture_key") instanceof String key && row.get("texture") instanceof byte[] png) {
+                    textures.put(key, png);
+                }
+            }
+            List<Map<String, Object>> rows = new ArrayList<>(db.table("custom_minecraft_skins"));
+            rows.sort(Comparator.comparingLong(row -> row.get("display_order") instanceof Long order ? order : 0L));
+            List<Skin> mine = skins(rows, textures, player);
+            return mine.isEmpty() ? skins(rows, textures, null) : mine;
+        }
+    }
+
+    private static List<Skin> skins(List<Map<String, Object>> rows, Map<String, byte[]> textures, UUID player) {
+        // One entry per texture: the same skin saved with different capes shows once.
+        Map<String, Skin> byKey = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            if (player != null && !player.equals(uuid(row.get("minecraft_user_uuid")))) {
+                continue;
+            }
+            if (row.get("texture_key") instanceof String key && textures.containsKey(key) && !byKey.containsKey(key)) {
+                boolean slim = "SLIM".equalsIgnoreCase(String.valueOf(row.get("variant")));
+                byKey.put(key, new Skin(key, textures.get(key), slim));
+            }
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    /** A player's id as the database keeps it: 16 bytes, or text with or without dashes. */
+    static UUID uuid(Object value) {
+        try {
+            if (value instanceof byte[] bytes && bytes.length == 16) {
+                long hi = 0;
+                long lo = 0;
+                for (int i = 0; i < 8; i++) {
+                    hi = hi << 8 | (bytes[i] & 0xFF);
+                    lo = lo << 8 | (bytes[i + 8] & 0xFF);
+                }
+                return new UUID(hi, lo);
+            }
+            if (value instanceof String text) {
+                String hex = text.replace("-", "").trim().toLowerCase(Locale.ROOT);
+                if (hex.length() == 32) {
+                    byte[] bytes = HexFormat.of().parseHex(hex);
+                    return uuid(bytes);
+                }
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Not an id.
+        }
+        return null;
+    }
+}

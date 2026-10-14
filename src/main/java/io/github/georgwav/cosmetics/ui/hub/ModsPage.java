@@ -189,7 +189,8 @@ final class ModsPage {
     private float moduleCard(Ui ui, Module m, float y) {
         boolean open = m.id.equals(expanded);
         List<Setting<?>> settings = m.settings();
-        float h = 64f + (open ? settings.size() * 56f + 8f : 0f);
+        float preview = open ? m.previewHeight() : 0f;
+        float h = 64f + (open ? (preview > 0f ? preview + 12f : 0f) + settings.size() * 56f + 8f : 0f);
         float right = LIST_X + LIST_W - 20f;
         if (y + h >= LIST_TOP && y <= LIST_BOTTOM) {
             ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
@@ -205,6 +206,13 @@ final class ModsPage {
             ui.text(ui.fit(m.note(), room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
             if (open) {
                 float sy = y + 64f;
+                if (preview > 0f) {
+                    // A live preview on a mid-tone well, where light and dark both show.
+                    ui.roundRect(textX, sy + 4f, right - textX, preview, 16f, 0xFF46586B);
+                    m.drawPreview(ui.g, Math.round(ui.sx(textX)), Math.round(ui.sy(sy + 4f)), Math.round(ui.sx(right)),
+                            Math.round(ui.sy(sy + 4f + preview)));
+                    sy += preview + 12f;
+                }
                 for (Setting<?> s : settings) {
                     ui.roundRect(textX, sy, right - textX, 1f, 0f, Ui.LINE);
                     settingRow(ui, m, s, sy, textX, right);

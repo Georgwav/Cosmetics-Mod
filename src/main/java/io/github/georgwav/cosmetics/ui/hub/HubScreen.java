@@ -3,7 +3,6 @@ package io.github.georgwav.cosmetics.ui.hub;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.Modules;
-import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
@@ -162,13 +161,13 @@ public final class HubScreen extends Screen {
         return hub;
     }
 
-    /** For the in-game test: the Mods page already open, on Fullbright's settings. */
+    /** For the in-game test: the Mods page already open, on the crosshair's settings and preview. */
     public static HubScreen onModsPage() {
         HubScreen hub = inMods();
         hub.page = MODS_PAGE;
         hub.pageP = 1f;
         hub.spread = 0f;
-        hub.modsPage.show("fullbright");
+        hub.modsPage.show("crosshair");
         return hub;
     }
 
@@ -213,9 +212,9 @@ public final class HubScreen extends Screen {
                 modsShaders,
                 modsVoxy,
                 HubItem.module(Modules.FULLBRIGHT, "render"),
+                HubItem.module(Modules.CROSSHAIR, "render"),
                 HubItem.module(Modules.WEATHER, "render"),
-                HubItem.module(Modules.TIME, "render")
-                        .missing(() -> TimeChanger.supported() ? null : t("not_on_version")),
+                HubItem.module(Modules.TIME, "render"),
                 HubItem.module(Modules.KEYSTROKES, "modules"),
                 HubItem.module(Modules.TOGGLE_SPRINT, "modules"),
                 HubItem.module(Modules.FPS, "hud").live("fps"),

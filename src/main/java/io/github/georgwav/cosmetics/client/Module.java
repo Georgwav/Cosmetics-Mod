@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.client;
 
 import com.google.gson.JsonObject;
+import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -79,6 +80,15 @@ public abstract class Module {
         String own = "cosmeticsmod.module." + id + "." + settingId;
         // A missing translation comes back as its key (26.2 removed I18n.exists).
         return !Component.translatable(own).getString().equals(own) ? own : "cosmeticsmod.module.hud." + settingId;
+    }
+
+    /** Height (design pixels) of a live preview the Mods page shows above the settings, or 0 for none. */
+    public float previewHeight() {
+        return 0f;
+    }
+
+    /** Draws that preview into a box of screen pixels, over the page's background for it. */
+    public void drawPreview(Canvas g, int x0, int y0, int x1, int y1) {
     }
 
     /** Adds a setting; {@code onChange} runs whenever its value changes. */

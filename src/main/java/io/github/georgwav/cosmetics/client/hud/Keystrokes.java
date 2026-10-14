@@ -37,15 +37,15 @@ public final class Keystrokes extends HudModule {
 
     @Override
     protected void draw(Canvas g, Minecraft mc) {
-        key(g, mc, mc.options.keyUp, KEY + GAP, 0, KEY, KEY, null);
-        key(g, mc, mc.options.keyLeft, 0, KEY + GAP, KEY, KEY, null);
-        key(g, mc, mc.options.keyDown, KEY + GAP, KEY + GAP, KEY, KEY, null);
-        key(g, mc, mc.options.keyRight, (KEY + GAP) * 2, KEY + GAP, KEY, KEY, null);
+        key(g, mc, mc.options.keyUp, null, KEY + GAP, 0, KEY, KEY, null);
+        key(g, mc, mc.options.keyLeft, null, 0, KEY + GAP, KEY, KEY, null);
+        key(g, mc, mc.options.keyDown, null, KEY + GAP, KEY + GAP, KEY, KEY, null);
+        key(g, mc, mc.options.keyRight, null, (KEY + GAP) * 2, KEY + GAP, KEY, KEY, null);
         int y = (KEY + GAP) * 2;
         if (mouse.get()) {
             int w = (WIDTH - GAP) / 2;
-            key(g, mc, mc.options.keyAttack, 0, y, w, KEY, cps.get() ? Hud.leftCps() + " CPS" : null);
-            key(g, mc, mc.options.keyUse, w + GAP, y, WIDTH - w - GAP, KEY, cps.get() ? Hud.rightCps() + " CPS" : null);
+            key(g, mc, mc.options.keyAttack, "LMB", 0, y, w, KEY, cps.get() ? Hud.leftCps() + " CPS" : null);
+            key(g, mc, mc.options.keyUse, "RMB", w + GAP, y, WIDTH - w - GAP, KEY, cps.get() ? Hud.rightCps() + " CPS" : null);
             y += KEY + GAP;
         }
         if (space.get()) {
@@ -56,11 +56,14 @@ public final class Keystrokes extends HudModule {
         }
     }
 
-    /** One key: lit while held, its bound key's name in the middle (and the clicks per second under it). */
-    private void key(Canvas g, Minecraft mc, KeyMapping mapping, int x, int y, int w, int h, String below) {
+    /**
+     * One key: lit while held, its bound key's name in the middle (or {@code fixed}, the mouse buttons), and the
+     * clicks per second under it.
+     */
+    private void key(Canvas g, Minecraft mc, KeyMapping mapping, String fixed, int x, int y, int w, int h, String below) {
         boolean down = mapping.isDown();
         box(g, x, y, w, h, down);
-        String label = KeyBinds.name(mapping);
+        String label = fixed != null ? fixed : KeyBinds.name(mapping);
         while (label.length() > 1 && mc.font.width(label) > w - 4) {
             label = label.substring(0, label.length() - 1);
         }

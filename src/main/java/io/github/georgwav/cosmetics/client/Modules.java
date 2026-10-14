@@ -14,6 +14,7 @@ import io.github.georgwav.cosmetics.client.hud.FpsHud;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.Keystrokes;
 import io.github.georgwav.cosmetics.client.hud.PingHud;
+import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.client.modules.ToggleSprint;
@@ -25,6 +26,7 @@ import net.minecraft.client.Minecraft;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
@@ -40,6 +42,7 @@ public final class Modules {
     public static final ToggleSprint TOGGLE_SPRINT = new ToggleSprint();
     public static final WeatherChanger WEATHER = new WeatherChanger();
     public static final TimeChanger TIME = new TimeChanger();
+    public static final Crosshair CROSSHAIR = new Crosshair();
     public static final Keystrokes KEYSTROKES = new Keystrokes();
     public static final FpsHud FPS = new FpsHud();
     public static final PingHud PING = new PingHud();
@@ -48,8 +51,8 @@ public final class Modules {
     public static final ArmorHud ARMOR = new ArmorHud();
     public static final EffectsHud EFFECTS = new EffectsHud();
 
-    private static final List<Module> ALL = List.of(FULLBRIGHT, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS, PING,
-            CLOCK, COORDS, ARMOR, EFFECTS);
+    private static final List<Module> ALL = List.of(FULLBRIGHT, CROSSHAIR, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
+            PING, CLOCK, COORDS, ARMOR, EFFECTS);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, FPS, PING, CLOCK, COORDS, ARMOR, EFFECTS);
 
     private static boolean loading;
@@ -136,6 +139,13 @@ public final class Modules {
         loading = true;
         try {
             JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (root.has("mainFolder") && root.get("mainFolder").isJsonPrimitive()) {
+                try {
+                    MainFolder.chosen = Path.of(root.get("mainFolder").getAsString());
+                } catch (InvalidPathException e) {
+                    MainFolder.chosen = null;
+                }
+            }
             JsonObject modules = root.has("modules") ? root.getAsJsonObject("modules") : new JsonObject();
             for (Module m : ALL) {
                 if (!modules.has(m.id)) {
@@ -164,6 +174,9 @@ public final class Modules {
             return;
         }
         JsonObject root = new JsonObject();
+        if (MainFolder.chosen != null) {
+            root.addProperty("mainFolder", MainFolder.chosen.toString());
+        }
         JsonObject modules = new JsonObject();
         for (Module m : ALL) {
             JsonObject saved = new JsonObject();

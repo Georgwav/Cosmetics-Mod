@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
 //? if >=1.21.6 {
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 //?} else {
 /*import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 *///?}
@@ -36,6 +37,24 @@ public final class Hud {
     }
 
     public static void register() {
+        // The client's crosshair in place of the game's while it's on (before 1.21.6 a mixin on Gui does this).
+        //? if >=26.1 {
+        /*HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
+            if (Modules.CROSSHAIR.enabled()) {
+                Modules.CROSSHAIR.drawOnHud(new Canvas(graphics), Minecraft.getInstance());
+            } else {
+                vanilla.extractRenderState(graphics, delta);
+            }
+        });
+        *///?} elif >=1.21.6 {
+        HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
+            if (Modules.CROSSHAIR.enabled()) {
+                Modules.CROSSHAIR.drawOnHud(new Canvas(graphics), Minecraft.getInstance());
+            } else {
+                vanilla.render(graphics, delta);
+            }
+        });
+        //?}
         //? if >=1.21.11 {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "modules"),
                 (graphics, delta) -> draw(new Canvas(graphics)));
