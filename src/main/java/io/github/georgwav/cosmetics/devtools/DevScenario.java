@@ -105,6 +105,7 @@ public final class DevScenario {
     private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
     private long elytraFramesAtStart;
+    private long fittedFramesAtStart;
     private double[] groundPosition;
     private int wheelFramesAtStart;
     private boolean finished;
@@ -345,6 +346,7 @@ public final class DevScenario {
                     // Standing with the elytra, the mod on (close to the back) and off (the game's own).
                     EmotePlayer.stop();
                     elytraFramesAtStart = ElytraLook.tuckedFrames;
+                    fittedFramesAtStart = ElytraLook.fittedFrames;
                     enter(Phase.ELYTRA_STAND_ON);
                 }
             }
@@ -352,9 +354,14 @@ public final class DevScenario {
                 sideView(client, SIDE_VIEW, 10f);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
                     long tucked = ElytraLook.tuckedFrames - elytraFramesAtStart;
+                    long fitted = ElytraLook.fittedFrames - fittedFramesAtStart;
                     phases.getAsJsonObject("elytra_look").addProperty("tuckedFrames", tucked);
+                    phases.getAsJsonObject("elytra_look").addProperty("fittedFrames", fitted);
                     if (client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && tucked <= 0) {
                         failures.add("standing, the elytra wasn't drawn close to the back");
+                    }
+                    if (client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && fitted <= 0) {
+                        failures.add("standing, the elytra wasn't laid on the back (thin, against it)");
                     }
                     enter(Phase.ELYTRA_ANGLE_ON);
                 }

@@ -94,8 +94,8 @@ attacking, using an item (a rocket while gliding, too) and Stop in the middle of
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
 are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud;
 your elytra isn't drawn meanwhile and your cape shows instead. During other emotes an elytra stays on your posed
-body, as armour does, and it sits close to your back until you spread it to glide (Display → "Elytra close to
-your back").
+body, as armour does, and it lies on your back like a cape until you spread it to glide (Display → "Elytra close
+to your back").
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
@@ -124,7 +124,7 @@ repaired on load.
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
-| `elytraCloseToBack` | `true` | Your elytra sits close to your back (its lower edge 5 degrees out instead of the game's 15), easing out as you spread it to glide. |
+| `elytraCloseToBack` | `true` | Your elytra lies on your back like a cape: half as deep as the game's (whose see-through inner half made it look a pixel off your back) and against it, its lower edge 5 degrees out instead of 15; easing out as you spread it to glide. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
 | `wavyCapes` | `true` | Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, and its lower part lags behind the top as you start, stop, jump and land, rippling through. Needs cape physics. The vanilla cape is left alone (Wavey Capes can be installed alongside for that). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
