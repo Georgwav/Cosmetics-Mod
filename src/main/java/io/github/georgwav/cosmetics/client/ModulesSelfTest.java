@@ -84,6 +84,8 @@ public final class ModulesSelfTest {
     /** Every HUD module and the crosshair on (and a potion effect for the effect timers to show), for a screenshot. */
     public static void switchOnHud(Minecraft mc) {
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").set(true);
+        ModulesSelfTest.<String>setting(Modules.FPS, "font").set("geist");
+        ModulesSelfTest.<String>setting(Modules.CLOCK, "font").set("geist");
         if (mc.player != null) {
             mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 95, 0));
         }
@@ -102,6 +104,8 @@ public final class ModulesSelfTest {
         Modules.CROSSHAIR.setEnabled(false);
         VanillaHud.reset();
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
+        ModulesSelfTest.<String>setting(Modules.FPS, "font").reset();
+        ModulesSelfTest.<String>setting(Modules.CLOCK, "font").reset();
         if (mc.player != null) {
             mc.player.removeEffect(MobEffects.NIGHT_VISION);
         }

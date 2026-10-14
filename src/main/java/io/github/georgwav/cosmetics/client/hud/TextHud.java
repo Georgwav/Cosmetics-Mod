@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.client.hud;
 
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.ui.Canvas;
+import io.github.georgwav.cosmetics.ui.hub.HubFont;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.List;
 public abstract class TextHud extends HudModule {
     private static final int PAD = 3;
     protected final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false));
+    /** The game's pixel font, or the client's own (Geist, sharp at any size). */
+    protected final Setting.Choice typeface = add(new Setting.Choice("font", "minecraft", List.of("minecraft", "geist")));
 
     protected TextHud(String id, String icon, float anchorX, float anchorY, float offsetX, float offsetY) {
         super(id, icon, anchorX, anchorY, offsetX, offsetY);
@@ -28,6 +31,24 @@ public abstract class TextHud extends HudModule {
         return lines.isEmpty() && preview() ? sample(mc) : lines;
     }
 
+    private boolean geist() {
+        return typeface.get().equals("geist");
+    }
+
+    /** Geist at the size the game's 9 pixel line has on screen now (GUI scale and this module's size). */
+    private HubFont geistFont(Minecraft mc) {
+        float screenPerUnit = (float) mc.getWindow().getGuiScale() * scale();
+        return HubFont.of(mc.font, 9.5f * screenPerUnit, true);
+    }
+
+    private int lineWidth(Minecraft mc, String line) {
+        if (!geist()) {
+            return mc.font.width(line);
+        }
+        float screenPerUnit = (float) mc.getWindow().getGuiScale() * scale();
+        return (int) Math.ceil(geistFont(mc).width(line) / screenPerUnit);
+    }
+
     @Override
     public int width(Minecraft mc) {
         List<String> lines = shown(mc);
@@ -36,7 +57,7 @@ public abstract class TextHud extends HudModule {
         }
         int w = 0;
         for (String line : lines) {
-            w = Math.max(w, mc.font.width(line));
+            w = Math.max(w, lineWidth(mc, line));
         }
         return w + PAD * 2;
     }
@@ -49,6 +70,25 @@ public abstract class TextHud extends HudModule {
 
     @Override
     protected void draw(Canvas g, Minecraft mc) {
+        if (geist()) {
+            // In screen pixels, so Geist lands on them one to one.
+            float k = (float) mc.getWindow().getGuiScale() * scale();
+            HubFont f = geistFont(mc);
+            g.push();
+            g.scale(1f / k, 1f / k);
+            float y = PAD;
+            for (String line : shown(mc)) {
+                // The capitals' middle where the game's font has its.
+                float baseline = (y + 3.5f) * k + f.cap() / 2f;
+                if (shadow.get()) {
+                    f.draw(g, line, PAD * k + Math.max(1, Math.round(k / 2f)), baseline + Math.max(1, Math.round(k / 2f)), 0xFF3F3F3F);
+                }
+                f.draw(g, line, PAD * k, baseline, 0xFFFFFFFF);
+                y += 10;
+            }
+            g.pop();
+            return;
+        }
         int y = PAD;
         for (String line : shown(mc)) {
             g.text(mc.font, line, PAD, y, 0xFFFFFFFF, shadow.get());

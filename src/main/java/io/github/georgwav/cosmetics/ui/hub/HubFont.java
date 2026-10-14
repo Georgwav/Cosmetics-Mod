@@ -20,7 +20,7 @@ import net.minecraft.resources.ResourceLocation;
  * (font/geist_&lt;px&gt;.json, font/geist_semibold_&lt;px&gt;.json) made at exactly that many pixels, and the hub draws
  * text in screen pixels, so every glyph lands one to one on the screen and stays sharp at any window size.
  */
-final class HubFont {
+public final class HubFont {
     /** The sizes there is a font for, in screen pixels: every pixel up to 24, then every 2, then every 4. */
     private static final int[] SIZES = {6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28,
             30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96};
@@ -49,7 +49,7 @@ final class HubFont {
     }
 
     /** The size nearest to {@code px} screen pixels. */
-    static HubFont of(Font font, float px, boolean semibold) {
+    public static HubFont of(Font font, float px, boolean semibold) {
         int best = 0;
         for (int i = 1; i < SIZES.length; i++) {
             if (Math.abs(SIZES[i] - px) < Math.abs(SIZES[best] - px)) {
@@ -78,17 +78,17 @@ final class HubFont {
     }
 
     /** Width in screen pixels. */
-    int width(String text) {
+    public int width(String text) {
         return font.width(component(text));
     }
 
     /** Capital height in screen pixels. */
-    float cap() {
+    public float cap() {
         return px * CAP;
     }
 
     /** Text starting at {@code x} with its baseline at {@code baseline} (screen pixels). */
-    void draw(Canvas g, String text, float x, float baseline, int color) {
+    public void draw(Canvas g, String text, float x, float baseline, int color) {
         g.text(font, component(text), Math.round(x), Math.round(baseline - BASELINE), color);
     }
 
