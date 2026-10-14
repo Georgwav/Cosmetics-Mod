@@ -55,7 +55,7 @@ public final class CosmeticParser {
      * @param maxMeshTriangles the most mesh triangles (a quad is two) one cosmetic may have; more is an error
      */
     public record Context(ModelSource models, FileSource files, Consumer<String> warnings, int maxMeshTriangles) {
-        public static final int DEFAULT_MAX_MESH_TRIANGLES = 20_000;
+        public static final int DEFAULT_MAX_MESH_TRIANGLES = 100_000;
 
         static Context withModels(ModelSource models) {
             return new Context(models, NO_FILES, warning -> { }, DEFAULT_MAX_MESH_TRIANGLES);

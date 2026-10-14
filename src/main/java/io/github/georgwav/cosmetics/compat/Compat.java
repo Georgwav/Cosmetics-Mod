@@ -49,7 +49,7 @@ public final class Compat {
             {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "Entity Culling"},
             {"entity_model_features", "Entity Model Features"}, {"entity_texture_features", "Entity Texture Features"},
             {"skinlayers3d", "3D Skin Layers"}, {"figura", "Figura"}, {"essential", "Essential"},
-            {"modmenu", "Mod Menu"},
+            {"modmenu", "Mod Menu"}, {"waveycapes", "Wavey Capes"},
     };
 
     /** Installed tracked mods: display name to version. Used by the log and the settings screen. */

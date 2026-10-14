@@ -128,9 +128,12 @@ def test_model_files_that_differ_only_in_case_stay_apart():
 
 def test_box_cape_layout_follows_the_texture():
     assert convert.box_cape_layout((64, 32)) == (64, 32, 16)  # vanilla
-    assert convert.box_cape_layout((704, 736)) == (22, 23, 22)  # Badlion, 32 px a block
-    assert convert.box_cape_layout((704, 735)) == (22, 23, 22)
-    assert convert.box_cape_layout((352, 368)) == (22, 23, 22)
+    # Badlion, 32 px a block: the cape is the top 22 x 17; the six rows below aren't part of it.
+    assert convert.box_cape_layout((704, 736)) == (22, 23, 16)
+    assert convert.box_cape_layout((704, 735)) == (22, 23, 16)
+    assert convert.box_cape_layout((352, 368)) == (22, 23, 16)
+    assert convert.box_cape_layout((704, 544)) == (22, 17, 16)  # Lunar and NoRisk: the cape's rows alone
+    assert convert.box_cape_layout((44, 20)) == (22, 10, 9)  # too short for 16: as long as it has rows
 
 
 def test_box_faces_match_the_mods_box_uv():
@@ -160,6 +163,9 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     out = tmp_path / "pack"
     run(input_folder, out, "--max-texture", "64")
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
+    # Stamped with the conversion's format, for the mod to ask for a new import when the pack is older.
+    stamp = json.loads((out / "assets/blc_import/cosmetics_import.json").read_text())
+    assert stamp["format"] == pack.IMPORT_FORMAT >= 2
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
     assert names == ["arm_band_1_fire_fist.json", "back_4_hiker_pack.json", "boots_2_fire_boots.json",
                      "cape_11_old_cloak.json", "cape_12_blank_model.json",
@@ -174,13 +180,15 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert cube["faces"]["north"] == [1, 1, 11, 17] and cube["faces"]["south"] == [12, 1, 22, 17]
     assert "options" not in cape  # every setting is the player's, colour included
     assert not (out / "assets/blc_import/models/cosmetic/cloak").exists()
-    # Badlion's 22 x 23 layout is a 22 long cape, its UVs scaled to the (downscaled) texture.
-    long = cosmetic(out, "cape_2_*.json")
-    w, h = long["texture_size"]
+    # Badlion's 22 x 23 layout: a vanilla-length cape from the top 22 x 17 blocks, its UVs scaled to the
+    # (downscaled) texture; the rows below the cape aren't drawn.
+    badlion_cape = cosmetic(out, "cape_2_*.json")
+    w, h = badlion_cape["texture_size"]
     assert (w, h) == (61, 64)
-    cube = long["parts"][0]["cubes"][0]
-    assert cube["to"] == [5, 22, 0]
-    assert cube["faces"]["north"] == [round(w / 22, 4), round(h / 23, 4), round(11 * w / 22, 4), h]
+    cube = badlion_cape["parts"][0]["cubes"][0]
+    assert cube["to"] == [5, 16, 0]
+    assert cube["faces"]["north"] == [round(w / 22, 4), round(h / 23, 4), round(11 * w / 22, 4), round(17 * h / 23, 4)]
+    assert max(max(uv[1], uv[3]) for uv in cube["faces"].values()) == round(17 * h / 23, 4)
     # A cape naming a model Badlion doesn't define, or a blank one, gets the box too.
     for name in ("cape_11_*.json", "cape_12_*.json"):
         assert cosmetic(out, name)["parts"][0]["cubes"][0]["to"] == [5, 16, 0]
@@ -290,8 +298,33 @@ def test_small_sizing_scales_are_blocks_per_unit():
     big = badlion.Cosmetic("WINGS", 11, {"name": "Cupid", "sizingData": {"scale": 1.0, "offsetZ": -1.0}})
     rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
     assert close([convert.placement(small, wings, False, rule, ts).scale], [1.28])
+    # A factor scales wings' own default size (0.1 blocks a unit); the offset is in the player's axes: -Z is
+    # forward, towards the back.
     place = convert.placement(big, wings, False, rule, ts)
-    assert place.scale == 1.0 and close([place.offset[2]], [1.0 + rule.origin[2]])
+    assert close([place.scale], [1.6]) and close([place.offset[2]], [rule.origin[2] - 1.0])
+    # Offsets lift up the back with -Y; other types keep a pixel a unit by default.
+    lifted = badlion.Cosmetic("WINGS", 12, {"name": "Butterfly", "sizingData": {"scale": 1.0, "offsetY": -3.2}})
+    assert close([convert.placement(lifted, wings, False, rule, ts).offset[1]], [rule.origin[1] - 3.2])
+    hat = badlion.Model("HAT", "cap", {"scale": 0.0})
+    assert convert.placement(badlion.Cosmetic("HAT", 3, {"name": "Cap"}), hat, False, convert.RULES["HAT"],
+                             ts).scale == 1.0
+
+
+def test_wings_made_facing_forward_are_turned_around():
+    wings = badlion.Model("WINGS", "zickzack", {"scale": 0.0})
+    rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
+    place = convert.placement(badlion.Cosmetic("WINGS", 1, {"name": "ZickZack"}), wings, False, rule, ts)
+    # OBJ +Z is the player's front: a wing curving 4.27 forward and 0.65 back reaches into the body.
+    assert convert.wing_faces_forward(place, ((-12.1, -3.54, -0.65), (-2.2, 8.75, 4.27)))
+    # Flat wings, and ones reaching back, stay as they are.
+    assert not convert.wing_faces_forward(place, ((-9.75, -6.45, -0.19), (-1.1, 7.75, 0.19)))
+    assert not convert.wing_faces_forward(place, ((-10.2, -7.2, -4.96), (0.942, 8.4, 0.652)))
+    assert not convert.wing_faces_forward(place, ((-14.2, -5.4, -2.06), (-0.197, 4.49, 3.45)))
+    # Turned: the right wing (mirrored on X, then turned) is the original with Z mirrored after the placement.
+    r = convert.rotation_matrix(convert.turned_front_to_back(place))
+    mirrored = convert.multiply(r, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
+    want = convert.multiply([[1.0, 0, 0], [0, 1.0, 0], [0, 0, -1.0]], place.matrix)
+    assert all(close(mirrored[i], want[i]) for i in range(3))
 
 
 def test_shields_are_centred_and_mirrored_as_badlion_scales_them():

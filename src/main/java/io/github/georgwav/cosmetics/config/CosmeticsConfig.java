@@ -34,7 +34,7 @@ public final class CosmeticsConfig {
      * 2 made capes override the vanilla cape.
      */
     public int configVersion;
-    static final int CONFIG_VERSION = 2;
+    static final int CONFIG_VERSION = 4;
 
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
@@ -62,10 +62,21 @@ public final class CosmeticsConfig {
     public boolean shieldItemIcons = true;
     /** Hide capes while an elytra is worn, like the vanilla cape. */
     public boolean hideCapeWithElytra = true;
+    /**
+     * Your elytra sits close to your back while you aren't gliding (the game holds its lower edge 15 degrees out,
+     * this 5); see {@link io.github.georgwav.cosmetics.render.ElytraLook}.
+     */
+    public boolean elytraCloseToBack = true;
     /** Capes sway with movement like the vanilla cape. Off: they hang still. */
     public boolean capePhysics = true;
     /** How strongly capes react to movement, 0..2 (1 = vanilla). */
     public float capeSwing = 1.0f;
+    /**
+     * Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, its lower part lagging behind
+     * the top as you start, stop, jump and land. Needs cape physics. Only this mod's capes; the vanilla cape is
+     * left to the game (or to Wavey Capes, which can be installed alongside).
+     */
+    public boolean wavyCapes = true;
     /** Particle cosmetics (auras, trails) give off particles. */
     public boolean particles = true;
     /** How many particles, 0..2 (1 = as the cosmetic says). */
@@ -85,13 +96,45 @@ public final class CosmeticsConfig {
     public EmoteCamera emoteCamera = EmoteCamera.FRONT;
     /** Walking, jumping, sneaking or getting hurt stops an emote. */
     public boolean emoteStopOnMove = true;
-    /** The emotes on the emote wheel, in order. Empty puts every emote on it. */
-    public List<String> emoteWheel = new ArrayList<>();
     /**
-     * The emotes on the elytra wheel (the emote wheel opened while gliding), in order. Empty puts the emotes made
-     * for flying on it.
+     * The emote wheel's slots, {@link #WHEEL_SLOTS} to a page, each an emote id or "" for an empty slot. Starts as
+     * one empty page; you fill it from the wheel.
      */
+    public List<String> emoteWheelSlots = emptyPage();
+    /** The elytra wheel's slots (the emote wheel opened while gliding), like {@link #emoteWheelSlots}. */
+    public List<String> elytraWheelSlots = emptyPage();
+    /** Before config version 3: the emotes on each wheel, in order. Read once into the slots. */
+    @Deprecated
+    public List<String> emoteWheel = new ArrayList<>();
+    @Deprecated
     public List<String> elytraEmoteWheel = new ArrayList<>();
+
+    /** Slots on one page of an emote wheel. */
+    public static final int WHEEL_SLOTS = 8;
+    /** Most pages a wheel can have. */
+    public static final int MAX_WHEEL_PAGES = 20;
+
+    private static List<String> emptyPage() {
+        return new ArrayList<>(java.util.Collections.nCopies(WHEEL_SLOTS, ""));
+    }
+
+    /**
+     * {@code slots} as whole pages: nulls are empty slots, the list is padded to a full page (at least one) and cut
+     * at {@link #MAX_WHEEL_PAGES}.
+     */
+    static List<String> wheelPages(List<String> slots) {
+        List<String> result = new ArrayList<>();
+        if (slots != null) {
+            for (String id : slots) {
+                result.add(id == null ? "" : id);
+            }
+        }
+        int pages = Math.max(1, Math.min(MAX_WHEEL_PAGES, (result.size() + WHEEL_SLOTS - 1) / WHEEL_SLOTS));
+        while (result.size() < pages * WHEEL_SLOTS) {
+            result.add("");
+        }
+        return new ArrayList<>(result.subList(0, pages * WHEEL_SLOTS));
+    }
 
     /** Where the camera goes while you emote: in front of you, behind you, or nowhere (it stays as it is). */
     public enum EmoteCamera { FRONT, BACK, UNCHANGED }
@@ -109,9 +152,11 @@ public final class CosmeticsConfig {
     public int shadowDistance = 32;
     /**
      * Most mesh triangles (a quad counts as two) one cosmetic may have. A cosmetic over the limit isn't
-     * loaded (with a clear message), so a heavy model can never cause stutter. Applies on resource reload.
+     * loaded (with a clear message), so a runaway model can never cause stutter. Applies on resource reload.
+     * Imported wings draw their model once per side (and again for a glow layer): 11,000-triangle wings are
+     * 44,000.
      */
-    public int maxMeshTriangles = 20_000;
+    public int maxMeshTriangles = 100_000;
 
     // ---------------------------------------------------------------- compatibility
 
@@ -149,8 +194,15 @@ public final class CosmeticsConfig {
         public boolean rainbow = false;
         /** Rainbow cycles per 10 seconds, 0.1..5. */
         public float rainbowSpeed = 1.0f;
-        /** How strong the tint or rainbow colour is, 0 (none) to 1 (as picked). */
+        /**
+         * How colourful it is, 0 (black and white) to 1 (as made): the tint or rainbow colour and the texture
+         * itself (see {@link io.github.georgwav.cosmetics.render.Recolor}).
+         */
         public float saturation = 1.0f;
+        /** Degrees the texture's colours turn around the colour wheel, -180..180. */
+        public float hue = 0f;
+        /** The texture's brightness, 0..2 (1 = as made). */
+        public float brightness = 1.0f;
         /** Size, 0.5..3. */
         public float scale = 1.0f;
         /** Position offset in pixels, -8..8 (+Y is down, -Z is the front). */
@@ -181,7 +233,7 @@ public final class CosmeticsConfig {
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
             return color == null && rainbow == d.rainbow && rainbowSpeed == d.rainbowSpeed
-                    && saturation == d.saturation && scale == d.scale
+                    && saturation == d.saturation && hue == d.hue && brightness == d.brightness && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
@@ -194,6 +246,8 @@ public final class CosmeticsConfig {
             }
             rainbowSpeed = clamp(rainbowSpeed, 0.1f, 5f, 1f);
             saturation = clamp(saturation, 0f, 1f, 1f);
+            hue = clamp(hue, -180f, 180f, 0f);
+            brightness = clamp(brightness, 0f, 2f, 1f);
             scale = clamp(scale, 0.5f, MAX_SCALE, 1f);
             offsetX = clamp(offsetX, -8f, 8f, 0f);
             offsetY = clamp(offsetY, -8f, 8f, 0f);
@@ -316,8 +370,10 @@ public final class CosmeticsConfig {
         colorAnyCosmetic = defaults.colorAnyCosmetic;
         shieldItemIcons = defaults.shieldItemIcons;
         hideCapeWithElytra = defaults.hideCapeWithElytra;
+        elytraCloseToBack = defaults.elytraCloseToBack;
         capePhysics = defaults.capePhysics;
         capeSwing = defaults.capeSwing;
+        wavyCapes = defaults.wavyCapes;
         particles = defaults.particles;
         particleDensity = defaults.particleDensity;
         ownParticlesInFirstPerson = defaults.ownParticlesInFirstPerson;
@@ -393,6 +449,17 @@ public final class CosmeticsConfig {
             // Files from before capes overrode the vanilla cape by default still say DEFER for them.
             slotPriority.put(CosmeticSlot.CAPE, SlotPriority.OVERRIDE);
         }
+        if (configVersion < 3) {
+            // The wheels were lists (empty: every emote); now they are slots, empty until you fill them.
+            emoteWheelSlots = cleanIds(emoteWheel);
+            elytraWheelSlots = cleanIds(elytraEmoteWheel);
+        }
+        if (configVersion < 4 && maxMeshTriangles == 20_000) {
+            // The old default left out detailed imported wings (each side counts); a limit someone set stays.
+            maxMeshTriangles = new CosmeticsConfig().maxMeshTriangles;
+        }
+        emoteWheel = new ArrayList<>();
+        elytraEmoteWheel = new ArrayList<>();
         configVersion = CONFIG_VERSION;
         if (equipped == null) {
             equipped = new LinkedHashMap<>();
@@ -407,8 +474,8 @@ public final class CosmeticsConfig {
         if (emoteCamera == null) {
             emoteCamera = EmoteCamera.FRONT;
         }
-        emoteWheel = cleanIds(emoteWheel);
-        elytraEmoteWheel = cleanIds(elytraEmoteWheel);
+        emoteWheelSlots = wheelPages(emoteWheelSlots);
+        elytraWheelSlots = wheelPages(elytraWheelSlots);
         if (!Float.isFinite(capeSwing)) {
             capeSwing = 1.0f;
         }

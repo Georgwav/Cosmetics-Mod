@@ -130,11 +130,14 @@ conversion used.
 
 **What converts:**
 - capes: those without a model of their own as a box like the vanilla cape, swinging with the vanilla cape
-  physics. Badlion's cape textures are 22 x 23 blocks (704 x 736 or 352 x 368), the vanilla box layout of a
-  cape 10 wide, 22 long and 1 thick. Capes with a model use it, with its `rect`, `curved` and `dynamic`
+  physics, 10 x 16 x 1. Badlion's cape textures are 22 x 23 blocks (704 x 736 or 352 x 368): the vanilla box
+  layout of that cape in the top 22 x 17, and six rows below it that aren't part of the cape. Lunar and NoRisk
+  cape textures are the 22 x 17 alone. Capes with a model use it, with its `rect`, `curved` and `dynamic`
   animations as the cape's styles;
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
-  flap);
+  flap). Without a size of their own they're 0.1 blocks a model unit (Badlion only sizes its biggest wing models,
+  down from that). A wing model that reaches into the body from the back (made facing forward) is turned around
+  front to back (listed in the report's notes);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
 - shields: shown instead of the vanilla shield while you hold one, at the size Badlion holds them
   (`shieldModelData.armScale`), mirrored as Badlion shows them in third person, and centred on the vanilla
@@ -150,9 +153,10 @@ conversion used.
 - each model's texture direction: when the model's texture coordinates, read the other way up, land clearly
   more on painted pixels than on see-through ones, the import turns them around (listed in the report's
   notes). This is what makes a model show as a few scattered pixels when it's wrong.
-- sizing (`sizingData`): the cosmetic's own, else its model's in `models.json`.
+- sizing (`sizingData`): the cosmetic's own, else its model's in `models.json`. Its offsets are pixels in the
+  player's axes (+Y down, -Z forward).
 - size and position as Badlion has them: `models.json`'s `scale` is blocks per model unit (0.0625 for a model
-  made in pixels, 0.004 for one made 16 times finer; 0 is pixels), its `translation` is in blocks along the
+  made in pixels, 0.004 for one made 16 times finer; 0 is pixels, or 0.1 for wings), its `translation` is in blocks along the
   model's own axes, and its `rotation` turns by `w` degrees around the axis `x, y, z`.
 
 Skipped and listed in the report: player pets, swords, bows, sprays, auras and nametag decorations, cosmetics

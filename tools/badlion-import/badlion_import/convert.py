@@ -87,9 +87,10 @@ UNSUPPORTED: dict[str, str] = {
 
 # Built-in cloak models tried for capes without a modelName, in order of preference on a tie.
 CAPE_CANDIDATES = ("cloak_v2", "cloak_1", "corsair_cloak")
-# The default shape of capes without a modelName: a box like the vanilla cape, textured with the vanilla box
-# layout. Badlion's cape textures are 22 x 23 blocks (704 x 736 at 32 px a block, 352 x 368 at 16): exactly
-# that layout for a cape 10 wide, 22 long and 1 thick, a longer vanilla cape.
+# The default shape of capes without a modelName: a box like the vanilla cape (10 wide, 16 long, 1 thick),
+# textured with the vanilla box layout: 22 x 17 blocks at the top of the texture. Badlion's cape textures are
+# 22 x 23 blocks (704 x 736 at 32 px a block, 352 x 368 at 16): the cape's 22 x 17 and six more rows below it
+# that aren't part of the cape (drawn as a longer cape, they hung off its bottom as a dark strip).
 BOX_CAPE = "box"
 BOX_CAPE_WIDTH = 10
 BOX_CAPE_DEPTH = 1
@@ -337,18 +338,28 @@ def _number(value) -> float | None:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
-def model_scale(model: badlion.Model | None) -> float:
+def model_scale(model: badlion.Model | None, default: float = 1.0) -> float:
     """The mod's mesh scale (pixels per model unit) from models.json's `scale`, which is blocks per model unit:
-    0.0625 is a model made in pixels, 0.004 one made 16 times finer. 0 means the default (pixels); a small
-    negative value is taken off the default (backpacks), anything else falls back to it."""
+    0.0625 is a model made in pixels, 0.004 one made 16 times finer. 0 means the default (`default` pixels: one,
+    or WING_PIXELS_PER_UNIT for wings); a small negative value is taken off the default (backpacks), anything
+    else falls back to it."""
     s = _number(model.raw.get("scale")) if model else None
     if s is None or s == 0:
-        return 1.0
+        return default
     if s < 0:
         s = DEFAULT_BLOCKS_PER_UNIT + s
         if s <= 0:
-            return 1.0
+            return default
     return s * PIXELS_PER_BLOCK
+
+
+# Wings without a size of their own are drawn at 0.1 blocks per model unit. Badlion's only wing sizes are on its
+# biggest wing models (crystal 0.08, tech 0.09: 15 units across), shrinking them from a default bigger than that;
+# at a pixel per unit (0.0625) wings came out clearly too small (players set them to 150%, the most there was).
+WING_PIXELS_PER_UNIT = 0.1 * 16.0
+# A wing whose model reaches this many pixels towards the front (into the body), and twice as far as it reaches
+# back, is turned around front to back: it was made facing the other way.
+WING_FORWARD_LIMIT = 2.0
 
 
 def axis_angle(raw) -> list[list[float]] | None:
@@ -392,12 +403,13 @@ def color_of(raw) -> str | None:
 
 @dataclass
 class Placement:
-    """Where a model goes, as the mod's mesh keys."""
+    """Where a model goes, as the mod's mesh keys (and the turn as a matrix, for checks on the model's shape)."""
 
     scale: float
     rotation: list[float]
     offset: list[float]
     mirror: bool = False
+    matrix: list[list[float]] | None = None
 
     def mesh_keys(self) -> dict:
         keys = {"mirror": True} if self.mirror else {}
@@ -461,7 +473,9 @@ def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool
     """The model's Badlion transform followed by the axis change, the type's origin and the type's extra
     settings. Badlion places a model point v at translation + rotation(scale * v) in the model's own axes, with
     the scale and translation in blocks (see model_scale); the cosmetic's (or model's) sizingData scales it
-    further (a small value is blocks per unit instead, as some wings have) and moves it by pixels."""
+    further (a small value is blocks per unit instead, as some wings have) and moves it by pixels in the player's
+    axes (+Y down, -Z front: offsetY -3.2 lifts butterfly wings up the back, offsetZ -1.25 brings the ZickZack
+    v4 wings in against it)."""
     convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
     if rule.kind == "cape":
         convert = multiply(CAPE_SPACE, convert)
@@ -470,19 +484,38 @@ def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool
     total = multiply(extra, multiply(convert, own) if own else convert)
 
     sizing = sizing_of(cosmetic, model)
-    s = model_scale(model)
+    s = model_scale(model, WING_PIXELS_PER_UNIT if rule.kind == "wings" else 1.0)
     sizing_scale = _number(sizing.get("scale"))
     if sizing_scale is not None and sizing_scale > 0:
         s = sizing_scale * PIXELS_PER_BLOCK if sizing_scale < SIZING_BLOCKS_BELOW else s * sizing_scale
     translation = vector(model.raw.get("translation")) if model else [0.0, 0.0, 0.0]
     # Skeletal models' translations were made for their skeleton's own origin; only OBJ ones are in blocks.
     unit = 1.0 if md5 else PIXELS_PER_BLOCK
-    sizing_offset = vector(sizing, ("offsetX", "offsetY", "offsetZ"))
-    t = [translation[i] * unit + sizing_offset[i] for i in range(3)]
-    moved = apply(multiply(extra, convert), t)
+    moved = apply(multiply(extra, convert), [translation[i] * unit for i in range(3)])
+    sizing_offset = apply(extra, vector(sizing, ("offsetX", "offsetY", "offsetZ")))
     origin = apply(extra, rule.origin)
-    offset = [moved[i] + origin[i] + ts.offset[i] for i in range(3)]
-    return Placement(s, euler(total), offset)
+    offset = [moved[i] + sizing_offset[i] + origin[i] + ts.offset[i] for i in range(3)]
+    return Placement(s, euler(total), offset, matrix=total)
+
+
+def wing_faces_forward(place: Placement, bounds) -> bool:
+    """Whether a wing model, placed, reaches more than WING_FORWARD_LIMIT pixels towards the player's front (into
+    the body) and twice as far forward as back: made facing the other way."""
+    if not bounds or place.matrix is None:
+        return False
+    zs = [apply(place.matrix, [bounds[i][0], bounds[j][1], bounds[k][2]])[2] * place.scale
+          for i in (0, 1) for j in (0, 1) for k in (0, 1)]
+    forward, back = max(0.0, -min(zs)), max(0.0, max(zs))
+    return forward > WING_FORWARD_LIMIT and forward > 2 * back
+
+
+def turned_front_to_back(place: Placement) -> list[float]:
+    """The rotation (degrees) for a wing turned front to back about its pivot: Z mirrored after the placement's
+    turn, Mz · T, is (Mz · T · Mx) · Mx, so the mesh turns by Mz · T · Mx with the right wing mirrored on X and the
+    left (already mirrored) not."""
+    mz = [[1.0, 0, 0], [0, 1.0, 0], [0, 0, -1.0]]
+    mx = [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]]
+    return euler(multiply(multiply(mz, place.matrix), mx))
 
 
 # A sizingData scale below this is blocks per model unit (0.08), not a factor (1.2).
@@ -585,14 +618,15 @@ def glow_texture(cosmetic: badlion.Cosmetic, present: set[str]) -> str | None:
 
 def box_cape_layout(source_size: tuple[int, int]) -> tuple[int, int, int]:
     """(layout width, layout height, cape length) in blocks for a cape texture of this size (one frame). A 2:1
-    texture is the vanilla 64 x 32 layout (16 long); anything else is 22 blocks wide like Badlion's capes, and
-    as long as its height says."""
+    texture is the vanilla 64 x 32 layout; anything else is 22 blocks wide (Badlion, Lunar and NoRisk capes),
+    with square blocks, so its height says how many rows it has. The cape is the vanilla 16 long, from the top
+    rows; only a texture too short for that makes it shorter."""
     w, h = source_size
     if w == 2 * h:
         return 64, 32, 16
     width = 2 * (BOX_CAPE_WIDTH + BOX_CAPE_DEPTH)
-    length = min(64, max(4, round(h * width / w) - BOX_CAPE_DEPTH))
-    return width, length + BOX_CAPE_DEPTH, length
+    rows = max(BOX_CAPE_DEPTH + 4, round(h * width / w))
+    return width, rows, min(16, rows - BOX_CAPE_DEPTH)
 
 
 def box_faces(size: tuple[float, float, float], scale_u: float, scale_v: float) -> dict[str, list[float]]:
@@ -759,14 +793,21 @@ class Planner:
             flip = not flip
         # The texture decides when it clearly fits the other way; not for calibration variants, which test both.
         fit = not (variant and "flip" in variant)
+        turned = False
         if rule.slot == "shield":
             text = self.text(mesh_path)
             summary = meshes.summarize_md5mesh(text) if mf.md5 else meshes.summarize_obj(text)
             place = shield_placement(model, summary.bounds, mf.md5, rule, ts)
         else:
             place = placement(c, model, mf.md5, rule, ts)
+            if rule.kind == "wings" and not mf.md5:
+                turned = wing_faces_forward(place, meshes.summarize_obj(self.text(mesh_path)).bounds)
+                if turned:
+                    notes.append("wings turned around front to back: the model reached forward into the body")
 
         mesh = {"model": mf.location, "shading": ts.shading, **place.mesh_keys()}
+        if turned:
+            mesh["rotation"] = turned_front_to_back(place)
         styles: dict[str, str] = {}
         if mf.md5:
             styles, dropped = self.animations(mesh_path)
@@ -842,15 +883,17 @@ class Planner:
                 if styles:
                     name = choose(styles, WING_ANIMATION_ORDER)
                     anim = {"bone_animation": styles[name]}
+                # Turned front to back, the right wing is the mirrored one (see turned_front_to_back).
+                right = {**anim, "mirror": True} if turned else anim
+                left = anim if turned else {**anim, "mirror": True}
                 parts = [
-                    {**part("right_wing", extra=anim), "wing": "right", "wing_pivot": pivot},
-                    {**part("left_wing", extra={**anim, "mirror": True}), "wing": "left", "wing_pivot": pivot},
+                    {**part("right_wing", extra=right), "wing": "right", "wing_pivot": pivot},
+                    {**part("left_wing", extra=left), "wing": "left", "wing_pivot": pivot},
                 ]
                 if glow:
                     parts += [
-                        {**part("right_wing_glow", glow_loc, "emissive", anim), "wing": "right", "wing_pivot": pivot},
-                        {**part("left_wing_glow", glow_loc, "emissive", {**anim, "mirror": True}), "wing": "left",
-                         "wing_pivot": pivot},
+                        {**part("right_wing_glow", glow_loc, "emissive", right), "wing": "right", "wing_pivot": pivot},
+                        {**part("left_wing_glow", glow_loc, "emissive", left), "wing": "left", "wing_pivot": pivot},
                     ]
                 doc["parts"] = parts
             else:

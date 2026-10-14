@@ -13,7 +13,8 @@ import org.joml.Quaternionf;
  * (as for everyone), then down along the flight and around the flight direction. {@code PlayerRendererMixin}
  * calls {@link #begin} before and {@link #end} after it; {@link #end} keeps the turn towards the body's facing
  * and takes the flight part back out, blended by the emote's weight so it eases in and out. Everything drawn on
- * the player (its elytra, cape, armour, held items, cosmetics) follows, since it is all drawn in that frame.
+ * the player (its cape, armour, held items, cosmetics) follows, since it is all drawn in that frame; the elytra
+ * isn't drawn meanwhile ({@link ElytraLook}).
  *
  * <p>Render thread only.
  */

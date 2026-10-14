@@ -31,13 +31,18 @@ There are three ways to open it:
 - **Key**: the "Open Cosmetics" key. It is unbound by default so it can't clash with another mod; bind it
   in Options → Controls.
 
+When a resource pack has cosmetics that couldn't load (a broken file, or a model over `maxMeshTriangles`), the
+Wardrobe says how many and why at the top; when an imported pack is from an older importer than the mod's fixes
+need, it says to import it again.
+
 It is a flat, minimal screen with a live preview of your player (drag it to turn and tilt it; your head looks
-at the mouse) and four tabs:
+at the mouse) and four tabs. The settings tabs have a search field at the top: type "cape" or "elytra" and only
+those settings show (a section's name finds all of it):
 
 | Tab | What's there |
 |---|---|
-| Wardrobe | Every loaded cosmetic as a tile with its own picture of the cosmetic alone (no player), centred and turned three quarters towards you; the one you point at turns, and shows on you in the preview. Click a tile to put it on or take it off (what you wear is outlined). The gear in a tile's corner opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), particles (on or off, amount, size) for auras and other cosmetics with particles, where a pet sits (left or right shoulder, on your head, or floating beside you), and a reset. Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack) unless "Wear several of one kind" is on in Display. A cosmetic can leave some of these out. |
-| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
+| Wardrobe | Every loaded cosmetic as a tile with its own picture of the cosmetic alone (no player), centred and turned three quarters towards you; the one you point at turns, and shows on you in the preview. Click a tile to put it on or take it off (what you wear is outlined). The gear in a tile's corner opens that cosmetic's own page: tint colour or rainbow (with speed), saturation (of the tint and the texture itself: 0% is black and white), hue (turns the texture's own colours around the colour wheel: red wings blue) and brightness, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), particles (on or off, amount, size) for auras and other cosmetics with particles, where a pet sits (left or right shoulder, on your head, or floating beside you), and a reset. Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack) unless "Wear several of one kind" is on in Display. A cosmetic can leave some of these out. |
+| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; elytra close to your back; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
 
@@ -78,18 +83,24 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 ### Emotes
 
 Hold **B** (the "Emote wheel" key in Controls), point at an emote on the wheel and let go, or tap B and click
-one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking or getting hurt stops it, as do
+one: your player plays it and the camera moves in front of you. The wheel has eight square slots, each with a
+picture of its emote's best pose. It starts empty: click a **+** to pick an emote for that slot, and the gear on
+a slot to change or empty it. **+ Page** adds another page of eight (scroll to turn pages); an empty page can be
+removed. Walking, jumping, sneaking or getting hurt stops it, as do
 attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
-are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud.
-Pick what's on each wheel in Wardrobe → Emotes ("Wheel +/-", "Elytra +/-"). Until you pick, the elytra wheel
-has the emotes made for flying.
+are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud;
+your elytra isn't drawn meanwhile and your cape shows instead. During other emotes an elytra stays on your posed
+body, as armour does, and while you aren't gliding it sits close to your back (Display → "Elytra close to your
+back").
+Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
+emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
 - **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
   plus Cloud Rider (stand on a cloud and surf) and Cloud Sit for flying. Cloud Rider, Cloud Sit, wave, cheer,
-  dance, dab, salute, spin and T-pose are on the elytra wheel.
+  dance, dab, salute, spin and T-pose are made for the elytra wheel.
 - **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
   (Bedrock animation files) and Emotecraft emote files both work. See
   [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes).
@@ -106,20 +117,22 @@ repaired on load.
 | `slotVisible` | all `true` | Per-slot visibility (`HEAD`, `FACE`, `BODY`, `BACK`, `CAPE`, `SHIELD`, `AURA`, `PET`, `ARM`, `FEET`). |
 | `particles` / `particleDensity` / `ownParticlesInFirstPerson` | `true` / `1.0` / `true` | Particle cosmetics (auras, trails) on or off, how many (0 to 2), and your own in first person. |
 | `emotes` / `emoteCamera` / `emoteStopOnMove` | `true` / `FRONT` / `true` | Emotes on or off; where the camera goes while you emote (`FRONT`, `BACK`, `UNCHANGED`); whether moving stops an emote. |
-| `emoteWheel` / `elytraEmoteWheel` | `[]` | The emote ids on the emote wheel and on the elytra wheel (opened while gliding), in order. Empty puts every emote on the emote wheel, and the emotes made for flying on the elytra wheel. |
+| `emoteWheelSlots` / `elytraWheelSlots` | one page of `""` | The slots of the emote wheel and of the elytra wheel (opened while gliding), eight to a page: an emote id, or `""` for an empty slot. Older files' `emoteWheel` / `elytraEmoteWheel` lists are moved into the slots once. |
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
+| `elytraCloseToBack` | `true` | While you aren't gliding, your elytra sits close to your back (its lower edge 5 degrees out instead of the game's 15). |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
+| `wavyCapes` | `true` | Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, and its lower part lags behind the top as you start, stop, jump and land, rippling through. Needs cape physics. The vanilla cape is left alone (Wavey Capes can be installed alongside for that). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
 | `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
 | `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |
 | `shadowDistance` | `32` | Only players within this many blocks cast cosmetic shadows (`0` = no limit). |
-| `maxMeshTriangles` | `20000` | Most mesh triangles one cosmetic may have (1000 to 200000). Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
+| `maxMeshTriangles` | `100000` | Most mesh triangles one cosmetic may have (1000 to 200000); wings count once per side. Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
 | `slotPriority` | `CAPE` `OVERRIDE`, the rest `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes, so a cape you put on is the one you see. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1), `scale` (0.5 to 1.5), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1, the tint and the texture), `hue` (degrees, -180 to 180) and `brightness` (0 to 2) of the texture, `scale` (0.5 to 3), `turned`, `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 
 ## Building
 

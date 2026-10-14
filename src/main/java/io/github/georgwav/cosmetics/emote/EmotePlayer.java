@@ -220,6 +220,17 @@ public final class EmotePlayer {
         return Math.max(0f, Math.min(1f, emote.weightAt(seconds(startNanos)) * stopWeight()));
     }
 
+    /** Whether your player {@code entityId} is posed by an emote now ({@link #pose} changes its model). */
+    public static boolean posing(int entityId) {
+        Emote emote = current;
+        if (emote == null) {
+            return false;
+        }
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player != null && player.getId() == entityId
+                && emote.weightAt(seconds(startNanos)) * stopWeight() > 0f;
+    }
+
     /** How much is left of an emote that was stopped early (1 while it plays on). */
     private static float stopWeight() {
         if (stopNanos == 0L || current == null) {

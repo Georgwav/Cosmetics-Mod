@@ -124,6 +124,8 @@ public final class CosmeticsScreen extends Screen {
     private static final float MAX_PREVIEW_PITCH = 80f;
     /** The wardrobe search, kept while the game runs. */
     private static String lastQuery = "";
+    /** What the settings tabs' search field holds (kept while the game runs, like the wardrobe's). */
+    private static String settingsQuery = "";
     private static final int SEARCH_HEIGHT = 16;
     /** Frames drawn since start; read by the in-game test to prove the screen renders on every version. */
     public static int framesRendered;
@@ -156,8 +158,13 @@ public final class CosmeticsScreen extends Screen {
     /** Aura particles around the preview. */
     private final PreviewParticles previewParticles = new PreviewParticles();
     private String query = lastQuery;
-    /** The wardrobe's search field, when the wardrobe list is showing. */
+    /** The wardrobe's search field, when the wardrobe list is showing, or the settings tabs' one. */
     private EditBox searchBox;
+    /** While a settings tab is built with a search: its words, lowercase (null when not searching). */
+    private String settingsNeedle;
+    /** A section header held back until a row under it matches the search, and whether the header itself does. */
+    private String pendingSection;
+    private boolean sectionMatches;
 
     public CosmeticsScreen(Screen parent) {
         super(Component.translatable("cosmeticsmod.screen.title"));
@@ -301,7 +308,28 @@ public final class CosmeticsScreen extends Screen {
             addWidget(searchBox);
             listY += SEARCH_HEIGHT + 4;
             listH -= SEARCH_HEIGHT + 4;
+        } else if (tab != Tab.WARDROBE) {
+            // The settings tabs: a search over every setting's name (and its section's).
+            Component hint = Component.translatable("cosmeticsmod.screen.settings_search").withStyle(ChatFormatting.DARK_GRAY);
+            searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
+            searchBox.setMaxLength(64);
+            searchBox.setValue(settingsQuery);
+            searchBox.setHint(hint);
+            searchBox.setResponder(this::searchSettings);
+            addWidget(searchBox);
+            listY += SEARCH_HEIGHT + 4;
+            listH -= SEARCH_HEIGHT + 4;
         }
+        buildTab(detail);
+        scroll = Math.max(0, Math.min(scroll, maxScroll()));
+        layoutContent();
+    }
+
+    /** The open tab's rows (a settings tab only those matching its search). */
+    private void buildTab(BakedCosmetic detail) {
+        String needle = settingsQuery.trim().toLowerCase(Locale.ROOT);
+        settingsNeedle = tab != Tab.WARDROBE && !needle.isEmpty() ? needle : null;
+        pendingSection = null;
         switch (tab) {
             case WARDROBE -> {
                 if (detail != null) {
@@ -314,7 +342,27 @@ public final class CosmeticsScreen extends Screen {
             case PERFORMANCE -> buildPerformance();
             case COMPATIBILITY -> buildCompatibility();
         }
-        scroll = Math.max(0, Math.min(scroll, maxScroll()));
+        if (settingsNeedle != null && content.isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("settings_search.none", settingsQuery.trim()), () -> "", Theme.TEXT_DIM));
+        }
+        settingsNeedle = null;
+        pendingSection = null;
+    }
+
+    private void searchSettings(String text) {
+        if (text.equals(settingsQuery)) {
+            return;
+        }
+        settingsQuery = text;
+        // Only the rows; rebuilding everything would take the focus away from the search field.
+        for (FlatWidget widget : content) {
+            removeWidget(widget);
+        }
+        content.clear();
+        contentOffsets.clear();
+        contentHeight = 0;
+        scroll = 0;
+        buildTab(null);
         layoutContent();
     }
 
@@ -422,6 +470,24 @@ public final class CosmeticsScreen extends Screen {
     }
 
     private <W extends FlatWidget> W add(W widget) {
+        if (settingsNeedle != null && !(widget instanceof Rows.Section)) {
+            // Searching the settings: a row shows when its name matches, or its section's does (with the header).
+            if (!sectionMatches && !widget.getMessage().getString().toLowerCase(Locale.ROOT).contains(settingsNeedle)) {
+                return widget;
+            }
+            if (pendingSection != null) {
+                String header = pendingSection;
+                pendingSection = null;
+                addRow(new Rows.Section(listX, 0, listW, header), true);
+            }
+        }
+        return addRow(widget, false);
+    }
+
+    private <W extends FlatWidget> W addRow(W widget, boolean sectionHeader) {
+        if (sectionHeader && contentHeight > 0) {
+            contentHeight += 4;
+        }
         contentOffsets.add(contentHeight);
         contentHeight += widget.getHeight() + Theme.ROW_GAP;
         content.add(widget);
@@ -446,6 +512,12 @@ public final class CosmeticsScreen extends Screen {
     // ------------------------------------------------------------------ tabs
 
     private void section(String key) {
+        if (settingsNeedle != null) {
+            // Shown only with a row under it (see add); every row under it shows when the header matches.
+            pendingSection = t(key);
+            sectionMatches = pendingSection.toLowerCase(Locale.ROOT).contains(settingsNeedle);
+            return;
+        }
         if (contentHeight > 0) {
             contentHeight += 4;
         }
@@ -466,6 +538,7 @@ public final class CosmeticsScreen extends Screen {
             buildEmotes();
             return;
         }
+        addLoadNotices();
         List<BakedCosmetic> all = new ArrayList<>(wardrobe());
         if (all.isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.empty"), () -> "", Theme.TEXT_DIM));
@@ -497,6 +570,33 @@ public final class CosmeticsScreen extends Screen {
             section("wardrobe.note");
             add(new Rows.Info(listX, 0, listW, t("wardrobe.hidden"), () -> "", Theme.WARN));
         }
+    }
+
+    /**
+     * Above the tiles: an imported pack made by an importer older than the mod's fixes (import it again), and
+     * cosmetics the resource packs have that couldn't load, with why (the first few; all of them are in the log).
+     */
+    private void addLoadNotices() {
+        for (String namespace : CosmeticLoader.outdatedImports()) {
+            add(new Rows.Info(listX, 0, listW, t("wardrobe.reimport", importName(namespace)), () -> "", Theme.WARN));
+        }
+        List<String> failed = CosmeticLoader.failures();
+        if (!failed.isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("wardrobe.failed", failed.size()), () -> "", Theme.WARN));
+            for (String why : failed.subList(0, Math.min(3, failed.size()))) {
+                add(new Rows.Info(listX, 0, listW, why, () -> "", Theme.TEXT_DIM));
+            }
+        }
+    }
+
+    /** The client an imported pack's namespace came from, by name. */
+    private static String importName(String namespace) {
+        return switch (namespace) {
+            case "blc_import" -> "Badlion";
+            case "lunar_import" -> "Lunar";
+            case "norisk_import" -> "NoRisk";
+            default -> namespace;
+        };
     }
 
     /** The cosmetics as tiles, as many to a row as fit (clicking one wears it, its gear opens its page). */
@@ -692,6 +792,13 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,
                     () -> config.options(id).saturation, v -> config.editOptions(id).saturation = (float) v,
                     v -> Math.round(v * 100) + "%"));
+            // The texture's own colours: turned around the colour wheel, darker or lighter.
+            add(new Rows.Slider(listX, 0, listW, t("hue"), -180, 180, 5,
+                    () -> config.options(id).hue, v -> config.editOptions(id).hue = (float) v,
+                    v -> (v > 0 ? "+" : "") + Math.round(v) + "\u00b0"));
+            add(new Rows.Slider(listX, 0, listW, t("brightness"), 0, 2, 0.05,
+                    () -> config.options(id).brightness, v -> config.editOptions(id).brightness = (float) v,
+                    v -> Math.round(v * 100) + "%"));
         }
 
         boolean size = cosmetic.allows(CosmeticOption.SIZE);
@@ -795,7 +902,9 @@ public final class CosmeticsScreen extends Screen {
         toggle("translucent", () -> c.translucentParts, v -> c.translucentParts = v);
         toggle("hide_helmet", () -> c.hideHeadwearWithHelmet, v -> c.hideHeadwearWithHelmet = v);
         toggle("hide_elytra", () -> c.hideCapeWithElytra, v -> c.hideCapeWithElytra = v);
+        toggle("elytra_close", () -> c.elytraCloseToBack, v -> c.elytraCloseToBack = v);
         toggle("cape_physics", () -> c.capePhysics, v -> c.capePhysics = v);
+        toggle("wavy_capes", () -> c.wavyCapes, v -> c.wavyCapes = v);
         add(new Rows.Slider(listX, 0, listW, t("cape_swing"), 0, 2, 0.1,
                 () -> c.capeSwing, v -> c.capeSwing = (float) v, v -> Math.round(v * 100) + "%"));
 

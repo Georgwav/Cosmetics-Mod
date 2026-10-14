@@ -53,6 +53,55 @@ class CosmeticsConfigTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
+    void emoteWheelsAreSlotsThatStartEmpty() {
+        CosmeticsConfig fresh = new CosmeticsConfig();
+        fresh.sanitize();
+        assertEquals(CosmeticsConfig.WHEEL_SLOTS, fresh.emoteWheelSlots.size());
+        assertTrue(fresh.emoteWheelSlots.stream().allMatch(String::isEmpty), "a new wheel has nothing on it");
+
+        // A wheel from before slots keeps its emotes, in order, then empty slots to fill the page.
+        CosmeticsConfig old = new CosmeticsConfig();
+        old.configVersion = 2;
+        old.emoteWheel = new java.util.ArrayList<>(List.of("a:wave", "a:clap", "a:wave"));
+        old.sanitize();
+        assertEquals(List.of("a:wave", "a:clap", "", "", "", "", "", ""), old.emoteWheelSlots);
+        assertTrue(old.emoteWheel.isEmpty());
+
+        // Hand-edited: holes and a part page are made whole; too many pages are cut.
+        CosmeticsConfig edited = new CosmeticsConfig();
+        edited.configVersion = CosmeticsConfig.CONFIG_VERSION;
+        edited.emoteWheelSlots = new java.util.ArrayList<>(java.util.Arrays.asList("a:x", null, "a:y",
+                "", "", "", "", "", "a:z"));
+        edited.sanitize();
+        assertEquals(2 * CosmeticsConfig.WHEEL_SLOTS, edited.emoteWheelSlots.size());
+        assertEquals("", edited.emoteWheelSlots.get(1));
+        assertEquals("a:z", edited.emoteWheelSlots.get(8));
+        edited.emoteWheelSlots = new java.util.ArrayList<>(java.util.Collections.nCopies(
+                (CosmeticsConfig.MAX_WHEEL_PAGES + 3) * CosmeticsConfig.WHEEL_SLOTS, ""));
+        edited.sanitize();
+        assertEquals(CosmeticsConfig.MAX_WHEEL_PAGES * CosmeticsConfig.WHEEL_SLOTS, edited.emoteWheelSlots.size());
+    }
+
+    @Test
+    void oldFilesGetTheHigherTriangleLimitUnlessTheyChoseTheirOwn() {
+        CosmeticsConfig old = new CosmeticsConfig();
+        old.configVersion = 3;
+        old.maxMeshTriangles = 20_000;
+        old.sanitize();
+        assertEquals(new CosmeticsConfig().maxMeshTriangles, old.maxMeshTriangles);
+        CosmeticsConfig chosen = new CosmeticsConfig();
+        chosen.configVersion = 3;
+        chosen.maxMeshTriangles = 30_000;
+        chosen.sanitize();
+        assertEquals(30_000, chosen.maxMeshTriangles);
+        // Once migrated, 20,000 is a choice like any other.
+        chosen.maxMeshTriangles = 20_000;
+        chosen.sanitize();
+        assertEquals(20_000, chosen.maxMeshTriangles);
+    }
+
+    @Test
     void outfitsSaveAndPutOnExactlyWhatWasWorn() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.localEquipped().addAll(List.of("a:hat", "a:cape"));
