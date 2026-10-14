@@ -208,9 +208,10 @@ A mirror or negative scale also turns the faces around, so they still face outwa
   - UVs outside the texture;
   - `uvs` or `normals` lists that don't have one entry per vertex;
   - a scale of 0;
-  - zero-length normals;
   - files that are missing or too big.
 - **Faces with no area** are dropped with a warning; the rest of the mesh loads.
+- **Zero-length normals** (some exporters write `0 0 0` for corners they can't give a direction) are worked
+  out from the faces, as for a mesh without normals, with a warning.
 - **Sides drawn:** meshes are drawn from both sides wherever cubes are (`cutout` and `translucent`). `emissive`
   parts, like emissive cubes, show only the side the corners wind counter-clockwise on.
 

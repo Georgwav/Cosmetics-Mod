@@ -198,6 +198,20 @@ class MeshTest {
     }
 
     @Test
+    void zeroLengthNormalsAreWorkedOutFromTheFaces() {
+        // Exporters write (0, 0, 0) for corners they couldn't give a direction (Badlion's backpacks have some).
+        CosmeticDefinition.Mesh mesh = onlyMesh(parse(withMesh("""
+                {"shading": "smooth", "vertices": [[0,0,0],[4,0,0],[0,4,0]], "uvs": [[0,0],[0,0],[0,0]],
+                 "normals": [[0,0,0],[1,0,0],[0,1,0]], "faces": [[0,1,2]]}
+                """)));
+        assertArrayEquals(new float[]{0, 0, 1}, normalOf(mesh, 0, 0), EPS);
+        assertArrayEquals(new float[]{1, 0, 0}, normalOf(mesh, 0, 1), EPS);
+        assertArrayEquals(new float[]{0, 1, 0}, normalOf(mesh, 0, 2), EPS);
+        assertEquals(1, warnings.size(), warnings.toString());
+        assertTrue(warnings.get(0).contains("1 normal(s) have zero length"), warnings.get(0));
+    }
+
+    @Test
     void smoothMeshesUseThePerVertexBuffer() {
         BakedCosmetic.Layer layer = CosmeticBaker.bake(parse(withMesh("""
                 {"shading": "smooth", "vertices": [[0,0,0],[4,0,0],[0,4,0]], "uvs": [[0,0],[0,0],[0,0]],
@@ -398,7 +412,6 @@ class MeshTest {
         assertError("outside the 16x16 texture", withMesh("{\"vertices\": [[0,0,0],[1,0,0],[0,1,0]], \"uvs\": [[0,0],[17,0],[0,1]], \"faces\": [[0,1,2]]}"));
         assertError("shading", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"glossy\"}"));
         assertError("scale", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"scale\": 0}"));
-        assertError("zero length", withMesh("{" + tri + ", \"faces\": [[0,1,2]], \"shading\": \"smooth\", \"normals\": [[0,0,0],[0,0,1],[0,0,1]]}"));
         assertError("missing.obj", withMesh("{\"model\": \"test:models/cosmetic/missing.obj\"}"));
         assertError(".obj, .md5mesh or .bbmodel", withMesh("{\"model\": \"test:models/cosmetic/a.fbx\"}"));
         assertError("not both", withMesh("{\"model\": \"test:models/cosmetic/a.obj\", " + tri + ", \"faces\": [[0,1,2]]}"));
