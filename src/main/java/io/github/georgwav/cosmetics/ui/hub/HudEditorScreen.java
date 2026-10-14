@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.ui.hub;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
@@ -18,7 +19,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 //?}
+//? if <26.3 {
 import org.lwjgl.glfw.GLFW;
+//?}
 
 import java.util.ArrayList;
 import java.util.List;
@@ -309,13 +312,17 @@ public final class HudEditorScreen extends Screen {
     }
 
     /**
-     * Whether Shift is held, asked of the game's window (the current context on the render thread, where input
-     * arrives), so it is the same call on every version.
+     * Whether Shift is held, asked of the game's window through GLFW (the current context on the render thread, where
+     * input arrives). 26.3 no longer ships GLFW: there Shift isn't read yet.
      */
     private static boolean shiftHeld() {
+        //? if >=26.3 {
+        /*return false;
+        *///?} else {
         long window = GLFW.glfwGetCurrentContext();
         return window != 0L && (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS);
+        //?}
     }
 
     /** The arrow keys nudge the box last clicked: one pixel, ten with Shift. */
@@ -325,8 +332,8 @@ public final class HudEditorScreen extends Screen {
             return false;
         }
         float step = shiftHeld() ? 10f : 1f;
-        float dx = key == GLFW.GLFW_KEY_LEFT ? -step : key == GLFW.GLFW_KEY_RIGHT ? step : 0f;
-        float dy = key == GLFW.GLFW_KEY_UP ? -step : key == GLFW.GLFW_KEY_DOWN ? step : 0f;
+        float dx = key == InputConstants.KEY_LEFT ? -step : key == InputConstants.KEY_RIGHT ? step : 0f;
+        float dy = key == InputConstants.KEY_UP ? -step : key == InputConstants.KEY_DOWN ? step : 0f;
         if (dx == 0f && dy == 0f) {
             return false;
         }
