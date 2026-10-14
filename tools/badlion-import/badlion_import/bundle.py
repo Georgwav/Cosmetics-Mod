@@ -136,6 +136,23 @@ def bundle(jar: Path, packs: list[Path], output: Path) -> Bundled:
     return result
 
 
+def near_miss(path: Path, *, folder: bool) -> str:
+    """For a path that isn't there: where a file of that name is one folder down (a download unzipped into a
+    folder), or for a folder, which folders are beside it. Empty if nothing helps."""
+    parent = path.parent
+    if not parent.is_dir():
+        return f" ({parent} doesn't exist either)"
+    try:
+        beside = sorted(p for p in parent.iterdir() if p.is_dir())
+    except OSError:
+        return ""
+    if not folder:
+        found = [p / path.name for p in beside if (p / path.name).is_file()]
+        return f"; did you mean {found[0]}?" if found else ""
+    names = [p.name for p in beside if (p / "assets").is_dir()] or [p.name for p in beside]
+    return f"; folders in {parent}: {', '.join(names[:12])}" if names else f"; {parent} has no folders"
+
+
 def other_copies(output: Path) -> list[Path]:
     """Other jars of this mod beside the output in a mods folder: the game would find the mod twice and not start."""
     copies = []

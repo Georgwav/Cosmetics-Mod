@@ -104,3 +104,14 @@ def test_into_a_mods_folder_warns_about_a_second_copy(tmp_path, capsys):
     assert (mods / "cosmeticsmod-1.0+mc26.2-personal.jar").is_file()
     err = capsys.readouterr().err
     assert "cosmeticsmod-1.0+mc26.2.jar is the mod too" in err and "sodium" not in err
+
+
+def test_says_where_a_mistyped_path_probably_is(tmp_path, capsys):
+    # The download unzipped into a folder of its own.
+    jar = _mod_jar(tmp_path / "Downloads" / "jars" / "cosmeticsmod-1.0+mc26.2.jar")
+    badlion, emotes = _packs(tmp_path)
+    assert cli.main(["bundle", str(tmp_path / "Downloads" / jar.name), str(badlion)]) == 2
+    assert f"did you mean {jar}" in capsys.readouterr().err
+    # A pack folder by another name: the packs beside it are listed.
+    assert cli.main(["bundle", str(jar), str(badlion), str(tmp_path / "packs" / "emotes-norisk")]) == 2
+    assert "folders in" in (err := capsys.readouterr().err) and "badlion, emotes" in err

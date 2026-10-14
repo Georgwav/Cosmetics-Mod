@@ -317,12 +317,12 @@ def cmd_bundle(args) -> int:
 
     jar = Path(args.jar)
     if not jar.is_file():
-        print(f"error: {jar} is not a file", file=sys.stderr)
+        print(f"error: {jar} is not a file" + bundle.near_miss(jar, folder=False), file=sys.stderr)
         return 2
     packs = [Path(p) for p in args.packs]
     for folder in packs:
         if not folder.is_dir():
-            print(f"error: {folder} is not a folder", file=sys.stderr)
+            print(f"error: {folder} is not a folder" + bundle.near_miss(folder, folder=True), file=sys.stderr)
             return 2
     output = Path(args.out) if args.out else bundle.default_output(jar)
     if output.is_dir():
