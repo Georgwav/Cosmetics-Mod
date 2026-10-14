@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.Keystrokes;
 import io.github.georgwav.cosmetics.client.hud.PingHud;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
@@ -46,6 +47,7 @@ public final class Modules {
     public static final WeatherChanger WEATHER = new WeatherChanger();
     public static final TimeChanger TIME = new TimeChanger();
     public static final Crosshair CROSSHAIR = new Crosshair();
+    public static final BlockOutline OUTLINE = new BlockOutline();
     public static final Keystrokes KEYSTROKES = new Keystrokes();
     public static final FpsHud FPS = new FpsHud();
     public static final PingHud PING = new PingHud();
@@ -54,7 +56,7 @@ public final class Modules {
     public static final ArmorHud ARMOR = new ArmorHud();
     public static final EffectsHud EFFECTS = new EffectsHud();
 
-    private static final List<Module> ALL = List.of(FULLBRIGHT, CROSSHAIR, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
+    private static final List<Module> ALL = List.of(FULLBRIGHT, CROSSHAIR, OUTLINE, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
             PING, CLOCK, COORDS, ARMOR, EFFECTS);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, FPS, PING, CLOCK, COORDS, ARMOR, EFFECTS);
 

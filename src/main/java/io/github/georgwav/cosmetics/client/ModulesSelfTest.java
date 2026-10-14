@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.client;
 
+import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.skins.OwnSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -90,6 +91,8 @@ public final class ModulesSelfTest {
             m.setEnabled(true);
         }
         Modules.CROSSHAIR.setEnabled(true);
+        // The game's hotbar raised a little, as the HUD editor would (from 1.21.6).
+        VanillaHud.move(VanillaHud.Part.HOTBAR, 0f, -30f);
     }
 
     public static void switchOffHud(Minecraft mc) {
@@ -97,6 +100,7 @@ public final class ModulesSelfTest {
             m.setEnabled(false);
         }
         Modules.CROSSHAIR.setEnabled(false);
+        VanillaHud.reset();
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
         if (mc.player != null) {
             mc.player.removeEffect(MobEffects.NIGHT_VISION);

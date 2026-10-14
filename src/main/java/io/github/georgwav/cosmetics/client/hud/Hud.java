@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
 //? if >=1.21.6 {
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 //?} else {
 /*import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -55,6 +56,24 @@ public final class Hud {
             }
         });
         //?}
+        // The game's own HUD parts, each drawn moved by where the HUD editor put it (VanillaHud).
+        //? if >=1.21.6 {
+        moveable(VanillaHud.Part.HOTBAR, VanillaHudElements.HOTBAR, VanillaHudElements.INFO_BAR,
+                VanillaHudElements.EXPERIENCE_LEVEL);
+        moveable(VanillaHud.Part.HEALTH, VanillaHudElements.HEALTH_BAR);
+        moveable(VanillaHud.Part.ARMOR, VanillaHudElements.ARMOR_BAR);
+        moveable(VanillaHud.Part.FOOD, VanillaHudElements.FOOD_BAR, VanillaHudElements.MOUNT_HEALTH);
+        moveable(VanillaHud.Part.AIR, VanillaHudElements.AIR_BAR);
+        moveable(VanillaHud.Part.HELD_ITEM, VanillaHudElements.HELD_ITEM_TOOLTIP);
+        moveable(VanillaHud.Part.ACTION_BAR, VanillaHudElements.OVERLAY_MESSAGE);
+        moveable(VanillaHud.Part.BOSS_BAR, VanillaHudElements.BOSS_BAR);
+        moveable(VanillaHud.Part.SCOREBOARD, VanillaHudElements.SCOREBOARD);
+        //?}
+        //? if >=26.1 {
+        /*moveable(VanillaHud.Part.EFFECTS, VanillaHudElements.MOB_EFFECTS);
+        *///?} elif >=1.21.6 {
+        moveable(VanillaHud.Part.EFFECTS, VanillaHudElements.STATUS_EFFECTS);
+        //?}
         //? if >=1.21.11 {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "modules"),
                 (graphics, delta) -> draw(new Canvas(graphics)));
@@ -65,6 +84,55 @@ public final class Hud {
         /*HudRenderCallback.EVENT.register((graphics, delta) -> draw(new Canvas(graphics)));
         *///?}
     }
+
+    // Wraps a game HUD element so it draws moved; untouched while it isn't moved.
+    //? if >=1.21.11 {
+    private static void moveable(VanillaHud.Part part, Identifier... ids) {
+        for (Identifier id : ids) {
+            HudElementRegistry.replaceElement(id, vanilla -> moved(part, vanilla));
+        }
+    }
+    //?} elif >=1.21.6 {
+    /*private static void moveable(VanillaHud.Part part, ResourceLocation... ids) {
+        for (ResourceLocation id : ids) {
+            HudElementRegistry.replaceElement(id, vanilla -> moved(part, vanilla));
+        }
+    }
+    *///?}
+
+    //? if >=26.1 {
+    /*private static HudElement moved(VanillaHud.Part part, HudElement vanilla) {
+        return (graphics, delta) -> {
+            float dx = VanillaHud.dx(part);
+            float dy = VanillaHud.dy(part);
+            if (dx == 0f && dy == 0f) {
+                vanilla.extractRenderState(graphics, delta);
+                return;
+            }
+            Canvas g = new Canvas(graphics);
+            g.push();
+            g.translate(dx, dy);
+            vanilla.extractRenderState(graphics, delta);
+            g.pop();
+        };
+    }
+    *///?} elif >=1.21.6 {
+    private static HudElement moved(VanillaHud.Part part, HudElement vanilla) {
+        return (graphics, delta) -> {
+            float dx = VanillaHud.dx(part);
+            float dy = VanillaHud.dy(part);
+            if (dx == 0f && dy == 0f) {
+                vanilla.render(graphics, delta);
+                return;
+            }
+            Canvas g = new Canvas(graphics);
+            g.push();
+            g.translate(dx, dy);
+            vanilla.render(graphics, delta);
+            g.pop();
+        };
+    }
+    //?}
 
     private static void draw(Canvas g) {
         Minecraft mc = Minecraft.getInstance();

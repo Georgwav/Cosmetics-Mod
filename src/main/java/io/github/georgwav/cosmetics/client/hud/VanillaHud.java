@@ -91,12 +91,13 @@ public final class VanillaHud {
     private VanillaHud() {
     }
 
-    /**
-     * Whether this Minecraft version lets the client move the game's HUD (Fabric's HUD elements, from 1.21.6). Not
-     * yet switched on: the hooks that draw the parts moved come next.
-     */
+    /** Whether this Minecraft version lets the client move the game's HUD (Fabric's HUD elements, from 1.21.6). */
     public static boolean supported() {
-        return false;
+        //? if >=1.21.6 {
+        return true;
+        //?} else {
+        /*return false;
+        *///?}
     }
 
     public static float dx(Part part) {

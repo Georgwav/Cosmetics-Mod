@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.hub;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
@@ -230,6 +231,8 @@ public final class HubScreen extends Screen {
                 modsVoxy,
                 HubItem.module(Modules.FULLBRIGHT, "render"),
                 HubItem.module(Modules.CROSSHAIR, "render"),
+                HubItem.module(Modules.OUTLINE, "render")
+                        .missing(() -> BlockOutline.supported() ? null : t("not_on_version")),
                 HubItem.module(Modules.WEATHER, "render"),
                 HubItem.module(Modules.TIME, "render"),
                 HubItem.module(Modules.KEYSTROKES, "modules"),

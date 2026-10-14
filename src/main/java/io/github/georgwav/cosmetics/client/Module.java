@@ -58,6 +58,11 @@ public abstract class Module {
         return toggleKey;
     }
 
+    /** Whether this Minecraft version has it yet (some need hooks that newer versions changed). */
+    public boolean available() {
+        return true;
+    }
+
     public String name() {
         return Component.translatable("cosmeticsmod.module." + id).getString();
     }

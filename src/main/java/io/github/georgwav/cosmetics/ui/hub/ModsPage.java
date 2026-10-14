@@ -249,7 +249,8 @@ final class ModsPage implements HubPage {
             float textX = LIST_X + 66f;
             float room = keyLeft - 16f - textX;
             ui.text(ui.fit(m.name(), room, Ui.NAME, true), textX, y + 18f, Ui.TEXT, Ui.NAME, true);
-            ui.text(ui.fit(m.note(), room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
+            String note = m.available() ? m.note() : Component.translatable("cosmeticsmod.hub.not_on_version").getString();
+            ui.text(ui.fit(note, room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
             if (open) {
                 float sy = y + 64f;
                 if (preview > 0f) {

@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics;
 
 import io.github.georgwav.cosmetics.aura.AuraParticles;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.OutlineHook;
 import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
@@ -39,6 +40,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyBinds.emotes = emoteKey;
         Modules.init(VersionHooks::registerUnboundKey);
         Hud.register();
+        OutlineHook.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpenHub();
