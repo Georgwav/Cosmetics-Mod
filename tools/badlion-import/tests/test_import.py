@@ -165,7 +165,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
     # Stamped with the conversion's format, for the mod to ask for a new import when the pack is older.
     stamp = json.loads((out / "assets/blc_import/cosmetics_import.json").read_text())
-    assert stamp["format"] == pack.IMPORT_FORMAT >= 3
+    assert stamp["format"] == pack.IMPORT_FORMAT >= 4
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
     assert names == ["arm_band_1_fire_fist.json", "back_4_hiker_pack.json", "boots_2_fire_boots.json",
                      "cape_11_old_cloak.json", "cape_12_blank_model.json",
@@ -314,12 +314,13 @@ def test_wings_made_facing_forward_are_turned_around():
     wings = badlion.Model("WINGS", "zickzack", {"scale": 0.0})
     rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
     place = convert.placement(badlion.Cosmetic("WINGS", 1, {"name": "ZickZack"}), wings, False, rule, ts)
-    # OBJ +Z is the player's front: a wing curving 4.27 forward and 0.65 back reaches into the body.
+    # OBJ +Z is the player's front: wings bending forward into the body (ZickZack v5, Norman's fire wings) turn.
     assert convert.wing_faces_forward(place, ((-12.1, -3.54, -0.65), (-2.2, 8.75, 4.27)))
-    # Flat wings, and ones reaching back, stay as they are.
+    assert convert.wing_faces_forward(place, ((-14.2, -5.4, -2.06), (-0.197, 4.49, 3.45)))
+    # Flat wings, and ones bending back, stay as they are.
     assert not convert.wing_faces_forward(place, ((-9.75, -6.45, -0.19), (-1.1, 7.75, 0.19)))
     assert not convert.wing_faces_forward(place, ((-10.2, -7.2, -4.96), (0.942, 8.4, 0.652)))
-    assert not convert.wing_faces_forward(place, ((-14.2, -5.4, -2.06), (-0.197, 4.49, 3.45)))
+    assert not convert.wing_faces_forward(place, ((-12.2, -14.5, -1.39), (0.343, 4.51, 0.171)))
     # Turned: the right wing (mirrored on X, then turned) is the original with Z mirrored after the placement.
     r = convert.rotation_matrix(convert.turned_front_to_back(place))
     mirrored = convert.multiply(r, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])

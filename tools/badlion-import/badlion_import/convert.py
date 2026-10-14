@@ -357,9 +357,11 @@ def model_scale(model: badlion.Model | None, default: float = 1.0) -> float:
 # biggest wing models (crystal 0.08, tech 0.09: 15 units across), shrinking them from a default bigger than that;
 # at a pixel per unit (0.0625) wings came out clearly too small (players set them to 150%, the most there was).
 WING_PIXELS_PER_UNIT = 0.1 * 16.0
-# A wing whose model reaches this many pixels towards the front (into the body), and twice as far as it reaches
-# back, is turned around front to back: it was made facing the other way.
-WING_FORWARD_LIMIT = 2.0
+# A wing whose model's middle sits more than this many pixels towards the front (into the body) is turned around
+# front to back: it was made facing the other way. Of the curved wing models (OBJ +Z is the front, as glasses,
+# masks and backpacks show), nine bend back from the back and six forward into the body, ZickZack v5 among them,
+# which players saw the wrong way round.
+WING_FORWARD_LIMIT = 0.75
 
 
 def axis_angle(raw) -> list[list[float]] | None:
@@ -499,14 +501,13 @@ def placement(cosmetic: badlion.Cosmetic, model: badlion.Model | None, md5: bool
 
 
 def wing_faces_forward(place: Placement, bounds) -> bool:
-    """Whether a wing model, placed, reaches more than WING_FORWARD_LIMIT pixels towards the player's front (into
-    the body) and twice as far forward as back: made facing the other way."""
+    """Whether a wing model, placed, has its middle more than WING_FORWARD_LIMIT pixels towards the player's front
+    (into the body): made facing the other way."""
     if not bounds or place.matrix is None:
         return False
     zs = [apply(place.matrix, [bounds[i][0], bounds[j][1], bounds[k][2]])[2] * place.scale
           for i in (0, 1) for j in (0, 1) for k in (0, 1)]
-    forward, back = max(0.0, -min(zs)), max(0.0, max(zs))
-    return forward > WING_FORWARD_LIMIT and forward > 2 * back
+    return -(min(zs) + max(zs)) / 2 > WING_FORWARD_LIMIT
 
 
 def turned_front_to_back(place: Placement) -> list[float]:
