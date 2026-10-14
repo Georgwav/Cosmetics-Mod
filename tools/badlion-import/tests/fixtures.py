@@ -214,7 +214,9 @@ IMPORT_MODELS = {
                       "flipUVs": True, "md5format": False}},
     "SHIELD": {"roundshield": {"scale": 0.0, "md5format": False, "flipUVs": False,
                                "sizingData": {"offsetX": 0, "offsetY": 0.4, "offsetZ": 0, "scale": 1.2},
-                               "shieldModelData": {"armScale": 0.125, "thirdPerson": {
+                               # As Badlion's round shield: an inverted model with a half turn in both views.
+                               "shieldModelData": {"armScale": 0.125, "inverted": True, "firstPerson": {
+                                   "rotate": {"w": 180.0, "x": 0.0, "y": 1.0, "z": 0.0}}, "thirdPerson": {
                                    "rotate": {"w": 180.0, "x": 0.0, "y": 1.0, "z": 0.0}}}}},
     "PET": {"dragon": {"scale": 0, "md5format": True, "flipUVs": False}},
     "BOOTS": {"fire_boots": {"scale": 0, "md5format": False, "flipUVs": False}},

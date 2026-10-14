@@ -40,6 +40,14 @@ class CosmeticOptionsTest {
     }
 
     @Test
+    void aHeldCosmeticCanFaceTheOtherWayInFirstPerson() {
+        String cube = "[{\"cubes\":[" + CUBE + "]}]";
+        assertFalse(bake("", cube).definition().firstPersonTurned());
+        assertTrue(bake(",\"first_person_turned\":true", cube).definition().firstPersonTurned());
+        assertThrows(JsonParseException.class, () -> bake(",\"first_person_turned\":\"yes\"", cube));
+    }
+
+    @Test
     void defaultColour() {
         assertEquals(0xFF8800, bake(",\"default_color\":\"#ff8800\"", "[{\"cubes\":[" + CUBE + "]}]").defaultColor());
         assertEquals(0x00FF00, bake(",\"default_color\":65280", "[{\"cubes\":[" + CUBE + "]}]").defaultColor());

@@ -312,7 +312,8 @@ public final class CosmeticRenderer {
             poseStack.scale(1f, -1f, -1f);
             CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
             applyPlacement(poseStack, options, cosmetic);
-            applyTurn(poseStack, options, cosmetic);
+            // "Turn around", and a half turn more in first person for a shield made to face the other way there.
+            applyTurn(poseStack, options.turned != (firstPerson && cosmetic.definition().firstPersonTurned()), cosmetic);
             boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
             boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
             float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
@@ -397,7 +398,12 @@ public final class CosmeticRenderer {
     /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */
     /** Turns a cosmetic the player turned round half a turn around the upright line through its middle. */
     private static void applyTurn(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic) {
-        if (!options.turned) {
+        applyTurn(poseStack, options.turned, cosmetic);
+    }
+
+    /** Half a turn around the cosmetic's own middle when {@code turned}. */
+    private static void applyTurn(PoseStack poseStack, boolean turned, BakedCosmetic cosmetic) {
+        if (!turned) {
             return;
         }
         float[] middle = cosmetic.middle();
