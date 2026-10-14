@@ -179,6 +179,18 @@ final class ModsPage implements HubPage {
         float y = LIST_TOP - scroll;
         float start = y;
         boolean any = false;
+        if (section.equals("hud") && needle.isEmpty()) {
+            // Where they sit: the HUD editor.
+            float h = 64f;
+            float right = LIST_X + LIST_W - 20f;
+            ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
+            float left = ui.buttonRight(t("hud_editor"), right, y + 14f, 36f, true,
+                    () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new HudEditorScreen(hub))) - 16f;
+            ui.text(ui.fit(t("hud_layout"), left - LIST_X - 24f, Ui.NAME, true), LIST_X + 24f, y + 18f, Ui.TEXT, Ui.NAME, true);
+            ui.text(ui.fit(t("hud_layout.hint"), left - LIST_X - 24f, Ui.SMALL, false), LIST_X + 24f, y + 37f, Ui.TEXT_DIM,
+                    Ui.SMALL, false);
+            y += h + 10f;
+        }
         if (!section.equals("installed") && !section.equals("look") && !section.equals("profiles") || !needle.isEmpty()) {
             Module.Category last = null;
             for (Module m : Modules.all()) {
