@@ -104,7 +104,9 @@ emote in the first empty slot). In the picker the elytra wheel lists the emotes 
   dance, dab, salute, spin and T-pose are made for the elytra wheel.
 - **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
   (Bedrock animation files) and Emotecraft emote files both work. See
-  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes).
+  [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#emotes). Emotes you own in another client: the importer's
+  `emotes` command finds them anywhere in a folder and writes them as a pack (see
+  [tools/badlion-import](tools/badlion-import/README.md#emotes-emotes-from-any-clients-files)).
 
 ### Config file (`config/cosmeticsmod.json`)
 

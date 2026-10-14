@@ -194,6 +194,32 @@ Badlion. The report (`import-report.md`) lists every cosmetic with its slot and 
 Their names come from the folders (Lunar) or the descriptors (NoRisk). They show up in the Wardrobe next to your
 other cosmetics.
 
+### `emotes`: emotes from any client's files
+
+Emotes aren't kept with the cosmetics, and each client keeps them somewhere else. `emotes` looks through a whole
+folder, inside every `.jar` and `.zip` too, for the emote formats the mod plays, and writes them as a pack for the
+emote wheel:
+
+```powershell
+badlion-import emotes C:\Users\Pc\.lunarclient C:\badlion-packs\emotes-lunar
+badlion-import emotes C:\Users\Pc\AppData\Roaming\.minecraft C:\badlion-packs\emotes-minecraft
+```
+
+- **Bedrock / GeckoLib animations** (`{"animations": ...}`, what Blockbench exports and Lunar and NoRisk build
+  with) that move a player: bones named `head`, `body`, `right_arm`, ... in any spelling, GeckoLib's
+  `bipedHead`, `bipedRightArm`, ... too. Each animation is one emote. Bones are renamed to the mod's; other bones,
+  `scale` and channels written in Molang are left out (each noted in the report). Animations of cosmetics (a
+  folder with the cosmetic's `.geo.json`, `.gek.json` or `.norisk.json`) and of models that move one player bone
+  or mostly other bones aren't emotes. Inside archives (mostly mods, whose mobs have bones named like a player's
+  too) only animations whose path or name says "emote" are taken.
+- **Emotecraft** JSON emotes, as they are.
+
+Emotes get the client in their id when the path says which (`lunar_emotes:`, `norisk_emotes:`,
+`badlion_emotes:`, else `imported_emotes:`). The report (`emote-report.md`) lists every emote, what was left out
+and why, and every **emote-like file it couldn't read** (a path with "emote" in it, Emotecraft's binary
+`.emotecraft`): send that list to get those supported. Running it again on the same pack folder replaces its
+emotes. Copy the pack into `resourcepacks` and turn it on; the emotes appear in Wardrobe → Emotes.
+
 #### Settings file
 
 Every key is optional:

@@ -1,4 +1,4 @@
-"""Command line: `list`, `inspect`, `show` and `import`."""
+"""Command line: `list`, `inspect`, `show`, `survey`, `import` and `emotes`."""
 
 from __future__ import annotations
 
@@ -290,6 +290,27 @@ def cmd_import(args) -> int:
     return 1 if written.failed else 0
 
 
+def cmd_emotes(args) -> int:
+    """Emotes from any folder of client files (see emotes.py)."""
+    from . import emotes
+
+    input_folder = Path(args.input)
+    if not input_folder.is_dir():
+        print(f"error: {input_folder} is not a folder", file=sys.stderr)
+        return 2
+    output = Path(args.output)
+    refuse_output(output, input_folder)
+    emotes.check_output(output)
+    progress = _progress(args.quiet)
+    progress("looking for emotes")
+    found = emotes.find(input_folder, progress)
+    emotes.write(found, output)
+    (output / emotes.REPORT).write_text(emotes.report(found, input_folder), encoding="utf-8")
+    print(f"Wrote {len(found.emotes)} emote(s) to {output}; {len(found.skipped)} animation(s) left out, "
+          f"{len(found.unknown)} emote-like file(s) not understood. Details: {output / emotes.REPORT}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="badlion-import", description=__doc__)
     parser.add_argument("--version", action="version", version=__version__)
@@ -346,6 +367,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--jobs", type=int, help="textures converted in parallel (default: one per CPU)")
     p.add_argument("--quiet", action="store_true", help="no progress messages")
     p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("emotes", help="find emotes (player animations) anywhere in a folder of client files, "
+                                      "archives too, and write them as a resource pack for the emote wheel")
+    p.add_argument("input", help="any folder: a client's folder, a folder of its files, ... (looked through in full)")
+    p.add_argument("output", help="pack folder to write (new, or one this command wrote before); not in this "
+                                  "repository")
+    p.add_argument("--quiet", action="store_true", help="no progress messages")
+    p.set_defaults(func=cmd_emotes)
 
     args = parser.parse_args(argv)
     try:
