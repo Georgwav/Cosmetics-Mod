@@ -136,8 +136,8 @@ conversion used.
   animations as the cape's styles;
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
   flap). Without a size of their own they're 0.1 blocks a model unit (Badlion only sizes its biggest wing models,
-  down from that). A wing model that reaches into the body from the back (made facing forward) is turned around
-  front to back (listed in the report's notes);
+  down from that). A wing model whose middle sits forward of the back (bending into the body: made facing the other
+  way, as six of Badlion's curved wings are) is turned around front to back (listed in the report's notes);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
 - shields: shown instead of the vanilla shield while you hold one, at the size Badlion holds them
   (`shieldModelData.armScale`), facing as Badlion shows them (each view's `rotate` and `scale` after the half turn
