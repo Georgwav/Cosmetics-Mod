@@ -45,7 +45,7 @@ import java.util.List;
  *
  * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
  * the emote wheel and an emote, an elytra seen from the side (during the emote, and standing with the mod on and
- * off), an elytra emote while gliding, every page of the settings screen (and, with Mod Menu, the screen its
+ * off, also three-quarters from behind), an elytra emote while gliding, every page of the settings screen (and, with Mod Menu, the screen its
  * "Configure" button opens),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
  * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
@@ -57,7 +57,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_STAND_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -67,10 +67,14 @@ public final class DevScenario {
     private static final int EMOTE_TICKS = 100;
     /** Ticks each look at an elytra on the ground lasts (CI screenshots 4 s in). */
     private static final int ELYTRA_LOOK_TICKS = 120;
-    /** How far the body is turned from where the camera looks for those, degrees: nearly from the side. */
+    /**
+     * How far the body is turned from where the camera looks for those, degrees: from the side (a gap between the
+     * elytra and the back shows as grass behind the arm), and three-quarters from behind, as you see yourself.
+     */
     private static final float SIDE_VIEW = 90f;
-    /** Field of view for the elytra close-ups, and the game's default to go back to. */
-    private static final int ZOOMED_FOV = 30;
+    private static final float ANGLE_VIEW = 40f;
+    /** Field of view for the elytra close-ups (the whole player in view), and the game's default to go back to. */
+    private static final int ZOOMED_FOV = 45;
     private static final int NORMAL_FOV = 70;
     /** Ticks the elytra emote plays while gliding. */
     private static final int ELYTRA_TICKS = 140;
@@ -329,7 +333,7 @@ public final class DevScenario {
                 }
             }
             case EMOTE_ELYTRA -> {
-                sideView(client);
+                sideView(client, SIDE_VIEW, 10f);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
                     long followed = ElytraLook.followedFrames - elytraFramesAtStart;
                     JsonObject look = new JsonObject();
@@ -345,19 +349,31 @@ public final class DevScenario {
                 }
             }
             case ELYTRA_STAND_ON -> {
-                sideView(client);
+                sideView(client, SIDE_VIEW, 10f);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
                     long tucked = ElytraLook.tuckedFrames - elytraFramesAtStart;
                     phases.getAsJsonObject("elytra_look").addProperty("tuckedFrames", tucked);
                     if (client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && tucked <= 0) {
                         failures.add("standing, the elytra wasn't drawn close to the back");
                     }
+                    enter(Phase.ELYTRA_ANGLE_ON);
+                }
+            }
+            case ELYTRA_ANGLE_ON -> {
+                sideView(client, ANGLE_VIEW, 25f);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
                     CosmeticsConfig.get().enabled = false;
                     enter(Phase.ELYTRA_STAND_OFF);
                 }
             }
             case ELYTRA_STAND_OFF -> {
-                sideView(client);
+                sideView(client, SIDE_VIEW, 10f);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
+                    enter(Phase.ELYTRA_ANGLE_OFF);
+                }
+            }
+            case ELYTRA_ANGLE_OFF -> {
+                sideView(client, ANGLE_VIEW, 25f);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
                     CosmeticsConfig config = CosmeticsConfig.get();
                     config.enabled = true;
@@ -577,13 +593,14 @@ public final class DevScenario {
     }
 
     /**
-     * Turns the body {@link #SIDE_VIEW} degrees from where the camera looks, a little from above, so the third-person
-     * camera behind the player sees the back from the side (set after the game's tick, so it holds for the frames).
+     * Turns the body {@code turn} degrees from where the camera looks and the camera {@code down} degrees down, so the
+     * third-person camera behind the player sees the back from that side (set after the game's tick, so it holds for
+     * the frames).
      */
-    private static void sideView(Minecraft client) {
+    private static void sideView(Minecraft client, float turn, float down) {
         var player = client.player;
-        player.setXRot(10f);
-        player.yBodyRot = player.getYRot() - SIDE_VIEW;
+        player.setXRot(down);
+        player.yBodyRot = player.getYRot() - turn;
         player.yBodyRotO = player.yBodyRot;
     }
 

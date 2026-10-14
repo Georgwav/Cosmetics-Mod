@@ -6,5 +6,4 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-26.3 com.mojang.blaze3d.platform.InputConstants,com.mojang.blaze3d.platform.InputConstants$Type,com.mojang.blaze3d.platform.InputConstants$Key,net.minecraft.client.input.KeyEvent,net.minecraft.client.input.MouseButtonEvent,net.minecraft.client.KeyMapping,!net.minecraft.client.gui.screens.options.controls.KeyBindsScreen,com.mojang.blaze3d.platform.*
-26.2 com.mojang.blaze3d.platform.InputConstants,com.mojang.blaze3d.platform.InputConstants$Type,net.minecraft.client.input.KeyEvent
+26.2 !net.minecraft.client.renderer.entity.layers.WingsLayer,!net.minecraft.client.model.ElytraModel,!net.minecraft.client.model.object.equipment.ElytraModel,net.minecraft.client.model.*,net.minecraft.client.model.player.*,net.minecraft.client.model.object.*,net.minecraft.client.model.object.equipment.*,!net.minecraft.client.renderer.entity.layers.CapeLayer
