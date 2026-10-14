@@ -312,12 +312,12 @@ public final class HudEditorScreen extends Screen {
     }
 
     /**
-     * Whether Shift is held, asked of the game's window through GLFW (the current context on the render thread, where
-     * input arrives). 26.3 no longer ships GLFW: there Shift isn't read yet.
+     * Whether Shift is held: asked of the game on 26.3 (which no longer ships GLFW), else of the game's window through
+     * GLFW (the current context on the render thread, where input arrives).
      */
     private static boolean shiftHeld() {
         //? if >=26.3 {
-        /*return false;
+        /*return Minecraft.getInstance().hasShiftDown();
         *///?} else {
         long window = GLFW.glfwGetCurrentContext();
         return window != 0L && (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
