@@ -19,20 +19,27 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     public List<String> getMixins() {
         //? if >=26.3 {
         /*return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "ClockInstanceMixin");
+        *///?} elif >=26.1 {
+        /*return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "ClockManagerMixin");
         *///?} elif >=1.21.6 {
         return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin");
         //?} elif >=1.21.4 {
         /*return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "GuiMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin");
         *///?} elif >=1.21.2 {
         /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "GuiMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin");
         *///?} else {
         /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "GuiMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin");
         *///?}
     }
 

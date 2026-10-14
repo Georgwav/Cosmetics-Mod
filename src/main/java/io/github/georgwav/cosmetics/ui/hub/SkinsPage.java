@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.ui.hub;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.MainFolder;
+import io.github.georgwav.cosmetics.client.skins.OwnSkin;
 import io.github.georgwav.cosmetics.client.skins.SkinLibrary;
 import io.github.georgwav.cosmetics.client.skins.SkinUploader;
 import io.github.georgwav.cosmetics.ui.PictureTexture;
@@ -215,7 +216,8 @@ final class SkinsPage implements HubPage {
         if (selected < 0 || selected >= skins.size() || uploading) {
             return;
         }
-        SkinLibrary.Skin skin = skins.get(selected).skin;
+        Entry entry = skins.get(selected);
+        SkinLibrary.Skin skin = entry.skin;
         Minecraft mc = Minecraft.getInstance();
         uploading = true;
         SkinUploader.upload(mc.getUser().getAccessToken(), skin.png(), skin.slim()).whenComplete((status, error) ->
@@ -224,6 +226,7 @@ final class SkinsPage implements HubPage {
                     if (error != null) {
                         hub.notify(t("offline"));
                     } else if (status == 200) {
+                        OwnSkin.set(entry.argb, skin.slim());
                         hub.notify(t("applied"));
                     } else if (status == 401) {
                         hub.notify(t("signed_out"));

@@ -6,8 +6,7 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-26.2 !net.minecraft.client.ClientClockManager,net.minecraft.world.clock.*
-26.3 net.minecraft.core.ClientAsset$ResourceTexture,net.minecraft.core.ClientAsset$Texture,net.minecraft.world.entity.player.PlayerModelType,net.minecraft.world.entity.player.PlayerSkin$Patch,net.fabricmc.fabric.api.client.rendering.v1.world.*,net.minecraft.client.renderer.state.BlockOutlineRenderState,?outline
-1.21.10 net.minecraft.core.ClientAsset$ResourceTexture,net.minecraft.core.ClientAsset$Texture,net.fabricmc.fabric.api.client.rendering.v1.world.*,net.minecraft.client.renderer.state.BlockOutlineRenderState
-1.21.8 net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$BlockOutline,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$BlockOutlineContext,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext
-1.21.1 net.minecraft.client.resources.PlayerSkin$Model,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$BlockOutline,net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$BlockOutlineContext
+1.21.10 net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents,net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents$BeforeBlockOutline,net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext,net.minecraft.client.renderer.ShapeRenderer,net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+1.21.8 net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext$BlockOutlineContext,net.minecraft.client.renderer.ShapeRenderer,net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+1.21.1 net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext$BlockOutlineContext
+26.3 net.fabricmc.fabric.api.client.rendering.v1.*,net.minecraft.client.renderer.state.*,net.minecraft.client.renderer.state.level.*,net.minecraft.client.renderer.ShapeRenderer,net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements

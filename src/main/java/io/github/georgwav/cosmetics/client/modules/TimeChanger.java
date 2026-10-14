@@ -14,20 +14,6 @@ public final class TimeChanger extends Module {
         super("time", Category.WORLD, "clock");
     }
 
-    /**
-     * Whether this Minecraft version can change it yet: 26.1 replaced the day time with world clocks, which it can
-     * set from 26.3.
-     */
-    public static boolean supported() {
-        //? if >=26.3 {
-        /*return true;
-        *///?} elif >=26.1 {
-        /*return false;
-        *///?} else {
-        return true;
-        //?}
-    }
-
     /** The day time to show (0 is 06:00, 6000 noon), or -1 for the server's. */
     public static long dayTime() {
         TimeChanger m = Modules.TIME;

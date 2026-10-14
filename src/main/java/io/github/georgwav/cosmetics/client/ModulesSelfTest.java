@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.client;
 
+import io.github.georgwav.cosmetics.client.skins.OwnSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -100,5 +101,25 @@ public final class ModulesSelfTest {
         if (mc.player != null) {
             mc.player.removeEffect(MobEffects.NIGHT_VISION);
         }
+    }
+
+    /** Wears a plain test skin with slim arms the way Apply does, checks your player has it, and takes it off. */
+    public static List<String> checkOwnSkin(Minecraft mc) {
+        List<String> problems = new ArrayList<>();
+        if (mc.player == null) {
+            problems.add("no player to wear a skin");
+            return problems;
+        }
+        int[] argb = new int[64 * 64];
+        java.util.Arrays.fill(argb, 0xFF3A7BD5);
+        OwnSkin.set(argb, true);
+        if (!OwnSkin.isWorn(mc.player.getSkin())) {
+            problems.add("an applied skin doesn't show on your own player");
+        }
+        OwnSkin.clear();
+        if (OwnSkin.isWorn(mc.player.getSkin())) {
+            problems.add("the applied skin stayed on after taking it off");
+        }
+        return problems;
     }
 }

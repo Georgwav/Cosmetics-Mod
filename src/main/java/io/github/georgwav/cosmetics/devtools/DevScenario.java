@@ -549,6 +549,9 @@ public final class DevScenario {
                         if (HubScreen.skinsShown() != 10) {
                             failures.add("the Skins page showed " + HubScreen.skinsShown() + " of the launcher's 10 skins");
                         }
+                        List<String> skinProblems = ModulesSelfTest.checkOwnSkin(client);
+                        phases.getAsJsonObject("settings_ui").addProperty("own_skin", skinProblems.isEmpty() ? "ok" : String.join("; ", skinProblems));
+                        failures.addAll(skinProblems);
                         // The client's world modules: thunder, midnight and fullbright, on your screen only.
                         ScreenOpener.open(null);
                         ModulesSelfTest.switchOn(client);
