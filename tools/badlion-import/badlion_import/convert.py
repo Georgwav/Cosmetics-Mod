@@ -490,19 +490,22 @@ SIZING_BLOCKS_BELOW = 0.5
 
 
 def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeRule, ts: TypeSettings) -> Placement:
-    """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), turned and
-    mirrored as Badlion turns it in third person, and centred on the vanilla shield's plate (the type's origin),
-    because Badlion's shields are each placed by their own hand-tuned offsets we can't reproduce."""
+    """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), mirrored as Badlion
+    mirrors it in third person, and centred on the vanilla shield's plate (the type's origin), because Badlion's
+    shields are each placed by their own hand-tuned offsets we can't reproduce.
+
+    Not turned by its `rotate`: the half turn some shields have there (the round shield, the fire shield) undoes
+    their `inverted` model for Badlion's own hand transform; applied here it showed them back to front, while
+    the shields without one already faced the right way."""
     convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
     extra = rotation_matrix(ts.rotation)
     data = model.raw.get("shieldModelData") if model and isinstance(model.raw.get("shieldModelData"), dict) else {}
     arm = _number(data.get("armScale"))
     s = arm * PIXELS_PER_BLOCK if arm and arm > 0 else model_scale(model)
     third = data.get("thirdPerson") if isinstance(data.get("thirdPerson"), dict) else {}
-    own = axis_angle(third.get("rotate")) or [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     flip = vector(third.get("scale")) if isinstance(third.get("scale"), dict) else [1.0, 1.0, 1.0]
-    own = multiply(own, [[1.0 if flip[0] >= 0 else -1.0, 0, 0], [0, 1.0 if flip[1] >= 0 else -1.0, 0],
-                         [0, 0, 1.0 if flip[2] >= 0 else -1.0]])
+    own = [[1.0 if flip[0] >= 0 else -1.0, 0, 0], [0, 1.0 if flip[1] >= 0 else -1.0, 0],
+           [0, 0, 1.0 if flip[2] >= 0 else -1.0]]
     mirror = determinant(own) < 0
     if mirror:  # the mod mirrors X before turning
         own = multiply(own, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
@@ -779,7 +782,9 @@ class Planner:
             textures.append(TextureJob(glow, glow_loc, (c.raw.get("animationData") or {}).get("frameDelay"),
                                        bool((c.raw.get("animationData") or {}).get("customFrameDelay", True))))
         mode = "translucent" if c.raw.get("transparent") is True else "cutout"
-        tinted = not (model and model.raw.get("applyChroma") is False)
+        # Every part takes the player's colour (white, the default, keeps the texture's): Badlion's applyChroma
+        # only said where its own chroma setting went.
+        tinted = True
         triangles = mf.triangles * (2 if rule.kind == "wings" else 1)
 
         model_files = [mf]
@@ -928,14 +933,10 @@ def texture_animation(info) -> dict | None:
 
 
 def options_of(c: badlion.Cosmetic) -> dict:
-    """Badlion's per-cosmetic choices as the mod's player settings: colour only where Badlion allows chroma."""
-    options = {}
-    if c.raw.get("allowChroma") is not True:
-        options["tint"] = False
-        options["rainbow"] = False
-    if c.raw.get("allowSaturation") is not True:
-        options["saturation"] = False
-    return options
+    """Badlion's per-cosmetic choices as the mod's player settings. Colour is left to the player on every
+    cosmetic (Badlion only offers it where it allows chroma), so nothing is turned off; a cosmetic still keeps
+    its own colours until its player picks one."""
+    return {}
 
 
 def wings_of(c: badlion.Cosmetic, md5: bool, place: Placement) -> dict:

@@ -56,11 +56,11 @@ public final class CosmeticsScreen extends Screen {
                 case WEARING -> wearing.contains(cosmetic.id());
                 case ALL -> true;
                 case CAPES -> cosmetic.slot() == CosmeticSlot.CAPE;
-                case WINGS -> cosmetic.wings() != null;
+                case WINGS -> isWings(cosmetic);
                 case HATS -> cosmetic.slot() == CosmeticSlot.HEAD;
                 case FACE -> cosmetic.slot() == CosmeticSlot.FACE;
                 case BODY -> cosmetic.slot() == CosmeticSlot.BODY;
-                case BACK -> cosmetic.slot() == CosmeticSlot.BACK && cosmetic.wings() == null;
+                case BACK -> cosmetic.slot() == CosmeticSlot.BACK && !isWings(cosmetic);
                 case SHIELDS -> cosmetic.slot() == CosmeticSlot.SHIELD;
                 case AURAS -> cosmetic.slot() == CosmeticSlot.AURA;
                 case PETS -> cosmetic.slot() == CosmeticSlot.PET;
@@ -73,10 +73,45 @@ public final class CosmeticsScreen extends Screen {
         boolean searchable() {
             return this != EMOTES && this != OUTFITS;
         }
+
+        /** Wings: flapping ones, and models that count as wings (Lunar's). */
+        private static boolean isWings(BakedCosmetic cosmetic) {
+            return cosmetic.wings() != null || "wings".equals(cosmetic.kind());
+        }
+    }
+
+    /** Where cosmetics came from, by their pack's namespace: the Wardrobe can show one source at a time. */
+    private enum Source {
+        ALL(null), BADLION("blc_import"), LUNAR("lunar_import"), NORISK("norisk_import"), BUILT_IN("cosmeticsmod"),
+        OTHER(null);
+
+        private final String namespace;
+
+        Source(String namespace) {
+            this.namespace = namespace;
+        }
+
+        static Source of(BakedCosmetic cosmetic) {
+            String namespace = cosmetic.id().substring(0, cosmetic.id().indexOf(':'));
+            for (Source source : values()) {
+                if (namespace.equals(source.namespace)) {
+                    return source;
+                }
+            }
+            return OTHER;
+        }
+
+        boolean includes(BakedCosmetic cosmetic) {
+            return this == ALL || of(cosmetic) == this;
+        }
     }
 
     private static Tab lastTab = Tab.WARDROBE;
     private static View lastView = View.ALL;
+    /** The source the Wardrobe shows, kept while the game runs. */
+    private static Source source = Source.ALL;
+    /** This jar's version and the commit it was built from, for the header. */
+    private static String buildLabel;
     /** Most rows one list shows (only so a broken pack can't build a million widgets). */
     /** Tiles are at least this wide; the row's width is shared out between as many as fit. */
     private static final int TILE_MIN_WIDTH = 78;
@@ -334,6 +369,17 @@ public final class CosmeticsScreen extends Screen {
     private void buildSidebar() {
         List<String> wearing = CosmeticsConfig.get().localEquipped();
         int y = listY;
+        // Which client's cosmetics show: a button that steps through the sources there are.
+        List<Source> sources = sources();
+        if (sources.size() > 2) {
+            addChrome(new Rows.Button(sidebarX, y, SIDEBAR_WIDTH, 18, t("source." + source.name().toLowerCase(Locale.ROOT)),
+                    source != Source.ALL, () -> {
+                        source = sources.get((sources.indexOf(source) + 1) % sources.size());
+                        scroll = 0;
+                        rebuildWidgets();
+                    }));
+            y += 24;
+        }
         for (View each : View.values()) {
             int count;
             if (each == View.OUTFITS) {
@@ -527,9 +573,43 @@ public final class CosmeticsScreen extends Screen {
         }
     }
 
-    /** The cosmetics the Wardrobe lists: all but emote props, which only come with their emotes. */
+    /**
+     * The cosmetics the Wardrobe lists: all but emote props, which only come with their emotes, from the source it
+     * shows.
+     */
     private static List<BakedCosmetic> wardrobe() {
-        return CosmeticRegistry.all().stream().filter(c -> !c.definition().prop()).toList();
+        if (source != Source.ALL && !sources().contains(source)) {
+            source = Source.ALL; // that pack is gone
+        }
+        return CosmeticRegistry.all().stream().filter(c -> !c.definition().prop() && source.includes(c)).toList();
+    }
+
+    /** ALL, then each source some loaded cosmetic comes from. */
+    private static List<Source> sources() {
+        java.util.EnumSet<Source> present = java.util.EnumSet.noneOf(Source.class);
+        for (BakedCosmetic cosmetic : CosmeticRegistry.all()) {
+            if (!cosmetic.definition().prop()) {
+                present.add(Source.of(cosmetic));
+            }
+        }
+        List<Source> result = new ArrayList<>();
+        result.add(Source.ALL);
+        result.addAll(present);
+        return result;
+    }
+
+    /** "0.1.0+mc26.2 (abc1234)": the version, and the commit for builds from CI. */
+    private static String buildLabel() {
+        if (buildLabel == null) {
+            buildLabel = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("cosmeticsmod").map(c -> {
+                String version = c.getMetadata().getVersion().getFriendlyString();
+                var build = c.getMetadata().getCustomValue("cosmeticsmod:build");
+                String commit = build != null && build.getType() == net.fabricmc.loader.api.metadata.CustomValue.CvType.STRING
+                        ? build.getAsString() : "";
+                return commit.isEmpty() || commit.equals("local") ? version : version + " (" + commit + ")";
+            }).orElse("");
+        }
+        return buildLabel;
     }
 
     private static boolean matches(BakedCosmetic cosmetic, String needle) {
@@ -578,9 +658,9 @@ public final class CosmeticsScreen extends Screen {
                     v -> config.editOptions(id).petPosition = v == defaultPosition ? null : v,
                     v -> t("pet_position." + v.name().toLowerCase(Locale.ROOT))));
         }
-        boolean tint = cosmetic.allows(CosmeticOption.TINT);
-        boolean rainbow = cosmetic.allows(CosmeticOption.RAINBOW);
-        boolean saturation = cosmetic.allows(CosmeticOption.SATURATION);
+        boolean tint = config.allows(cosmetic, CosmeticOption.TINT);
+        boolean rainbow = config.allows(cosmetic, CosmeticOption.RAINBOW);
+        boolean saturation = config.allows(cosmetic, CosmeticOption.SATURATION);
         if (tint || rainbow || saturation) {
             section("section.color");
         }
@@ -620,9 +700,13 @@ public final class CosmeticsScreen extends Screen {
             section("section.shape");
         }
         if (size) {
-            add(new Rows.Slider(listX, 0, listW, t("size"), 0.5, 1.5, 0.05,
+            add(new Rows.Slider(listX, 0, listW, t("size"), 0.5, CosmeticsConfig.MAX_SCALE, 0.05,
                     () -> config.options(id).scale, v -> config.editOptions(id).scale = (float) v,
                     v -> Math.round(v * 100) + "%"));
+        }
+        if (size || position) {
+            add(new Rows.Toggle(listX, 0, listW, t("turned"), null,
+                    () -> config.options(id).turned, v -> config.editOptions(id).turned = v));
         }
         if (position) {
             add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,
@@ -697,6 +781,8 @@ public final class CosmeticsScreen extends Screen {
         toggle("show_own", () -> c.showOwnCosmetics, v -> c.showOwnCosmetics = v);
         toggle("show_others", () -> c.showOtherPlayersCosmetics, v -> c.showOtherPlayersCosmetics = v);
         toggle("several_of_a_kind", () -> c.severalOfAKind, v -> c.severalOfAKind = v);
+        toggle("color_any_cosmetic", () -> c.colorAnyCosmetic, v -> c.colorAnyCosmetic = v);
+        toggle("shield_item_icons", () -> c.shieldItemIcons, v -> c.shieldItemIcons = v);
 
         section("section.slots");
         for (CosmeticSlot slot : CosmeticSlot.values()) {
@@ -856,7 +942,9 @@ public final class CosmeticsScreen extends Screen {
         g.fill(px, py, px + pw, py + ph, Theme.PANEL);
 
         // Header and footer.
-        g.text(font, title.getString(), px + Theme.PAD + 22, py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1, Theme.TEXT);
+        int titleY = py + (Theme.HEADER_HEIGHT - font.lineHeight) / 2 + 1;
+        g.text(font, title.getString(), px + Theme.PAD + 22, titleY, Theme.TEXT);
+        g.text(font, buildLabel(), px + Theme.PAD + 22 + font.width(title.getString()) + 8, titleY, Theme.TEXT_FAINT);
         g.fill(px, py + Theme.HEADER_HEIGHT, px + pw, py + Theme.HEADER_HEIGHT + 1, Theme.DIVIDER);
         g.fill(px, py + ph - Theme.FOOTER_HEIGHT, px + pw, py + ph - Theme.FOOTER_HEIGHT + 1, Theme.DIVIDER);
         g.text(font, t("hint"), px + Theme.PAD, py + ph - Theme.FOOTER_HEIGHT + (Theme.FOOTER_HEIGHT - font.lineHeight) / 2 + 1,

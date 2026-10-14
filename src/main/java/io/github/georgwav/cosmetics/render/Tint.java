@@ -20,7 +20,7 @@ public final class Tint {
 
     /** ARGB tint for a cosmetic, honouring which colour options it allows. */
     public static int argb(CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic, double seconds) {
-        return argb(options, cosmetic.definition().options(), cosmetic.defaultColor(), seconds);
+        return argb(options, CosmeticsConfig.get().allowedOptions(cosmetic), cosmetic.defaultColor(), seconds);
     }
 
     /**
@@ -45,7 +45,7 @@ public final class Tint {
      * to keep the particles' own colours (the default, so they look as their creator made them).
      */
     public static Integer particleColor(CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic, double seconds) {
-        return particleColor(options, cosmetic.definition().options(), cosmetic.defaultColor(), seconds);
+        return particleColor(options, CosmeticsConfig.get().allowedOptions(cosmetic), cosmetic.defaultColor(), seconds);
     }
 
     static Integer particleColor(CosmeticsConfig.CosmeticOptions options, int allowed, int defaultColor, double seconds) {

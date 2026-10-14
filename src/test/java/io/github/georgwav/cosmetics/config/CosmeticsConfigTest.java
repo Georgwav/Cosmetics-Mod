@@ -138,7 +138,7 @@ class CosmeticsConfigTest {
         config.sanitize();
 
         assertEquals(1, config.cosmeticOptions.size());
-        assertEquals(1.5f, config.options("cosmeticsmod:top_hat").scale);
+        assertEquals(CosmeticsConfig.MAX_SCALE, config.options("cosmeticsmod:top_hat").scale);
         assertEquals(0f, config.options("cosmeticsmod:top_hat").offsetY);
         assertEquals(0x123456, config.options("cosmeticsmod:top_hat").color);
         assertEquals(0.1f, config.options("cosmeticsmod:top_hat").animationSpeed);

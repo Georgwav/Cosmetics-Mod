@@ -53,6 +53,13 @@ public final class CosmeticsConfig {
      * putting one on takes off the one of its kind you wore.
      */
     public boolean severalOfAKind = false;
+    /**
+     * Colour, rainbow and saturation settings on every cosmetic, even ones whose pack turned them off (imported
+     * wings, say). A cosmetic none of whose parts take colour is then coloured all over.
+     */
+    public boolean colorAnyCosmetic = true;
+    /** Your shield cosmetic also shows on the shield item in your inventory and hotbar. */
+    public boolean shieldItemIcons = true;
     /** Hide capes while an elytra is worn, like the vanilla cape. */
     public boolean hideCapeWithElytra = true;
     /** Capes sway with movement like the vanilla cape. Off: they hang still. */
@@ -144,7 +151,7 @@ public final class CosmeticsConfig {
         public float rainbowSpeed = 1.0f;
         /** How strong the tint or rainbow colour is, 0 (none) to 1 (as picked). */
         public float saturation = 1.0f;
-        /** Size, 0.5..1.5. */
+        /** Size, 0.5..3. */
         public float scale = 1.0f;
         /** Position offset in pixels, -8..8 (+Y is down, -Z is the front). */
         public float offsetX = 0f;
@@ -168,6 +175,8 @@ public final class CosmeticsConfig {
         public float particleSize = 1.0f;
         /** For a pet: where it sits, or null for where its creator put it. */
         public io.github.georgwav.cosmetics.model.PetPosition petPosition = null;
+        /** Turned round to face the other way (for a cosmetic made back to front), around its own middle. */
+        public boolean turned = false;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
@@ -176,7 +185,7 @@ public final class CosmeticsConfig {
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
-                    && petPosition == null;
+                    && petPosition == null && turned == d.turned;
         }
 
         void sanitize() {
@@ -185,7 +194,7 @@ public final class CosmeticsConfig {
             }
             rainbowSpeed = clamp(rainbowSpeed, 0.1f, 5f, 1f);
             saturation = clamp(saturation, 0f, 1f, 1f);
-            scale = clamp(scale, 0.5f, 1.5f, 1f);
+            scale = clamp(scale, 0.5f, MAX_SCALE, 1f);
             offsetX = clamp(offsetX, -8f, 8f, 0f);
             offsetY = clamp(offsetY, -8f, 8f, 0f);
             offsetZ = clamp(offsetZ, -8f, 8f, 0f);
@@ -196,6 +205,25 @@ public final class CosmeticsConfig {
     }
 
     private static final CosmeticOptions DEFAULT_OPTIONS = new CosmeticOptions();
+
+    /** Largest size a player can give a cosmetic. */
+    public static final float MAX_SCALE = 3f;
+
+    /** Colour options, which {@link #colorAnyCosmetic} turns on for every cosmetic. */
+    private static final int COLOR_OPTIONS = io.github.georgwav.cosmetics.model.CosmeticOption.TINT.bit()
+            | io.github.georgwav.cosmetics.model.CosmeticOption.RAINBOW.bit()
+            | io.github.georgwav.cosmetics.model.CosmeticOption.SATURATION.bit();
+
+    /** The options players may change on a cosmetic: what its file allows, plus colour with {@link #colorAnyCosmetic}. */
+    public int allowedOptions(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
+        int allowed = cosmetic.definition().options();
+        return colorAnyCosmetic ? allowed | COLOR_OPTIONS : allowed;
+    }
+
+    public boolean allows(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic,
+                          io.github.georgwav.cosmetics.model.CosmeticOption option) {
+        return (allowedOptions(cosmetic) & option.bit()) != 0;
+    }
 
     public static CosmeticsConfig get() {
         return instance;
@@ -285,6 +313,8 @@ public final class CosmeticsConfig {
         slotVisible = defaultVisibility();
         hideHeadwearWithHelmet = defaults.hideHeadwearWithHelmet;
         severalOfAKind = defaults.severalOfAKind;
+        colorAnyCosmetic = defaults.colorAnyCosmetic;
+        shieldItemIcons = defaults.shieldItemIcons;
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         capePhysics = defaults.capePhysics;
         capeSwing = defaults.capeSwing;

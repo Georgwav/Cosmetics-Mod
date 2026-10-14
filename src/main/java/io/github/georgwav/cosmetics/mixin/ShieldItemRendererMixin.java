@@ -20,7 +20,7 @@ abstract class ShieldItemRendererMixin {
     @Inject(method = "renderByItem", at = @At("HEAD"), cancellable = true)
     private void cosmeticsmod$draw(ItemStack stack, ItemDisplayContext context, PoseStack poseStack,
                                    MultiBufferSource buffers, int light, int overlay, CallbackInfo ci) {
-        if (stack.is(Items.SHIELD) && HeldItems.drawShield(poseStack, buffers, light)) {
+        if (stack.is(Items.SHIELD) && HeldItems.drawShield(poseStack, buffers, light, context)) {
             ci.cancel();
         }
     }
