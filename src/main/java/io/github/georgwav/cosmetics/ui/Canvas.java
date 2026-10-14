@@ -183,6 +183,19 @@ public final class Canvas {
     }
 
     /**
+     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub). From 1.21.6 the clip
+     * goes through the transform; before, it is in GUI units.
+     */
+    public void clipScreen(float x0, float y0, float x1, float y1, float guiScale) {
+        //? if >=1.21.6 {
+        raw.enableScissor((int) Math.floor(x0), (int) Math.floor(y0), (int) Math.ceil(x1), (int) Math.ceil(y1));
+        //?} else {
+        /*raw.enableScissor((int) Math.floor(x0 / guiScale), (int) Math.floor(y0 / guiScale),
+                (int) Math.ceil(x1 / guiScale), (int) Math.ceil(y1 / guiScale));
+        *///?}
+    }
+
+    /**
      * The inventory-style entity preview, turned {@code spin} degrees round its vertical axis and tipped
      * {@code pitch} degrees towards or away from you (both by dragging). The body stays as turned; only the head
      * looks at the mouse, while the face is towards you. Built like vanilla's follow-mouse preview on each version

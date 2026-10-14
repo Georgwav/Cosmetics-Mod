@@ -22,7 +22,7 @@ public final class KeyBinds {
     }
 
     /** Binds {@code mapping} to {@code key} ({@link InputConstants#UNKNOWN} for none), as the Controls screen does. */
-    static void bind(KeyMapping mapping, InputConstants.Key key) {
+    public static void bind(KeyMapping mapping, InputConstants.Key key) {
         mapping.setKey(key);
         KeyMapping.resetMapping();
         Minecraft.getInstance().options.save();
@@ -44,32 +44,32 @@ public final class KeyBinds {
     // A keyboard key pressed: by its key code, or by its scan code when it has none (as the game reads it).
     // 26.3 keeps only key codes (one KEYBOARD type) and reads a pressed key itself.
     //? if >=26.3 {
-    /*static InputConstants.Key keyboard(KeyEvent event) {
+    /*public static InputConstants.Key keyboard(KeyEvent event) {
         return InputConstants.getKey(event);
     }
 
-    static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return InputConstants.Type.KEYBOARD.getOrCreate(keyCode);
     }
     *///?} elif >=1.21.9 {
-    static InputConstants.Key keyboard(KeyEvent event) {
+    public static InputConstants.Key keyboard(KeyEvent event) {
         return keyboard(event.key(), event.scancode());
     }
 
-    static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return keyCode == InputConstants.UNKNOWN.getValue()
                 ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
                 : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
     }
     //?} else {
-    /*static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    /*public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return keyCode == InputConstants.UNKNOWN.getValue()
                 ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
                 : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
     }
     *///?}
 
-    static InputConstants.Key mouse(int button) {
+    public static InputConstants.Key mouse(int button) {
         return InputConstants.Type.MOUSE.getOrCreate(button);
     }
 

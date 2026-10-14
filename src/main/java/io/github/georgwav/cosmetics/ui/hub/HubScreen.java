@@ -9,7 +9,9 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
+import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -120,13 +122,21 @@ public final class HubScreen extends Screen {
     private float oy;
     private int textScale = 1;
     private final List<float[]> orbHits = new ArrayList<>();
-    private final List<Hit> hits = new ArrayList<>();
+    private final List<Ui.Hit> hits = new ArrayList<>();
+    private final Map<String, Float> eased = Ui.newEasing();
 
-    private record Hit(float x0, float y0, float x1, float y1, Runnable action) {
-        boolean contains(float x, float y) {
-            return x >= x0 && x < x1 && y >= y0 && y < y1;
-        }
-    }
+    // A page open over the hub (the Mods list), or null; how open it is (0 = the middle orb, 1 = open).
+    static final String MODS_PAGE = "mods";
+    private String page;
+    private float pageP;
+    private float pageV;
+    /** The page a transition opens, or null when it goes to a sphere. */
+    private String transPage;
+    private final ModsPage modsPage = new ModsPage(this);
+    /** The slider being dragged. */
+    private Ui.Hit dragging;
+    /** The key bind waiting for a key (or mouse button). */
+    private KeyMapping listening;
 
     public HubScreen(Screen parent) {
         super(Component.translatable("cosmeticsmod.hub.title"));
@@ -141,6 +151,16 @@ public final class HubScreen extends Screen {
         hub.level = MODS;
         hub.q = new float[]{1f, 0f, 0f, 0f};
         hub.q = hub.sphere().turnedTo(hub.q, 0);
+        return hub;
+    }
+
+    /** For the in-game test: the Mods page already open, on Fullbright's settings. */
+    public static HubScreen onModsPage() {
+        HubScreen hub = inMods();
+        hub.page = MODS_PAGE;
+        hub.pageP = 1f;
+        hub.spread = 0f;
+        hub.modsPage.show("fullbright");
         return hub;
     }
 
@@ -178,8 +198,7 @@ public final class HubScreen extends Screen {
         HubItem modsVoxy = new HubItem("voxy", "render", HubItem.Kind.LATER).icon("voxy")
                 .missing(() -> Compat.VOXY ? null : t("missing", "Voxy"));
         List<HubItem> mods = List.of(
-                new HubItem("all", "center", HubItem.Kind.ACTION).icon("list").action(this::openModMenu)
-                        .missing(() -> Compat.MOD_MENU ? null : t("missing", "Mod Menu")),
+                new HubItem("all", "center", HubItem.Kind.ACTION).icon("list").action(() -> openPage(MODS_PAGE)),
                 modsShaders,
                 modsVoxy,
                 HubItem.module(Modules.FULLBRIGHT, "render"),
@@ -219,7 +238,7 @@ public final class HubScreen extends Screen {
     }
 
     /** Mod Menu's list of mods, if it is installed; back from it comes back here. */
-    private void openModMenu() {
+    void openModMenu() {
         try {
             Screen list = (Screen) Class.forName("com.terraformersmc.modmenu.gui.ModsScreen")
                     .getConstructor(Screen.class).newInstance(this);
@@ -268,7 +287,7 @@ public final class HubScreen extends Screen {
         ScreenOpener.open(parent);
     }
 
-    private void notify(String text) {
+    void notify(String text) {
         notice = text;
         noticeUntil = System.currentTimeMillis() + 2600;
     }
@@ -303,9 +322,10 @@ public final class HubScreen extends Screen {
 
     /** Into the mods sphere or back: this one spins and is drawn into its middle orb, then the other pours out. */
     private void enter(String to, int entry) {
-        if (mode == Mode.TRANS || to.equals(level)) {
+        if (mode == Mode.TRANS || to.equals(level) || page != null) {
             return;
         }
+        transPage = null;
         hover = -1;
         pressed = false;
         transTo = to;
@@ -313,6 +333,52 @@ public final class HubScreen extends Screen {
         transOut = true;
         transStart = System.nanoTime();
         mode = Mode.TRANS;
+    }
+
+    /** Opens a page over the hub: the sphere is drawn into its middle orb, and the page grows out of it. */
+    void openPage(String id) {
+        if (mode == Mode.TRANS || page != null) {
+            return;
+        }
+        hover = -1;
+        pressed = false;
+        transTo = level;
+        transPage = id;
+        transEntry = sel;
+        transOut = true;
+        transStart = System.nanoTime();
+        mode = Mode.TRANS;
+    }
+
+    /** Back from the page to the sphere. */
+    void closePage() {
+        if (mode == Mode.TRANS || page == null) {
+            return;
+        }
+        listening = null;
+        dragging = null;
+        transTo = level;
+        transPage = null;
+        transEntry = sel;
+        transOut = true;
+        transStart = System.nanoTime();
+        mode = Mode.TRANS;
+        if (!query.isEmpty()) {
+            search.setValue("");
+        }
+    }
+
+    KeyMapping listeningFor() {
+        return listening;
+    }
+
+    void listenFor(KeyMapping key) {
+        listening = key;
+    }
+
+    private void bindListened(InputConstants.Key key) {
+        KeyBinds.bind(listening, key);
+        listening = null;
     }
 
     /** Using the orb in the middle. */
@@ -373,9 +439,40 @@ public final class HubScreen extends Screen {
     }
 
     private void stepTransition() {
+        if (transOut && page != null) {
+            // The page shrinks back into the middle orb; then the sphere pours out of it.
+            float k = Math.min(1f, (System.nanoTime() - transStart) / 300e6f);
+            pageP = 1f - k * k;
+            if (k >= 1f) {
+                page = null;
+                pageP = 0f;
+                transOut = false;
+                spread = 0f;
+                spreadV = 0f;
+            }
+            return;
+        }
+        if (!transOut && page != null) {
+            pageV = (pageV + (1f - pageP) * 0.05f) * 0.8f;
+            pageP += pageV;
+            if (Math.abs(1f - pageP) < 0.002f && Math.abs(pageV) < 0.002f) {
+                pageP = 1f;
+                mode = Mode.IDLE;
+            }
+            return;
+        }
         if (transOut) {
             float k = Math.min(1f, (System.nanoTime() - transStart) / 420e6f);
             spread = 1f - k * k;
+            if (k >= 1f && transPage != null) {
+                transOut = false;
+                page = transPage;
+                transPage = null;
+                pageP = 0f;
+                pageV = 0f;
+                spread = 0f;
+                return;
+            }
             if (k >= 1f) {
                 String from = level;
                 level = transTo;
@@ -415,6 +512,9 @@ public final class HubScreen extends Screen {
 
     private void onQuery(String text) {
         query = text;
+        if (page != null) {
+            return;
+        }
         int[] m = firstMatch(text);
         if (m != null) {
             goToMatch(m);
@@ -472,16 +572,30 @@ public final class HubScreen extends Screen {
     }
 
     private boolean press(double guiX, double guiY, int button) {
+        if (listening != null && button != 0) {
+            // A key bind waiting for a key takes the mouse button too (the left one only stops it waiting).
+            bindListened(KeyBinds.mouse(button));
+            return true;
+        }
         if (button != 0) {
             return false;
         }
         float x = designX(guiX);
         float y = designY(guiY);
-        for (Hit hit : hits) {
+        for (Ui.Hit hit : hits) {
             if (hit.contains(x, y)) {
-                hit.action.run();
+                if (hit.drag() != null) {
+                    dragging = hit;
+                    hit.drag().accept(x);
+                } else {
+                    hit.action().run();
+                }
                 return true;
             }
+        }
+        listening = null;
+        if (page != null) {
+            return true;
         }
         if (mode == Mode.TRANS || y < 90f || y > 726f) {
             return false;
@@ -495,6 +609,10 @@ public final class HubScreen extends Screen {
     }
 
     private boolean drag(double guiX, double guiY) {
+        if (dragging != null) {
+            dragging.drag().accept(designX(guiX));
+            return true;
+        }
         if (!pressed) {
             return false;
         }
@@ -520,6 +638,10 @@ public final class HubScreen extends Screen {
     }
 
     private boolean release(double guiX, double guiY) {
+        if (dragging != null) {
+            dragging = null;
+            return true;
+        }
         if (!pressed) {
             return false;
         }
@@ -536,8 +658,23 @@ public final class HubScreen extends Screen {
         return true;
     }
 
-    /** Keys the hub handles itself; the rest go to the search field. */
-    private boolean key(int key) {
+    /** Keys the hub handles itself; the rest go to the search field. {@code asKey} is the key as a key bind takes it. */
+    private boolean key(int key, InputConstants.Key asKey) {
+        if (listening != null) {
+            bindListened(key == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN : asKey);
+            return true;
+        }
+        if (page != null) {
+            if (key == InputConstants.KEY_ESCAPE) {
+                if (!query.isEmpty()) {
+                    search.setValue("");
+                } else {
+                    closePage();
+                }
+                return true;
+            }
+            return false;
+        }
         if (key == InputConstants.KEY_ESCAPE) {
             if (!query.isEmpty()) {
                 search.setValue("");
@@ -570,6 +707,12 @@ public final class HubScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (page != null) {
+            if (modsPage.overList(designX(mouseX), designY(mouseY))) {
+                modsPage.scrollBy(scrollY);
+            }
+            return true;
+        }
         wheelSum += (float) (scrollY != 0 ? scrollY : -scrollX);
         if (Math.abs(wheelSum) >= 1f) {
             step(wheelSum > 0 ? -1 : 1);
@@ -597,7 +740,7 @@ public final class HubScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        return key(event.key()) || super.keyPressed(event);
+        return key(event.key(), KeyBinds.keyboard(event)) || super.keyPressed(event);
     }
     //?} else {
     /*@Override
@@ -617,7 +760,7 @@ public final class HubScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return key(keyCode) || super.keyPressed(keyCode, scanCode, modifiers);
+        return key(keyCode, KeyBinds.keyboard(keyCode, scanCode)) || super.keyPressed(keyCode, scanCode, modifiers);
     }
     *///?}
 
@@ -672,13 +815,62 @@ public final class HubScreen extends Screen {
         g.scale(1f / gs, 1f / gs);
         g.gradient(0, 0, (int) Math.ceil(screenW), (int) Math.ceil(screenH), 0x500C0B16, 0x900C0B16);
         hits.clear();
-        drawSphere(g, mx, my);
+        if (page != null) {
+            drawPage(g, mx, my);
+        } else {
+            drawSphere(g, mx, my);
+        }
         g.nextLayer();
         drawIsland(g);
         drawBar(g);
         g.nextLayer();
-        drawTooltip(g);
+        if (page == null) {
+            drawTooltip(g);
+        }
         g.pop();
+    }
+
+    /**
+     * A page: one big panel grown out of the middle orb, its edge rippling all the time, squarer as it opens; its
+     * contents once it's (nearly) open.
+     */
+    private void drawPage(Canvas g, float mx, float my) {
+        float p = pageP;
+        float q01 = Math.max(0f, Math.min(1f, p));
+        float start = 155f;
+        float a = (start + (1280f - start) * p) / 2f;
+        float b = (start + (640f - start) * p) / 2f;
+        float n = 2f + 3.4f * q01;
+        float amp = 3f + 4f * q01;
+        float cx = CX;
+        float cy = CY + 12f * p;
+        double time = System.nanoTime() / 1e9;
+        int count = 160;
+        float[] xs = new float[count];
+        float[] ys = new float[count];
+        float e = 2f / n;
+        for (int i = 0; i < count; i++) {
+            double th = i * Math.PI * 2 / count;
+            double c = Math.cos(th);
+            double sn = Math.sin(th);
+            double x = a * Math.signum(c) * Math.pow(Math.abs(c), e);
+            double y = b * Math.signum(sn) * Math.pow(Math.abs(sn), e);
+            double r = Math.max(1e-6, Math.hypot(x, y));
+            double wave = amp * (0.5 * Math.sin(2 * th + time * 0.7 + 1.2) + 0.35 * Math.sin(3 * th - time * 1.1 + 2.4)
+                    + 0.25 * Math.sin(5 * th + time * 1.6 + 3.6));
+            xs[i] = sx((float) (cx + x + x / r * wave));
+            ys[i] = sy((float) (cy + y + y / r * wave));
+        }
+        Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
+        // A soft light at the top left, like the canvas's panel.
+        for (int ring = 0; ring < 4; ring++) {
+            float rr = (0.5f - ring * 0.1f) * Math.min(a, b);
+            Shapes.fill(g, Shapes.circle(sx(cx - a * 0.55f), sy(cy - b * 0.6f), rr * u), 0x0AFFFFFF);
+        }
+        if (p > 0.85f) {
+            Ui ui = new Ui(g, font, u, ox, oy, gs, textScale, mx, my, ACCENT, INK, hits, eased);
+            modsPage.draw(ui, query);
+        }
     }
 
     // Orbs drawn this frame, back to front; the tooltip needs the hovered one.
@@ -807,6 +999,10 @@ public final class HubScreen extends Screen {
 
     /** The island: what the orb in the middle is, and the button that uses it. */
     private void drawIsland(Canvas g) {
+        if (page != null) {
+            drawPageIsland(g);
+            return;
+        }
         Sphere s = sphere();
         boolean moving = mode == Mode.DRAG || mode == Mode.COAST;
         boolean settled = mode == Mode.IDLE;
@@ -836,8 +1032,9 @@ public final class HubScreen extends Screen {
                 : it.kind == HubItem.Kind.TOGGLE ? t(isOn ? "turn_off" : "turn_on") : t("button." + it.button);
         float bw = label == null ? 0f : font.width(label) * textScale / u + 32f;
         float textW = Math.max(font.width(name(it)), font.width(line)) * textScale / u;
+        boolean gear = action && it.moduleId != null;
         // The island grows to fit what it says, like the real one.
-        islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + (label == null ? 0f : bw + 12f) + 10f));
+        islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + (label == null ? 0f : bw + 12f) + (gear ? 56f : 0f) + 10f));
         float w = islandW;
         float h = 60f;
         float left = CX - w / 2f;
@@ -871,8 +1068,21 @@ public final class HubScreen extends Screen {
             text(g, label, Math.round(sx(bx + bw / 2f) - tw / 2f), Math.round(sy(by + 22f) - 4f * textScale),
                     bg == ACCENT ? INK : TEXT, textScale);
             int index = centered;
-            hits.add(new Hit(bx, by, bx + bw, by + 44f, () -> use(index)));
+            hits.add(new Ui.Hit(bx, by, bx + bw, by + 44f, () -> use(index), null));
             right = bx - 12f;
+            if (gear) {
+                // The module's own settings, on the Mods page.
+                float gx = right - 44f;
+                Shapes.fill(g, Shapes.circle(sx(gx + 22f), sy(by + 22f), 22f * u), WELL);
+                int size = Math.round(18f * u);
+                g.blit(icon("gear"), Math.round(sx(gx + 22f) - size / 2f), Math.round(sy(by + 22f) - size / 2f), size, size, 64);
+                String id = it.moduleId;
+                hits.add(new Ui.Hit(gx, by, gx + 44f, by + 44f, () -> {
+                    modsPage.show(id);
+                    openPage(MODS_PAGE);
+                }, null));
+                right = gx - 12f;
+            }
         }
         int room = Math.round((right - textX) * u);
         float lineH = 9f * textScale / u;
@@ -880,13 +1090,49 @@ public final class HubScreen extends Screen {
         text(g, fit(line, room), Math.round(sx(textX)), Math.round(sy(wellY + 2f)), TEXT_DIM, textScale);
     }
 
+    private void drawPageIsland(Canvas g) {
+        String name = t("mods.title");
+        long on = Modules.all().stream().filter(io.github.georgwav.cosmetics.client.Module::enabled).count();
+        String line = notice != null ? notice : listening != null ? t("mods.press_key") : t("mods.island", on, Modules.all().size());
+        String label = t("done");
+        float bw = font.width(label) * textScale / u + 32f;
+        float textW = Math.max(font.width(name), font.width(line)) * textScale / u;
+        islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + bw + 12f + 10f));
+        float w = islandW;
+        float h = 60f;
+        float left = CX - w / 2f;
+        float top = 20f;
+        Shapes.fill(g, Shapes.roundRect(sx(left - 4f), sy(top + 10f), (w + 8f) * u, (h + 8f) * u, (h + 8f) * u / 2f), 0x30000000);
+        Shapes.fill(g, Shapes.roundRect(sx(left), sy(top), w * u, h * u, h * u / 2f), 0xFF000000);
+        Shapes.fill(g, Shapes.circle(sx(left + 30f), sy(top + 30f), 20f * u), WELL);
+        int size = Math.round(20f * u);
+        g.blit(icon("list"), Math.round(sx(left + 30f) - size / 2f), Math.round(sy(top + 30f) - size / 2f), size, size, 64);
+        float right = left + w - 10f;
+        if (mode == Mode.IDLE) {
+            float bx = right - bw;
+            Shapes.fill(g, Shapes.roundRect(sx(bx), sy(top + 8f), bw * u, 44f * u, 22f * u), WELL);
+            int tw = font.width(label) * textScale;
+            text(g, label, Math.round(sx(bx + bw / 2f) - tw / 2f), Math.round(sy(top + 30f) - 4f * textScale), TEXT, textScale);
+            hits.add(new Ui.Hit(bx, top + 8f, bx + bw, top + 52f, this::closePage, null));
+            right = bx - 12f;
+        }
+        int room = Math.round((right - left - 62f) * u);
+        float lineH = 9f * textScale / u;
+        text(g, fit(name, room), Math.round(sx(left + 62f)), Math.round(sy(top + 30f - lineH - 1f)), TEXT, textScale);
+        text(g, fit(line, room), Math.round(sx(left + 62f)), Math.round(sy(top + 32f)), TEXT_DIM, textScale);
+    }
+
     /** The bar at the bottom: back to the hub (in the mods sphere), previous, search, next. */
     private void drawBar(Canvas g) {
-        boolean back = !level.equals(MAIN);
+        boolean onPage = page != null;
+        boolean hasBack = onPage || !level.equals(MAIN);
+        Runnable back = onPage ? this::closePage : () -> enter(MAIN, -1);
         String backLabel = t("back");
-        float backW = back ? font.width(backLabel) * textScale / u + 46f : 0f;
-        float searchW = Math.max(280f, Math.min(420f, font.width(t("search")) * textScale / u + 60f));
-        float w = 4f + (back ? backW + 6f : 0f) + 44f + 6f + searchW + 6f + 44f + 4f;
+        String hint = t(onPage ? "mods.search" : "search");
+        float backW = hasBack ? font.width(backLabel) * textScale / u + 46f : 0f;
+        float searchW = Math.max(280f, Math.min(420f, font.width(hint) * textScale / u + 60f));
+        float arrows = onPage ? 0f : 100f;
+        float w = 4f + (hasBack ? backW + 6f : 0f) + arrows + searchW + 4f;
         float left = CX - w / 2f;
         float top = 744f;
         float h = 52f;
@@ -894,16 +1140,18 @@ public final class HubScreen extends Screen {
         Shapes.fill(g, Shapes.roundRect(sx(left), sy(top), w * u, h * u, h * u / 2f), 0xFF000000);
         float x = left + 4f;
         float y = top + 4f;
-        if (back) {
+        if (hasBack) {
             Shapes.fill(g, Shapes.roundRect(sx(x), sy(y), backW * u, 44f * u, 22f * u), WELL);
             int size = Math.round(16f * u);
             g.blit(icon("back"), Math.round(sx(x + 10f)), Math.round(sy(y + 22f) - size / 2f), size, size, 64);
             text(g, backLabel, Math.round(sx(x + 30f)), Math.round(sy(y + 22f) - 4f * textScale), TEXT, textScale);
-            hits.add(new Hit(x, y, x + backW, y + 44f, () -> enter(MAIN, -1)));
+            hits.add(new Ui.Hit(x, y, x + backW, y + 44f, back, null));
             x += backW + 6f;
         }
-        roundButton(g, x, y, "back", () -> step(-1));
-        x += 50f;
+        if (!onPage) {
+            roundButton(g, x, y, "back", () -> step(-1));
+            x += 50f;
+        }
         // The search field: the text you type anywhere in the hub shows here.
         Shapes.fill(g, Shapes.roundRect(sx(x), sy(y), searchW * u, 44f * u, 22f * u), 0xFF2A2A2E);
         Shapes.fill(g, Shapes.roundRect(sx(x + 1f), sy(y + 1f), (searchW - 2f) * u, 42f * u, 21f * u), 0xFF141416);
@@ -912,7 +1160,7 @@ public final class HubScreen extends Screen {
         int textY = Math.round(sy(y + 22f) - 4f * textScale);
         int room = Math.round((searchW - 56f) * u);
         if (query.isEmpty()) {
-            text(g, fit(t("search"), room), Math.round(sx(x + 40f)), textY, 0x80FFFFFF, textScale);
+            text(g, fit(hint, room), Math.round(sx(x + 40f)), textY, 0x80FFFFFF, textScale);
         } else {
             String shown = fitEnd(query, room);
             int tx = Math.round(sx(x + 40f));
@@ -923,14 +1171,16 @@ public final class HubScreen extends Screen {
             }
         }
         x += searchW + 6f;
-        roundButton(g, x, y, "next", () -> step(1));
+        if (!onPage) {
+            roundButton(g, x, y, "next", () -> step(1));
+        }
     }
 
     private void roundButton(Canvas g, float x, float y, String iconName, Runnable action) {
         Shapes.fill(g, Shapes.circle(sx(x + 22f), sy(y + 22f), 22f * u), WELL);
         int size = Math.round(18f * u);
         g.blit(icon(iconName), Math.round(sx(x + 22f) - size / 2f), Math.round(sy(y + 22f) - size / 2f), size, size, 64);
-        hits.add(new Hit(x, y, x + 44f, y + 44f, action));
+        hits.add(new Ui.Hit(x, y, x + 44f, y + 44f, action, null));
     }
 
     /** The player's face (with the hat layer of the skin), or a plain one before the skin is known. */
@@ -960,7 +1210,7 @@ public final class HubScreen extends Screen {
     //? if >=1.21.11 {
     private static final Map<String, Identifier> ICONS = new HashMap<>();
 
-    private static Identifier icon(String name) {
+    static Identifier icon(String name) {
         return ICONS.computeIfAbsent(name, n -> Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "textures/gui/hub/" + n + ".png"));
     }
 
@@ -971,7 +1221,7 @@ public final class HubScreen extends Screen {
     //?} elif >=1.21.9 {
     /*private static final Map<String, ResourceLocation> ICONS = new HashMap<>();
 
-    private static ResourceLocation icon(String name) {
+    static ResourceLocation icon(String name) {
         return ICONS.computeIfAbsent(name, n -> ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "textures/gui/hub/" + n + ".png"));
     }
 
@@ -982,7 +1232,7 @@ public final class HubScreen extends Screen {
     *///?} else {
     /*private static final Map<String, ResourceLocation> ICONS = new HashMap<>();
 
-    private static ResourceLocation icon(String name) {
+    static ResourceLocation icon(String name) {
         return ICONS.computeIfAbsent(name, n -> ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "textures/gui/hub/" + n + ".png"));
     }
 

@@ -40,6 +40,8 @@ final class HubItem {
     /** Its name and note when they aren't the hub's own (a module's), or null. */
     Supplier<String> label;
     Supplier<String> note;
+    /** The module this orb switches, whose settings its gear opens; null for other orbs. */
+    String moduleId;
 
     HubItem(String id, String group, Kind kind) {
         this.id = id;
@@ -93,6 +95,7 @@ final class HubItem {
         HubItem item = new HubItem(m.id, group, Kind.TOGGLE).icon(m.icon).toggle(m::enabled, m::setEnabled);
         item.label = m::name;
         item.note = m::note;
+        item.moduleId = m.id;
         return item;
     }
 }

@@ -97,7 +97,7 @@ final class VersionHooks {
     }
 
     /** A key bind for a client module: unbound until the player binds it (here or in Controls). */
-    public static KeyMapping registerUnboundKey(String name) {
+    static KeyMapping registerUnboundKey(String name) {
         return registerKeyMapping(name, InputConstants.UNKNOWN.getValue());
     }
 

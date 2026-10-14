@@ -6,12 +6,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.georgwav.cosmetics.CosmeticsMod;
-import io.github.georgwav.cosmetics.VersionHooks;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.client.modules.ToggleSprint;
 import io.github.georgwav.cosmetics.client.modules.WeatherChanger;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 
 import java.io.IOException;
@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * The client's modules: made and given their keys at startup, saved to their own file, and ticked. Everything is
@@ -53,10 +54,10 @@ public final class Modules {
         return null;
     }
 
-    /** At startup: registers each module's key (unbound) and reads the saved state. */
-    public static void init() {
+    /** At startup: registers each module's key (unbound, through {@code registerKey}) and reads the saved state. */
+    public static void init(Function<String, KeyMapping> registerKey) {
         for (Module m : ALL) {
-            m.toggleKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.module." + m.id);
+            m.toggleKey = registerKey.apply("key.cosmeticsmod.module." + m.id);
         }
         load();
     }
