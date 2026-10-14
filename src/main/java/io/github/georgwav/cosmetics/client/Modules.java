@@ -127,18 +127,25 @@ public final class Modules {
         }
     }
 
-    private static Path file() {
+    /** This instance's file: which main folder (and the modules, while there is no main folder). */
+    private static Path instanceFile() {
         return FabricLoader.getInstance().getConfigDir().resolve(CosmeticsMod.MOD_ID + "-client.json");
     }
 
+    /** The modules' file in the main folder, which every instance shares, or null without a main folder. */
+    private static Path sharedFile() {
+        return MainFolder.appFolder() == null ? null : MainFolder.clientFolder().resolve("modules.json");
+    }
+
+    private static JsonObject read(Path file) throws IOException {
+        return JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+    }
+
     private static void load() {
-        Path file = file();
-        if (!Files.isRegularFile(file)) {
-            return;
-        }
+        Path file = instanceFile();
         loading = true;
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject root = Files.isRegularFile(file) ? read(file) : new JsonObject();
             if (root.has("mainFolder") && root.get("mainFolder").isJsonPrimitive()) {
                 try {
                     MainFolder.chosen = Path.of(root.get("mainFolder").getAsString());
@@ -146,21 +153,19 @@ public final class Modules {
                     MainFolder.chosen = null;
                 }
             }
+            // The main folder's modules when it has them; else this instance's (moved there on the next save).
+            Path shared = sharedFile();
+            if (shared != null && Files.isRegularFile(shared)) {
+                file = shared;
+                root = read(shared);
+            }
             JsonObject modules = root.has("modules") ? root.getAsJsonObject("modules") : new JsonObject();
             for (Module m : ALL) {
-                if (!modules.has(m.id)) {
-                    continue;
+                if (modules.has(m.id)) {
+                    JsonObject saved = modules.getAsJsonObject(m.id);
+                    m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
+                    loadSettings(m, saved);
                 }
-                JsonObject saved = modules.getAsJsonObject(m.id);
-                m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
-                JsonObject values = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
-                for (Setting<?> s : m.settings) {
-                    JsonElement v = values.get(s.id);
-                    if (v != null) {
-                        s.load(v);
-                    }
-                }
-                m.loadState(saved.has("state") ? saved.getAsJsonObject("state") : new JsonObject());
             }
         } catch (IOException | RuntimeException e) {
             CosmeticsMod.LOGGER.warn("Couldn't read {}; client modules start off", file, e);
@@ -169,14 +174,19 @@ public final class Modules {
         }
     }
 
-    public static void save() {
-        if (loading) {
-            return;
+    private static void loadSettings(Module m, JsonObject saved) {
+        JsonObject values = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
+        for (Setting<?> s : m.settings) {
+            JsonElement v = values.get(s.id);
+            if (v != null) {
+                s.load(v);
+            }
         }
-        JsonObject root = new JsonObject();
-        if (MainFolder.chosen != null) {
-            root.addProperty("mainFolder", MainFolder.chosen.toString());
-        }
+        m.loadState(saved.has("state") ? saved.getAsJsonObject("state") : new JsonObject());
+    }
+
+    /** Every module: on or off, its settings, and its own state (a HUD module's place). */
+    public static JsonObject toJson() {
         JsonObject modules = new JsonObject();
         for (Module m : ALL) {
             JsonObject saved = new JsonObject();
@@ -193,8 +203,59 @@ public final class Modules {
             }
             modules.add(m.id, saved);
         }
-        root.add("modules", modules);
-        Path file = file();
+        return modules;
+    }
+
+    /**
+     * Puts modules as {@link #toJson()} wrote them (a profile): their settings, then each switched on or off the way
+     * a click would, so what they change in the game follows. Modules it doesn't mention stay as they are.
+     */
+    public static void apply(JsonObject modules) {
+        Minecraft mc = Minecraft.getInstance();
+        loading = true;
+        try {
+            for (Module m : ALL) {
+                if (!modules.has(m.id) || !modules.get(m.id).isJsonObject()) {
+                    continue;
+                }
+                JsonObject saved = modules.getAsJsonObject(m.id);
+                loadSettings(m, saved);
+                if (m.enabled()) {
+                    m.onSettingsChanged(mc);
+                }
+                m.setEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
+            }
+        } finally {
+            loading = false;
+        }
+        save();
+    }
+
+    /**
+     * Saves the modules: into the main folder when there is one (shared by every instance), else into this
+     * instance's file, which always says which main folder it uses.
+     */
+    public static void save() {
+        if (loading) {
+            return;
+        }
+        JsonObject modules = toJson();
+        JsonObject instance = new JsonObject();
+        if (MainFolder.chosen != null) {
+            instance.addProperty("mainFolder", MainFolder.chosen.toString());
+        }
+        Path shared = sharedFile();
+        if (shared != null) {
+            JsonObject root = new JsonObject();
+            root.add("modules", modules);
+            write(shared, root);
+        } else {
+            instance.add("modules", modules);
+        }
+        write(instanceFile(), instance);
+    }
+
+    private static void write(Path file, JsonObject root) {
         try {
             Files.createDirectories(file.getParent());
             Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);

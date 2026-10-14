@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.hub;
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.Profiles;
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import net.fabricmc.loader.api.FabricLoader;
@@ -23,7 +24,7 @@ import java.util.Set;
  */
 final class ModsPage implements HubPage {
     private static final Set<String> NOT_LISTED = Set.of("minecraft", "java", "fabricloader", CosmeticsMod.MOD_ID);
-    private static final String[] SECTIONS = {"all", "on", "view", "world", "hud", "installed", "look"};
+    private static final String[] SECTIONS = {"all", "on", "view", "world", "hud", "profiles", "installed", "look"};
     // Everything stays inside the open panel (x 80 to 1360, y 92 to 732, rounded corners): the header across the
     // top, the sections down the left, the list to their right.
     private static final float LEFT = 148f;
@@ -40,6 +41,11 @@ final class ModsPage implements HubPage {
     private float scroll;
     private float contentHeight;
     private List<ModContainer> installed;
+    /** The saved profiles' names, read again now and then (they are files). */
+    private List<String> profiles;
+    private long profilesRead;
+    /** The profile whose Delete was clicked once (a second click deletes it). */
+    private String deleting;
 
     ModsPage(HubScreen hub) {
         this.hub = hub;
@@ -83,9 +89,18 @@ final class ModsPage implements HubPage {
         };
     }
 
+    private List<String> profiles() {
+        if (profiles == null || System.currentTimeMillis() - profilesRead > 2000) {
+            profiles = Profiles.names();
+            profilesRead = System.currentTimeMillis();
+        }
+        return profiles;
+    }
+
     private int count(String id) {
         return switch (id) {
             case "installed" -> installed().size();
+            case "profiles" -> profiles().size();
             case "look" -> 1;
             default -> (int) Modules.all().stream().filter(m -> shows(m, id)).count();
         };
@@ -164,7 +179,7 @@ final class ModsPage implements HubPage {
         float y = LIST_TOP - scroll;
         float start = y;
         boolean any = false;
-        if (!section.equals("installed") && !section.equals("look") || !needle.isEmpty()) {
+        if (!section.equals("installed") && !section.equals("look") && !section.equals("profiles") || !needle.isEmpty()) {
             Module.Category last = null;
             for (Module m : Modules.all()) {
                 if (needle.isEmpty() ? !shows(m, section) : !matches(m, needle)) {
@@ -194,6 +209,13 @@ final class ModsPage implements HubPage {
         }
         if (section.equals("look") && needle.isEmpty()) {
             y = lookCard(ui, y);
+            any = true;
+        }
+        if (section.equals("profiles") && needle.isEmpty()) {
+            y = saveProfileCard(ui, y);
+            for (String name : profiles()) {
+                y = profileCard(ui, name, y);
+            }
             any = true;
         }
         if (!any) {
@@ -313,6 +335,54 @@ final class ModsPage implements HubPage {
             float room = textRight - 16f - textX;
             ui.text(ui.fit(name, room, Ui.NAME, true), textX, y + 16f, Ui.TEXT, Ui.NAME, true);
             ui.text(ui.fit(version, room, Ui.SMALL, false), textX, y + 35f, Ui.TEXT_DIM, Ui.SMALL, false);
+        }
+        return y + h + 10f;
+    }
+
+    /** Saving every module's settings as a new profile, "Profile N". */
+    private float saveProfileCard(Ui ui, float y) {
+        float h = 64f;
+        float right = LIST_X + LIST_W - 20f;
+        ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
+        String typed = Profiles.nextName(t("profile"), profiles());
+        String label = t("save_profile");
+        float left = ui.buttonRight(label, right, y + 14f, 36f, true, () -> {
+            String saved = Profiles.save(typed);
+            profiles = null;
+            hub.notify(saved != null ? t("profile_saved", saved) : t("profile_not_saved"));
+        });
+        float textX = LIST_X + 24f;
+        float room = left - 16f - textX;
+        ui.text(ui.fit(t("profiles"), room, Ui.NAME, true), textX, y + 18f, Ui.TEXT, Ui.NAME, true);
+        ui.text(ui.fit(t("profiles.hint", typed), room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
+        return y + h + 10f;
+    }
+
+    /** A saved profile: Load puts its settings back; Delete (clicked twice) removes it. */
+    private float profileCard(Ui ui, String name, float y) {
+        float h = 60f;
+        if (y + h >= LIST_TOP && y <= LIST_BOTTOM) {
+            float right = LIST_X + LIST_W - 20f;
+            ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
+            ui.circle(LIST_X + 34f, y + 30f, 18f, Ui.WELL);
+            ui.icon("sliders", LIST_X + 34f, y + 30f, 18f, false);
+            boolean sure = name.equals(deleting);
+            float x = ui.buttonRight(t(sure ? "delete_sure" : "delete"), right, y + 12f, 36f, false, () -> {
+                if (sure) {
+                    Profiles.delete(name);
+                    profiles = null;
+                    deleting = null;
+                } else {
+                    deleting = name;
+                }
+            });
+            x = ui.buttonRight(t("load"), x - 8f, y + 12f, 36f, true, () -> {
+                deleting = null;
+                boolean ok = Profiles.load(name);
+                hub.notify(ok ? t("profile_loaded", name) : t("profile_unreadable"));
+            });
+            float textX = LIST_X + 66f;
+            ui.textMid(ui.fit(name, x - 16f - textX, Ui.NAME, true), textX, y + 30f, Ui.TEXT, Ui.NAME, true);
         }
         return y + h + 10f;
     }
