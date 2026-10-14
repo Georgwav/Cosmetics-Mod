@@ -362,6 +362,9 @@ WING_PIXELS_PER_UNIT = 0.1 * 16.0
 # masks and backpacks show), nine bend back from the back and six forward into the body, ZickZack v5 among them,
 # which players saw the wrong way round.
 WING_FORWARD_LIMIT = 0.75
+# Wings players found the wrong way round whatever their model's shape says: always turned around front to back.
+# (type, cosmetic id): BastiGHG's 2 Million Golden Ruby Wings.
+WINGS_MADE_BACKWARDS = {("WINGS", 154)}
 
 
 def axis_angle(raw) -> list[list[float]] | None:
@@ -828,10 +831,13 @@ class Planner:
             turned_first = first_person_turned(model)
         else:
             place = placement(c, model, mf.md5, rule, ts)
-            if rule.kind == "wings" and not mf.md5:
-                turned = wing_faces_forward(place, meshes.summarize_obj(self.text(mesh_path)).bounds)
-                if turned:
-                    notes.append("wings turned around front to back: the model reached forward into the body")
+            if rule.kind == "wings":
+                if (c.type, c.id) in WINGS_MADE_BACKWARDS:
+                    turned = True
+                    notes.append("wings turned around front to back: players found them the wrong way round")
+                elif not mf.md5 and wing_faces_forward(place, meshes.summarize_obj(self.text(mesh_path)).bounds):
+                    turned = True
+                    notes.append("wings turned around front to back: the model bent forward into the body")
 
         mesh = {"model": mf.location, "shading": ts.shading, **place.mesh_keys()}
         if turned:

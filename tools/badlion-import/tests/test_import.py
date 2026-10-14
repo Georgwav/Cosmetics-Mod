@@ -310,6 +310,16 @@ def test_small_sizing_scales_are_blocks_per_unit():
                              ts).scale == 1.0
 
 
+def test_wings_players_found_backwards_are_turned_whatever_their_shape(input_folder, tmp_path, monkeypatch):
+    assert ("WINGS", 154) in convert.WINGS_MADE_BACKWARDS  # BastiGHG's 2 Million Golden Ruby Wings
+    # The bat wings stand in for them: turned too, though their model isn't one that bends forward.
+    monkeypatch.setattr(convert, "WINGS_MADE_BACKWARDS", {("WINGS", 8)})
+    out = tmp_path / "pack"
+    run(input_folder, out, "--name", "bat_w")
+    right, left = cosmetic(out, "wings_8_*.json")["parts"]
+    assert right["meshes"][0]["mirror"] is True and "mirror" not in left["meshes"][0]
+
+
 def test_wings_made_facing_forward_are_turned_around():
     wings = badlion.Model("WINGS", "zickzack", {"scale": 0.0})
     rule, ts = convert.RULES["WINGS"], convert.TypeSettings()
