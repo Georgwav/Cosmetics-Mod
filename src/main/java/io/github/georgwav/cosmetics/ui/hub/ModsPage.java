@@ -23,7 +23,7 @@ import java.util.Set;
  */
 final class ModsPage {
     private static final Set<String> NOT_LISTED = Set.of("minecraft", "java", "fabricloader", CosmeticsMod.MOD_ID);
-    private static final String[] SECTIONS = {"all", "on", "view", "world", "installed", "look"};
+    private static final String[] SECTIONS = {"all", "on", "view", "world", "hud", "installed", "look"};
     // Everything stays inside the open panel (x 80 to 1360, y 92 to 732, rounded corners): the header across the
     // top, the sections down the left, the list to their right.
     private static final float LEFT = 148f;
@@ -78,6 +78,7 @@ final class ModsPage {
             case "on" -> m.enabled();
             case "view" -> m.category == Module.Category.VIEW;
             case "world" -> m.category == Module.Category.WORLD;
+            case "hud" -> m.category == Module.Category.HUD;
             default -> false;
         };
     }
@@ -216,7 +217,6 @@ final class ModsPage {
 
     /** A module's setting: its name (a dot when changed) and its control on the right. */
     private void settingRow(Ui ui, Module m, Setting<?> s, float y, float textX, float right) {
-        String base = "cosmeticsmod.module." + m.id + "." + s.id;
         float cy = y + 28f;
         float controlLeft = right;
         if (s instanceof Setting.Toggle toggle) {
@@ -231,7 +231,7 @@ final class ModsPage {
         } else if (s instanceof Setting.Choice choice) {
             List<String> labels = new ArrayList<>();
             for (String option : choice.options) {
-                labels.add(Component.translatable(base + "." + option).getString());
+                labels.add(m.optionName(s, option));
             }
             float w = ui.choiceWidth(labels);
             ui.choice(m.id + "." + s.id, right - w, cy - 18f, labels, choice.options.indexOf(choice.get()),
@@ -241,7 +241,7 @@ final class ModsPage {
         if (s.changed()) {
             ui.circle(textX - 9f, cy, 3.5f, ui.accent);
         }
-        String name = Component.translatable(base).getString();
+        String name = m.settingName(s);
         ui.textMid(ui.fit(name, controlLeft - 16f - textX, Ui.NAME, false), textX, cy, Ui.TEXT, Ui.NAME, false);
     }
 

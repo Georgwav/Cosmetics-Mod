@@ -62,9 +62,9 @@ public final class HubScreen extends Screen {
     private static final float CY = 400f;
     private static final float STEP = 1f / 60f;
 
-    private static final int ACCENT = 0xFFBDBDBD;
-    private static final boolean INK_DARK = lightness(ACCENT) > 0.35f;
-    private static final int INK = INK_DARK ? 0xFF111114 : 0xFFFFFFFF;
+    static final int ACCENT = 0xFFBDBDBD;
+    static final boolean INK_DARK = lightness(ACCENT) > 0.35f;
+    static final int INK = INK_DARK ? 0xFF111114 : 0xFFFFFFFF;
     private static final int WELL = 0xFF1C1C1F;
     private static final int TEXT = 0xFFFFFFFF;
     private static final int TEXT_DIM = 0x9EFFFFFF;
@@ -154,6 +154,14 @@ public final class HubScreen extends Screen {
         return hub;
     }
 
+    /** The hub opening the Mods page on one module's settings (right-click in the HUD editor). */
+    public static HubScreen moduleSettings(String moduleId) {
+        HubScreen hub = inMods();
+        hub.modsPage.show(moduleId);
+        hub.openPage(MODS_PAGE);
+        return hub;
+    }
+
     /** For the in-game test: the Mods page already open, on Fullbright's settings. */
     public static HubScreen onModsPage() {
         HubScreen hub = inMods();
@@ -184,7 +192,8 @@ public final class HubScreen extends Screen {
                 new HubItem("emotes", "c", HubItem.Kind.ACTION).icon("smile")
                         .action(() -> ScreenOpener.open(CosmeticsScreen.emotes(this))),
                 new HubItem("music", "d", HubItem.Kind.LATER).icon("music"),
-                new HubItem("hud", "e", HubItem.Kind.LATER).icon("layout"),
+                new HubItem("hud", "e", HubItem.Kind.ACTION).icon("layout")
+                        .action(() -> ScreenOpener.open(new HudEditorScreen(this))),
                 new HubItem("shots", "f", HubItem.Kind.ACTION).icon("camera").action(this::openScreenshots)
                         .missing(() -> FabricLoader.getInstance().isModLoaded("screenshot_viewer") ? null
                                 : t("missing", "Screenshot Viewer")));
@@ -207,14 +216,14 @@ public final class HubScreen extends Screen {
                 HubItem.module(Modules.WEATHER, "render"),
                 HubItem.module(Modules.TIME, "render")
                         .missing(() -> TimeChanger.supported() ? null : t("not_on_version")),
-                new HubItem("keys", "modules", HubItem.Kind.LATER).icon("keys"),
+                HubItem.module(Modules.KEYSTROKES, "modules"),
                 HubItem.module(Modules.TOGGLE_SPRINT, "modules"),
-                new HubItem("fps", "hud", HubItem.Kind.LATER).live("fps"),
-                new HubItem("clock", "hud", HubItem.Kind.LATER).live("clock"),
-                new HubItem("coords", "hud", HubItem.Kind.LATER).icon("pin"),
-                new HubItem("armor", "hud", HubItem.Kind.LATER).icon("shield"),
-                new HubItem("effects", "hud", HubItem.Kind.LATER).icon("timer"),
-                new HubItem("ping", "hud", HubItem.Kind.LATER).icon("signal"),
+                HubItem.module(Modules.FPS, "hud").live("fps"),
+                HubItem.module(Modules.CLOCK, "hud").live("clock"),
+                HubItem.module(Modules.COORDS, "hud"),
+                HubItem.module(Modules.ARMOR, "hud"),
+                HubItem.module(Modules.EFFECTS, "hud"),
+                HubItem.module(Modules.PING, "hud"),
                 new HubItem("others", "cosmetics", HubItem.Kind.TOGGLE).icon("users")
                         .toggle(() -> c.showOtherPlayersCosmetics, v -> c.showOtherPlayersCosmetics = v),
                 new HubItem("particles", "cosmetics", HubItem.Kind.TOGGLE).icon("sparkle")

@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.client;
 
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
 import java.util.ArrayList;
@@ -68,5 +69,26 @@ public final class ModulesSelfTest {
             }
         }
         throw new IllegalArgumentException(m.id + " has no setting " + id);
+    }
+
+    /** Every HUD module on (and a potion effect for the effect timers to show), for a screenshot of the HUD. */
+    public static void switchOnHud(Minecraft mc) {
+        ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").set(true);
+        if (mc.player != null) {
+            mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 95, 0));
+        }
+        for (Module m : Modules.hud()) {
+            m.setEnabled(true);
+        }
+    }
+
+    public static void switchOffHud(Minecraft mc) {
+        for (Module m : Modules.hud()) {
+            m.setEnabled(false);
+        }
+        ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
+        if (mc.player != null) {
+            mc.player.removeEffect(MobEffects.NIGHT_VISION);
+        }
     }
 }

@@ -29,6 +29,21 @@ public abstract class HudModule extends Module {
         this.offsetY = offsetY;
     }
 
+    /** Whether there is nothing to show right now (no effects, nothing worn): then it isn't drawn. */
+    public boolean isEmpty(Minecraft mc) {
+        return width(mc) <= 0 || height(mc) <= 0;
+    }
+
+    /** Whether the dark backing goes behind the whole module (Keystrokes backs each key instead). */
+    protected boolean wholeBacking() {
+        return true;
+    }
+
+    /** In the HUD editor: shows example contents where it would show nothing. */
+    protected static boolean preview() {
+        return Hud.editing;
+    }
+
     /** Its size before scaling, in GUI pixels. */
     public abstract int width(Minecraft mc);
 
@@ -39,6 +54,10 @@ public abstract class HudModule extends Module {
 
     public float scale() {
         return scale.get().floatValue();
+    }
+
+    public void setScale(double value) {
+        scale.set(value);
     }
 
     /** Its top left on a screen of this size (GUI pixels). */
@@ -63,11 +82,14 @@ public abstract class HudModule extends Module {
     }
 
     void render(Canvas g, Minecraft mc, int screenW, int screenH) {
+        if (isEmpty(mc)) {
+            return;
+        }
         float s = scale();
         g.push();
         g.translate(Math.round(x(screenW, mc)), Math.round(y(screenH, mc)));
         g.scale(s, s);
-        if (backing.get()) {
+        if (backing.get() && wholeBacking()) {
             g.fill(0, 0, width(mc), height(mc), 0x70000000);
         }
         draw(g, mc);

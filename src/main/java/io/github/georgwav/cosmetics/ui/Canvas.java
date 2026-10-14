@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 //? if >=1.21.9 {
@@ -168,6 +169,41 @@ public final class Canvas {
         *///?} else {
         raw.drawString(font, text, x, y, color, false);
         //?}
+    }
+
+    /** Text, with the game's drop shadow when {@code shadow}; colour is ARGB. */
+    public void text(Font font, String text, int x, int y, int color, boolean shadow) {
+        //? if >=26.1 {
+        /*raw.text(font, text, x, y, color, shadow);
+        *///?} else {
+        raw.drawString(font, text, x, y, color, shadow);
+        //?}
+    }
+
+    /** An item as the inventory shows it, 16 x 16 with its top left at (x, y). */
+    public void item(ItemStack stack, int x, int y) {
+        //? if >=26.1 {
+        /*raw.item(stack, x, y);
+        *///?} else {
+        raw.renderItem(stack, x, y);
+        //?}
+    }
+
+    /** An item's durability bar and count, over {@link #item}. */
+    public void itemDecorations(Font font, ItemStack stack, int x, int y) {
+        //? if >=26.1 {
+        /*raw.itemDecorations(font, stack, x, y);
+        *///?} else {
+        raw.renderItemDecorations(font, stack, x, y);
+        //?}
+    }
+
+    /** A one pixel frame just inside (x1, y1) to (x2, y2). */
+    public void outline(int x1, int y1, int x2, int y2, int color) {
+        fill(x1, y1, x2, y1 + 1, color);
+        fill(x1, y2 - 1, x2, y2, color);
+        fill(x1, y1 + 1, x1 + 1, y2 - 1, color);
+        fill(x2 - 1, y1 + 1, x2, y2 - 1, color);
     }
 
     /** Styled text (its own font) without shadow; colour is ARGB. */

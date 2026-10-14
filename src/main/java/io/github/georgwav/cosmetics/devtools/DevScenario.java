@@ -24,6 +24,8 @@ import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.hub.HubScreen;
+import io.github.georgwav.cosmetics.ui.hub.HudEditorScreen;
+import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.client.ModulesSelfTest;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -64,7 +66,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, WORLD_MODULES, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -107,6 +109,7 @@ public final class DevScenario {
     /** The settings page the UI check has open. */
     private CosmeticsScreen uiScreen;
     private int hubFramesAtStart;
+    private int hudFramesAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -548,6 +551,35 @@ public final class DevScenario {
                     List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
                     phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
                     failures.addAll(problems);
+                    // The HUD modules, all on over the game, then in the HUD editor.
+                    hudFramesAtStart = Hud.framesDrawn;
+                    ModulesSelfTest.switchOnHud(client);
+                    enter(Phase.HUD_MODULES);
+                    writeMarker("ui_hud");
+                }
+            }
+            case HUD_MODULES -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = Hud.framesDrawn - hudFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("hud", frames);
+                    if (frames <= 0) {
+                        failures.add("the HUD modules were never drawn");
+                    }
+                    hudFramesAtStart = HudEditorScreen.framesRendered;
+                    ScreenOpener.open(new HudEditorScreen(null));
+                    enter(Phase.HUD_EDITOR);
+                    writeMarker("ui_hud_editor");
+                }
+            }
+            case HUD_EDITOR -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = HudEditorScreen.framesRendered - hudFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("hud_editor", frames);
+                    if (frames <= 0) {
+                        failures.add("the HUD editor never rendered");
+                    }
+                    ScreenOpener.open(null);
+                    ModulesSelfTest.switchOffHud(client);
                     if (FabricLoader.getInstance().isModLoaded("modmenu")) {
                         openThroughModMenu();
                         enter(Phase.MOD_MENU);

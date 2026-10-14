@@ -6,6 +6,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.client.hud.ArmorHud;
+import io.github.georgwav.cosmetics.client.hud.ClockHud;
+import io.github.georgwav.cosmetics.client.hud.CoordsHud;
+import io.github.georgwav.cosmetics.client.hud.EffectsHud;
+import io.github.georgwav.cosmetics.client.hud.FpsHud;
+import io.github.georgwav.cosmetics.client.hud.HudModule;
+import io.github.georgwav.cosmetics.client.hud.Keystrokes;
+import io.github.georgwav.cosmetics.client.hud.PingHud;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.client.modules.ToggleSprint;
@@ -32,8 +40,17 @@ public final class Modules {
     public static final ToggleSprint TOGGLE_SPRINT = new ToggleSprint();
     public static final WeatherChanger WEATHER = new WeatherChanger();
     public static final TimeChanger TIME = new TimeChanger();
+    public static final Keystrokes KEYSTROKES = new Keystrokes();
+    public static final FpsHud FPS = new FpsHud();
+    public static final PingHud PING = new PingHud();
+    public static final ClockHud CLOCK = new ClockHud();
+    public static final CoordsHud COORDS = new CoordsHud();
+    public static final ArmorHud ARMOR = new ArmorHud();
+    public static final EffectsHud EFFECTS = new EffectsHud();
 
-    private static final List<Module> ALL = List.of(FULLBRIGHT, TOGGLE_SPRINT, WEATHER, TIME);
+    private static final List<Module> ALL = List.of(FULLBRIGHT, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS, PING,
+            CLOCK, COORDS, ARMOR, EFFECTS);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, FPS, PING, CLOCK, COORDS, ARMOR, EFFECTS);
 
     private static boolean loading;
     private static boolean started;
@@ -43,6 +60,11 @@ public final class Modules {
 
     public static List<Module> all() {
         return ALL;
+    }
+
+    /** The modules drawn on the HUD. */
+    public static List<HudModule> hud() {
+        return HUD;
     }
 
     public static Module byId(String id) {

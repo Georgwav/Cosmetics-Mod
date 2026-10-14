@@ -1,7 +1,6 @@
 package io.github.georgwav.cosmetics.client.hud;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
-import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
@@ -30,6 +29,8 @@ public final class Hud {
     private static boolean rightDown;
     /** The HUD editor is open: it draws the modules itself. */
     public static boolean editing;
+    /** Times the HUD modules were drawn (the in-game check). */
+    public static int framesDrawn;
 
     private Hud() {
     }
@@ -53,10 +54,11 @@ public final class Hud {
         if (editing || mc.player == null) {
             return;
         }
+        framesDrawn++;
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
-        for (Module m : Modules.all()) {
-            if (m instanceof HudModule hud && hud.enabled()) {
+        for (HudModule hud : Modules.hud()) {
+            if (hud.enabled()) {
                 hud.render(g, mc, w, h);
             }
         }

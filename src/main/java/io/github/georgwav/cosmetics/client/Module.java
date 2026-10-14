@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.client;
 import com.google.gson.JsonObject;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -63,6 +64,21 @@ public abstract class Module {
 
     public String note() {
         return Component.translatable("cosmeticsmod.module." + id + ".note").getString();
+    }
+
+    /** A setting's name: the module's own, or the one HUD modules share ({@code cosmeticsmod.module.hud.<setting>}). */
+    public String settingName(Setting<?> setting) {
+        return Component.translatable(settingKey(setting.id)).getString();
+    }
+
+    /** One option of a choice setting. */
+    public String optionName(Setting<?> setting, String option) {
+        return Component.translatable(settingKey(setting.id) + "." + option).getString();
+    }
+
+    private String settingKey(String settingId) {
+        String own = "cosmeticsmod.module." + id + "." + settingId;
+        return I18n.exists(own) ? own : "cosmeticsmod.module.hud." + settingId;
     }
 
     /** Adds a setting; {@code onChange} runs whenever its value changes. */
