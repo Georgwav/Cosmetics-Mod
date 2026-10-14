@@ -9,7 +9,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -257,7 +256,7 @@ final class ModsPage {
             ui.text(ui.fit(version, textRight - LIST_X - 64f), LIST_X + 64f, y + 32f, Ui.TEXT_DIM);
             if (io.github.georgwav.cosmetics.compat.Compat.MOD_MENU) {
                 String id = mod.getMetadata().getId();
-                ui.buttonRight(t("settings"), right, y + 12f, 36f, false, () -> openSettings(id));
+                ui.buttonRight(t("settings"), right, y + 12f, 36f, false, () -> hub.openModSettings(id));
             }
         }
         return y + h + 10f;
@@ -283,21 +282,5 @@ final class ModsPage {
         String value = String.valueOf(blur);
         ui.textMid(value, right - w - 16f - ui.textWidth(value), y + 32f, 0xCCFFFFFF);
         return y + h + 10f;
-    }
-
-    /** A mod's own settings screen, as Mod Menu's "Configure" opens it; back from it comes back to the hub. */
-    private void openSettings(String modId) {
-        try {
-            Object screen = Class.forName("com.terraformersmc.modmenu.ModMenu")
-                    .getMethod("getConfigScreen", String.class, Screen.class).invoke(null, modId, hub);
-            if (screen instanceof Screen s) {
-                io.github.georgwav.cosmetics.ui.ScreenOpener.open(s);
-            } else {
-                hub.notify(t("no_settings"));
-            }
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            CosmeticsMod.LOGGER.warn("Couldn't open the settings of {}", modId, e);
-            hub.notify(t("no_settings"));
-        }
     }
 }

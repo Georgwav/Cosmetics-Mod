@@ -23,5 +23,22 @@
     "fabric-api": "*",
     "minecraft": "${minecraft}",
     "java": ">=${java}"
+  },
+  "suggests": {
+    "zoomify": "*",
+    "freelook": "*",
+    "mousetweaks": "*",
+    "appleskin": "*",
+    "shulkerboxtooltip": "*",
+    "inventoryprofilesnext": "*",
+    "chatpatches": "*",
+    "chat_heads": "*",
+    "nochatreports": "*",
+    "screenshot_viewer": "*",
+    "controlling": "*",
+    "betterf3": "*",
+    "xaerominimap": "*",
+    "voicechat": "*",
+    "modmenu": "*"
   }
 }

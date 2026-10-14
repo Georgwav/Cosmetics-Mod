@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
@@ -185,7 +186,9 @@ public final class HubScreen extends Screen {
                         .action(() -> ScreenOpener.open(CosmeticsScreen.emotes(this))),
                 new HubItem("music", "d", HubItem.Kind.LATER).icon("music"),
                 new HubItem("hud", "e", HubItem.Kind.LATER).icon("layout"),
-                new HubItem("shots", "f", HubItem.Kind.LATER).icon("camera"));
+                new HubItem("shots", "f", HubItem.Kind.ACTION).icon("camera").action(this::openScreenshots)
+                        .missing(() -> FabricLoader.getInstance().isModLoaded("screenshot_viewer") ? null
+                                : t("missing", "Screenshot Viewer")));
         spheres.put(MAIN, new Sphere(main, Map.of(
                 "you", Sphere.unit(new float[]{0f, 0f, 1f}), "a", Sphere.unit(new float[]{1f, 0f, 0.55f}),
                 "b", Sphere.unit(new float[]{-1f, 0f, 0.55f}), "c", Sphere.unit(new float[]{0f, -1f, 0.55f}),
@@ -197,7 +200,7 @@ public final class HubScreen extends Screen {
                 .missing(() -> Compat.IRIS ? null : t("missing", "Iris"));
         HubItem modsVoxy = new HubItem("voxy", "render", HubItem.Kind.LATER).icon("voxy")
                 .missing(() -> Compat.VOXY ? null : t("missing", "Voxy"));
-        List<HubItem> mods = List.of(
+        List<HubItem> mods = new ArrayList<>(List.of(
                 new HubItem("all", "center", HubItem.Kind.ACTION).icon("list").action(() -> openPage(MODS_PAGE)),
                 modsShaders,
                 modsVoxy,
@@ -205,10 +208,6 @@ public final class HubScreen extends Screen {
                 HubItem.module(Modules.WEATHER, "render"),
                 HubItem.module(Modules.TIME, "render")
                         .missing(() -> TimeChanger.supported() ? null : t("not_on_version")),
-                new HubItem("zoom", "modules", HubItem.Kind.LATER).icon("zoom"),
-                new HubItem("free", "modules", HubItem.Kind.LATER).icon("eye"),
-                new HubItem("mouse", "modules", HubItem.Kind.LATER).icon("mouse"),
-                new HubItem("apple", "modules", HubItem.Kind.LATER).icon("apple"),
                 new HubItem("keys", "modules", HubItem.Kind.LATER).icon("keys"),
                 HubItem.module(Modules.TOGGLE_SPRINT, "modules"),
                 new HubItem("fps", "hud", HubItem.Kind.LATER).live("fps"),
@@ -226,15 +225,70 @@ public final class HubScreen extends Screen {
                 new HubItem("glow", "cosmetics", HubItem.Kind.TOGGLE).icon("sun")
                         .toggle(() -> c.emissiveParts, v -> c.emissiveParts = v),
                 new HubItem("shadows", "cosmetics", HubItem.Kind.TOGGLE).icon("half")
-                        .toggle(() -> c.renderInShadowPass, v -> c.renderInShadowPass = v));
+                        .toggle(() -> c.renderInShadowPass, v -> c.renderInShadowPass = v)));
+        // Mods the client works with, each an orb only when it's installed: its orb opens its settings.
+        for (String[] dep : DEPENDENCIES) {
+            FabricLoader.getInstance().getModContainer(dep[0]).ifPresent(mod -> {
+                HubItem item = new HubItem("dep_" + dep[0], dep[2], HubItem.Kind.ACTION).icon(dep[1]).button("settings")
+                        .action(() -> openModSettings(dep[0]));
+                String name = mod.getMetadata().getName();
+                item.label = () -> name;
+                item.note = () -> t("dep." + dep[0]);
+                mods.add(item);
+            });
+        }
         spheres.put(MODS, new Sphere(mods, Map.of(
                 "center", Sphere.unit(new float[]{0f, 0f, 1f}), "render", Sphere.unit(new float[]{1f, 0f, 0.35f}),
                 "modules", Sphere.unit(new float[]{-1f, 0f, 0.35f}), "hud", Sphere.unit(new float[]{0f, -1f, 0.2f}),
-                "cosmetics", Sphere.unit(new float[]{0f, 1f, 0.2f})), 64, 0.3f, 290f));
+                "cosmetics", Sphere.unit(new float[]{0f, 1f, 0.2f}), "inventory", Sphere.unit(new float[]{0.7f, 0.7f, -0.3f}),
+                "chat", Sphere.unit(new float[]{-0.7f, -0.7f, -0.3f}), "tools", Sphere.unit(new float[]{0f, 0f, -1f})),
+                64, 0.3f, 290f));
     }
 
     private Sphere sphere() {
         return spheres.get(level);
+    }
+
+    /** Mods the client works with when installed: mod id, icon, where on the mods sphere. */
+    private static final String[][] DEPENDENCIES = {
+            {"zoomify", "zoom", "modules"}, {"freelook", "eye", "modules"},
+            {"mousetweaks", "mouse", "inventory"}, {"appleskin", "apple", "inventory"},
+            {"shulkerboxtooltip", "box", "inventory"}, {"inventoryprofilesnext", "sort", "inventory"},
+            {"chatpatches", "chat", "chat"}, {"chat_heads", "users", "chat"}, {"nochatreports", "shield", "chat"},
+            {"jade", "target", "tools"}, {"betterf3", "debug", "tools"}, {"xaerominimap", "map", "tools"},
+            {"voicechat", "mic", "tools"},
+    };
+
+    /** A mod's own settings screen, as Mod Menu's "Configure" opens it; back from it comes back to the hub. */
+    void openModSettings(String modId) {
+        if (!Compat.MOD_MENU) {
+            notify(t("needs_mod_menu"));
+            return;
+        }
+        try {
+            Object screen = Class.forName("com.terraformersmc.modmenu.ModMenu")
+                    .getMethod("getConfigScreen", String.class, Screen.class).invoke(null, modId, this);
+            if (screen instanceof Screen s) {
+                ScreenOpener.open(s);
+            } else {
+                notify(t("mods.no_settings"));
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            CosmeticsMod.LOGGER.warn("Couldn't open the settings of {}", modId, e);
+            notify(t("mods.no_settings"));
+        }
+    }
+
+    /** Screenshot Viewer's own screen (your screenshots); back from it comes back to the hub. */
+    private void openScreenshots() {
+        try {
+            Screen screen = (Screen) Class.forName("io.github.lgatodu47.screenshot_viewer.screen.manage_screenshots.ManageScreenshotsScreen")
+                    .getConstructor(Screen.class).newInstance(this);
+            ScreenOpener.open(screen);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            CosmeticsMod.LOGGER.warn("Couldn't open Screenshot Viewer", e);
+            notify(t("missing", "Screenshot Viewer"));
+        }
     }
 
     /** Mod Menu's list of mods, if it is installed; back from it comes back here. */
