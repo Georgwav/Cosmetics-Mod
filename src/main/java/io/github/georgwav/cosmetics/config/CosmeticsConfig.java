@@ -229,6 +229,8 @@ public final class CosmeticsConfig {
         public io.github.georgwav.cosmetics.model.PetPosition petPosition = null;
         /** Turned round to face the other way (for a cosmetic made back to front), around its own middle. */
         public boolean turned = false;
+        /** How it takes the colour picked for it, or null to choose from its texture (see {@link io.github.georgwav.cosmetics.render.Recolor#paintFor}). */
+        public io.github.georgwav.cosmetics.model.ColorStyle colorStyle = null;
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
@@ -237,7 +239,7 @@ public final class CosmeticsConfig {
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
-                    && petPosition == null && turned == d.turned;
+                    && petPosition == null && turned == d.turned && colorStyle == null;
         }
 
         void sanitize() {

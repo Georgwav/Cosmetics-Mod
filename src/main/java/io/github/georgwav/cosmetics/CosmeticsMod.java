@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
+import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -32,6 +33,8 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyMapping openKey = VersionHooks.registerKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
         EmoteWheelScreen.key = emoteKey;
+        KeyBinds.open = openKey;
+        KeyBinds.emotes = emoteKey;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpen();

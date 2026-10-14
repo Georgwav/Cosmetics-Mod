@@ -9,6 +9,8 @@ import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.TextureFrames;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
+import io.github.georgwav.cosmetics.render.Recolor;
+import io.github.georgwav.cosmetics.render.RecoloredTextures;
 import io.github.georgwav.cosmetics.render.SoftRaster;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.Resource;
@@ -54,6 +56,8 @@ final class TilePictures {
 
     private final SoftRaster raster = new SoftRaster(SIZE);
     private final Map<String, SoftRaster.Texture> textures = new HashMap<>();
+    /** Textures recoloured as their cosmetics' settings ask, by texture and recolour. */
+    private final Map<String, SoftRaster.Texture> recolored = new HashMap<>();
     private final Map<String, float[]> framing = new HashMap<>();
     private final LinkedHashMap<String, Picture> pictures = new LinkedHashMap<>(16, 0.75f, true);
     private final float[] matrix = new float[12];
@@ -133,6 +137,7 @@ final class TilePictures {
         }
         pictures.clear();
         textures.clear();
+        recolored.clear();
         framing.clear();
     }
 
@@ -162,7 +167,9 @@ final class TilePictures {
             TextureFrames frames = layer.textureFrames();
             String textureId = frames != null && !frames.strip() ? frames.texture(textureFrame) : layer.texture();
             float vOffset = frames != null ? frames.vOffset(textureFrame) : 0f;
-            SoftRaster.Texture image = texture(textureId);
+            // Recoloured and painted as in the game (the part being drawn's recolour, see RecoloredTextures).
+            Recolor recolor = RecoloredTextures.current();
+            SoftRaster.Texture image = recolor == null ? texture(textureId) : recolored(textureId, recolor);
             SoftRaster.Blend blend = switch (layer.mode()) {
                 case CUTOUT -> SoftRaster.Blend.CUTOUT;
                 case TRANSLUCENT -> SoftRaster.Blend.TRANSLUCENT;
@@ -209,6 +216,16 @@ final class TilePictures {
 
     private void load(PoseStack poseStack) {
         PictureTexture.load(poseStack, matrix, normal);
+    }
+
+    /** A texture's pixels recoloured, made once per recolour. */
+    private SoftRaster.Texture recolored(String id, Recolor recolor) {
+        return recolored.computeIfAbsent(id + "\n" + recolor, k -> {
+            SoftRaster.Texture base = texture(id);
+            int[] out = new int[base.argb().length];
+            recolor.applyAll(base.argb(), out);
+            return new SoftRaster.Texture(base.width(), base.height(), out);
+        });
     }
 
     /** A texture's pixels, read once from the resource packs; plain white when it can't be read. */

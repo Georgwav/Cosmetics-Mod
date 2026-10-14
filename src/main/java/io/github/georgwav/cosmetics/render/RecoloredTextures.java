@@ -26,9 +26,12 @@ import java.util.Optional;
  * drawn, {@link CosmeticRenderer} sets its recolour ({@link #begin}/{@link #end}) and {@link CosmeticRenderTypes}
  * asks here for the texture.
  *
- * <p>One copy per cosmetic and original texture (cosmetics sharing a texture can be recoloured differently), remade
- * (at most every {@link #REMAKE_NANOS}) when its recolour changes, so dragging a slider doesn't pile up textures.
- * Dropped on resource reload. Render thread only.
+ * <p>One copy per cosmetic, original texture and {@link Recolor.Paint} (cosmetics sharing a texture can be recoloured
+ * differently, and a cosmetic's tinted and untinted parts can share one), remade (at most every
+ * {@link #REMAKE_NANOS}) when its recolour changes, so dragging a slider or a turning rainbow doesn't pile up
+ * textures. Each copy keeps the original's pixels, so it is remade without reading the file again. Which
+ * textures are white ones ({@link #analysis}) is worked out once per texture. All dropped on resource reload.
+ * Render thread only.
  */
 public final class RecoloredTextures {
     /** Fewest nanoseconds between two remakes of one texture (a slider being dragged). */
@@ -41,14 +44,26 @@ public final class RecoloredTextures {
         DynamicTexture texture;
         int width;
         int height;
+        int[] source;
+        int[] painted;
         Recolor recolor;
         long made;
         final Map<RenderMode, Object> renderTypes = new EnumMap<>(RenderMode.class);
         boolean failed;
     }
 
+    /**
+     * What a texture is like: its size in pixels and the share of them that are coloured (not white, grey or
+     * black; see {@link Recolor#paintFor}).
+     */
+    public record Analysis(int pixels, float coloured) {
+    }
+
     private static final Map<String, Copy> COPIES = new HashMap<>();
+    private static final Map<String, Optional<Analysis>> ANALYSES = new HashMap<>();
     private static Recolor current;
+    /** Textures painted, by {@link Recolor.Paint} (read by the in-game test). */
+    private static final int[] PAINTED = new int[Recolor.Paint.values().length];
     private static String currentCosmetic;
     private static int made;
 
@@ -71,13 +86,53 @@ public final class RecoloredTextures {
         return made;
     }
 
+    /** How many times a texture was painted {@code paint}'s way since the game started (read by the in-game test). */
+    public static int painted(Recolor.Paint paint) {
+        return PAINTED[paint.ordinal()];
+    }
+
+    /** The recolour of the part being drawn, or null (the Wardrobe's pictures paint with it too). */
+    public static Recolor current() {
+        return current;
+    }
+
+    /** What {@code texture} is like, or null when it can't be read. Read once, then remembered. */
+    public static Analysis analysis(String texture) {
+        Optional<Analysis> known = ANALYSES.get(texture);
+        if (known == null) {
+            Analysis analysis = null;
+            try {
+                int[][] read = read(texture);
+                if (read != null) {
+                    int[] argb = read[1];
+                    int seen = 0;
+                    int coloured = 0;
+                    for (int c : argb) {
+                        if ((c >>> 24) >= 0x20) {
+                            seen++;
+                            if (Recolor.coloured(c)) {
+                                coloured++;
+                            }
+                        }
+                    }
+                    analysis = new Analysis(argb.length, seen == 0 ? 0f : coloured / (float) seen);
+                }
+            } catch (Exception | LinkageError e) {
+                CosmeticsMod.LOGGER.warn("Couldn't read texture {}", texture, e);
+            }
+            known = Optional.ofNullable(analysis);
+            ANALYSES.put(texture, known);
+        }
+        return known.orElse(null);
+    }
+
     /** The render type for {@code texture} in {@code mode} recoloured as the cosmetic being drawn asks, or null. */
     static RenderType renderType(String texture, RenderMode mode) {
         Recolor recolor = current;
         if (recolor == null) {
             return null;
         }
-        Copy copy = COPIES.computeIfAbsent(currentCosmetic + "\n" + texture, k -> new Copy());
+        Copy copy = COPIES.computeIfAbsent(currentCosmetic + "\n" + texture + "\n" + recolor.paint(), k -> new Copy());
         if (copy.failed) {
             return null;
         }
@@ -112,59 +167,68 @@ public final class RecoloredTextures {
             }
         }
         COPIES.clear();
+        ANALYSES.clear();
     }
 
-    /** Reads the original from the resource packs and paints it recoloured into the copy's texture. */
-    private static boolean paint(String texture, Copy copy, Recolor recolor) throws Exception {
+    /** {@code {{width, height}, argb pixels}} of a texture in the resource packs, or null when it isn't there. */
+    private static int[][] read(String texture) throws Exception {
         //? if >=1.21.11 {
         Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(texture));
         //?} else {
         /*Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(ResourceLocation.parse(texture));
         *///?}
         if (resource.isEmpty()) {
-            return false;
+            return null;
         }
         try (InputStream in = resource.get().open(); NativeImage source = NativeImage.read(in)) {
-            int w = source.getWidth();
-            int h = source.getHeight();
-            if ((long) w * h > MAX_PIXELS) {
-                return false;
-            }
-            if (copy.texture == null || copy.width != w || copy.height != h) {
-                if (copy.id != null) {
-                    release(copy.id);
-                }
-                copy.width = w;
-                copy.height = h;
-                copy.renderTypes.clear();
-                //? if >=1.21.11 {
-                copy.id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
-                //?} else {
-                /*copy.id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
-                *///?}
-                //? if >=1.21.5 {
-                copy.texture = new DynamicTexture("cosmeticsmod recolored", w, h, false);
-                //?} else {
-                /*copy.texture = new DynamicTexture(w, h, false);
-                *///?}
-                register(copy.id, copy.texture);
+            if ((long) source.getWidth() * source.getHeight() > MAX_PIXELS) {
+                return null;
             }
             // ARGB, as the Wardrobe's pictures read textures on every version.
-            int[] argb = source.makePixelArray();
-            NativeImage pixels = copy.texture.getPixels();
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int c = recolor.apply(argb[y * w + x]);
-                    //? if >=1.21.2 {
-                    pixels.setPixel(x, y, c);
-                    //?} else {
-                    /*pixels.setPixelRGBA(x, y, abgr(c));
-                    *///?}
-                }
-            }
-            copy.texture.upload();
-            return true;
+            return new int[][]{{source.getWidth(), source.getHeight()}, source.makePixelArray()};
         }
+    }
+
+    /** Paints the original recoloured into the copy's texture (reading the original the first time). */
+    private static boolean paint(String texture, Copy copy, Recolor recolor) throws Exception {
+        if (copy.source == null) {
+            int[][] read = read(texture);
+            if (read == null) {
+                return false;
+            }
+            copy.width = read[0][0];
+            copy.height = read[0][1];
+            copy.source = read[1];
+            copy.painted = new int[read[1].length];
+            //? if >=1.21.11 {
+            copy.id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
+            //?} else {
+            /*copy.id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
+            *///?}
+            //? if >=1.21.5 {
+            copy.texture = new DynamicTexture("cosmeticsmod recolored", copy.width, copy.height, false);
+            //?} else {
+            /*copy.texture = new DynamicTexture(copy.width, copy.height, false);
+            *///?}
+            register(copy.id, copy.texture);
+        }
+        int w = copy.width;
+        int h = copy.height;
+        recolor.applyAll(copy.source, copy.painted);
+        PAINTED[recolor.paint().ordinal()]++;
+        NativeImage pixels = copy.texture.getPixels();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int c = copy.painted[y * w + x];
+                //? if >=1.21.2 {
+                pixels.setPixel(x, y, c);
+                //?} else {
+                /*pixels.setPixelRGBA(x, y, abgr(c));
+                *///?}
+            }
+        }
+        copy.texture.upload();
+        return true;
     }
 
     /** ARGB to ABGR and back (red and blue swapped). */
