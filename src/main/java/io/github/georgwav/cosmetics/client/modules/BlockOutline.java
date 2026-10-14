@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * The outline around the block you look at, in your colour and opacity instead of the game's faint black. Drawn
- * through Fabric's block outline event up to 1.21.8 (see OutlineHook); not on newer versions yet.
+ * through Fabric's block outline event (see OutlineHook); not on 26.x yet.
  */
 public final class BlockOutline extends Module {
     private static final List<String> COLORS = List.of("black", "white", "red", "green", "cyan", "yellow", "pink");
@@ -23,10 +23,10 @@ public final class BlockOutline extends Module {
 
     /** Whether this Minecraft version can draw it yet. */
     public static boolean supported() {
-        //? if <1.21.9 {
-        /*return true;
+        //? if >=26.1 {
+        /*return false;
         *///?} else {
-        return false;
+        return true;
         //?}
     }
 

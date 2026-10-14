@@ -234,6 +234,7 @@ final class SettingsPage implements HubPage {
                 rows.add(choice(t("emote_camera"), List.of(CosmeticsConfig.EmoteCamera.values()), () -> c.emoteCamera,
                         v -> c.emoteCamera = v, v -> t("emote_camera." + v.name().toLowerCase(Locale.ROOT))));
                 rows.add(toggle("emote_stop_on_move", () -> c.emoteStopOnMove, v -> c.emoteStopOnMove = v));
+                rows.add(toggle("elytra_emote_rockets", () -> c.elytraEmoteRockets, v -> c.elytraEmoteRockets = v));
             }
             case "performance" -> {
                 rows.add(slider("render_distance", 0, 256, 8, () -> c.maxRenderDistance, v -> c.maxRenderDistance = (int) v,

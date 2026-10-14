@@ -201,6 +201,11 @@ public final class HubScreen extends Screen {
         return SkinsPage.shown;
     }
 
+    /** Whether the Skins page has finished reading the launcher's skins. */
+    public static boolean skinsRead() {
+        return SkinsPage.read;
+    }
+
     /** For the in-game test: the Mods page already open, on the crosshair's settings and preview. */
     public static HubScreen onModsPage() {
         HubScreen hub = inMods();

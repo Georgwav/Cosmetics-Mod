@@ -48,6 +48,8 @@ final class SkinsPage implements HubPage {
 
     /** How many skins the last Skins page shows (the in-game test). */
     static int shown;
+    /** Whether the last read of the launcher's skins has finished (the in-game test waits for it). */
+    static boolean read;
 
     private final HubScreen hub;
     private CompletableFuture<List<Entry>> loading;
@@ -72,6 +74,7 @@ final class SkinsPage implements HubPage {
     private void load() {
         Path db = MainFolder.database();
         problem = null;
+        read = false;
         if (db == null) {
             loading = CompletableFuture.completedFuture(List.of());
             return;
@@ -91,7 +94,14 @@ final class SkinsPage implements HubPage {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        });
+        }, SkinsPage::ownThread);
+    }
+
+    // A thread of its own, so a busy shared pool never holds the read up.
+    private static void ownThread(Runnable task) {
+        Thread thread = new Thread(task, "Cosmetics skins");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     /** A skin's PNG as 64 x 64 ARGB pixels; an old 64 x 32 skin gets its right arm and leg as the left ones. */
@@ -134,6 +144,7 @@ final class SkinsPage implements HubPage {
             }
         }
         shown = skins.size();
+        read = loading.isDone();
         for (int i = 0; i < skins.size(); i++) {
             Entry e = skins.get(i);
             if (e.texture == null) {

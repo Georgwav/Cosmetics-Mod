@@ -82,13 +82,24 @@ public final class ModulesSelfTest {
     }
 
     /** Every HUD module and the crosshair on (and a potion effect for the effect timers to show), for a screenshot. */
+    private static float pitchBefore;
+
+    /**
+     * The HUD modules all on, the crosshair, a raised hotbar, and a red block outline: the player looks down at the
+     * ground in front so there is a block to outline.
+     */
     public static void switchOnHud(Minecraft mc) {
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").set(true);
         ModulesSelfTest.<String>setting(Modules.FPS, "font").set("geist");
         ModulesSelfTest.<String>setting(Modules.CLOCK, "font").set("geist");
         if (mc.player != null) {
             mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 95, 0));
+            pitchBefore = mc.player.getXRot();
+            mc.player.setXRot(30f);
         }
+        ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").set("red");
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").set(1.0);
+        Modules.OUTLINE.setEnabled(true);
         for (Module m : Modules.hud()) {
             m.setEnabled(true);
         }
@@ -106,7 +117,11 @@ public final class ModulesSelfTest {
         ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
         ModulesSelfTest.<String>setting(Modules.FPS, "font").reset();
         ModulesSelfTest.<String>setting(Modules.CLOCK, "font").reset();
+        Modules.OUTLINE.setEnabled(false);
+        ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").reset();
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").reset();
         if (mc.player != null) {
+            mc.player.setXRot(pitchBefore);
             mc.player.removeEffect(MobEffects.NIGHT_VISION);
         }
     }

@@ -30,6 +30,8 @@ import io.github.georgwav.cosmetics.ui.hub.HubScreen;
 import io.github.georgwav.cosmetics.ui.hub.HudEditorScreen;
 import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.client.ModulesSelfTest;
+import io.github.georgwav.cosmetics.client.OutlineHook;
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -116,6 +118,7 @@ public final class DevScenario {
     private CosmeticsScreen uiScreen;
     private int hubFramesAtStart;
     private int hudFramesAtStart;
+    private int outlineFramesAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -587,7 +590,9 @@ public final class DevScenario {
                 }
             }
             case HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS -> {
-                if (ticks >= UI_TAB_TICKS) {
+                // The Skins page reads the launcher's skins in the background: it stays open until they're read.
+                boolean waiting = phase == Phase.HUB_SKINS && !HubScreen.skinsRead() && ticks < UI_TAB_TICKS * 10;
+                if (ticks >= UI_TAB_TICKS && !waiting) {
                     int frames = HubScreen.framesRendered - hubFramesAtStart;
                     String page = phase == Phase.HUB ? "hub" : phase == Phase.HUB_MODS ? "hub_mods"
                             : phase == Phase.HUB_PAGE ? "hub_page" : phase == Phase.HUB_SKINS ? "hub_skins" : phase == Phase.HUB_WARDROBE ? "hub_wardrobe" : "hub_settings";
@@ -613,6 +618,7 @@ public final class DevScenario {
                         writeMarker("ui_hub_skins");
                     } else if (phase == Phase.HUB_SKINS) {
                         phases.getAsJsonObject("settings_ui").addProperty("skins_shown", HubScreen.skinsShown());
+                        phases.getAsJsonObject("settings_ui").addProperty("skins_read_ticks", ticks);
                         if (HubScreen.skinsShown() != 10) {
                             failures.add("the Skins page showed " + HubScreen.skinsShown() + " of the launcher's 10 skins");
                         }
@@ -644,6 +650,7 @@ public final class DevScenario {
                     failures.addAll(problems);
                     // The HUD modules, all on over the game, then in the HUD editor.
                     hudFramesAtStart = Hud.framesDrawn;
+                    outlineFramesAtStart = OutlineHook.framesDrawn;
                     ModulesSelfTest.switchOnHud(client);
                     enter(Phase.HUD_MODULES);
                     writeMarker("ui_hud");
@@ -655,6 +662,11 @@ public final class DevScenario {
                     phases.getAsJsonObject("settings_ui").addProperty("hud", frames);
                     if (frames <= 0) {
                         failures.add("the HUD modules were never drawn");
+                    }
+                    int outlines = OutlineHook.framesDrawn - outlineFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("outline", outlines);
+                    if (BlockOutline.supported() && outlines <= 0) {
+                        failures.add("the block outline was never drawn");
                     }
                     hudFramesAtStart = HudEditorScreen.framesRendered;
                     ScreenOpener.open(new HudEditorScreen(null));

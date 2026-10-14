@@ -26,6 +26,15 @@ public abstract class TextHud extends HudModule {
         return List.of(name());
     }
 
+    /** Room before each line for an icon, in GUI units; none unless a module draws icons. */
+    protected int iconRoom() {
+        return 0;
+    }
+
+    /** Draws the icon of shown line {@code index} with its top left at (x, y), {@link #iconRoom()} wide. */
+    protected void drawIcon(Canvas g, Minecraft mc, int index, int x, int y) {
+    }
+
     private List<String> shown(Minecraft mc) {
         List<String> lines = lines(mc);
         return lines.isEmpty() && preview() ? sample(mc) : lines;
@@ -59,7 +68,7 @@ public abstract class TextHud extends HudModule {
         for (String line : lines) {
             w = Math.max(w, lineWidth(mc, line));
         }
-        return w + PAD * 2;
+        return w + iconRoom() + PAD * 2;
     }
 
     @Override
@@ -70,6 +79,14 @@ public abstract class TextHud extends HudModule {
 
     @Override
     protected void draw(Canvas g, Minecraft mc) {
+        int icons = iconRoom();
+        if (icons > 0) {
+            List<String> lines = shown(mc);
+            for (int i = 0; i < lines.size(); i++) {
+                drawIcon(g, mc, i, PAD, PAD + i * 10 - 1);
+            }
+        }
+        int textX = PAD + icons;
         if (geist()) {
             // In screen pixels, so Geist lands on them one to one.
             float k = (float) mc.getWindow().getGuiScale() * scale();
@@ -81,9 +98,9 @@ public abstract class TextHud extends HudModule {
                 // The capitals' middle where the game's font has its.
                 float baseline = (y + 3.5f) * k + f.cap() / 2f;
                 if (shadow.get()) {
-                    f.draw(g, line, PAD * k + Math.max(1, Math.round(k / 2f)), baseline + Math.max(1, Math.round(k / 2f)), 0xFF3F3F3F);
+                    f.draw(g, line, textX * k + Math.max(1, Math.round(k / 2f)), baseline + Math.max(1, Math.round(k / 2f)), 0xFF3F3F3F);
                 }
-                f.draw(g, line, PAD * k, baseline, 0xFFFFFFFF);
+                f.draw(g, line, textX * k, baseline, 0xFFFFFFFF);
                 y += 10;
             }
             g.pop();
@@ -91,7 +108,7 @@ public abstract class TextHud extends HudModule {
         }
         int y = PAD;
         for (String line : shown(mc)) {
-            g.text(mc.font, line, PAD, y, 0xFFFFFFFF, shadow.get());
+            g.text(mc.font, line, textX, y, 0xFFFFFFFF, shadow.get());
             y += 10;
         }
     }

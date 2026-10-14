@@ -3,8 +3,11 @@ package io.github.georgwav.cosmetics.ui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
@@ -29,6 +32,10 @@ import net.minecraft.resources.Identifier;
 *///?} else {
 /*import com.mojang.blaze3d.systems.RenderSystem;
 *///?}
+//? if >=26.1 {
+//?} elif >=1.21.6 {
+import net.minecraft.client.renderer.RenderPipelines;
+//?}
 
 /**
  * The few drawing calls the settings screen uses. 26.1 renamed {@code GuiGraphics} and its methods, so
@@ -197,6 +204,52 @@ public final class Canvas {
         raw.renderItemDecorations(font, stack, x, y);
         //?}
     }
+
+    /** Whether {@link #mobEffect} draws anything on this version (26.x: not yet). */
+    public static boolean mobEffectIcons() {
+        //? if >=26.1 {
+        /*return false;
+        *///?} else {
+        return true;
+        //?}
+    }
+
+    /**
+     * A mob effect's icon, the one the inventory shows, size x size with its top left at (x, y). Up to 1.21.1 the
+     * icons have an atlas of their own; from 1.21.2 they are GUI sprites named mob_effect/&lt;effect&gt;.
+     */
+    public void mobEffect(Holder<MobEffect> effect, int x, int y, int size) {
+        //? if >=26.1 {
+        //?} elif >=1.21.6 {
+        var sprite = mobEffectSprite(effect);
+        if (sprite != null) {
+            raw.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, size, size);
+        }
+        //?} elif >=1.21.2 {
+        /*var sprite = mobEffectSprite(effect);
+        if (sprite != null) {
+            raw.blitSprite(RenderType::guiTextured, sprite, x, y, size, size);
+        }
+        *///?} else {
+        /*var sprite = Minecraft.getInstance().getMobEffectTextures().get(effect);
+        RenderSystem.enableBlend();
+        raw.blit(x, y, 0, size, size, sprite);
+        RenderSystem.disableBlend();
+        *///?}
+    }
+
+    //? if >=26.1 {
+    //?} elif >=1.21.11 {
+    private static Identifier mobEffectSprite(Holder<MobEffect> effect) {
+        Identifier key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+        return key == null ? null : key.withPrefix("mob_effect/");
+    }
+    //?} elif >=1.21.2 {
+    /*private static ResourceLocation mobEffectSprite(Holder<MobEffect> effect) {
+        ResourceLocation key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+        return key == null ? null : key.withPrefix("mob_effect/");
+    }
+    *///?}
 
     /** A one pixel frame just inside (x1, y1) to (x2, y2). */
     public void outline(int x1, int y1, int x2, int y2, int color) {

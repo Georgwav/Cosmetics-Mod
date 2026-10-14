@@ -105,6 +105,7 @@
   "cosmeticsmod.module.armor.value.percent": "Percent",
   "cosmeticsmod.module.effects": "Effect timers",
   "cosmeticsmod.module.effects.note": "Potion effects and time left",
+  "cosmeticsmod.module.effects.icons": "Icons",
   "cosmeticsmod.hud.title": "HUD editor",
   "cosmeticsmod.hud.hint": "Drag to move · scroll to resize · right-click for settings or to put a game part back",
   "cosmeticsmod.hud.empty": "Switch a module on below",
