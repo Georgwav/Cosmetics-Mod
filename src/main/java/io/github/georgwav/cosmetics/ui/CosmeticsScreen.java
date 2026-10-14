@@ -7,6 +7,7 @@ import io.github.georgwav.cosmetics.emote.Emote;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.ColorStyle;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticLoader;
 import io.github.georgwav.cosmetics.model.CosmeticOption;
@@ -24,10 +25,16 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.KeyMapping;
 //? if >=26.1 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
 *///?} else {
 import net.minecraft.client.gui.GuiGraphics;
+//?}
+//? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 //?}
 
 import java.util.ArrayList;
@@ -134,6 +141,8 @@ public final class CosmeticsScreen extends Screen {
     private final Screen parent;
     private final List<FlatWidget> chrome = new ArrayList<>();
     private final List<FlatWidget> content = new ArrayList<>();
+    /** The key bind waiting for a key (its row was clicked), or null. */
+    private KeyMapping listeningFor;
     private final List<Integer> contentOffsets = new ArrayList<>();
     private Tab tab = lastTab;
     /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
@@ -612,7 +621,7 @@ public final class CosmeticsScreen extends Screen {
 
     /** Every emote: play it (it shows in the preview) and put it on the emote wheel or take it off. */
     private void buildEmotes() {
-        add(new Rows.Info(listX, 0, listW, t("emotes.hint"), () -> "", Theme.TEXT_DIM));
+        add(new Rows.Info(listX, 0, listW, t("emotes.hint", KeyBinds.name(KeyBinds.emotes)), () -> "", Theme.TEXT_DIM));
         if (Emotes.all().isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("emotes.empty"), () -> "", Theme.TEXT_DIM));
             return;
@@ -790,6 +799,19 @@ public final class CosmeticsScreen extends Screen {
                         CosmeticsScreen::times));
             }
         }
+        if (tint || rainbow) {
+            // How the picked colour goes in: all over, into the coloured parts, or multiplied as the game tints.
+            List<ColorStyle> colorStyles = java.util.Arrays.asList(null, ColorStyle.WHOLE, ColorStyle.COLORED_PARTS,
+                    ColorStyle.CLASSIC);
+            add(new Rows.Cycle<>(listX, 0, listW, t("color_style"), colorStyles,
+                    () -> config.options(id).colorStyle, v -> {
+                        config.editOptions(id).colorStyle = v;
+                        rebuildWidgets(); // its hint changes
+                    },
+                    v -> t("color_style." + styleKey(v))));
+            add(new Rows.Info(listX, 0, listW, t("color_style." + styleKey(config.options(id).colorStyle) + ".hint"),
+                    () -> "", Theme.TEXT_DIM));
+        }
         if (saturation) {
             add(new Rows.Slider(listX, 0, listW, t("saturation"), 0, 1, 0.05,
                     () -> config.options(id).saturation, v -> config.editOptions(id).saturation = (float) v,
@@ -883,6 +905,10 @@ public final class CosmeticsScreen extends Screen {
         return (value > 0 ? "+" : "") + String.format(java.util.Locale.ROOT, "%.1f px", value);
     }
 
+    private static String styleKey(ColorStyle style) {
+        return style == null ? "auto" : style.name().toLowerCase(Locale.ROOT);
+    }
+
     private void buildDisplay() {
         CosmeticsConfig c = CosmeticsConfig.get();
         section("section.general");
@@ -892,6 +918,11 @@ public final class CosmeticsScreen extends Screen {
         toggle("several_of_a_kind", () -> c.severalOfAKind, v -> c.severalOfAKind = v);
         toggle("color_any_cosmetic", () -> c.colorAnyCosmetic, v -> c.colorAnyCosmetic = v);
         toggle("shield_item_icons", () -> c.shieldItemIcons, v -> c.shieldItemIcons = v);
+
+        section("section.keys");
+        keyBind("key_open", KeyBinds.open);
+        keyBind("key_emotes", KeyBinds.emotes);
+        add(new Rows.Info(listX, 0, listW, t("keys.hint"), () -> "", Theme.TEXT_DIM));
 
         section("section.slots");
         for (CosmeticSlot slot : CosmeticSlot.values()) {
@@ -992,6 +1023,68 @@ public final class CosmeticsScreen extends Screen {
             return true;
         }
         return false;
+    }
+
+    // A clicked key bind row takes the next key or mouse button (but the left, which only stops it waiting);
+    // Escape binds no key, as in Controls.
+    //? if >=1.21.9 {
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (listeningFor != null) {
+            return bindListened(event.key() == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN
+                    : KeyBinds.keyboard(event.key(), event.scancode()));
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (listeningFor != null) {
+            return event.button() == 0 ? stopListening() : bindListened(KeyBinds.mouse(event.button()));
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (listeningFor != null) {
+            return bindListened(keyCode == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN
+                    : KeyBinds.keyboard(keyCode, scanCode));
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (listeningFor != null) {
+            return button == 0 ? stopListening() : bindListened(KeyBinds.mouse(button));
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+    *///?}
+
+    private boolean bindListened(InputConstants.Key key) {
+        KeyBinds.bind(listeningFor, key);
+        listeningFor = null;
+        return true;
+    }
+
+    private boolean stopListening() {
+        listeningFor = null;
+        return true;
+    }
+
+    /** A row for one of the mod's key binds, the same one as in Options → Controls. */
+    private void keyBind(String key, KeyMapping mapping) {
+        if (mapping == null) {
+            return;
+        }
+        add(new Rows.KeyBind(listX, 0, listW, t(key), () -> KeyBinds.name(mapping), () -> KeyBinds.conflicts(mapping),
+                () -> listeningFor == mapping, () -> listeningFor = listeningFor == mapping ? null : mapping,
+                () -> {
+                    listeningFor = null;
+                    KeyBinds.bind(mapping, mapping.getDefaultKey());
+                }));
     }
 
     @Override

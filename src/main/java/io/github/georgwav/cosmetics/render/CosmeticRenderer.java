@@ -213,9 +213,13 @@ public final class CosmeticRenderer {
                                    Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         BoneRig bones = cosmetic.bones();
-        // Its texture recoloured as its settings ask (CosmeticRenderTypes picks the copy up while drawing).
-        RecoloredTextures.begin(cosmetic.id(),
-                Recolor.of(config.options(cosmetic.id()), config.allowedOptions(cosmetic), cosmetic.defaultColor()));
+        // Its texture recoloured as its settings ask, and painted with the player's colour as its colour style
+        // says (CosmeticRenderTypes picks the copy up while drawing).
+        CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
+        int allowed = config.allowedOptions(cosmetic);
+        Recolor recolor = Recolor.of(options, allowed, cosmetic.defaultColor());
+        boolean picked = Tint.picked(options, allowed);
+        boolean rainbow = Tint.rainbow(options, allowed);
         try {
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                 if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
@@ -230,7 +234,13 @@ public final class CosmeticRenderer {
                 }
                 int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
                 // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be.
-                int layerColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer()) ? color : WHITE;
+                boolean takesColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer());
+                Recolor.Paint paint = takesColor ? paint(options.colorStyle, picked, rainbow, layer.texture())
+                        : Recolor.Paint.NONE;
+                RecoloredTextures.begin(cosmetic.id(), Recolor.painted(recolor, paint,
+                        rainbow ? Recolor.rainbowStep(color) : color));
+                // Painted in, the colour isn't tinted on top.
+                int layerColor = takesColor && paint != Recolor.Paint.COLORED ? color : WHITE;
                 TextureFrames frames = layer.textureFrames();
                 int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
                 // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
@@ -286,6 +296,21 @@ public final class CosmeticRenderer {
         } finally {
             RecoloredTextures.end();
         }
+    }
+
+    /** How a part with {@code texture} that takes the player's colour is painted (see {@link Recolor#paintFor}). */
+    private static Recolor.Paint paint(io.github.georgwav.cosmetics.model.ColorStyle style, boolean picked, boolean rainbow,
+                                       String texture) {
+        if (!picked) {
+            return Recolor.Paint.NONE;
+        }
+        RecoloredTextures.Analysis analysis = style == null || rainbow ? RecoloredTextures.analysis(texture) : null;
+        if (style == null && analysis == null) {
+            // Unreadable texture: tinted as the game tints.
+            return Recolor.Paint.NONE;
+        }
+        return Recolor.paintFor(style, true, rainbow, analysis != null ? analysis.coloured() : 0f,
+                analysis != null ? analysis.pixels() : 0);
     }
 
     /**

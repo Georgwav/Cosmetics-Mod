@@ -16,6 +16,9 @@ import io.github.georgwav.cosmetics.render.ElytraLook;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
 import io.github.georgwav.cosmetics.render.NameTags;
 import io.github.georgwav.cosmetics.render.RecoloredTextures;
+import io.github.georgwav.cosmetics.render.Recolor;
+import io.github.georgwav.cosmetics.model.ColorStyle;
+import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
@@ -117,14 +120,20 @@ public final class DevScenario {
             CosmeticsMod.LOGGER.warn("Dev scenario without -D{}equipAll=true: only cosmetics equipped in the config are drawn", PREFIX);
         }
         if (smoke) {
-            // Exercise the per-cosmetic options in the world too: a tinted, larger hat whose texture is recoloured,
-            // and a rainbow halo.
+            // Exercise the per-cosmetic options in the world too: a tinted, larger hat whose texture is recoloured
+            // (coloured as its texture says), a rainbow halo coloured in its coloured parts, and a crown coloured
+            // all over.
             CosmeticsConfig.CosmeticOptions hat = CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat");
             hat.color = 0xFF5555;
             hat.scale = 1.1f;
             hat.hue = 120f;
             hat.brightness = 1.2f;
-            CosmeticsConfig.get().editOptions("cosmeticsmod:halo").rainbow = true;
+            CosmeticsConfig.CosmeticOptions halo = CosmeticsConfig.get().editOptions("cosmeticsmod:halo");
+            halo.rainbow = true;
+            halo.colorStyle = ColorStyle.COLORED_PARTS;
+            CosmeticsConfig.CosmeticOptions crown = CosmeticsConfig.get().editOptions("cosmeticsmod:crown");
+            crown.color = 0x3366FF;
+            crown.colorStyle = ColorStyle.WHOLE;
         }
         DevScenario scenario = new DevScenario(smoke, benchmark);
         CosmeticsMod.LOGGER.info("Dev scenario armed (smokeTest={}, benchmark={}, phaseTicks={}, shaders={})",
@@ -174,6 +183,25 @@ public final class DevScenario {
                     phases.getAsJsonObject("vanilla_front").addProperty("recoloredTextures", RecoloredTextures.made());
                     if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.made() <= 0) {
                         failures.add("the recoloured hat's texture was never made");
+                    }
+                    JsonObject painted = new JsonObject();
+                    for (Recolor.Paint paint : Recolor.Paint.values()) {
+                        painted.addProperty(paint.name().toLowerCase(java.util.Locale.ROOT), RecoloredTextures.painted(paint));
+                    }
+                    phases.getAsJsonObject("vanilla_front").add("paintedTextures", painted);
+                    if (smoke && Boolean.getBoolean(PREFIX + "equipAll")) {
+                        if (RecoloredTextures.painted(Recolor.Paint.GREY) <= 0) {
+                            failures.add("the crown coloured all over was never painted");
+                        }
+                        if (RecoloredTextures.painted(Recolor.Paint.COLORED) <= 0) {
+                            failures.add("the rainbow halo coloured in its coloured parts was never painted");
+                        }
+                    }
+                    if (smoke) {
+                        // The settings screen's key binds are the game's own: changing one changes it in Controls.
+                        for (String problem : KeyBinds.selfTest()) {
+                            failures.add("key binds: " + problem);
+                        }
                     }
                     if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && lift <= 0f) {
                         failures.add("head cosmetics didn't raise the name tag");

@@ -49,9 +49,17 @@ public final class Tint {
     }
 
     static Integer particleColor(CosmeticsConfig.CosmeticOptions options, int allowed, int defaultColor, double seconds) {
-        boolean picked = (options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0)
-                || (options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0);
-        return picked ? argb(options, allowed, defaultColor, seconds) & 0xFFFFFF : null;
+        return picked(options, allowed) ? argb(options, allowed, defaultColor, seconds) & 0xFFFFFF : null;
+    }
+
+    /** Whether the player picked a colour or the rainbow for the cosmetic (and it takes them). */
+    public static boolean picked(CosmeticsConfig.CosmeticOptions options, int allowed) {
+        return rainbow(options, allowed) || (options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0);
+    }
+
+    /** Whether the cosmetic turns through the rainbow. */
+    public static boolean rainbow(CosmeticsConfig.CosmeticOptions options, int allowed) {
+        return options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0;
     }
 
     /** Scales an RGB colour's saturation (HSV) by {@code factor}, keeping its hue and brightness. */

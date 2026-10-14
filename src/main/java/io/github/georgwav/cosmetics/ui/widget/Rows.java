@@ -141,6 +141,66 @@ public final class Rows {
     }
 
     /**
+     * A key bind: the key's name; click it, then press a key (or a mouse button other than the left) to change it,
+     * Escape for none. The arrow at the end puts back the default. A key another bind also uses shows in orange.
+     */
+    public static final class KeyBind extends FlatWidget {
+        private static final int RESET_WIDTH = 18;
+        private final String label;
+        private final Supplier<String> keyName;
+        private final BooleanSupplier conflicts;
+        private final BooleanSupplier listening;
+        private final Runnable listen;
+        private final Runnable reset;
+
+        public KeyBind(int x, int y, int width, String label, Supplier<String> keyName, BooleanSupplier conflicts,
+                       BooleanSupplier listening, Runnable listen, Runnable reset) {
+            super(x, y, width, Theme.ROW_HEIGHT, Component.literal(label));
+            this.label = label;
+            this.keyName = keyName;
+            this.conflicts = conflicts;
+            this.listening = listening;
+            this.listen = listen;
+            this.reset = reset;
+        }
+
+        private boolean overReset(double mouseX) {
+            return mouseX >= getX() + getWidth() - RESET_WIDTH;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            if (hovered) {
+                rect(g, getX(), getY(), getWidth(), getHeight(), Theme.ROW_HOVER);
+            }
+            int ty = textY(this, font);
+            boolean overReset = hovered && overReset(mouseX);
+            if (overReset) {
+                rect(g, getX() + getWidth() - RESET_WIDTH, getY(), RESET_WIDTH, getHeight(), Theme.ROW_HOVER);
+            }
+            g.centeredText(font, "\u21BA", getX() + getWidth() - RESET_WIDTH / 2, ty,
+                    overReset ? Theme.ACCENT_HOVER : Theme.TEXT_DIM);
+            int boxW = 86;
+            int boxX = getX() + getWidth() - RESET_WIDTH - 4 - boxW;
+            text(g, font, fit(font, label, boxX - getX() - 12), getX() + 6, ty, Theme.TEXT);
+            boolean waiting = listening.getAsBoolean();
+            rect(g, boxX, getY() + 2, boxW, getHeight() - 4, waiting ? Theme.ACCENT : (hovered && !overReset ? Theme.TRACK_HOVER : Theme.TRACK));
+            String name = fit(font, keyName.get(), boxW - 16);
+            int color = waiting ? Theme.KNOB : conflicts.getAsBoolean() ? Theme.WARN : Theme.TEXT;
+            g.centeredText(font, waiting ? "> " + name + " <" : name, boxX + boxW / 2, ty, color);
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            if (overReset(mouseX)) {
+                reset.run();
+            } else {
+                listen.run();
+            }
+        }
+    }
+
+    /**
      * A colour picker: a saturation/brightness square and a hue bar to drag on, the colour with its hex code,
      * a row of quick picks, and "Default" to go back to the cosmetic's own colour.
      */
