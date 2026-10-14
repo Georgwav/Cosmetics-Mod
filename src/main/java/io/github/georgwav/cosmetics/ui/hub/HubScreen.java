@@ -225,7 +225,7 @@ public final class HubScreen extends Screen {
                 .missing(() -> Compat.IRIS ? null : t("missing", "Iris"));
         HubItem voxy = new HubItem("voxy", "b", HubItem.Kind.LATER).icon("voxy")
                 .missing(() -> Compat.VOXY ? null : t("missing", "Voxy"));
-        List<HubItem> main = List.of(
+        List<HubItem> main = new ArrayList<>(List.of(
                 new HubItem("you", "you", HubItem.Kind.ACTION).you().button("customize")
                         .action(() -> openPage(WARDROBE_PAGE)),
                 new HubItem("mods", "a", HubItem.Kind.LEVEL).icon("grid").to(MODS),
@@ -238,10 +238,11 @@ public final class HubScreen extends Screen {
                         .action(() -> openPage(EMOTES_PAGE)),
                 new HubItem("music", "d", HubItem.Kind.LATER).icon("music"),
                 new HubItem("hud", "e", HubItem.Kind.ACTION).icon("layout")
-                        .action(() -> ScreenOpener.open(new HudEditorScreen(this))),
-                new HubItem("shots", "f", HubItem.Kind.ACTION).icon("camera").action(this::openScreenshots)
-                        .missing(() -> FabricLoader.getInstance().isModLoaded("screenshot_viewer") ? null
-                                : t("missing", "Screenshot Viewer")));
+                        .action(() -> ScreenOpener.open(new HudEditorScreen(this)))));
+        // Screenshot Viewer's orb only when it's installed, like the other mods'.
+        if (FabricLoader.getInstance().isModLoaded("screenshot_viewer")) {
+            main.add(new HubItem("shots", "f", HubItem.Kind.ACTION).icon("camera").action(this::openScreenshots));
+        }
         spheres.put(MAIN, new Sphere(main, Map.of(
                 "you", Sphere.unit(new float[]{0f, 0f, 1f}), "a", Sphere.unit(new float[]{1f, 0f, 0.55f}),
                 "b", Sphere.unit(new float[]{-1f, 0f, 0.55f}), "c", Sphere.unit(new float[]{0f, -1f, 0.55f}),
@@ -282,10 +283,18 @@ public final class HubScreen extends Screen {
                 new HubItem("shadows", "cosmetics", HubItem.Kind.TOGGLE).icon("half")
                         .toggle(() -> c.renderInShadowPass, v -> c.renderInShadowPass = v)));
         // Mods the client works with, each an orb only when it's installed: its orb opens its settings.
+        // Its settings button only when it has a settings screen (some need Cloth Config for one); Controlling's
+        // orb opens the game's Key Binds screen, which it adds a search to.
         for (String[] dep : DEPENDENCIES) {
             FabricLoader.getInstance().getModContainer(dep[0]).ifPresent(mod -> {
-                HubItem item = new HubItem("dep_" + dep[0], dep[2], HubItem.Kind.ACTION).icon(dep[1]).button("settings")
-                        .action(() -> openModSettings(dep[0]));
+                HubItem item = new HubItem("dep_" + dep[0], dep[2], HubItem.Kind.ACTION).icon(dep[1]);
+                if (dep[0].equals("controlling")) {
+                    item.button("keys").action(this::openKeyBinds);
+                } else if (hasModSettings(dep[0])) {
+                    item.button("settings").action(() -> openModSettings(dep[0]));
+                } else {
+                    item.action = null;
+                }
                 String name = mod.getMetadata().getName();
                 item.label = () -> name;
                 item.note = () -> t("dep." + dep[0]);
@@ -311,8 +320,34 @@ public final class HubScreen extends Screen {
             {"shulkerboxtooltip", "box", "inventory"}, {"inventoryprofilesnext", "sort", "inventory"},
             {"chatpatches", "chat", "chat"}, {"chat_heads", "users", "chat"}, {"nochatreports", "shield", "chat"},
             {"jade", "target", "tools"}, {"betterf3", "debug", "tools"}, {"xaerominimap", "map", "tools"},
-            {"voicechat", "mic", "tools"},
+            {"voicechat", "mic", "tools"}, {"controlling", "keys", "tools"},
     };
+
+    /** Whether Mod Menu can open a settings screen for the mod (it has the call since 11.0.3). */
+    private static boolean hasModSettings(String modId) {
+        if (!Compat.MOD_MENU) {
+            return false;
+        }
+        try {
+            return (boolean) Class.forName("com.terraformersmc.modmenu.ModMenu")
+                    .getMethod("hasConfigScreen", String.class).invoke(null, modId);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return true;
+        }
+    }
+
+    /** The game's Key Binds screen (Controlling adds its search to it); back from it comes back to the hub. */
+    private void openKeyBinds() {
+        try {
+            Screen screen = (Screen) Class.forName("net.minecraft.client.gui.screens.options.controls.KeyBindsScreen")
+                    .getConstructor(Screen.class, net.minecraft.client.Options.class)
+                    .newInstance(this, Minecraft.getInstance().options);
+            ScreenOpener.open(screen);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            CosmeticsMod.LOGGER.warn("Couldn't open the key binds", e);
+            notify(t("mods.no_settings"));
+        }
+    }
 
     /** A mod's own settings screen, as Mod Menu's "Configure" opens it; back from it comes back to the hub. */
     void openModSettings(String modId) {
@@ -518,7 +553,11 @@ public final class HubScreen extends Screen {
         switch (it.kind) {
             case TOGGLE -> it.set.accept(!it.on.getAsBoolean());
             case LEVEL -> enter(it.to, -1);
-            case ACTION -> it.action.run();
+            case ACTION -> {
+                if (it.action != null) {
+                    it.action.run();
+                }
+            }
             case LATER -> notify(t("later"));
         }
     }
@@ -1161,7 +1200,8 @@ public final class HubScreen extends Screen {
             line = t(MODS.equals(transOut ? transTo : level) ? "opening_mods" : "back_to_hub");
         }
 
-        boolean action = settled && missing == null && it.kind != HubItem.Kind.LATER;
+        boolean action = settled && missing == null && it.kind != HubItem.Kind.LATER
+                && !(it.kind == HubItem.Kind.ACTION && it.action == null);
         String label = !action ? null
                 : it.kind == HubItem.Kind.TOGGLE ? t(isOn ? "turn_off" : "turn_on") : t("button." + it.button);
         HubFont nameFont = type(Ui.NAME, true);

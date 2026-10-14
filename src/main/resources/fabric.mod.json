@@ -34,6 +34,7 @@
     "chatpatches": "*",
     "chat_heads": "*",
     "nochatreports": "*",
+    "jade": "*",
     "screenshot_viewer": "*",
     "controlling": "*",
     "betterf3": "*",
