@@ -227,7 +227,8 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     shield = cosmetic(out, "shield_3_*.json")
     assert shield["slot"] == "shield" and "first_person_turned" not in shield
     shield_mesh = shield["parts"][0]["meshes"][0]
-    assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
+    # The OBJ axes into the mod's, then upright: together a half turn about Y.
+    assert same_rotation(shield_mesh["rotation"], [0, 180, 0])
     assert shield_mesh["scale"] == 2.0
     m = convert.rotation_matrix(shield_mesh["rotation"])
     middle = convert.apply(m, [0, -10 * 2.0, -4 * 2.0])  # the hat box's middle, scaled
@@ -345,7 +346,7 @@ def test_shields_are_centred_and_mirrored_as_badlion_scales_them():
     place = convert.shield_placement(goat, bounds, False, convert.RULES["SHIELD"], convert.TypeSettings())
     assert place.mirror and place.scale == 2.0
     # Its half turn and its front-to-back mirror together are a mirror on the side: it faces forward, not turned.
-    assert same_rotation(place.rotation, [180, 0, 0])  # the OBJ axes alone
+    assert same_rotation(place.rotation, [0, 180, 0])  # the OBJ axes and upright alone
     m = convert.rotation_matrix(place.rotation)
     middle = convert.apply(m, [-0.0 * 2.0, 0.0, 1.7 * 2.0])  # mirrored X first, then turned
     assert close([middle[i] + place.offset[i] for i in range(3)], [0, 0, -1.5])
@@ -512,3 +513,15 @@ def test_show_prints_the_numbers_of_matching_cosmetics(tmp_path, capsys):
     assert "bounds in the file" in out
     assert "converted: slot back" in out
     assert main(["show", str(source), "--name", "no such cosmetic"]) == 1
+
+
+def test_shields_stand_upright():
+    # Badlion's shield models are made for the held item's space, upside down like the game's models (+Y down):
+    # a crest's point, at +Y in the OBJ, stays at the bottom (+Y is down in the mod too), where the old
+    # conversion turned it up.
+    crest = badlion.Model("SHIELD", "crest", {"scale": 0.0, "shieldModelData": {"armScale": 0.125}})
+    place = convert.shield_placement(crest, ((-4, -6, -0.5), (4, 6, 0.5)), False, convert.RULES["SHIELD"],
+                                     convert.TypeSettings())
+    m = convert.rotation_matrix(place.rotation)
+    point = convert.apply(m, [0.0, 6.0, 0.0])
+    assert point[1] > 0

@@ -68,6 +68,63 @@ public final class Rows {
     }
 
     /**
+     * A cosmetic's own colours as swatches, right of the label: each shows its colour, and its new colour in its
+     * right half when it was changed; the one being edited is outlined. Clicking one picks it (again: none).
+     */
+    public static final class Swatches extends FlatWidget {
+        private static final int SIZE = 14;
+        private static final int GAP = 4;
+        private final String label;
+        private final int[] colours;
+        private final java.util.function.IntUnaryOperator changedTo;
+        private final IntSupplier selected;
+        private final IntConsumer select;
+
+        public Swatches(int x, int y, int width, String label, int[] colours, java.util.function.IntUnaryOperator changedTo,
+                        IntSupplier selected, IntConsumer select) {
+            super(x, y, width, Theme.ROW_HEIGHT, Component.literal(label));
+            this.label = label;
+            this.colours = colours;
+            this.changedTo = changedTo;
+            this.selected = selected;
+            this.select = select;
+        }
+
+        private int left(int i) {
+            return getX() + getWidth() - 6 - (colours.length - i) * (SIZE + GAP) + GAP;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            int ty = textY(this, font);
+            text(g, font, fit(font, label, left(0) - getX() - 12), getX() + 6, ty, Theme.TEXT);
+            int top = getY() + (getHeight() - SIZE) / 2;
+            for (int i = 0; i < colours.length; i++) {
+                int x = left(i);
+                boolean over = mouseX >= x && mouseX < x + SIZE && mouseY >= top && mouseY < top + SIZE;
+                int border = i == selected.getAsInt() ? Theme.ACCENT : over ? Theme.ACCENT_HOVER : Theme.PANEL_BORDER;
+                rect(g, x - 1, top - 1, SIZE + 2, SIZE + 2, border);
+                rect(g, x, top, SIZE, SIZE, 0xFF000000 | colours[i]);
+                int to = changedTo.applyAsInt(i) & 0xFFFFFF;
+                if (to != (colours[i] & 0xFFFFFF)) {
+                    rect(g, x + SIZE / 2, top, SIZE - SIZE / 2, SIZE, 0xFF000000 | to);
+                }
+            }
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            for (int i = 0; i < colours.length; i++) {
+                int x = left(i);
+                if (mouseX >= x - 2 && mouseX < x + SIZE + 2) {
+                    select.accept(i == selected.getAsInt() ? -1 : i);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
      * On/off switch. The whole row is the click target, except the arrow at the right end when the
      * row has an {@link #onEdit edit action}.
      */

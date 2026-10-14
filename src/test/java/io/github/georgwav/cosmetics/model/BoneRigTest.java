@@ -119,6 +119,21 @@ class BoneRigTest {
     }
 
     @Test
+    void oddKeyframeValuesAreReadOrLeftOutNotFatal() {
+        // NoRisk's easter bunny has a keyframe value that isn't a number; wrapped values are read through.
+        String animations = """
+                {"animations": {"quirk": {"animation_length": 1, "bones": {
+                  "left_wing": {"rotation": {"0.0": [0, 0, 0], "0.75": [null, [45], {"vector": 30}]}}}}}}
+                """;
+        List<String> warnings = new ArrayList<>();
+        List<BoneRig.Clip> clips = BoneAnimationParser.parse(JsonParser.parseString(animations).getAsJsonObject(),
+                model().bones(), "test", warnings::add);
+        assertEquals(1, clips.size());
+        assertFalse(warnings.isEmpty());
+        assertTrue(warnings.stream().allMatch(w -> w.contains("can't read null")), warnings.toString());
+    }
+
+    @Test
     void statesPickTheAnimationFromWhatThePlayerDoes() {
         BedrockGeometry.Model model = model();
         List<BoneRig.Clip> clips = clips(model, new ArrayList<>());

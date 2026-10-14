@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.PetPosition;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
+import io.github.georgwav.cosmetics.render.RecoloredTextures;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.widget.FlatWidget;
@@ -143,6 +144,10 @@ public final class CosmeticsScreen extends Screen {
     private final List<FlatWidget> content = new ArrayList<>();
     /** The key bind waiting for a key (its row was clicked), or null. */
     private KeyMapping listeningFor;
+    /** How many load failures "Copy all" last put on the clipboard (-1: not copied). */
+    private int copiedFailures = -1;
+    /** Which of the open cosmetic's own colours is being changed (-1: none). */
+    private int swatch = -1;
     private final List<Integer> contentOffsets = new ArrayList<>();
     private Tab tab = lastTab;
     /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
@@ -498,6 +503,7 @@ public final class CosmeticsScreen extends Screen {
 
     private void openDetail(String cosmeticId) {
         detailId = cosmeticId;
+        swatch = -1;
         scroll = 0;
         rebuildWidgets();
     }
@@ -626,10 +632,72 @@ public final class CosmeticsScreen extends Screen {
         }
         List<String> failed = CosmeticLoader.failures();
         if (!failed.isEmpty()) {
-            add(new Rows.Info(listX, 0, listW, t("wardrobe.failed", failed.size()), () -> "", Theme.WARN));
+            // Copy all of them (to paste them somewhere) without digging through the log.
+            add(new Rows.Actions(listX, 0, listW, t("wardrobe.failed", failed.size()),
+                    () -> copiedFailures == failed.size() ? t("wardrobe.failed_copied") : "",
+                    List.of(t("wardrobe.failed_copy")), List.of(() -> {
+                        minecraft.keyboardHandler.setClipboard(String.join("\n", failed));
+                        copiedFailures = failed.size();
+                    })));
             for (String why : failed.subList(0, Math.min(3, failed.size()))) {
                 add(new Rows.Info(listX, 0, listW, why, () -> "", Theme.TEXT_DIM));
             }
+        }
+    }
+
+    /**
+     * The cosmetic's own colours (the red and the gold of a red and gold cape), each to change on its own: pick one,
+     * then its colour below; the others stay as they are.
+     */
+    private void addSwaps(BakedCosmetic cosmetic, CosmeticsConfig config) {
+        String id = cosmetic.id();
+        int[] palette = RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers())
+                .map(BakedCosmetic.Layer::texture).distinct().toList());
+        if (palette.length == 0) {
+            return;
+        }
+        add(new Rows.Swatches(listX, 0, listW, t("swaps"), palette, i -> swappedTo(config, id, palette[i]),
+                () -> swatch, i -> {
+                    swatch = i;
+                    rebuildWidgets();
+                }));
+        if (swatch >= 0 && swatch < palette.length) {
+            int from = palette[swatch];
+            add(new Rows.ColorPicker(listX, 0, listW, () -> swappedTo(config, id, from),
+                    v -> swap(config, id, palette, from, v), () -> swap(config, id, palette, from, from),
+                    COLORS, t("swaps.keep")));
+        }
+        add(new Rows.Info(listX, 0, listW, t(config.options(id).color != null || config.options(id).rainbow
+                ? "swaps.hint_painted" : "swaps.hint"), () -> "", Theme.TEXT_DIM));
+    }
+
+    /** What the cosmetic's colour {@code from} is changed to (itself when it isn't). */
+    private static int swappedTo(CosmeticsConfig config, String id, int from) {
+        List<CosmeticsConfig.ColorSwap> swaps = config.options(id).swaps;
+        if (swaps != null) {
+            for (CosmeticsConfig.ColorSwap c : swaps) {
+                if (c.from == (from & 0xFFFFFF)) {
+                    return c.to;
+                }
+            }
+        }
+        return from & 0xFFFFFF;
+    }
+
+    /**
+     * Changes the cosmetic's colour {@code from} to {@code to}. Every colour of its palette is kept in the list (as
+     * itself if unchanged), so the kept ones hold their colours; none changed is no list at all.
+     */
+    private static void swap(CosmeticsConfig config, String id, int[] palette, int from, int to) {
+        CosmeticsConfig.CosmeticOptions options = config.editOptions(id);
+        List<CosmeticsConfig.ColorSwap> swaps = new ArrayList<>();
+        for (int colour : palette) {
+            int target = colour == from ? to : swappedTo(config, id, colour);
+            swaps.add(new CosmeticsConfig.ColorSwap(colour, target));
+        }
+        options.swaps = swaps;
+        if (!options.swapsAny()) {
+            options.swaps = null;
         }
     }
 
@@ -882,6 +950,7 @@ public final class CosmeticsScreen extends Screen {
             add(new Rows.Slider(listX, 0, listW, t("brightness"), 0, 2, 0.05,
                     () -> config.options(id).brightness, v -> config.editOptions(id).brightness = (float) v,
                     v -> Math.round(v * 100) + "%"));
+            addSwaps(cosmetic, config);
         }
 
         boolean size = cosmetic.allows(CosmeticOption.SIZE);

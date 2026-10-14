@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
+import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
@@ -193,6 +194,14 @@ public final class DevScenario {
             }
             case WARMUP -> {
                 if (ticks >= 100) {
+                    if (smoke) {
+                        // The top hat's own red band swapped to green (its colours are known once textures load).
+                        int[] hatColours = colours("cosmeticsmod:top_hat");
+                        if (hatColours.length > 0) {
+                            CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat").swaps = new ArrayList<>(
+                                    List.of(new CosmeticsConfig.ColorSwap(hatColours[0], 0x22CC44)));
+                        }
+                    }
                     enter(Phase.FRONT);
                 }
             }
@@ -220,6 +229,16 @@ public final class DevScenario {
                         }
                     }
                     if (smoke) {
+                        // A cosmetic's own colours, to change one by one: the knight shield is blue, gold and wood.
+                        int shieldColours = colours("cosmeticsmod:knight_shield").length;
+                        phases.getAsJsonObject("vanilla_front").addProperty("knightShieldColours", shieldColours);
+                        phases.getAsJsonObject("vanilla_front").addProperty("swappedTextures", RecoloredTextures.swapped());
+                        if (shieldColours < 2) {
+                            failures.add("the knight shield's own colours (blue, gold) weren't found");
+                        }
+                        if (Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.swapped() <= 0) {
+                            failures.add("the top hat with its red swapped to green was never painted");
+                        }
                         // The settings screen's key binds are the game's own: changing one changes it in Controls.
                         for (String problem : KeyBinds.selfTest()) {
                             failures.add("key binds: " + problem);
@@ -576,6 +595,16 @@ public final class DevScenario {
             }
             case DONE -> finish(client);
         }
+    }
+
+    /** The own colours of a cosmetic's textures (see RecoloredTextures.palette); none if it isn't loaded. */
+    private static int[] colours(String cosmeticId) {
+        BakedCosmetic cosmetic = CosmeticRegistry.get(cosmeticId);
+        if (cosmetic == null) {
+            return new int[0];
+        }
+        return RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture)
+                .distinct().toList());
     }
 
     /** Benchmark: every cosmetic drawn once, as on a normal server, instead of the stress load. */

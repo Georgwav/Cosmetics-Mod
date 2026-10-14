@@ -121,4 +121,80 @@ class RecolorTest {
         assertEquals(Tint.hsvToRgb(10f / 360f, 0.65f, 1f), Recolor.rainbowStep(Tint.hsvToRgb(12f / 360f, 0.65f, 1f)));
         assertEquals(Tint.hsvToRgb(0f, 0.65f, 1f), Recolor.rainbowStep(Tint.hsvToRgb(358f / 360f, 0.65f, 1f)));
     }
+
+    // A red and gold cape (BastiGHG's 2 Million): reds and golds in shades, some white.
+    private static final int RED = 0xC81E1E;
+    private static final int DARK_RED = 0x641010;
+    private static final int GOLD = 0xD4A017;
+    private static final int PURPLE = 0x8A2BE2;
+
+    private static float hueDegrees(int rgb) {
+        return Tint.rgbToHsv(rgb & 0xFFFFFF)[0] * 360f;
+    }
+
+    /** Equal but for rounding: each channel within 1. */
+    private static void assertClose(int expected, int actual) {
+        for (int shift = 0; shift < 32; shift += 8) {
+            assertTrue(Math.abs((expected >>> shift & 0xFF) - (actual >>> shift & 0xFF)) <= 1,
+                    Integer.toHexString(expected) + " vs " + Integer.toHexString(actual));
+        }
+    }
+
+    private static float hueGap(float a, float b) {
+        float d = Math.abs(a - b) % 360f;
+        return Math.min(d, 360f - d);
+    }
+
+    @Test
+    void aTexturesOwnColoursAreItsHuePeaksMostUsedFirst() {
+        int[] image = new int[100];
+        for (int i = 0; i < 100; i++) {
+            image[i] = 0xFF000000 | (i < 50 ? (i % 2 == 0 ? RED : DARK_RED) : i < 80 ? GOLD : 0xF0F0F0);
+        }
+        int[] palette = Recolor.palette(image, 6);
+        assertEquals(2, palette.length, "red and gold; white isn't a colour of its own");
+        assertTrue(hueGap(hueDegrees(palette[0]), hueDegrees(RED)) < 5f, "the most used first: red");
+        assertTrue(hueGap(hueDegrees(palette[1]), hueDegrees(GOLD)) < 5f);
+        assertEquals(0, Recolor.palette(new int[]{0xFFFFFFFF, 0xFF000000, 0x00FF0000}, 6).length);
+    }
+
+    @Test
+    void aSwapChangesOneColourAndItsShadesAndKeepsTheOthers() {
+        CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
+        options.swaps = new java.util.ArrayList<>(java.util.List.of(new CosmeticsConfig.ColorSwap(RED, RED),
+                new CosmeticsConfig.ColorSwap(GOLD, GOLD)));
+        assertNull(Recolor.of(options, CosmeticOption.ALL, WHITE), "every colour kept is no change");
+        options.swaps.get(0).to = PURPLE;
+        Recolor recolor = Recolor.of(options, CosmeticOption.ALL, WHITE);
+        assertEquals(2, recolor.swaps().size(), "the kept gold holds its colour too");
+        assertNull(Recolor.of(options, 0, WHITE), "a cosmetic that doesn't allow colour changes keeps its texture");
+
+        assertClose(0xFF000000 | PURPLE, recolor.apply(0xFF000000 | RED));
+        // Its darker shade turns a darker purple.
+        int dark = recolor.apply(0xFF000000 | DARK_RED);
+        assertTrue(hueGap(hueDegrees(dark), hueDegrees(PURPLE)) < 2f);
+        assertTrue(Tint.rgbToHsv(dark & 0xFFFFFF)[2] < Tint.rgbToHsv(PURPLE)[2]);
+        // The gold stays gold; white, grey and black stay; alpha is kept.
+        int gold = recolor.apply(0xFF000000 | GOLD);
+        assertTrue(hueGap(hueDegrees(gold), hueDegrees(GOLD)) < 3f, Integer.toHexString(gold));
+        assertEquals(0x80F0F0F0, recolor.apply(0x80F0F0F0));
+        assertEquals(0xFF000000, recolor.apply(0xFF000000));
+        // Halfway between red and gold, part of the way; far from both, nothing.
+        float between = hueDegrees(GOLD) / 2f;
+        float orange = hueDegrees(recolor.apply(0xFF000000 | Tint.hsvToRgb(between / 360f, 0.85f, 0.8f)));
+        assertTrue(hueGap(orange, between) > 10f && hueGap(orange, hueDegrees(PURPLE)) > 30f, "orange: " + orange);
+        int green = 0xFF000000 | Tint.hsvToRgb(120f / 360f, 0.85f, 0.8f);
+        assertEquals(green, recolor.apply(green));
+    }
+
+    @Test
+    void swapsStayThroughPaintingAndCountAsSettings() {
+        CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
+        options.swaps = new java.util.ArrayList<>(java.util.List.of(new CosmeticsConfig.ColorSwap(RED, PURPLE)));
+        Recolor recolor = Recolor.of(options, CosmeticOption.ALL, WHITE);
+        assertEquals(recolor.swaps(), Recolor.painted(recolor, Recolor.Paint.GREY, 0).swaps());
+        assertTrue(!options.isDefault());
+        options.swaps.get(0).to = RED;
+        assertTrue(options.isDefault(), "a swap to itself is no setting");
+    }
 }
