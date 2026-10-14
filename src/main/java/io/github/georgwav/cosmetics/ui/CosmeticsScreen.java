@@ -538,6 +538,7 @@ public final class CosmeticsScreen extends Screen {
             buildEmotes();
             return;
         }
+        addLoadNotices();
         List<BakedCosmetic> all = new ArrayList<>(wardrobe());
         if (all.isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("wardrobe.empty"), () -> "", Theme.TEXT_DIM));
@@ -569,6 +570,33 @@ public final class CosmeticsScreen extends Screen {
             section("wardrobe.note");
             add(new Rows.Info(listX, 0, listW, t("wardrobe.hidden"), () -> "", Theme.WARN));
         }
+    }
+
+    /**
+     * Above the tiles: an imported pack made by an importer older than the mod's fixes (import it again), and
+     * cosmetics the resource packs have that couldn't load, with why (the first few; all of them are in the log).
+     */
+    private void addLoadNotices() {
+        for (String namespace : CosmeticLoader.outdatedImports()) {
+            add(new Rows.Info(listX, 0, listW, t("wardrobe.reimport", importName(namespace)), () -> "", Theme.WARN));
+        }
+        List<String> failed = CosmeticLoader.failures();
+        if (!failed.isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("wardrobe.failed", failed.size()), () -> "", Theme.WARN));
+            for (String why : failed.subList(0, Math.min(3, failed.size()))) {
+                add(new Rows.Info(listX, 0, listW, why, () -> "", Theme.TEXT_DIM));
+            }
+        }
+    }
+
+    /** The client an imported pack's namespace came from, by name. */
+    private static String importName(String namespace) {
+        return switch (namespace) {
+            case "blc_import" -> "Badlion";
+            case "lunar_import" -> "Lunar";
+            case "norisk_import" -> "NoRisk";
+            default -> namespace;
+        };
     }
 
     /** The cosmetics as tiles, as many to a row as fit (clicking one wears it, its gear opens its page). */

@@ -14,8 +14,10 @@ import net.minecraft.resources.Identifier;
 
 import java.io.FileNotFoundException;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +33,17 @@ public final class CosmeticLoader {
     private static final String MODEL_DIRECTORY = "cosmetic_models";
     private static final String SUFFIX = ".json";
     private static final String GEO_SUFFIX = ".geo.json";
+    /**
+     * Imported packs' namespaces and the import format the mod's fixes need: a pack whose
+     * {@code <namespace>:cosmetics_import.json} says less (or that has none) was made by an older importer, and the
+     * Wardrobe says to import it again. Badlion 2: capes the vanilla length, wings sized and placed, shields.
+     */
+    private static final Map<String, Integer> IMPORT_FORMATS = Map.of("blc_import", 2);
+    private static final String IMPORT_STAMP = "cosmetics_import.json";
+
+    /** Cosmetics the last reload couldn't load, as "id: why", and imported namespaces that are out of date. */
+    private static volatile List<String> failures = List.of();
+    private static volatile List<String> outdatedImports = List.of();
 
     private CosmeticLoader() {
     }
@@ -76,6 +89,7 @@ public final class CosmeticLoader {
                 manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet());
         String[] ids = new String[entries.size()];
         BakedCosmetic[] baked = new BakedCosmetic[entries.size()];
+        String[] failed = new String[entries.size()];
         java.util.stream.IntStream.range(0, entries.size()).parallel().forEach(i -> {
             var entry = entries.get(i);
             String path = entry.getKey().getPath();
@@ -89,6 +103,7 @@ public final class CosmeticLoader {
                 baked[i] = CosmeticBaker.bake(CosmeticParser.parse(id, reader, context));
             } catch (Exception e) {
                 CosmeticsMod.LOGGER.error("Skipping cosmetic '{}' ({}): {}", id, file, e.toString());
+                failed[i] = id + ": " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
             }
         });
         Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();
@@ -98,9 +113,56 @@ public final class CosmeticLoader {
             }
         }
         CosmeticRegistry.replace(loaded);
+        List<String> failedList = new ArrayList<>();
+        for (String f : failed) {
+            if (f != null) {
+                failedList.add(f);
+            }
+        }
+        failures = List.copyOf(failedList);
+        outdatedImports = outdated(manager, ids);
         RenderGuard.reset();
         io.github.georgwav.cosmetics.render.RecoloredTextures.clear();
         CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s) in {} ms", loaded.size(), (System.nanoTime() - start) / 1_000_000);
         Emotes.reload(manager);
+    }
+
+    /** Cosmetics the last resource reload couldn't load (the Wardrobe lists them), as "id: why". */
+    public static List<String> failures() {
+        return failures;
+    }
+
+    /** Imported packs' namespaces with cosmetics from an importer older than the mod's fixes need. */
+    public static List<String> outdatedImports() {
+        return outdatedImports;
+    }
+
+    private static List<String> outdated(ResourceManager manager, String[] ids) {
+        List<String> out = new ArrayList<>();
+        for (var need : IMPORT_FORMATS.entrySet()) {
+            String prefix = need.getKey() + ":";
+            if (java.util.Arrays.stream(ids).noneMatch(id -> id != null && id.startsWith(prefix))) {
+                continue;
+            }
+            //? if >=1.21.11 {
+            Identifier stamp = Identifier.fromNamespaceAndPath(need.getKey(), IMPORT_STAMP);
+            //?} else {
+            /*ResourceLocation stamp = ResourceLocation.fromNamespaceAndPath(need.getKey(), IMPORT_STAMP);
+            *///?}
+            int format = 0;
+            Resource resource = manager.getResource(stamp).orElse(null);
+            if (resource != null) {
+                try (Reader reader = resource.openAsReader()) {
+                    var json = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+                    format = json.has("format") ? json.get("format").getAsInt() : 0;
+                } catch (Exception e) {
+                    CosmeticsMod.LOGGER.warn("Couldn't read {}: {}", stamp, e.toString());
+                }
+            }
+            if (format < need.getValue()) {
+                out.add(need.getKey());
+            }
+        }
+        return List.copyOf(out);
     }
 }

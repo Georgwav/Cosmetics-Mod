@@ -31,6 +31,10 @@ There are three ways to open it:
 - **Key**: the "Open Cosmetics" key. It is unbound by default so it can't clash with another mod; bind it
   in Options → Controls.
 
+When a resource pack has cosmetics that couldn't load (a broken file, or a model over `maxMeshTriangles`), the
+Wardrobe says how many and why at the top; when an imported pack is from an older importer than the mod's fixes
+need, it says to import it again.
+
 It is a flat, minimal screen with a live preview of your player (drag it to turn and tilt it; your head looks
 at the mouse) and four tabs. The settings tabs have a search field at the top: type "cape" or "elytra" and only
 those settings show (a section's name finds all of it):

@@ -20,6 +20,11 @@ from .archive import Archive, LayoutError
 MARKER = ".blc-import-cache.json"
 REPORT = "import-report.md"
 DEFAULT_MAX_TRIANGLES = 100_000  # the mod's default maxMeshTriangles
+# The conversion's format, stamped into the pack (assets/<namespace>/cosmetics_import.json): the mod asks for a new
+# import when a pack's is older than its fixes need (CosmeticLoader.IMPORT_FORMATS). 2: capes the vanilla length,
+# wings sized and placed as Badlion has them.
+IMPORT_FORMAT = 2
+IMPORT_STAMP = "cosmetics_import.json"
 
 PACK_MCMETA = {
     "pack": {
@@ -158,6 +163,10 @@ def write(plan: convert.Plan, planner: convert.Planner, archive: Archive, output
     mcmeta = output / "pack.mcmeta"
     mcmeta.write_text(json.dumps(PACK_MCMETA, indent=2) + "\n", encoding="utf-8")
     written_files.add(mcmeta)
+    stamp = output / "assets" / convert.NAMESPACE / IMPORT_STAMP
+    stamp.parent.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(json.dumps({"format": IMPORT_FORMAT, "importer": __version__}) + "\n", encoding="utf-8")
+    written_files.add(stamp)
 
     # Files an earlier run wrote that this one didn't.
     ours = output / "assets" / convert.NAMESPACE

@@ -163,6 +163,9 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     out = tmp_path / "pack"
     run(input_folder, out, "--max-texture", "64")
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
+    # Stamped with the conversion's format, for the mod to ask for a new import when the pack is older.
+    stamp = json.loads((out / "assets/blc_import/cosmetics_import.json").read_text())
+    assert stamp["format"] == pack.IMPORT_FORMAT >= 2
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
     assert names == ["arm_band_1_fire_fist.json", "back_4_hiker_pack.json", "boots_2_fire_boots.json",
                      "cape_11_old_cloak.json", "cape_12_blank_model.json",

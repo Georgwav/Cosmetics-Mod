@@ -32,6 +32,8 @@
   "cosmeticsmod.screen.settings_search.none": "No setting matches \"%s\"",
   "cosmeticsmod.screen.wardrobe.more": "%s more: search to find them",
   "cosmeticsmod.screen.wardrobe.no_match": "Nothing matches \"%s\"",
+  "cosmeticsmod.screen.wardrobe.reimport": "Your %s pack is from an older importer: import it again for the latest fixes",
+  "cosmeticsmod.screen.wardrobe.failed": "%s cosmetic(s) in your packs couldn't load (the log has them all):",
   "cosmeticsmod.screen.wardrobe.empty_view": "Nothing here yet",
   "cosmeticsmod.screen.view.wearing": "Wearing",
   "cosmeticsmod.screen.view.all": "All",
