@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.Cloth;
 import net.minecraft.client.Minecraft;
@@ -212,6 +213,13 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         }
         info.uuid = player.getUUID();
         info.local = player == Minecraft.getInstance().player;
+        if (info.local && !Compat.isShadowPass()) {
+            RenderStats.localPlayerFrames++;
+        }
+        // Most players wear nothing of ours: stop before reading the rest of their state.
+        if (!CosmeticRenderer.anyToDraw(info.uuid, info.local)) {
+            return false;
+        }
         info.invisible = player.isInvisible();
         var skin = player.getSkin();
         //? if <1.21.9 {

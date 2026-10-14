@@ -12,8 +12,13 @@ public final class RenderStats {
     public static final boolean TIMING = Boolean.getBoolean(CosmeticsMod.MOD_ID + ".benchmark");
     /** Benchmark stress factor: draw every cosmetic this many times, to simulate a crowded server. */
     public static final int COPIES = Math.max(1, Integer.getInteger(CosmeticsMod.MOD_ID + ".benchmark.copies", 1));
+    /** How many times each cosmetic is drawn now: {@link #COPIES}, or 1 while the benchmark measures a normal load. */
+    public static int copies = COPIES;
 
-    /** Main-pass layer calls for the local player; with one player in view this is the frame count. */
+    /**
+     * Main-pass layer calls for the local player, counted whether or not anything of ours is drawn; with one
+     * player in view this is the frame count.
+     */
     public static long localPlayerFrames;
     /** Meshes handed to a vertex consumer (one per cosmetic per render mode). */
     public static long meshesDrawn;
@@ -27,6 +32,8 @@ public final class RenderStats {
     public static long heldDrawn;
     /** Nanoseconds spent in our layer and our vertex emission (benchmark only). */
     public static long nanos;
+    /** Vertices written, main and shadow pass (benchmark only). */
+    public static long vertices;
 
     private RenderStats() {
     }
@@ -39,5 +46,12 @@ public final class RenderStats {
         skippedShadowPass = 0;
         heldDrawn = 0;
         nanos = 0;
+        vertices = 0;
+    }
+
+    static void countVertices(int count) {
+        if (TIMING) {
+            vertices += count;
+        }
     }
 }
