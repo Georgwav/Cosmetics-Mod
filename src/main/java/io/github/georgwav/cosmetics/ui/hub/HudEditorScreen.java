@@ -15,16 +15,20 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 //? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 //?}
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The HUD editor, over the game as it is: the HUD modules that are on, where they sit. Drag one to move it (it
- * snaps to the screen's edges and middle and to the other modules), scroll over one to resize it, right-click it
- * for its settings. Modules in the island opens the list that switches modules on and off.
+ * The HUD editor, over the game as it is: the HUD modules that are on and the game's own HUD parts, where they sit.
+ * Drag one to move it: it snaps to the screen's edges and middle, lines up with the other boxes' edges and middles
+ * and sits next to them with a small gap (hold Shift to move it freely). The arrow keys nudge the box last clicked
+ * (Shift: ten pixels). Scroll over a module to resize it, right-click it for its settings. Modules in the island
+ * opens the list that switches modules on and off.
  */
 public final class HudEditorScreen extends Screen {
     private static final float DESIGN_W = 1440f;
@@ -32,7 +36,7 @@ public final class HudEditorScreen extends Screen {
     private static final float CX = 720f;
     /** How close (GUI pixels) an edge comes to a guide before it snaps to it. */
     private static final float SNAP = 4f;
-    /** The gap kept from the screen's edges when snapping to them. */
+    /** The gap kept from the screen's edges, and between boxes put next to each other, when snapping. */
     private static final float MARGIN = 2f;
 
     /** Frames drawn (the in-game check). */
@@ -40,6 +44,8 @@ public final class HudEditorScreen extends Screen {
 
     private final Screen parent;
     private Box dragging;
+    /** The box last clicked: the arrow keys nudge it. */
+    private Box selected;
     /** Whether the module list under the island is open: at first only when no module is on yet. */
     private boolean showModules = Modules.hud().stream().noneMatch(HudModule::enabled);
     private float grabX;
@@ -222,12 +228,16 @@ public final class HudEditorScreen extends Screen {
         List<Float> ys = new ArrayList<>(List.of(MARGIN, height / 2f, height - MARGIN));
         for (Box other : boxes()) {
             if (!same(other, box)) {
-                xs.addAll(List.of(other.x(), other.x() + other.w() / 2f, other.x() + other.w()));
-                ys.addAll(List.of(other.y(), other.y() + other.h() / 2f, other.y() + other.h()));
+                // Its edges and middle, and just outside its edges (to sit next to it).
+                xs.addAll(List.of(other.x(), other.x() + other.w() / 2f, other.x() + other.w(),
+                        other.x() - MARGIN, other.x() + other.w() + MARGIN));
+                ys.addAll(List.of(other.y(), other.y() + other.h() / 2f, other.y() + other.h(),
+                        other.y() - MARGIN, other.y() + other.h() + MARGIN));
             }
         }
-        float[] x = snap((float) mouseX - grabX, w, xs);
-        float[] y = snap((float) mouseY - grabY, h, ys);
+        boolean free = shiftHeld();
+        float[] x = free ? new float[]{(float) mouseX - grabX, Float.NaN} : snap((float) mouseX - grabX, w, xs);
+        float[] y = free ? new float[]{(float) mouseY - grabY, Float.NaN} : snap((float) mouseY - grabY, h, ys);
         guideX = x[1];
         guideY = y[1];
         box.moveTo(Math.max(0f, Math.min(width - w, x[0])), Math.max(0f, Math.min(height - h, y[0])));
@@ -271,6 +281,7 @@ public final class HudEditorScreen extends Screen {
         }
         if (button == 0) {
             dragging = box;
+            selected = box;
             grabX = (float) mouseX - box.x();
             grabY = (float) mouseY - box.y();
             return true;
@@ -293,6 +304,34 @@ public final class HudEditorScreen extends Screen {
         dragging = null;
         guideX = Float.NaN;
         guideY = Float.NaN;
+        Modules.save();
+        return true;
+    }
+
+    /**
+     * Whether Shift is held, asked of the game's window (the current context on the render thread, where input
+     * arrives), so it is the same call on every version.
+     */
+    private static boolean shiftHeld() {
+        long window = GLFW.glfwGetCurrentContext();
+        return window != 0L && (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS);
+    }
+
+    /** The arrow keys nudge the box last clicked: one pixel, ten with Shift. */
+    private boolean key(int key) {
+        Box box = selected;
+        if (box == null || dragging != null || boxes().stream().noneMatch(b -> same(b, box))) {
+            return false;
+        }
+        float step = shiftHeld() ? 10f : 1f;
+        float dx = key == GLFW.GLFW_KEY_LEFT ? -step : key == GLFW.GLFW_KEY_RIGHT ? step : 0f;
+        float dy = key == GLFW.GLFW_KEY_UP ? -step : key == GLFW.GLFW_KEY_DOWN ? step : 0f;
+        if (dx == 0f && dy == 0f) {
+            return false;
+        }
+        box.moveTo(Math.max(0f, Math.min(width - box.w(), box.x() + dx)),
+                Math.max(0f, Math.min(height - box.h(), box.y() + dy)));
         Modules.save();
         return true;
     }
@@ -327,6 +366,11 @@ public final class HudEditorScreen extends Screen {
     public boolean mouseReleased(MouseButtonEvent event) {
         return release() || super.mouseReleased(event);
     }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        return key(event.key()) || super.keyPressed(event);
+    }
     //?} else {
     /*@Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -341,6 +385,11 @@ public final class HudEditorScreen extends Screen {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         return release() || super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return key(keyCode) || super.keyPressed(keyCode, scanCode, modifiers);
     }
     *///?}
 
@@ -383,7 +432,7 @@ public final class HudEditorScreen extends Screen {
             int y0 = Math.round(box.y());
             int x1 = Math.round(box.x() + box.w());
             int y1 = Math.round(box.y() + box.h());
-            boolean lit = hot != null && same(box, hot);
+            boolean lit = hot != null && same(box, hot) || selected != null && same(box, selected);
             if (box instanceof PartBox pb) {
                 // The game's own parts: a blue frame and their name, the game draws them (moved) underneath.
                 g.fill(x0, y0, x1, y1, lit ? 0x2870A8FF : 0x1470A8FF);

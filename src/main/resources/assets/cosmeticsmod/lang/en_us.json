@@ -115,7 +115,7 @@
   "cosmeticsmod.module.effects.note": "Potion effects and time left",
   "cosmeticsmod.module.effects.icons": "Icons",
   "cosmeticsmod.hud.title": "HUD editor",
-  "cosmeticsmod.hud.hint": "Drag to move · scroll to resize · right-click for settings or to put a game part back",
+  "cosmeticsmod.hud.hint": "Drag to move (Shift: no snapping) · arrows nudge · scroll to resize · right-click for settings or to put a part back",
   "cosmeticsmod.hud.empty": "Switch a module on below",
   "cosmeticsmod.hud.modules": "Modules",
   "cosmeticsmod.hud.reset": "Reset game HUD",

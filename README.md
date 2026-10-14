@@ -54,7 +54,10 @@ button.
 
 **HUD editor:**
 - Drag the modules and the game's own HUD parts (hotbar, health, armor, hunger, air, held item name, action
-  bar, effects, boss bar, scoreboard). They snap to the screen's edges and to each other.
+  bar, effects, boss bar, scoreboard).
+- They snap to the screen's edges and middle, line up with the other boxes' edges and middles, and sit next to
+  them with a small gap; a guide line shows what they snapped to. Hold Shift to move one freely.
+- The arrow keys nudge the box you last clicked by one pixel (ten with Shift).
 - Scroll over a module to resize it.
 - Right-click a module to open its settings, or a game part to put it back.
 - **Modules** in the island opens the list that switches them on and off.
