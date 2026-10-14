@@ -93,16 +93,21 @@ final class MeshBuilder {
             positions[i] = new float[]{r[0] + pivot[0] + offset[0], r[1] + pivot[1] + offset[1], r[2] + pivot[2] + offset[2]};
         }
         float[][] fileNormals = null;
+        int zeroNormals = 0;
         if (smooth && raw.normals != null) {
             fileNormals = new float[corners][];
             for (int i = 0; i < corners; i++) {
                 float[] n = raw.normals.get(i);
-                // Normals take the inverse scale (inverse transpose of a diagonal matrix).
+                // Normals take the inverse scale (inverse transpose of a diagonal matrix). One with no direction
+                // (exporters write them for degenerate corners) is worked out from the faces, as without normals.
                 float[] r = normalize(CosmeticBaker.rotate(m, n[0] / sx, n[1] / sy, n[2] / sz));
                 if (r == null) {
-                    throw new JsonParseException(source + ": normal " + i + " has zero length");
+                    zeroNormals++;
                 }
                 fileNormals[i] = r;
+            }
+            if (zeroNormals > 0) {
+                warnings.accept(source + ": " + zeroNormals + " normal(s) have zero length; worked out from the faces");
             }
         }
         boolean flipWinding = sx * sy * sz < 0f;
@@ -138,7 +143,7 @@ final class MeshBuilder {
 
         // Smooth normals computed from area-weighted face normals, per shared position.
         float[][] computed = null;
-        if (smooth && fileNormals == null) {
+        if (smooth && (fileNormals == null || zeroNormals > 0)) {
             int maxId = 0;
             for (int id : raw.positionIds) {
                 maxId = Math.max(maxId, id);
@@ -171,8 +176,9 @@ final class MeshBuilder {
             float[] faceNormal = normalize(faceNormals.get(f));
             for (int corner : face) {
                 float[] n = faceNormal;
-                if (fileNormals != null) {
-                    n = fileNormals[corner];
+                float[] given = fileNormals != null ? fileNormals[corner] : null;
+                if (given != null) {
+                    n = given;
                 } else if (computed != null) {
                     float[] averaged = normalize(computed[raw.positionIds.get(corner)]);
                     if (averaged != null) {
