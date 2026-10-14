@@ -23,6 +23,48 @@ The only required dependency is Fabric API.
 
 ## Using it
 
+### The hub (Right Shift)
+
+Right Shift opens the hub: a sphere of orbs with you in the middle. Drag to turn it, scroll or use the arrow keys
+to step through the orbs, and type anywhere to search. The island at the top shows the orb in the middle and its
+button.
+
+| Orb | Opens |
+|---|---|
+| You | The Wardrobe: your figure (drag to turn) and every cosmetic as a tile, by kind and source. Point at one to try it on. |
+| Skins | The skins saved in the Threadrinth/Modrinth app. Apply uploads one to your Minecraft account and shows it on you right away. The launcher's database is only read, never written. |
+| Settings | Every setting from the settings screen, as rows. |
+| Emotes | Play an emote, and put it on the emote wheel or the elytra wheel. |
+| HUD | The HUD editor. |
+| Mods | A sphere of the client's modules, plus the mods it works with when they're installed (Zoomify, Freelook, Mouse Tweaks, AppleSkin, Xaero's Minimap, Simple Voice Chat, ...). |
+
+**Modules** (the Mods page lists them all):
+- Every module is off by default, and none has a key until you bind one.
+- Each module has its own settings.
+- Profiles save every module's settings, so you can switch whole setups.
+
+| Module | What it does |
+|---|---|
+| Fullbright | Brightness, with an optional night vision effect so it works with shaders. |
+| Toggle Sprint / Sneak | Switches the game's own toggles. |
+| Weather changer, Time changer | Your own weather and time of day, on your screen only. |
+| Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
+| Block outline | The outline around the block you look at, in your colour and opacity. Not on 1.21.9 (its Fabric API has no outline event) or on 26.x yet. |
+| Keystrokes, FPS, Ping, Clock, Coordinates, Armor, Effect timers | HUD modules. Each has a size and a dark backing; the text ones also have a text shadow, a font (Minecraft or Geist) and a colour. |
+
+**HUD editor:**
+- Drag the modules and the game's own HUD parts (hotbar, health, armor, hunger, air, held item name, action
+  bar, effects, boss bar, scoreboard). They snap to the screen's edges and to each other.
+- Scroll over a module to resize it.
+- Right-click a module to open its settings, or a game part to put it back.
+- **Modules** in the island opens the list that switches them on and off.
+
+**Main folder:**
+- The client keeps its settings and profiles in the Threadrinth app folder, so every instance shares them.
+- It finds the folder by itself; you can also choose it on the Skins page.
+
+The hub's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/GEIST-OFL.txt`).
+
 ### Settings screen
 
 There are three ways to open it:
