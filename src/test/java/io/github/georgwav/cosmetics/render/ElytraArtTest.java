@@ -136,4 +136,19 @@ class ElytraArtTest {
         assertTrue((base[1] >> 16 & 0xFF) > 0x70 && (base[1] & 0xFF) > 0x70);
         assertEquals(0xFFFFFF00, base[2]);
     }
+
+    @Test
+    void theElytraTakesTheGameElytrasShape() {
+        // The game's elytra texture at its own size (2 x 1 here): seen on the left, see-through on the right, half
+        // seen below.
+        int[] mask = {0xFF000000, 0x00000000, 0x80000000, 0x00FFFFFF};
+        int[] elytra = new int[4 * 4];
+        java.util.Arrays.fill(elytra, 0xFF336699);
+        ElytraArt.shape(elytra, 4, 4, mask, 2, 2);
+        assertEquals(0xFF336699, elytra[0]);
+        assertEquals(0xFF336699, elytra[1]);
+        assertEquals(0x00336699, elytra[2]);
+        assertEquals(0x80, elytra[2 * 4] >>> 24);
+        assertEquals(0, elytra[3 * 4 + 3] >>> 24);
+    }
 }

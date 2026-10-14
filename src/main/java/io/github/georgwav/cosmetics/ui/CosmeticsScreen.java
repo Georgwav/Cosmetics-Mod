@@ -1000,6 +1000,8 @@ public final class CosmeticsScreen extends Screen {
         if (size || position) {
             add(new Rows.Toggle(listX, 0, listW, t("turned"), null,
                     () -> config.options(id).turned, v -> config.editOptions(id).turned = v));
+            add(new Rows.Toggle(listX, 0, listW, t("upside_down"), null,
+                    () -> config.options(id).upsideDown, v -> config.editOptions(id).upsideDown = v));
         }
         if (position) {
             add(new Rows.Slider(listX, 0, listW, t("offset_x"), -8, 8, 0.5,

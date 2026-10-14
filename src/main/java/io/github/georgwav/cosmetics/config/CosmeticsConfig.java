@@ -259,6 +259,8 @@ public final class CosmeticsConfig {
         public io.github.georgwav.cosmetics.model.PetPosition petPosition = null;
         /** Turned round to face the other way (for a cosmetic made back to front), around its own middle. */
         public boolean turned = false;
+        /** Turned upside down (for a cosmetic made the wrong way up), around its own middle, still facing the same way. */
+        public boolean upsideDown = false;
         /** How it takes the colour picked for it, or null to choose from its texture (see {@link io.github.georgwav.cosmetics.render.Recolor#paintFor}). */
         public io.github.georgwav.cosmetics.model.ColorStyle colorStyle = null;
         /**
@@ -284,7 +286,8 @@ public final class CosmeticsConfig {
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && elytra == d.elytra && particles == d.particles && particleAmount == d.particleAmount
-                    && particleSize == d.particleSize && petPosition == null && turned == d.turned && colorStyle == null
+                    && particleSize == d.particleSize && petPosition == null && turned == d.turned && upsideDown == d.upsideDown
+                    && colorStyle == null
                     && !swapsAny();
         }
 

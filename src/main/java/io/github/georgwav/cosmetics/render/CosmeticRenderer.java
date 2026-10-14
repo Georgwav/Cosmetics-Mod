@@ -352,7 +352,8 @@ public final class CosmeticRenderer {
             CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
             applyPlacement(poseStack, options, cosmetic);
             // "Turn around", and a half turn more in first person for a shield made to face the other way there.
-            applyTurn(poseStack, options.turned != (firstPerson && cosmetic.definition().firstPersonTurned()), cosmetic);
+            applyTurn(poseStack, options.turned != (firstPerson && cosmetic.definition().firstPersonTurned()),
+                    options.upsideDown, cosmetic);
             boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
             boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
             float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
@@ -435,20 +436,28 @@ public final class CosmeticRenderer {
     }
 
     /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */
-    /** Turns a cosmetic the player turned round half a turn around the upright line through its middle. */
+    /** Turns a cosmetic the player turned round or upside down (see below). */
     private static void applyTurn(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic) {
-        applyTurn(poseStack, options.turned, cosmetic);
+        applyTurn(poseStack, options.turned, options.upsideDown, cosmetic);
     }
 
-    /** Half a turn around the cosmetic's own middle when {@code turned}. */
-    private static void applyTurn(PoseStack poseStack, boolean turned, BakedCosmetic cosmetic) {
-        if (!turned) {
+    /**
+     * Half a turn around the cosmetic's own middle: round to face the other way when {@code turned}, upside down
+     * (about the forward axis, still facing the same way) when {@code upsideDown}.
+     */
+    private static void applyTurn(PoseStack poseStack, boolean turned, boolean upsideDown, BakedCosmetic cosmetic) {
+        if (!turned && !upsideDown) {
             return;
         }
         float[] middle = cosmetic.middle();
-        poseStack.translate(middle[0], 0f, middle[2]);
-        rotate(poseStack, ROTATION.rotationY((float) Math.PI));
-        poseStack.translate(-middle[0], 0f, -middle[2]);
+        poseStack.translate(middle[0], middle[1], middle[2]);
+        if (turned) {
+            rotate(poseStack, ROTATION.rotationY((float) Math.PI));
+        }
+        if (upsideDown) {
+            rotate(poseStack, ROTATION.rotationZ((float) Math.PI));
+        }
+        poseStack.translate(-middle[0], -middle[1], -middle[2]);
     }
 
     private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options,
