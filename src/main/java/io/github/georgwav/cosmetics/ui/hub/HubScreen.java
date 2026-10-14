@@ -129,6 +129,7 @@ public final class HubScreen extends Screen {
     static final String MODS_PAGE = "mods";
     static final String SKINS_PAGE = "skins";
     static final String WARDROBE_PAGE = "wardrobe";
+    static final String SETTINGS_PAGE = "settings";
     private String page;
     private float pageP;
     private float pageV;
@@ -137,6 +138,7 @@ public final class HubScreen extends Screen {
     private final ModsPage modsPage = new ModsPage(this);
     private final SkinsPage skinsPage = new SkinsPage(this);
     private final WardrobePage wardrobePage = new WardrobePage(this);
+    private final SettingsPage settingsPage = new SettingsPage(this);
     /** The slider being dragged. */
     private Ui.Hit dragging;
     /** The key bind waiting for a key (or mouse button). */
@@ -170,6 +172,15 @@ public final class HubScreen extends Screen {
     public static HubScreen onSkinsPage() {
         HubScreen hub = new HubScreen(null);
         hub.page = SKINS_PAGE;
+        hub.pageP = 1f;
+        hub.spread = 0f;
+        return hub;
+    }
+
+    /** For the in-game test: the Settings page already open. */
+    public static HubScreen onSettings() {
+        HubScreen hub = new HubScreen(null);
+        hub.page = SETTINGS_PAGE;
         hub.pageP = 1f;
         hub.spread = 0f;
         return hub;
@@ -213,7 +224,7 @@ public final class HubScreen extends Screen {
                         .action(() -> openPage(WARDROBE_PAGE)),
                 new HubItem("mods", "a", HubItem.Kind.LEVEL).icon("grid").to(MODS),
                 new HubItem("settings", "b", HubItem.Kind.ACTION).icon("sliders")
-                        .action(() -> ScreenOpener.open(new CosmeticsScreen(this, 1))),
+                        .action(() -> openPage(SETTINGS_PAGE)),
                 shaders,
                 voxy,
                 new HubItem("skins", "you", HubItem.Kind.ACTION).icon("shirt").action(() -> openPage(SKINS_PAGE)),
@@ -971,7 +982,12 @@ public final class HubScreen extends Screen {
     }
 
     private HubPage currentPage() {
-        return SKINS_PAGE.equals(page) ? skinsPage : WARDROBE_PAGE.equals(page) ? wardrobePage : modsPage;
+        return switch (page == null ? MODS_PAGE : page) {
+            case SKINS_PAGE -> skinsPage;
+            case WARDROBE_PAGE -> wardrobePage;
+            case SETTINGS_PAGE -> settingsPage;
+            default -> modsPage;
+        };
     }
 
     // Orbs drawn this frame, back to front; the tooltip needs the hovered one.

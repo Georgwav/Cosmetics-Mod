@@ -66,7 +66,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -519,11 +519,11 @@ public final class DevScenario {
                     }
                 }
             }
-            case HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE -> {
+            case HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS -> {
                 if (ticks >= UI_TAB_TICKS) {
                     int frames = HubScreen.framesRendered - hubFramesAtStart;
                     String page = phase == Phase.HUB ? "hub" : phase == Phase.HUB_MODS ? "hub_mods"
-                            : phase == Phase.HUB_PAGE ? "hub_page" : phase == Phase.HUB_SKINS ? "hub_skins" : "hub_wardrobe";
+                            : phase == Phase.HUB_PAGE ? "hub_page" : phase == Phase.HUB_SKINS ? "hub_skins" : phase == Phase.HUB_WARDROBE ? "hub_wardrobe" : "hub_settings";
                     phases.getAsJsonObject("settings_ui").addProperty(page, frames);
                     if (frames <= 0) {
                         failures.add("the hub (" + page + ") never rendered");
@@ -556,6 +556,11 @@ public final class DevScenario {
                         ScreenOpener.open(HubScreen.onWardrobe());
                         enter(Phase.HUB_WARDROBE);
                         writeMarker("ui_hub_wardrobe");
+                    } else if (phase == Phase.HUB_WARDROBE) {
+                        hubFramesAtStart = HubScreen.framesRendered;
+                        ScreenOpener.open(HubScreen.onSettings());
+                        enter(Phase.HUB_SETTINGS);
+                        writeMarker("ui_hub_settings");
                     } else {
                         // The client's world modules: thunder, midnight and fullbright, on your screen only.
                         ScreenOpener.open(null);
