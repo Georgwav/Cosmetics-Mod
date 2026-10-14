@@ -6,4 +6,7 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-26.2 !net.minecraft.client.renderer.entity.layers.WingsLayer,!net.minecraft.client.model.ElytraModel,!net.minecraft.client.model.object.equipment.ElytraModel,net.minecraft.client.model.*,net.minecraft.client.model.player.*,net.minecraft.client.model.object.*,net.minecraft.client.model.object.equipment.*,!net.minecraft.client.renderer.entity.layers.CapeLayer
+1.21.3 net.minecraft.client.renderer.entity.state.HumanoidRenderState,!net.minecraft.client.renderer.entity.layers.WingsLayer,!net.minecraft.client.renderer.entity.layers.CapeLayer
+1.21.8 net.minecraft.client.renderer.entity.state.HumanoidRenderState,net.minecraft.client.gui.screens.inventory.InventoryScreen
+1.21.1 !net.minecraft.client.renderer.entity.layers.CapeLayer,net.minecraft.world.entity.player.Inventory
+26.2 net.minecraft.world.entity.player.Inventory,net.minecraft.world.entity.EntityEquipment
