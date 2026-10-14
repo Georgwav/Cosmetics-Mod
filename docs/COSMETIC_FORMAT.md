@@ -496,6 +496,23 @@ the texture coordinates or swaps the texture, so it costs nothing extra to draw.
   setting speeds it up or slows it down.
 - Frame times are whole milliseconds, 1 to 600 000.
 
+## Capes on the elytra
+
+A player wearing a cape and an elytra has the cape's design on the elytra, as the game does with its own capes
+("Show on elytra" on the cape's page, on by default). The elytra's texture is the first of:
+
+1. `<texture>_elytra.png` beside the cape's texture (for `ns:textures/cosmetic/cape.png`,
+   `ns:textures/cosmetic/cape_elytra.png`): an elytra texture in the game's 64 x 32 cape layout (the wings are
+   drawn from blocks 22 to 46 across and 0 to 22 down), at any size twice as wide as high. For an animated cape, a
+   vertical strip of as many frames as the cape has, shown in step with it.
+2. The cape's own texture, when it is the 64 x 32 layout and its elytra part is drawn on, as the game's capes are.
+3. Made from the cape's design: the cape's outside (its first cube's north face; for a cape without cubes, the
+   vanilla cape's place in a 64 x 32 texture, else in the 22 blocks wide layout of other clients' capes) on the
+   outside of each wing, stretched from the cape's 10 x 16 to the wing's 10 x 20 so it covers it, its inside on the
+   wing's inside and the edges of both on the wing's edges. Glowing parts are drawn in (an elytra can't glow).
+
+The elytra is recoloured and tinted as the cape is, and an animated cape's elytra plays its frames.
+
 ## Particles
 
 Any cosmetic can give off particles: an aura, a trail behind a cape, sparkles from wings. A cosmetic in the

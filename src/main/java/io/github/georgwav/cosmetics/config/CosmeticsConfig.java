@@ -247,6 +247,8 @@ public final class CosmeticsConfig {
         public String style = null;
         /** For a flat cape: draw it as cloth that bends and ripples (Lunar's "cloth cloak") instead of a board. */
         public boolean cloth = false;
+        /** For a cape: shown on your elytra too, as the game shows its own capes (see CapeElytra). */
+        public boolean elytra = true;
         /** Give off this cosmetic's particles (auras, trails). */
         public boolean particles = true;
         /** How many of its particles, 0..3 (1 = as made). */
@@ -281,8 +283,9 @@ public final class CosmeticsConfig {
                     && saturation == d.saturation && hue == d.hue && brightness == d.brightness && scale == d.scale
                     && offsetX == d.offsetX && offsetY == d.offsetY && offsetZ == d.offsetZ && glow == d.glow
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
-                    && particles == d.particles && particleAmount == d.particleAmount && particleSize == d.particleSize
-                    && petPosition == null && turned == d.turned && colorStyle == null && !swapsAny();
+                    && elytra == d.elytra && particles == d.particles && particleAmount == d.particleAmount
+                    && particleSize == d.particleSize && petPosition == null && turned == d.turned && colorStyle == null
+                    && !swapsAny();
         }
 
         /** Whether a swap changes any colour. */

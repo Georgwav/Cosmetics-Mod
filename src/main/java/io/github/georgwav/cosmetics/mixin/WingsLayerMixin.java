@@ -3,10 +3,13 @@ package io.github.georgwav.cosmetics.mixin;
 // The game's elytra on your player (see ElytraLook): not drawn during your elytra emote, and drawn from your posed
 // body during any other emote (the body's pose is put on the pose stack just before the layer moves the elytra
 // behind the back, as the cape layer does with the body), except while crouching: the elytra copies the crouch's
-// lean itself, and the body's would lean it twice. The layer is ElytraLayer before 1.21.2, WingsLayer
-// after, taking a render state from 1.21.2 and submitting instead of rendering from 1.21.9.
+// lean itself, and the body's would lean it twice. With "Show on elytra" on, your cape's design is on it (CapeElytra):
+// the game picks the texture in getPlayerElytraTexture from 1.21.2, in the middle of render before. The layer is
+// ElytraLayer before 1.21.2, WingsLayer after, taking a render state from 1.21.2 and submitting instead of rendering
+// from 1.21.9.
 //? if >=1.21.9 {
 import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.georgwav.cosmetics.render.CapeElytra;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -18,6 +21,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(WingsLayer.class)
 abstract class WingsLayerMixin {
@@ -41,9 +45,21 @@ abstract class WingsLayerMixin {
             ElytraLook.followedFrames++;
         }
     }
+
+    // Identifier from 1.21.11, ResourceLocation before: one handler for both (the type is erased).
+    @Inject(method = "getPlayerElytraTexture", at = @At("HEAD"), cancellable = true)
+    private static void cosmeticsmod$capeTexture(HumanoidRenderState state, CallbackInfoReturnable<Object> cir) {
+        if (state instanceof AvatarRenderState avatar) {
+            Object texture = CapeElytra.texture(avatar.id);
+            if (texture != null) {
+                cir.setReturnValue(texture);
+            }
+        }
+    }
 }
 //?} elif >=1.21.2 {
 /*import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.georgwav.cosmetics.render.CapeElytra;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -55,6 +71,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(WingsLayer.class)
 abstract class WingsLayerMixin {
@@ -78,27 +95,46 @@ abstract class WingsLayerMixin {
             ElytraLook.followedFrames++;
         }
     }
+
+    @Inject(method = "getPlayerElytraTexture", at = @At("HEAD"), cancellable = true)
+    private static void cosmeticsmod$capeTexture(HumanoidRenderState state, CallbackInfoReturnable<Object> cir) {
+        if (state instanceof PlayerRenderState player) {
+            Object texture = CapeElytra.texture(player.id);
+            if (texture != null) {
+                cir.setReturnValue(texture);
+            }
+        }
+    }
 }
 *///?} else {
 /*import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.georgwav.cosmetics.render.CapeElytra;
 import io.github.georgwav.cosmetics.render.ElytraLook;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.layers.ElytraLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ElytraLayer.class)
 abstract class WingsLayerMixin {
+    // The entity being drawn, for the texture (the render type only takes the texture).
+    @Unique
+    private static int cosmeticsmod$wearer;
+
     @Inject(method = "render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/entity/LivingEntity;FFFFFF)V",
             at = @At("HEAD"), cancellable = true)
     private void cosmeticsmod$hide(PoseStack poseStack, MultiBufferSource buffers, int light, LivingEntity entity,
                                    float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                                    float netHeadYaw, float headPitch, CallbackInfo ci) {
+        cosmeticsmod$wearer = entity.getId();
         if (ElytraLook.hidden(entity.getId())) {
             ElytraLook.hiddenFrames++;
             ci.cancel();
@@ -115,6 +151,13 @@ abstract class WingsLayerMixin {
             model.body.translateAndRotate(poseStack);
             ElytraLook.followedFrames++;
         }
+    }
+
+    @ModifyArg(method = "render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/entity/LivingEntity;FFFFFF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/RenderType;armorCutoutNoCull(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/client/renderer/RenderType;"))
+    private ResourceLocation cosmeticsmod$capeTexture(ResourceLocation texture) {
+        Object cape = CapeElytra.texture(cosmeticsmod$wearer);
+        return cape != null ? (ResourceLocation) cape : texture;
     }
 }
 *///?}

@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.PlayerModelPart;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 //? if <1.21.2 {
 /*import net.minecraft.client.model.PlayerModel;
@@ -54,7 +55,7 @@ import java.util.NoSuchElementException;
                        float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                        float netHeadYaw, float headPitch) {
         try {
-            if (!fillCommon(info, player)) {
+            if (!fillCommon(info, player, null)) {
                 return;
             }
             fillCapeSway(info, player, partialTick);
@@ -108,7 +109,7 @@ import java.util.NoSuchElementException;
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, PlayerRenderState state,
                        float yRot, float xRot) {
         try {
-            if (!fillCommon(info, entity(state.id))) {
+            if (!fillCommon(info, entity(state.id), chest(state))) {
                 return;
             }
             info.capeFlap = state.capeFlap;
@@ -143,7 +144,7 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     public void submit(PoseStack poseStack, SubmitNodeCollector nodeCollector, int lightCoords, AvatarRenderState state,
                        float yRot, float xRot) {
         try {
-            if (!fillCommon(info, entity(state.id))) {
+            if (!fillCommon(info, entity(state.id), chest(state))) {
                 return;
             }
             info.capeFlap = state.capeFlap;
@@ -204,8 +205,11 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         return layer.textureFrames() != null ? layer.textureFrames().vOffset(frame) : 0f;
     }
 
-    /** Fills what every version can read straight from the player entity. */
-    private static boolean fillCommon(PlayerRenderInfo info, Entity entity) {
+    /**
+     * Fills what every version can read straight from the player entity. {@code chest} is what the render state says
+     * is worn in the chest slot (the Wardrobe's preview can put an elytra there), or null to read the entity's.
+     */
+    private static boolean fillCommon(PlayerRenderInfo info, Entity entity, ItemStack chest) {
         info.reset();
         if (!(entity instanceof AbstractClientPlayer player)) {
             // Mannequins and other non-player avatars don't get player cosmetics.
@@ -221,14 +225,10 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             return false;
         }
         info.invisible = player.isInvisible();
-        var skin = player.getSkin();
-        //? if <1.21.9 {
-        /*boolean hasCape = skin.capeTexture() != null;
-        *///?} else {
-        boolean hasCape = skin.cape() != null;
-        //?}
-        info.vanillaCapeVisible = hasCape && player.isModelPartShown(PlayerModelPart.CAPE);
-        var chest = player.getItemBySlot(EquipmentSlot.CHEST);
+        info.vanillaCapeVisible = vanillaCapeVisible(player);
+        if (chest == null) {
+            chest = player.getItemBySlot(EquipmentSlot.CHEST);
+        }
         // During an elytra emote the elytra isn't drawn (ElytraLook), so capes show.
         boolean elytra = chest.is(Items.ELYTRA);
         info.elytra = elytra && !ElytraLook.hidden(player.getId());
@@ -251,11 +251,33 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         return true;
     }
 
+    /** Whether the game draws a cape of its own on this player (a Mojang cape, or another mod's through the skin). */
+    static boolean vanillaCapeVisible(AbstractClientPlayer player) {
+        var skin = player.getSkin();
+        //? if <1.21.9 {
+        /*boolean hasCape = skin.capeTexture() != null;
+        *///?} else {
+        boolean hasCape = skin.cape() != null;
+        //?}
+        return hasCape && player.isModelPartShown(PlayerModelPart.CAPE);
+    }
+
     /** Resolves the entity behind a render state. */
     static Entity entity(int entityId) {
         var level = Minecraft.getInstance().level;
         return level == null ? null : level.getEntity(entityId);
     }
+
+    //? if >=1.21.4 {
+    /** What the render state says is worn in the chest slot. */
+    private static ItemStack chest(net.minecraft.client.renderer.entity.state.HumanoidRenderState state) {
+        return state.chestEquipment;
+    }
+    //?} elif >=1.21.2 {
+    /*private static ItemStack chest(net.minecraft.client.renderer.entity.state.HumanoidRenderState state) {
+        return state.chestItem;
+    }
+    *///?}
 
     //? if >=1.21.2 {
     private static ModelPart[] limbs(ModelPart root) {

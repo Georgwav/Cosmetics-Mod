@@ -563,18 +563,24 @@ public final class Rows {
     /** Flat button; {@code primary} fills it with the accent colour. */
     public static final class Button extends FlatWidget {
         private final String label;
-        private final boolean primary;
+        private final BooleanSupplier primary;
         private final Runnable action;
 
         public Button(int x, int y, int width, int height, String label, boolean primary, Runnable action) {
+            this(x, y, width, height, label, () -> primary, action);
+        }
+
+        /** A button filled with the accent colour while {@code on} (a switch). */
+        public Button(int x, int y, int width, int height, String label, BooleanSupplier on, Runnable action) {
             super(x, y, width, height, Component.literal(label));
             this.label = label;
-            this.primary = primary;
+            this.primary = on;
             this.action = action;
         }
 
         @Override
         protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            boolean primary = this.primary.getAsBoolean();
             if (primary) {
                 rect(g, getX(), getY(), getWidth(), getHeight(), hovered ? Theme.ACCENT_HOVER : Theme.ACCENT);
             } else {
