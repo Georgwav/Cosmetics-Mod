@@ -15,6 +15,12 @@ class ElytraLookTest {
     private static final float GLIDING_Z = (float) (-Math.PI / 2);
     /** How far crouching leans the body forward (the game's). */
     private static final float CROUCH_LEAN = 0.5f;
+    // The game's elytra, depth-wise in px behind the body's middle: each wing a box from 0 to 2 grown by 1 px all
+    // round, its pivot 2 px back (the layer's), the half nearer the body see-through at the edges. The back is at 2.
+    private static final float BOX_FRONT = -1f;
+    private static final float BOX_BACK = 3f;
+    private static final float PIVOT = 2f;
+    private static final float BACK = 2f;
 
     @Test
     void theElytraIsTuckedInButNeverIntoTheBody() {
@@ -45,5 +51,35 @@ class ElytraLookTest {
             assertTrue(Math.abs(now - last) < 0.01f, "jumped at step " + step);
             last = now;
         }
+    }
+
+    @Test
+    void standingOrCrouchingTheElytraLiesOnTheBackLikeACape() {
+        for (float zRot : new float[]{STANDING_Z, CROUCHING_Z}) {
+            float close = ElytraLook.closeness(zRot);
+            assertEquals(1f, close);
+            float depth = ElytraLook.depth(close);
+            float pivot = PIVOT - ElytraLook.IN * close;
+            // The see-through half inside the body, the solid half on the back, as deep as a cape (1 px).
+            assertEquals(1f, pivot + BOX_FRONT * depth, 1e-6f);
+            assertEquals(BACK, pivot + (BOX_FRONT + BOX_BACK) / 2 * depth, 1e-6f);
+            assertEquals(BACK + 1f, pivot + BOX_BACK * depth, 1e-6f);
+        }
+        // The game's: the solid half starts a pixel behind the back, 4 px deep in all.
+        assertEquals(BACK + 1f, PIVOT + (BOX_FRONT + BOX_BACK) / 2, 1e-6f);
+    }
+
+    @Test
+    void spreadToGlideTheElytraIsTheGamesAndEasesBetween() {
+        assertEquals(0f, ElytraLook.closeness(GLIDING_Z));
+        assertEquals(1f, ElytraLook.depth(0f));
+        float last = ElytraLook.depth(ElytraLook.closeness(STANDING_Z));
+        for (int step = 1; step <= 100; step++) {
+            float z = STANDING_Z + (GLIDING_Z - STANDING_Z) * step / 100f;
+            float now = ElytraLook.depth(ElytraLook.closeness(z));
+            assertTrue(now >= last && now - last < 0.02f, "jumped at step " + step);
+            last = now;
+        }
+        assertEquals(1f, last, 1e-6f);
     }
 }

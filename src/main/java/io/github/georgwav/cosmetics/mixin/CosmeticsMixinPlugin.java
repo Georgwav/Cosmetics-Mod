@@ -11,7 +11,7 @@ import java.util.Set;
  * Picks this Minecraft version's mixins: the game draws held items differently across 1.21 and 26.x, so each
  * version gets the hooks that fit it (see {@link io.github.georgwav.cosmetics.render.HeldItems}); every version
  * gets the player model and player renderer hooks for emotes ({@link io.github.georgwav.cosmetics.emote.EmotePlayer},
- * {@link io.github.georgwav.cosmetics.render.ElytraUpright}) and the elytra layer hook
+ * {@link io.github.georgwav.cosmetics.render.ElytraUpright}) and the elytra layer and model hooks
  * ({@link io.github.georgwav.cosmetics.render.ElytraLook}). The mixin config lists none itself.
  */
 public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
@@ -19,10 +19,10 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     public List<String> getMixins() {
         //? if >=1.21.4 {
         return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "WingsLayerMixin");
+                "ElytraModelMixin", "WingsLayerMixin");
         //?} elif >=1.21.2 {
         /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "WingsLayerMixin");
+                "ElytraModelMixin", "WingsLayerMixin");
         *///?} else {
         /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin");
