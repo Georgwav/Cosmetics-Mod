@@ -87,9 +87,10 @@ UNSUPPORTED: dict[str, str] = {
 
 # Built-in cloak models tried for capes without a modelName, in order of preference on a tie.
 CAPE_CANDIDATES = ("cloak_v2", "cloak_1", "corsair_cloak")
-# The default shape of capes without a modelName: a box like the vanilla cape, textured with the vanilla box
-# layout. Badlion's cape textures are 22 x 23 blocks (704 x 736 at 32 px a block, 352 x 368 at 16): exactly
-# that layout for a cape 10 wide, 22 long and 1 thick, a longer vanilla cape.
+# The default shape of capes without a modelName: a box like the vanilla cape (10 wide, 16 long, 1 thick),
+# textured with the vanilla box layout: 22 x 17 blocks at the top of the texture. Badlion's cape textures are
+# 22 x 23 blocks (704 x 736 at 32 px a block, 352 x 368 at 16): the cape's 22 x 17 and six more rows below it
+# that aren't part of the cape (drawn as a longer cape, they hung off its bottom as a dark strip).
 BOX_CAPE = "box"
 BOX_CAPE_WIDTH = 10
 BOX_CAPE_DEPTH = 1
@@ -585,14 +586,15 @@ def glow_texture(cosmetic: badlion.Cosmetic, present: set[str]) -> str | None:
 
 def box_cape_layout(source_size: tuple[int, int]) -> tuple[int, int, int]:
     """(layout width, layout height, cape length) in blocks for a cape texture of this size (one frame). A 2:1
-    texture is the vanilla 64 x 32 layout (16 long); anything else is 22 blocks wide like Badlion's capes, and
-    as long as its height says."""
+    texture is the vanilla 64 x 32 layout; anything else is 22 blocks wide (Badlion, Lunar and NoRisk capes),
+    with square blocks, so its height says how many rows it has. The cape is the vanilla 16 long, from the top
+    rows; only a texture too short for that makes it shorter."""
     w, h = source_size
     if w == 2 * h:
         return 64, 32, 16
     width = 2 * (BOX_CAPE_WIDTH + BOX_CAPE_DEPTH)
-    length = min(64, max(4, round(h * width / w) - BOX_CAPE_DEPTH))
-    return width, length + BOX_CAPE_DEPTH, length
+    rows = max(BOX_CAPE_DEPTH + 4, round(h * width / w))
+    return width, rows, min(16, rows - BOX_CAPE_DEPTH)
 
 
 def box_faces(size: tuple[float, float, float], scale_u: float, scale_v: float) -> dict[str, list[float]]:

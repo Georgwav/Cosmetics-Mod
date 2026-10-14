@@ -202,8 +202,8 @@ def report(plan: convert.Plan, written: Written, planner: convert.Planner, setti
         lines.append(f"OBJ fixes: {planner.obj_stats['clamped_uvs']} texture coordinates outside 0..1 clamped, "
                      f"{planner.obj_stats['added_uvs']} faces without texture coordinates given one.")
     if planner.cape_model == convert.BOX_CAPE:
-        lines.append("Capes without a model are a box like the vanilla cape: 10 wide, 1 thick and as long as the "
-                     "texture's layout says (22 for Badlion's 22 x 23 textures, 16 for 64 x 32 ones).")
+        lines.append("Capes without a model are a box like the vanilla cape, 10 x 16 x 1, textured from the top "
+                     "22 x 17 blocks of the texture (Badlion's 22 x 23 textures have six rows below the cape).")
     else:
         lines.append(f"Capes without a model use `{planner.cape_model.replace(badlion.TEXTURE_ROOT, '')}`.")
 

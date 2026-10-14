@@ -795,6 +795,7 @@ public final class CosmeticsScreen extends Screen {
         toggle("translucent", () -> c.translucentParts, v -> c.translucentParts = v);
         toggle("hide_helmet", () -> c.hideHeadwearWithHelmet, v -> c.hideHeadwearWithHelmet = v);
         toggle("hide_elytra", () -> c.hideCapeWithElytra, v -> c.hideCapeWithElytra = v);
+        toggle("elytra_close", () -> c.elytraCloseToBack, v -> c.elytraCloseToBack = v);
         toggle("cape_physics", () -> c.capePhysics, v -> c.capePhysics = v);
         toggle("wavy_capes", () -> c.wavyCapes, v -> c.wavyCapes = v);
         add(new Rows.Slider(listX, 0, listW, t("cape_swing"), 0, 2, 0.1,

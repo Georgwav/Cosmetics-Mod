@@ -37,7 +37,7 @@ at the mouse) and four tabs:
 | Tab | What's there |
 |---|---|
 | Wardrobe | Every loaded cosmetic as a tile with its own picture of the cosmetic alone (no player), centred and turned three quarters towards you; the one you point at turns, and shows on you in the preview. Click a tile to put it on or take it off (what you wear is outlined). The gear in a tile's corner opens that cosmetic's own page: tint colour or rainbow (with speed), saturation, size, move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), particles (on or off, amount, size) for auras and other cosmetics with particles, where a pet sits (left or right shoulder, on your head, or floating beside you), and a reset. Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack) unless "Wear several of one kind" is on in Display. A cosmetic can leave some of these out. |
-| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
+| Display | Master switch; show your own and other players' cosmetics; per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; elytra close to your back; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
 | Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
 | Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
 
@@ -86,8 +86,10 @@ attacking, using an item (a rocket while gliding, too) and Stop in the middle of
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you
-are drawn upright to the ground instead of lying along your flight, with your elytra folded on your back, so you can
-surf through the sky on a cloud.
+are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud;
+your elytra isn't drawn meanwhile and your cape shows instead. During other emotes an elytra stays on your posed
+body, as armour does, and while you aren't gliding it sits close to your back (Display → "Elytra close to your
+back").
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
@@ -114,6 +116,7 @@ repaired on load.
 | `hideHeadwearWithHelmet` | `true` | Hats and face cosmetics hide while something is worn on the head. |
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
+| `elytraCloseToBack` | `true` | While you aren't gliding, your elytra sits close to your back (its lower edge 5 degrees out instead of the game's 15). |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
 | `wavyCapes` | `true` | Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, and its lower part lags behind the top as you start, stop, jump and land, rippling through. Needs cape physics. The vanilla cape is left alone (Wavey Capes can be installed alongside for that). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |

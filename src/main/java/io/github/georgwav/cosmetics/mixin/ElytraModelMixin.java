@@ -1,13 +1,14 @@
 package io.github.georgwav.cosmetics.mixin;
 
-// Before 1.21.2 the elytra model poses its wings from the entity itself: during an elytra emote they are folded
-// as when standing (see ElytraUpright.foldWeight). From 1.21.2 the render state carries the pose and
-// PlayerRendererMixin folds it there.
+// Before 1.21.2 the elytra model poses its wings from the entity itself: a player's elytra is tucked in towards the
+// back there while not gliding (see ElytraLook). From 1.21.2 the render state carries the pose and
+// PlayerRendererMixin tucks it there.
 //? if <1.21.2 {
-/*import io.github.georgwav.cosmetics.render.ElytraUpright;
+/*import io.github.georgwav.cosmetics.render.ElytraLook;
 import net.minecraft.client.model.ElytraModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,16 +22,11 @@ abstract class ElytraModelMixin {
     @Shadow @Final private ModelPart rightWing;
 
     @Inject(method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V", at = @At("TAIL"))
-    private void cosmeticsmod$fold(LivingEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks,
+    private void cosmeticsmod$tuck(LivingEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks,
                                    float netHeadYaw, float headPitch, CallbackInfo ci) {
-        float w = ElytraUpright.foldWeight(entity.getId());
-        if (w > 0f) {
-            leftWing.xRot += (ElytraUpright.FOLDED_X - leftWing.xRot) * w;
-            leftWing.yRot -= leftWing.yRot * w;
-            leftWing.zRot += (ElytraUpright.FOLDED_Z - leftWing.zRot) * w;
+        if (entity instanceof Player) {
+            leftWing.xRot = ElytraLook.tucked(leftWing.xRot, entity.isCrouching(), entity.isFallFlying());
             rightWing.xRot = leftWing.xRot;
-            rightWing.yRot = -leftWing.yRot;
-            rightWing.zRot = -leftWing.zRot;
         }
     }
 }

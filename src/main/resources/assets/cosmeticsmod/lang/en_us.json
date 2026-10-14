@@ -132,6 +132,7 @@
   "cosmeticsmod.screen.translucent": "See-through parts",
   "cosmeticsmod.screen.hide_helmet": "Hide hats under helmets",
   "cosmeticsmod.screen.hide_elytra": "Hide capes with elytra",
+  "cosmeticsmod.screen.elytra_close": "Elytra close to your back",
   "cosmeticsmod.screen.cape_physics": "Cape physics",
   "cosmeticsmod.screen.cape_swing": "Cape swing",
   "cosmeticsmod.screen.section.particles": "Particles",

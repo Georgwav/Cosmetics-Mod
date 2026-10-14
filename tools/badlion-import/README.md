@@ -130,8 +130,9 @@ conversion used.
 
 **What converts:**
 - capes: those without a model of their own as a box like the vanilla cape, swinging with the vanilla cape
-  physics. Badlion's cape textures are 22 x 23 blocks (704 x 736 or 352 x 368), the vanilla box layout of a
-  cape 10 wide, 22 long and 1 thick. Capes with a model use it, with its `rect`, `curved` and `dynamic`
+  physics, 10 x 16 x 1. Badlion's cape textures are 22 x 23 blocks (704 x 736 or 352 x 368): the vanilla box
+  layout of that cape in the top 22 x 17, and six rows below it that aren't part of the cape. Lunar and NoRisk
+  cape textures are the 22 x 17 alone. Capes with a model use it, with its `rect`, `curved` and `dynamic`
   animations as the cape's styles;
 - wings: one model mirrored for the other side, flapping with your movement (skeletal wings play their own
   flap);

@@ -12,6 +12,7 @@ import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
+import io.github.georgwav.cosmetics.render.ElytraLook;
 import io.github.georgwav.cosmetics.render.ElytraUpright;
 import io.github.georgwav.cosmetics.render.NameTags;
 import io.github.georgwav.cosmetics.render.RenderGuard;
@@ -39,7 +40,8 @@ import java.util.List;
  * Off unless started with {@code -Dcosmeticsmod.smokeTest=true} or {@code -Dcosmeticsmod.benchmark=true}.
  *
  * <p>Once a world is loaded it switches to third person and runs fixed phases: front view, back view,
- * the emote wheel and an emote, every page of the settings screen (and, with Mod Menu, the screen its
+ * the emote wheel and an emote, an elytra seen from the side (during the emote, and standing with the mod on and
+ * off), an elytra emote while gliding, every page of the settings screen (and, with Mod Menu, the screen its
  * "Configure" button opens),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
  * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
@@ -51,7 +53,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, EMOTE_WHEEL, EMOTE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_STAND_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -59,6 +61,10 @@ public final class DevScenario {
     private static final int SHIELD_TICKS = 200;
     /** Ticks an emote plays during the emote check. */
     private static final int EMOTE_TICKS = 100;
+    /** Ticks each look at an elytra on the ground lasts (CI screenshots 4 s in). */
+    private static final int ELYTRA_LOOK_TICKS = 120;
+    /** How far the body is turned from where the camera looks for those, degrees: nearly from the side. */
+    private static final float SIDE_VIEW = 70f;
     /** Ticks the elytra emote plays while gliding. */
     private static final int ELYTRA_TICKS = 140;
     /** How high above where the test stands the player starts gliding, blocks. */
@@ -87,6 +93,7 @@ public final class DevScenario {
     private long emoteFramesAtStart;
     private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
+    private long elytraFramesAtStart;
     private double[] groundPosition;
     private int wheelFramesAtStart;
     private boolean finished;
@@ -251,10 +258,51 @@ public final class DevScenario {
                     if (posed <= 0) {
                         failures.add("playing an emote never posed the player model");
                     }
+                    // The emote goes on with an elytra on, seen from the side: the elytra must stay on the posed
+                    // body, as armour does.
+                    groundPosition = new double[]{client.player.getX(), client.player.getY(), client.player.getZ()};
+                    wearElytra(client, true);
+                    client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                    elytraFramesAtStart = ElytraLook.followedFrames;
+                    enter(Phase.EMOTE_ELYTRA);
+                }
+            }
+            case EMOTE_ELYTRA -> {
+                sideView(client);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
+                    long followed = ElytraLook.followedFrames - elytraFramesAtStart;
+                    JsonObject look = new JsonObject();
+                    look.addProperty("followedFrames", followed);
+                    phases.add("elytra_look", look);
+                    if (client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && followed <= 0) {
+                        failures.add("during an emote the elytra wasn't drawn from the posed body");
+                    }
+                    // Standing with the elytra, the mod on (close to the back) and off (the game's own).
                     EmotePlayer.stop();
+                    elytraFramesAtStart = ElytraLook.tuckedFrames;
+                    enter(Phase.ELYTRA_STAND_ON);
+                }
+            }
+            case ELYTRA_STAND_ON -> {
+                sideView(client);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
+                    long tucked = ElytraLook.tuckedFrames - elytraFramesAtStart;
+                    phases.getAsJsonObject("elytra_look").addProperty("tuckedFrames", tucked);
+                    if (client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && tucked <= 0) {
+                        failures.add("standing, the elytra wasn't drawn close to the back");
+                    }
+                    CosmeticsConfig.get().enabled = false;
+                    enter(Phase.ELYTRA_STAND_OFF);
+                }
+            }
+            case ELYTRA_STAND_OFF -> {
+                sideView(client);
+                if (ticks >= ELYTRA_LOOK_TICKS) {
+                    CosmeticsConfig.get().enabled = true;
+                    CosmeticsMod.LOGGER.info("Dev scenario elytra look: {}", phases.getAsJsonObject("elytra_look"));
+                    client.player.setXRot(0f);
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     // Next an elytra emote: glide high above the ground.
-                    groundPosition = new double[]{client.player.getX(), client.player.getY(), client.player.getZ()};
                     launchGlider(client, true);
                     enter(Phase.ELYTRA_LAUNCH);
                 }
@@ -279,6 +327,7 @@ public final class DevScenario {
                     EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":cloud_rider"), true);
                     emoteFramesAtStart = EmotePlayer.posedFrames;
                     uprightFramesAtStart = ElytraUpright.frames;
+                    elytraFramesAtStart = ElytraLook.hiddenFrames;
                     enter(Phase.ELYTRA_EMOTE);
                 }
             }
@@ -288,6 +337,7 @@ public final class DevScenario {
                     elytra.addProperty("ticks", ticks);
                     elytra.addProperty("posedFrames", EmotePlayer.posedFrames - emoteFramesAtStart);
                     elytra.addProperty("uprightFrames", ElytraUpright.frames - uprightFramesAtStart);
+                    elytra.addProperty("elytraHiddenFrames", ElytraLook.hiddenFrames - elytraFramesAtStart);
                     elytra.addProperty("stillPlaying", EmotePlayer.playing() != null);
                     CosmeticsMod.LOGGER.info("Dev scenario elytra: {}", elytra);
                     if (elytra.get("gliding").getAsBoolean()) {
@@ -296,6 +346,9 @@ public final class DevScenario {
                         }
                         if (ElytraUpright.frames - uprightFramesAtStart <= 0) {
                             failures.add("the elytra emote never drew the player upright");
+                        }
+                        if (ElytraLook.hiddenFrames - elytraFramesAtStart <= 0) {
+                            failures.add("the elytra was still drawn during the elytra emote");
                         }
                         if (EmotePlayer.posedFrames - emoteFramesAtStart <= 0) {
                             failures.add("the elytra emote never posed the player model");
@@ -436,6 +489,32 @@ public final class DevScenario {
                 player.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
             }
         });
+    }
+
+    /** Puts an elytra on (or takes it off) where the player stands (done by the integrated server). */
+    private static void wearElytra(Minecraft client, boolean on) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null) {
+            return;
+        }
+        java.util.UUID id = client.player.getUUID();
+        server.execute(() -> {
+            var player = server.getPlayerList().getPlayer(id);
+            if (player != null) {
+                player.setItemSlot(EquipmentSlot.CHEST, on ? new ItemStack(Items.ELYTRA) : ItemStack.EMPTY);
+            }
+        });
+    }
+
+    /**
+     * Turns the body {@link #SIDE_VIEW} degrees from where the camera looks, a little from above, so the third-person
+     * camera behind the player sees the back from the side (set after the game's tick, so it holds for the frames).
+     */
+    private static void sideView(Minecraft client) {
+        var player = client.player;
+        player.setXRot(20f);
+        player.yBodyRot = player.getYRot() - SIDE_VIEW;
+        player.yBodyRotO = player.yBodyRot;
     }
 
     /** Starts the player gliding, as pressing jump in the air with an elytra on does. */

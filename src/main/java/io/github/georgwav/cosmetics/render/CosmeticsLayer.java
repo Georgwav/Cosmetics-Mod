@@ -221,8 +221,10 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
         //?}
         info.vanillaCapeVisible = hasCape && player.isModelPartShown(PlayerModelPart.CAPE);
         var chest = player.getItemBySlot(EquipmentSlot.CHEST);
-        info.elytra = chest.is(Items.ELYTRA);
-        info.chestArmor = !chest.isEmpty() && !info.elytra;
+        // During an elytra emote the elytra isn't drawn (ElytraLook), so capes show.
+        boolean elytra = chest.is(Items.ELYTRA);
+        info.elytra = elytra && !ElytraLook.hidden(player.getId());
+        info.chestArmor = !chest.isEmpty() && !elytra;
         info.sneaking = player.isCrouching();
         info.flying = player.getAbilities().flying || player.isFallFlying();
         info.gliding = player.isFallFlying();

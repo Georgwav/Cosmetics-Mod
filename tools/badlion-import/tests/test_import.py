@@ -128,9 +128,12 @@ def test_model_files_that_differ_only_in_case_stay_apart():
 
 def test_box_cape_layout_follows_the_texture():
     assert convert.box_cape_layout((64, 32)) == (64, 32, 16)  # vanilla
-    assert convert.box_cape_layout((704, 736)) == (22, 23, 22)  # Badlion, 32 px a block
-    assert convert.box_cape_layout((704, 735)) == (22, 23, 22)
-    assert convert.box_cape_layout((352, 368)) == (22, 23, 22)
+    # Badlion, 32 px a block: the cape is the top 22 x 17; the six rows below aren't part of it.
+    assert convert.box_cape_layout((704, 736)) == (22, 23, 16)
+    assert convert.box_cape_layout((704, 735)) == (22, 23, 16)
+    assert convert.box_cape_layout((352, 368)) == (22, 23, 16)
+    assert convert.box_cape_layout((704, 544)) == (22, 17, 16)  # Lunar and NoRisk: the cape's rows alone
+    assert convert.box_cape_layout((44, 20)) == (22, 10, 9)  # too short for 16: as long as it has rows
 
 
 def test_box_faces_match_the_mods_box_uv():
@@ -174,13 +177,15 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert cube["faces"]["north"] == [1, 1, 11, 17] and cube["faces"]["south"] == [12, 1, 22, 17]
     assert "options" not in cape  # every setting is the player's, colour included
     assert not (out / "assets/blc_import/models/cosmetic/cloak").exists()
-    # Badlion's 22 x 23 layout is a 22 long cape, its UVs scaled to the (downscaled) texture.
-    long = cosmetic(out, "cape_2_*.json")
-    w, h = long["texture_size"]
+    # Badlion's 22 x 23 layout: a vanilla-length cape from the top 22 x 17 blocks, its UVs scaled to the
+    # (downscaled) texture; the rows below the cape aren't drawn.
+    badlion_cape = cosmetic(out, "cape_2_*.json")
+    w, h = badlion_cape["texture_size"]
     assert (w, h) == (61, 64)
-    cube = long["parts"][0]["cubes"][0]
-    assert cube["to"] == [5, 22, 0]
-    assert cube["faces"]["north"] == [round(w / 22, 4), round(h / 23, 4), round(11 * w / 22, 4), h]
+    cube = badlion_cape["parts"][0]["cubes"][0]
+    assert cube["to"] == [5, 16, 0]
+    assert cube["faces"]["north"] == [round(w / 22, 4), round(h / 23, 4), round(11 * w / 22, 4), round(17 * h / 23, 4)]
+    assert max(max(uv[1], uv[3]) for uv in cube["faces"].values()) == round(17 * h / 23, 4)
     # A cape naming a model Badlion doesn't define, or a blank one, gets the box too.
     for name in ("cape_11_*.json", "cape_12_*.json"):
         assert cosmetic(out, name)["parts"][0]["cubes"][0]["to"] == [5, 16, 0]
