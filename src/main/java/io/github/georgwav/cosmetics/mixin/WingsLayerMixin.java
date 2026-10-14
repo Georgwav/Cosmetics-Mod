@@ -125,7 +125,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ElytraLayer.class)
 abstract class WingsLayerMixin {
-    /** The entity being drawn, for the texture (render only takes the texture there). */
+    // The entity being drawn, for the texture (the render type only takes the texture).
     @Unique
     private static int cosmeticsmod$wearer;
 
