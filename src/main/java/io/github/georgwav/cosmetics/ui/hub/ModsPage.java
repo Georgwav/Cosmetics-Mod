@@ -24,10 +24,15 @@ import java.util.Set;
 final class ModsPage {
     private static final Set<String> NOT_LISTED = Set.of("minecraft", "java", "fabricloader", CosmeticsMod.MOD_ID);
     private static final String[] SECTIONS = {"all", "on", "view", "world", "installed", "look"};
-    private static final float LIST_X = 372f;
-    private static final float LIST_W = 940f;
-    private static final float LIST_TOP = 176f;
-    private static final float LIST_BOTTOM = 712f;
+    // Everything stays inside the open panel (x 80 to 1360, y 92 to 732, rounded corners): the header across the
+    // top, the sections down the left, the list to their right.
+    private static final float LEFT = 148f;
+    private static final float RIGHT = 1292f;
+    private static final float NAV_W = 212f;
+    private static final float LIST_X = 384f;
+    private static final float LIST_W = RIGHT - LIST_X;
+    private static final float LIST_TOP = 204f;
+    private static final float LIST_BOTTOM = 692f;
 
     private final HubScreen hub;
     private String section = "all";
@@ -97,27 +102,32 @@ final class ModsPage {
     /** The page's contents inside the open panel. */
     void draw(Ui ui, String query) {
         String needle = query.trim().toLowerCase(Locale.ROOT);
-        ui.text(t("title"), 128f, 118f, Ui.TEXT, ui.textScale + 1);
-        long on = Modules.all().stream().filter(Module::enabled).count();
-        ui.text(t("summary", on, Modules.all().size(), installed().size()), 128f, 118f + 9f * (ui.textScale + 1) / ui.u + 6f, Ui.TEXT_DIM);
+        float headerRight = RIGHT;
         if (io.github.georgwav.cosmetics.compat.Compat.MOD_MENU) {
-            ui.buttonRight(t("mod_menu"), 1312f, 118f, 36f, false, hub::openModMenu);
+            headerRight = ui.buttonRight(t("mod_menu"), RIGHT, 140f, 36f, false, hub::openModMenu) - 16f;
         }
+        ui.text(ui.fit(t("title"), headerRight - LEFT, Ui.TITLE, true), LEFT, 136f, Ui.TEXT, Ui.TITLE, true);
+        long on = Modules.all().stream().filter(Module::enabled).count();
+        String summary = t("summary", on, Modules.all().size(), installed().size());
+        ui.text(ui.fit(summary, headerRight - LEFT, Ui.SMALL, false), LEFT, 172f, Ui.TEXT_DIM, Ui.SMALL, false);
 
         // Sections down the left, with how many each holds.
         float ny = LIST_TOP;
         for (String id : SECTIONS) {
             boolean current = needle.isEmpty() && id.equals(section);
-            boolean hot = ui.hover(120f, ny, 220f, 40f);
+            boolean hot = ui.hover(LEFT, ny, NAV_W, 40f);
             if (current || hot) {
-                ui.roundRect(120f, ny, 220f, 40f, 14f, current ? Ui.WELL : 0xFF151518);
+                ui.roundRect(LEFT, ny, NAV_W, 40f, 14f, current ? Ui.WELL : 0xFF151518);
             }
-            ui.textMid(t("section." + id), 136f, ny + 20f, current ? Ui.TEXT : 0xBBFFFFFF);
             String badge = String.valueOf(count(id));
-            float bw = ui.textWidth(badge) + 14f;
-            ui.roundRect(328f - bw, ny + 10f, bw, 20f, 10f, current ? ui.accent : 0x14FFFFFF);
-            ui.textMid(badge, 335f - bw, ny + 20f, current ? ui.ink : 0xB0FFFFFF);
-            ui.click(120f, ny, 220f, 40f, () -> {
+            float bw = Math.max(24f, ui.textWidth(badge, Ui.SMALL, true) + 14f);
+            float bx = LEFT + NAV_W - 10f - bw;
+            ui.roundRect(bx, ny + 10f, bw, 20f, 10f, current ? ui.accent : 0x14FFFFFF);
+            ui.textMid(badge, bx + (bw - ui.textWidth(badge, Ui.SMALL, true)) / 2f, ny + 20f,
+                    current ? ui.ink : 0xB0FFFFFF, Ui.SMALL, true);
+            String label = ui.fit(t("section." + id), bx - 8f - (LEFT + 16f), 14f, true);
+            ui.textMid(label, LEFT + 16f, ny + 20f, current ? Ui.TEXT : 0xBBFFFFFF, 14f, true);
+            ui.click(LEFT, ny, NAV_W, 40f, () -> {
                 section = id;
                 scroll = 0f;
             });
@@ -125,7 +135,7 @@ final class ModsPage {
         }
 
         // The list, clipped to its area and scrolled.
-        ui.g.clipScreen(ui.sx(LIST_X - 12f), ui.sy(LIST_TOP), ui.sx(LIST_X + LIST_W + 12f), ui.sy(LIST_BOTTOM), ui.gs);
+        ui.clip(LIST_X, LIST_TOP, RIGHT, LIST_BOTTOM);
         float y = LIST_TOP - scroll;
         float start = y;
         boolean any = false;
@@ -137,8 +147,12 @@ final class ModsPage {
                 }
                 if (section.equals("all") && needle.isEmpty() && m.category != last) {
                     last = m.category;
-                    ui.text(t("category." + m.category.name().toLowerCase(Locale.ROOT)), LIST_X + 4f, y + 6f, Ui.TEXT_FAINT);
-                    y += 30f;
+                    if (y > start) {
+                        y += 8f;
+                    }
+                    ui.text(t("category." + m.category.name().toLowerCase(Locale.ROOT)), LIST_X + 6f, y + 4f,
+                            Ui.TEXT_FAINT, Ui.SMALL, true);
+                    y += 26f;
                 }
                 y = moduleCard(ui, m, y);
                 any = true;
@@ -158,10 +172,11 @@ final class ModsPage {
             any = true;
         }
         if (!any) {
-            ui.text(needle.isEmpty() ? t("empty") : t("no_match", query.trim()), LIST_X + 4f, y + 10f, Ui.TEXT_DIM);
+            String empty = needle.isEmpty() ? t("empty") : t("no_match", query.trim());
+            ui.text(ui.fit(empty, LIST_W - 12f, Ui.SMALL, false), LIST_X + 6f, y + 10f, Ui.TEXT_DIM, Ui.SMALL, false);
         }
         contentHeight = y + scroll - start;
-        ui.g.endClip();
+        ui.endClip();
         scrollBy(0);
     }
 
@@ -177,20 +192,21 @@ final class ModsPage {
         float right = LIST_X + LIST_W - 20f;
         if (y + h >= LIST_TOP && y <= LIST_BOTTOM) {
             ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
-            ui.circle(LIST_X + 36f, y + 32f, 20f, m.enabled() ? ui.accent : Ui.WELL);
-            ui.icon(m.icon, LIST_X + 36f, y + 32f, 20f, m.enabled() && ui.isInkDark());
-            float textRight = right - 52f - 16f - 200f;
-            ui.text(ui.fit(m.name(), textRight - LIST_X - 68f), LIST_X + 68f, y + 14f, Ui.TEXT);
-            ui.text(ui.fit(m.note(), textRight - LIST_X - 68f), LIST_X + 68f, y + 34f, Ui.TEXT_DIM);
+            ui.circle(LIST_X + 34f, y + 32f, 20f, m.enabled() ? ui.accent : Ui.WELL);
+            ui.icon(m.icon, LIST_X + 34f, y + 32f, 20f, m.enabled() && ui.isInkDark());
             ui.toggle(m.id, right - 52f, y + 16f, m.enabled(), () -> m.setEnabled(!m.enabled()));
             float gearX = right - 52f - 16f - 18f;
             ui.iconButton("gear", gearX, y + 32f, 18f, open, () -> expanded = open ? null : m.id);
-            keyButton(ui, m.toggleKey(), gearX - 18f - 12f, y + 14f);
+            float keyLeft = keyButton(ui, m.toggleKey(), gearX - 18f - 12f, y + 14f);
+            float textX = LIST_X + 66f;
+            float room = keyLeft - 16f - textX;
+            ui.text(ui.fit(m.name(), room, Ui.NAME, true), textX, y + 18f, Ui.TEXT, Ui.NAME, true);
+            ui.text(ui.fit(m.note(), room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
             if (open) {
                 float sy = y + 64f;
                 for (Setting<?> s : settings) {
-                    ui.roundRect(LIST_X + 68f, sy, LIST_W - 88f, 1f, 0f, Ui.LINE);
-                    settingRow(ui, m, s, sy, right);
+                    ui.roundRect(textX, sy, right - textX, 1f, 0f, Ui.LINE);
+                    settingRow(ui, m, s, sy, textX, right);
                     sy += 56f;
                 }
             }
@@ -199,46 +215,51 @@ final class ModsPage {
     }
 
     /** A module's setting: its name (a dot when changed) and its control on the right. */
-    private void settingRow(Ui ui, Module m, Setting<?> s, float y, float right) {
+    private void settingRow(Ui ui, Module m, Setting<?> s, float y, float textX, float right) {
         String base = "cosmeticsmod.module." + m.id + "." + s.id;
         float cy = y + 28f;
-        if (s.changed()) {
-            ui.circle(LIST_X + 60f, cy, 3.5f, ui.accent);
-        }
-        ui.textMid(Component.translatable(base).getString(), LIST_X + 68f, cy, Ui.TEXT);
+        float controlLeft = right;
         if (s instanceof Setting.Toggle toggle) {
             ui.toggle(m.id + "." + s.id, right - 52f, cy - 16f, toggle.get(), () -> toggle.set(!toggle.get()));
+            controlLeft = right - 52f;
         } else if (s instanceof Setting.Slider slider) {
             float w = 220f;
             ui.slider(m.id + "." + s.id, right - w, cy - 16f, w, slider.min, slider.max, slider.get(), slider::set);
             String value = slider.text();
-            ui.textMid(value, right - w - 16f - ui.textWidth(value), cy, 0xCCFFFFFF);
+            ui.textMidRight(value, right - w - 18f, cy, 0xCCFFFFFF, Ui.SMALL, true);
+            controlLeft = right - w - 18f - ui.textWidth(value, Ui.SMALL, true);
         } else if (s instanceof Setting.Choice choice) {
             List<String> labels = new ArrayList<>();
             for (String option : choice.options) {
                 labels.add(Component.translatable(base + "." + option).getString());
             }
-            float w = 6f;
-            for (String label : labels) {
-                w += ui.textWidth(label) + 24f;
-            }
+            float w = ui.choiceWidth(labels);
             ui.choice(m.id + "." + s.id, right - w, cy - 18f, labels, choice.options.indexOf(choice.get()),
                     i -> choice.set(choice.options.get(i)));
+            controlLeft = right - w;
         }
+        if (s.changed()) {
+            ui.circle(textX - 9f, cy, 3.5f, ui.accent);
+        }
+        String name = Component.translatable(base).getString();
+        ui.textMid(ui.fit(name, controlLeft - 16f - textX, Ui.NAME, false), textX, cy, Ui.TEXT, Ui.NAME, false);
     }
 
-    /** The key that switches a module: its name, or "Press a key" while it waits for one. */
-    private void keyButton(Ui ui, KeyMapping key, float right, float y) {
+    /** The key that switches a module: its name, or "Press a key" while it waits for one. Returns its left edge. */
+    private float keyButton(Ui ui, KeyMapping key, float right, float y) {
         if (key == null) {
-            return;
+            return right;
         }
         boolean waiting = hub.listeningFor() == key;
         String label = waiting ? t("press_key") : key.isUnbound() ? t("no_key") : KeyBinds.name(key);
-        float w = ui.textWidth(label) + 28f;
+        label = ui.fit(label, 160f, Ui.SMALL, true);
+        float w = ui.textWidth(label, Ui.SMALL, true) + 28f;
         boolean hot = ui.hover(right - w, y, w, 36f);
-        ui.roundRect(right - w, y, w, 36f, 12f, waiting ? ui.accent : hot ? 0xFF26262A : Ui.WELL);
-        ui.textMid(label, right - w + 14f, y + 18f, waiting ? ui.ink : key.isUnbound() ? Ui.TEXT_DIM : Ui.TEXT);
+        ui.roundRect(right - w, y, w, 36f, 18f, waiting ? ui.accent : hot ? 0xFF26262A : Ui.WELL);
+        ui.textMid(label, right - w + 14f, y + 18f, waiting ? ui.ink : key.isUnbound() ? Ui.TEXT_DIM : Ui.TEXT,
+                Ui.SMALL, true);
         ui.click(right - w, y, w, 36f, () -> hub.listenFor(waiting ? null : key));
+        return right - w;
     }
 
     /** An installed mod: its name and version, and its settings through Mod Menu. */
@@ -251,13 +272,15 @@ final class ModsPage {
             String name = mod.getMetadata().getName();
             String version = mod.getMetadata().getVersion().getFriendlyString();
             float right = LIST_X + LIST_W - 20f;
-            float textRight = right - 140f;
-            ui.text(ui.fit(name, textRight - LIST_X - 64f), LIST_X + 64f, y + 12f, Ui.TEXT);
-            ui.text(ui.fit(version, textRight - LIST_X - 64f), LIST_X + 64f, y + 32f, Ui.TEXT_DIM);
+            float textRight = right;
             if (io.github.georgwav.cosmetics.compat.Compat.MOD_MENU) {
                 String id = mod.getMetadata().getId();
-                ui.buttonRight(t("settings"), right, y + 12f, 36f, false, () -> hub.openModSettings(id));
+                textRight = ui.buttonRight(t("settings"), right, y + 12f, 36f, false, () -> hub.openModSettings(id));
             }
+            float textX = LIST_X + 66f;
+            float room = textRight - 16f - textX;
+            ui.text(ui.fit(name, room, Ui.NAME, true), textX, y + 16f, Ui.TEXT, Ui.NAME, true);
+            ui.text(ui.fit(version, room, Ui.SMALL, false), textX, y + 35f, Ui.TEXT_DIM, Ui.SMALL, false);
         }
         return y + h + 10f;
     }
@@ -268,8 +291,6 @@ final class ModsPage {
         float h = 64f;
         float right = LIST_X + LIST_W - 20f;
         ui.roundRect(LIST_X, y, LIST_W, h, 22f, Ui.CARD);
-        ui.text(t("blur"), LIST_X + 24f, y + 14f, Ui.TEXT);
-        ui.text(t("blur.hint"), LIST_X + 24f, y + 34f, Ui.TEXT_DIM);
         int blur = mc.options.menuBackgroundBlurriness().get();
         float w = 220f;
         ui.slider("blur", right - w, y + 16f, w, 0, 10, blur, v -> {
@@ -280,7 +301,11 @@ final class ModsPage {
             }
         });
         String value = String.valueOf(blur);
-        ui.textMid(value, right - w - 16f - ui.textWidth(value), y + 32f, 0xCCFFFFFF);
+        ui.textMidRight(value, right - w - 18f, y + 32f, 0xCCFFFFFF, Ui.SMALL, true);
+        float textX = LIST_X + 24f;
+        float room = right - w - 18f - ui.textWidth(value, Ui.SMALL, true) - 16f - textX;
+        ui.text(ui.fit(t("blur"), room, Ui.NAME, true), textX, y + 18f, Ui.TEXT, Ui.NAME, true);
+        ui.text(ui.fit(t("blur.hint"), room, Ui.SMALL, false), textX, y + 37f, Ui.TEXT_DIM, Ui.SMALL, false);
         return y + h + 10f;
     }
 }

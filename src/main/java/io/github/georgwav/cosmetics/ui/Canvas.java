@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import org.joml.Quaternionf;
@@ -162,6 +163,15 @@ public final class Canvas {
 
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {
+        //? if >=26.1 {
+        /*raw.text(font, text, x, y, color, false);
+        *///?} else {
+        raw.drawString(font, text, x, y, color, false);
+        //?}
+    }
+
+    /** Styled text (its own font) without shadow; colour is ARGB. */
+    public void text(Font font, Component text, int x, int y, int color) {
         //? if >=26.1 {
         /*raw.text(font, text, x, y, color, false);
         *///?} else {

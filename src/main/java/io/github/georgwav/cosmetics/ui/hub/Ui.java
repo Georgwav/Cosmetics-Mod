@@ -35,7 +35,6 @@ final class Ui {
     final float ox;
     final float oy;
     final float gs;
-    final int textScale;
     final float mx;
     final float my;
     final int accent;
@@ -44,15 +43,14 @@ final class Ui {
     /** Values that ease towards their targets across frames (a switch's knob), by key. */
     private final Map<String, Float> eased;
 
-    Ui(Canvas g, Font font, float u, float ox, float oy, float gs, int textScale, float mx, float my, int accent,
-       int ink, List<Hit> hits, Map<String, Float> eased) {
+    Ui(Canvas g, Font font, float u, float ox, float oy, float gs, float mx, float my, int accent, int ink,
+       List<Hit> hits, Map<String, Float> eased) {
         this.g = g;
         this.font = font;
         this.u = u;
         this.ox = ox;
         this.oy = oy;
         this.gs = gs;
-        this.textScale = textScale;
         this.mx = mx;
         this.my = my;
         this.accent = accent;
@@ -84,16 +82,41 @@ final class Ui {
         return next;
     }
 
+    // While a list is clipped, only what shows of it can be hovered or clicked.
+    private float clipTop = Float.NEGATIVE_INFINITY;
+    private float clipBottom = Float.POSITIVE_INFINITY;
+
+    /** Clips drawing, hovering and clicking to a rectangle until {@link #endClip()}. */
+    void clip(float x0, float y0, float x1, float y1) {
+        g.clipScreen(sx(x0), sy(y0), sx(x1), sy(y1), gs);
+        clipTop = y0;
+        clipBottom = y1;
+    }
+
+    void endClip() {
+        g.endClip();
+        clipTop = Float.NEGATIVE_INFINITY;
+        clipBottom = Float.POSITIVE_INFINITY;
+    }
+
     boolean hover(float x, float y, float w, float h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
+        return mx >= x && mx < x + w && my >= Math.max(y, clipTop) && my < Math.min(y + h, clipBottom);
     }
 
     void click(float x, float y, float w, float h, Runnable action) {
-        hits.add(new Hit(x, y, x + w, y + h, action, null));
+        hit(x, y, w, h, action, null);
     }
 
     void drag(float x, float y, float w, float h, DoubleConsumer drag) {
-        hits.add(new Hit(x, y, x + w, y + h, null, drag));
+        hit(x, y, w, h, null, drag);
+    }
+
+    private void hit(float x, float y, float w, float h, Runnable action, DoubleConsumer drag) {
+        float top = Math.max(y, clipTop);
+        float bottom = Math.min(y + h, clipBottom);
+        if (bottom > top) {
+            hits.add(new Hit(x, top, x + w, bottom, action, drag));
+        }
     }
 
     // ------------------------------------------------------------------ shapes
@@ -112,62 +135,63 @@ final class Ui {
     }
 
     // ------------------------------------------------------------------ text
+    // In Geist, sizes in design pixels as in the design: names 15, everything else 13, page titles 30.
 
-    float lineHeight() {
-        return 9f * textScale / u;
+    static final float NAME = 15f;
+    static final float SMALL = 13f;
+    static final float TITLE = 30f;
+
+    HubFont type(float size, boolean semibold) {
+        return HubFont.of(font, size * u, semibold);
     }
 
-    float textWidth(String text) {
-        return font.width(text) * textScale / u;
+    float textWidth(String text, float size, boolean semibold) {
+        return type(size, semibold).width(text) / u;
     }
 
-    /** Text with its top left at (x, y), in the hub's text size ({@code scale} times it when larger). */
-    void text(String text, float x, float y, int color) {
-        text(text, x, y, color, textScale);
+    /** Text with the top of its capitals at (x, y). */
+    void text(String text, float x, float y, int color, float size, boolean semibold) {
+        HubFont f = type(size, semibold);
+        f.draw(g, text, sx(x), sy(y) + f.cap(), color);
     }
 
-    void text(String text, float x, float y, int color, int scale) {
-        g.push();
-        g.translate(Math.round(sx(x)), Math.round(sy(y)));
-        g.scale(scale, scale);
-        g.text(font, text, 0, 0, color);
-        g.pop();
+    /** Text with its capitals centred on {@code cy}. */
+    void textMid(String text, float x, float cy, int color, float size, boolean semibold) {
+        type(size, semibold).drawMid(g, text, sx(x), sy(cy), color);
     }
 
-    /** Text centred vertically on {@code cy}. */
-    void textMid(String text, float x, float cy, int color) {
-        text(text, x, cy - lineHeight() / 2f + 0.5f / u, color);
+    /** Text ending at {@code right}, its capitals centred on {@code cy}. */
+    void textMidRight(String text, float right, float cy, int color, float size, boolean semibold) {
+        HubFont f = type(size, semibold);
+        f.drawMid(g, text, sx(right) - f.width(text), sy(cy), color);
     }
 
     /** Shortened with an ellipsis to fit {@code room} design pixels. */
-    String fit(String text, float room) {
-        int max = Math.round(room * u / textScale);
-        if (font.width(text) <= max) {
-            return text;
-        }
-        int end = text.length();
-        while (end > 0 && font.width(text.substring(0, end) + "…") > max) {
-            end--;
-        }
-        return text.substring(0, end) + "…";
+    String fit(String text, float room, float size, boolean semibold) {
+        return type(size, semibold).fit(text, room * u);
     }
 
     // ------------------------------------------------------------------ controls
 
+    /** A pill button's width for {@code label}. */
+    float buttonWidth(String label) {
+        return textWidth(label, SMALL, true) + 32f;
+    }
+
     /** A pill button; returns its width. */
     float button(String label, float x, float y, float h, boolean filled, Runnable action) {
-        float w = textWidth(label) + 28f;
+        float w = buttonWidth(label);
         boolean hot = hover(x, y, w, h);
         int bg = filled ? accent : hot ? 0xFF26262A : WELL;
         roundRect(x, y, w, h, h / 2f, bg);
-        textMid(label, x + 14f, y + h / 2f, filled ? ink : TEXT);
+        textMid(label, x + 16f, y + h / 2f, filled ? ink : TEXT, SMALL, true);
         click(x, y, w, h, action);
         return w;
     }
 
     /** The same button ending at {@code right}; returns its left edge. */
     float buttonRight(String label, float right, float y, float h, boolean filled, Runnable action) {
-        float w = textWidth(label) + 28f;
+        float w = buttonWidth(label);
         button(label, right - w, y, h, filled, action);
         return right - w;
     }
@@ -206,21 +230,27 @@ final class Ui {
         });
     }
 
+    /** How wide {@link #choice} is with these labels. */
+    float choiceWidth(List<String> labels) {
+        float w = 6f;
+        for (String label : labels) {
+            w += textWidth(label, SMALL, true) + 28f;
+        }
+        return w;
+    }
+
     /** Pills for one of a few options; returns the width. */
     float choice(String key, float x, float y, List<String> labels, int selected, IntConsumer pick) {
         float h = 36f;
-        float w = 6f;
-        for (String label : labels) {
-            w += textWidth(label) + 24f;
-        }
+        float w = choiceWidth(labels);
         roundRect(x, y, w, h, h / 2f, WELL);
         float px = x + 3f;
         for (int i = 0; i < labels.size(); i++) {
-            float bw = textWidth(labels.get(i)) + 24f;
+            float bw = textWidth(labels.get(i), SMALL, true) + 28f;
             if (i == selected) {
                 roundRect(px, y + 3f, bw, h - 6f, (h - 6f) / 2f, accent);
             }
-            textMid(labels.get(i), px + 12f, y + h / 2f, i == selected ? ink : 0xCCFFFFFF);
+            textMid(labels.get(i), px + 14f, y + h / 2f, i == selected ? ink : 0xCCFFFFFF, SMALL, true);
             int index = i;
             click(px, y + 3f, bw, h - 6f, () -> pick.accept(index));
             px += bw;

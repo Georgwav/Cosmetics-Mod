@@ -121,7 +121,6 @@ public final class HubScreen extends Screen {
     private float u = 1f;
     private float ox;
     private float oy;
-    private int textScale = 1;
     private final List<float[]> orbHits = new ArrayList<>();
     private final List<Ui.Hit> hits = new ArrayList<>();
     private final Map<String, Float> eased = Ui.newEasing();
@@ -857,7 +856,6 @@ public final class HubScreen extends Screen {
         u = Math.min(screenW / DESIGN_W, screenH / DESIGN_H);
         ox = (screenW - DESIGN_W * u) / 2f;
         oy = (screenH - DESIGN_H * u) / 2f;
-        textScale = Math.max(1, Math.round(u * 1.8f));
         advance();
         if (notice != null && System.currentTimeMillis() > noticeUntil) {
             notice = null;
@@ -894,8 +892,8 @@ public final class HubScreen extends Screen {
         float start = 155f;
         float a = (start + (1280f - start) * p) / 2f;
         float b = (start + (640f - start) * p) / 2f;
-        float n = 2f + 3.4f * q01;
-        float amp = 3f + 4f * q01;
+        float n = 2f + 6f * q01;
+        float amp = 3f + 2f * q01;
         float cx = CX;
         float cy = CY + 12f * p;
         double time = System.nanoTime() / 1e9;
@@ -917,7 +915,7 @@ public final class HubScreen extends Screen {
         }
         Shapes.fill(g, Shapes.polygon(xs, ys, count), 0xF2070709);
         if (p > 0.85f) {
-            Ui ui = new Ui(g, font, u, ox, oy, gs, textScale, mx, my, ACCENT, INK, hits, eased);
+            Ui ui = new Ui(g, font, u, ox, oy, gs, mx, my, ACCENT, INK, hits, eased);
             modsPage.draw(ui, query);
         }
     }
@@ -1014,9 +1012,8 @@ public final class HubScreen extends Screen {
                 drawFace(g, cx, cy, 36f * k * u);
             } else if (it.live != null) {
                 String value = it.live.equals("fps") ? String.valueOf(Minecraft.getInstance().getFps()) : clock();
-                int ts = Math.max(1, Math.round(textScale * k));
-                int tw = font.width(value) * ts;
-                text(g, value, Math.round(cx - tw / 2f), Math.round(cy - 4f * ts), isOn ? INK : TEXT, ts);
+                HubFont f = HubFont.of(font, 17f * k * u, true);
+                f.drawMid(g, value, cx - f.width(value) / 2f, cy, isOn ? INK : TEXT);
             } else if (it.icon != null) {
                 int size = Math.round(26f * k * u);
                 g.blit(icon(isOn && INK_DARK ? it.icon + "_dark" : it.icon), Math.round(cx - size / 2f),
@@ -1038,12 +1035,13 @@ public final class HubScreen extends Screen {
         if (tipText == null) {
             return;
         }
-        float w = font.width(tipText) * textScale / u + 20f;
-        float h = 9f * textScale / u + 10f;
+        HubFont f = type(Ui.SMALL, true);
+        float w = f.width(tipText) / u + 24f;
+        float h = 28f;
         float x = tipX - w / 2f;
         float y = tipY - 8f - h;
         Shapes.fill(g, Shapes.roundRect(sx(x), sy(y), w * u, h * u, h * u / 2f), 0xFF000000);
-        text(g, tipText, Math.round(sx(x + 10f)), Math.round(sy(y + 5f)), TEXT, textScale);
+        f.drawMid(g, tipText, sx(x + 12f), sy(y + h / 2f), TEXT);
     }
 
     /** The island: what the orb in the middle is, and the button that uses it. */
@@ -1079,8 +1077,11 @@ public final class HubScreen extends Screen {
         boolean action = settled && missing == null && it.kind != HubItem.Kind.LATER;
         String label = !action ? null
                 : it.kind == HubItem.Kind.TOGGLE ? t(isOn ? "turn_off" : "turn_on") : t("button." + it.button);
-        float bw = label == null ? 0f : font.width(label) * textScale / u + 32f;
-        float textW = Math.max(font.width(name(it)), font.width(line)) * textScale / u;
+        HubFont nameFont = type(Ui.NAME, true);
+        HubFont lineFont = type(Ui.SMALL, false);
+        HubFont labelFont = type(Ui.SMALL, true);
+        float bw = label == null ? 0f : labelFont.width(label) / u + 32f;
+        float textW = Math.max(nameFont.width(name(it)), lineFont.width(line)) / u;
         boolean gear = action && it.moduleId != null;
         // The island grows to fit what it says, like the real one.
         islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + (label == null ? 0f : bw + 12f) + (gear ? 56f : 0f) + 10f));
@@ -1098,8 +1099,7 @@ public final class HubScreen extends Screen {
             drawFace(g, sx(wellX), sy(wellY), 24f * u);
         } else if (it.live != null) {
             String value = it.live.equals("fps") ? String.valueOf(Minecraft.getInstance().getFps()) : clock();
-            int tw = font.width(value) * textScale;
-            text(g, value, Math.round(sx(wellX) - tw / 2f), Math.round(sy(wellY) - 4f * textScale), isOn ? INK : TEXT, textScale);
+            labelFont.drawMid(g, value, sx(wellX) - labelFont.width(value) / 2f, sy(wellY), isOn ? INK : TEXT);
         } else if (it.icon != null) {
             int size = Math.round(20f * u);
             g.blit(icon(isOn && INK_DARK ? it.icon + "_dark" : it.icon), Math.round(sx(wellX) - size / 2f),
@@ -1113,9 +1113,7 @@ public final class HubScreen extends Screen {
             float by = top + 8f;
             int bg = it.kind == HubItem.Kind.TOGGLE && !isOn ? ACCENT : WELL;
             Shapes.fill(g, Shapes.roundRect(sx(bx), sy(by), bw * u, 44f * u, 22f * u), bg);
-            int tw = font.width(label) * textScale;
-            text(g, label, Math.round(sx(bx + bw / 2f) - tw / 2f), Math.round(sy(by + 22f) - 4f * textScale),
-                    bg == ACCENT ? INK : TEXT, textScale);
+            labelFont.drawMid(g, label, sx(bx + bw / 2f) - labelFont.width(label) / 2f, sy(by + 22f), bg == ACCENT ? INK : TEXT);
             int index = centered;
             hits.add(new Ui.Hit(bx, by, bx + bw, by + 44f, () -> use(index), null));
             right = bx - 12f;
@@ -1133,10 +1131,9 @@ public final class HubScreen extends Screen {
                 right = gx - 12f;
             }
         }
-        int room = Math.round((right - textX) * u);
-        float lineH = 9f * textScale / u;
-        text(g, fit(name(it), room), Math.round(sx(textX)), Math.round(sy(wellY - lineH - 1f)), TEXT, textScale);
-        text(g, fit(line, room), Math.round(sx(textX)), Math.round(sy(wellY + 2f)), TEXT_DIM, textScale);
+        float room = (right - textX) * u;
+        nameFont.draw(g, nameFont.fit(name(it), room), sx(textX), sy(wellY - 13f) + nameFont.cap(), TEXT);
+        lineFont.draw(g, lineFont.fit(line, room), sx(textX), sy(wellY + 4f) + lineFont.cap(), TEXT_DIM);
     }
 
     private void drawPageIsland(Canvas g) {
@@ -1144,8 +1141,11 @@ public final class HubScreen extends Screen {
         long on = Modules.all().stream().filter(io.github.georgwav.cosmetics.client.Module::enabled).count();
         String line = notice != null ? notice : listening != null ? t("mods.press_key") : t("mods.island", on, Modules.all().size());
         String label = t("done");
-        float bw = font.width(label) * textScale / u + 32f;
-        float textW = Math.max(font.width(name), font.width(line)) * textScale / u;
+        HubFont nameFont = type(Ui.NAME, true);
+        HubFont lineFont = type(Ui.SMALL, false);
+        HubFont labelFont = type(Ui.SMALL, true);
+        float bw = labelFont.width(label) / u + 32f;
+        float textW = Math.max(nameFont.width(name), lineFont.width(line)) / u;
         islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + bw + 12f + 10f));
         float w = islandW;
         float h = 60f;
@@ -1160,15 +1160,13 @@ public final class HubScreen extends Screen {
         if (mode == Mode.IDLE) {
             float bx = right - bw;
             Shapes.fill(g, Shapes.roundRect(sx(bx), sy(top + 8f), bw * u, 44f * u, 22f * u), WELL);
-            int tw = font.width(label) * textScale;
-            text(g, label, Math.round(sx(bx + bw / 2f) - tw / 2f), Math.round(sy(top + 30f) - 4f * textScale), TEXT, textScale);
+            labelFont.drawMid(g, label, sx(bx + bw / 2f) - labelFont.width(label) / 2f, sy(top + 30f), TEXT);
             hits.add(new Ui.Hit(bx, top + 8f, bx + bw, top + 52f, this::closePage, null));
             right = bx - 12f;
         }
-        int room = Math.round((right - left - 62f) * u);
-        float lineH = 9f * textScale / u;
-        text(g, fit(name, room), Math.round(sx(left + 62f)), Math.round(sy(top + 30f - lineH - 1f)), TEXT, textScale);
-        text(g, fit(line, room), Math.round(sx(left + 62f)), Math.round(sy(top + 32f)), TEXT_DIM, textScale);
+        float room = (right - left - 62f) * u;
+        nameFont.draw(g, nameFont.fit(name, room), sx(left + 62f), sy(top + 17f) + nameFont.cap(), TEXT);
+        lineFont.draw(g, lineFont.fit(line, room), sx(left + 62f), sy(top + 34f) + lineFont.cap(), TEXT_DIM);
     }
 
     /** The bar at the bottom: back to the hub (in the mods sphere), previous, search, next. */
@@ -1178,8 +1176,10 @@ public final class HubScreen extends Screen {
         Runnable back = onPage ? this::closePage : () -> enter(MAIN, -1);
         String backLabel = t("back");
         String hint = t(onPage ? "mods.search" : "search");
-        float backW = hasBack ? font.width(backLabel) * textScale / u + 46f : 0f;
-        float searchW = Math.max(280f, Math.min(420f, font.width(hint) * textScale / u + 60f));
+        HubFont labelFont = type(Ui.SMALL, true);
+        HubFont inputFont = type(Ui.SMALL, false);
+        float backW = hasBack ? labelFont.width(backLabel) / u + 48f : 0f;
+        float searchW = Math.max(280f, Math.min(420f, inputFont.width(hint) / u + 64f));
         float arrows = onPage ? 0f : 100f;
         float w = 4f + (hasBack ? backW + 6f : 0f) + arrows + searchW + 4f;
         float left = CX - w / 2f;
@@ -1193,7 +1193,7 @@ public final class HubScreen extends Screen {
             Shapes.fill(g, Shapes.roundRect(sx(x), sy(y), backW * u, 44f * u, 22f * u), WELL);
             int size = Math.round(16f * u);
             g.blit(icon("back"), Math.round(sx(x + 10f)), Math.round(sy(y + 22f) - size / 2f), size, size, 64);
-            text(g, backLabel, Math.round(sx(x + 30f)), Math.round(sy(y + 22f) - 4f * textScale), TEXT, textScale);
+            labelFont.drawMid(g, backLabel, sx(x + 32f), sy(y + 22f), TEXT);
             hits.add(new Ui.Hit(x, y, x + backW, y + 44f, back, null));
             x += backW + 6f;
         }
@@ -1206,17 +1206,18 @@ public final class HubScreen extends Screen {
         Shapes.fill(g, Shapes.roundRect(sx(x + 1f), sy(y + 1f), (searchW - 2f) * u, 42f * u, 21f * u), 0xFF141416);
         int size = Math.round(17f * u);
         g.blit(icon("search"), Math.round(sx(x + 15f)), Math.round(sy(y + 22f) - size / 2f), size, size, 64);
-        int textY = Math.round(sy(y + 22f) - 4f * textScale);
-        int room = Math.round((searchW - 56f) * u);
+        float room = (searchW - 58f) * u;
+        float tx = sx(x + 40f);
+        float midY = sy(y + 22f);
         if (query.isEmpty()) {
-            text(g, fit(hint, room), Math.round(sx(x + 40f)), textY, 0x80FFFFFF, textScale);
+            inputFont.drawMid(g, inputFont.fit(hint, room), tx, midY, 0x80FFFFFF);
         } else {
-            String shown = fitEnd(query, room);
-            int tx = Math.round(sx(x + 40f));
-            text(g, shown, tx, textY, TEXT, textScale);
+            String shown = inputFont.fitEnd(query, room - 4f);
+            inputFont.drawMid(g, shown, tx, midY, TEXT);
             if ((System.currentTimeMillis() / 530) % 2 == 0) {
-                int caret = tx + font.width(shown) * textScale + textScale;
-                g.fill(caret, textY - textScale, caret + Math.max(1, textScale / 2 + 1), textY + 9 * textScale, 0xFFFFFFFF);
+                int caret = Math.round(tx + inputFont.width(shown) + Math.max(1f, u));
+                int half = Math.round(inputFont.px * 0.6f);
+                g.fill(caret, Math.round(midY) - half, caret + Math.max(1, Math.round(1.5f * u)), Math.round(midY) + half, 0xFFFFFFFF);
             }
         }
         x += searchW + 6f;
@@ -1291,36 +1292,9 @@ public final class HubScreen extends Screen {
     }
     *///?}
 
-    /** Text at (x, y) in screen pixels, each pixel of the game's font {@code scale} screen pixels. */
-    private void text(Canvas g, String text, int x, int y, int color, int scale) {
-        g.push();
-        g.translate(x, y);
-        g.scale(scale, scale);
-        g.text(font, text, 0, 0, color);
-        g.pop();
-    }
-
-    /** Shortened with an ellipsis to fit {@code room} screen pixels at the hub's text size. */
-    private String fit(String text, int room) {
-        int max = room / textScale;
-        if (font.width(text) <= max) {
-            return text;
-        }
-        int end = text.length();
-        while (end > 0 && font.width(text.substring(0, end) + "…") > max) {
-            end--;
-        }
-        return text.substring(0, end) + "…";
-    }
-
-    /** The end of the text that fits (what you just typed stays in view). */
-    private String fitEnd(String text, int room) {
-        int max = room / textScale - 4;
-        int start = 0;
-        while (start < text.length() && font.width(text.substring(start)) > max) {
-            start++;
-        }
-        return text.substring(start);
+    /** The hub's typeface at {@code size} design pixels. */
+    private HubFont type(float size, boolean semibold) {
+        return HubFont.of(font, size * u, semibold);
     }
 
     private static String clock() {
