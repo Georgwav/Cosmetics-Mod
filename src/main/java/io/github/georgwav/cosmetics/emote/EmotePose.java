@@ -104,6 +104,44 @@ public final class EmotePose {
         }
     }
 
+    /**
+     * Each part's size ({x, y, z} into {@code out}, 1 = as the game has it) at {@code time}, blended with the game's
+     * by {@code weight}: its own size times the whole player's ({@code root}). False when the emote sizes nothing.
+     */
+    public static boolean scales(Emote emote, float time, float weight, float[][] out) {
+        Channel[] root = emote.channels(Emote.Bone.ROOT);
+        boolean any = hasScale(root);
+        for (Emote.Bone bone : BONES) {
+            any |= hasScale(emote.channels(bone));
+        }
+        if (!any || weight <= 0f) {
+            return false;
+        }
+        float w = Math.min(1f, weight);
+        for (int p = 0; p < PARTS; p++) {
+            Channel[] own = emote.channels(BONES[p]);
+            for (int axis = 0; axis < 3; axis++) {
+                float size = scale(own, axis, time) * scale(root, axis, time);
+                out[p][axis] = 1f + (size - 1f) * w;
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasScale(Channel[] channels) {
+        if (channels == null || channels.length <= Emote.X_SCALE) {
+            return false;
+        }
+        return channels[Emote.X_SCALE] != null || channels[Emote.Y_SCALE] != null || channels[Emote.Z_SCALE] != null;
+    }
+
+    private static float scale(Channel[] channels, int axis, float time) {
+        if (channels == null || channels.length <= Emote.X_SCALE + axis || channels[Emote.X_SCALE + axis] == null) {
+            return 1f;
+        }
+        return channels[Emote.X_SCALE + axis].sample(time, 1f);
+    }
+
     /** A part's own pose: each channel the emote has, blended with the game's value; the game's value elsewhere. */
     private static float[] pose(Channel[] channels, float time, float w, float[] own, float[] rest) {
         float[] out = own.clone();

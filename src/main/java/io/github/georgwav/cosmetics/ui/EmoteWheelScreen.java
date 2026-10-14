@@ -27,8 +27,8 @@ import java.util.List;
 /**
  * The emote wheel (B by default): eight square slots in a ring around the middle of the screen, each showing its
  * emote's most telling pose. Like Lunar's, hold the key, point at an emote and let go to play it; or tap the key
- * and click one. Slots start empty: click a "+" to pick an emote for it, and the gear on a slot to change it. The
- * scroll wheel turns the page, and pages can be added. Opened while gliding with an elytra it is the elytra wheel,
+ * and click one. Slots start empty: click a "+" to pick an emote for it, the gear on a slot to change it, and the
+ * cross under the gear to empty it. The scroll wheel turns the page, and pages can be added. Opened while gliding with an elytra it is the elytra wheel,
  * with its own slots, whose emotes play until you land. Drawn with plain fills and text like the settings screen.
  */
 public final class EmoteWheelScreen extends Screen {
@@ -397,6 +397,11 @@ public final class EmoteWheelScreen extends Screen {
             return mouseX >= getX() + getWidth() - GEAR - 2 && mouseY < getY() + GEAR + 2;
         }
 
+        /** The cross in the bottom right corner: empties the slot at once. */
+        private boolean onRemove(double mouseX, double mouseY) {
+            return mouseX >= getX() + getWidth() - GEAR - 2 && mouseY >= getY() + getHeight() - GEAR - 2;
+        }
+
         @Override
         protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
             Emote emote = emote();
@@ -417,6 +422,11 @@ public final class EmoteWheelScreen extends Screen {
             if (hovered) {
                 text(g, font, "\u2699", getX() + getWidth() - GEAR, getY() + 2,
                         onGear(mouseX, mouseY) ? Theme.ACCENT_HOVER : Theme.TEXT_DIM);
+                boolean overRemove = onRemove(mouseX, mouseY);
+                int rx = getX() + getWidth() - GEAR - 1;
+                int ry = getY() + getHeight() - GEAR - 1;
+                rect(g, rx, ry, GEAR, GEAR, overRemove ? Theme.WARN : Theme.TRACK);
+                g.centeredText(font, "\u00d7", rx + GEAR / 2 + 1, ry + 2, overRemove ? Theme.KNOB : Theme.TEXT_DIM);
             }
             // The name under the square.
             g.centeredText(font, fit(font, Emotes.name(emote), getWidth() + 24), cx, getY() + getHeight() + 3,
@@ -426,7 +436,10 @@ public final class EmoteWheelScreen extends Screen {
         @Override
         protected void pressed(double mouseX, double mouseY) {
             Emote emote = emote();
-            if (emote == null || onGear(mouseX, mouseY)) {
+            if (emote != null && onRemove(mouseX, mouseY)) {
+                Emotes.assign(elytra, index, "");
+                CosmeticsConfig.save();
+            } else if (emote == null || onGear(mouseX, mouseY)) {
                 startPicking(index);
             } else {
                 play(emote);

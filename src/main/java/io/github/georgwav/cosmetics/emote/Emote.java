@@ -40,7 +40,14 @@ public record Emote(String id, String name, String author, float length, Ending 
     public static final int X_ROT = 3;
     public static final int Y_ROT = 4;
     public static final int Z_ROT = 5;
+    /** The channels a part's pose has (offset and rotation). */
     public static final int CHANNELS = 6;
+    /** A part's size, 1 = as the game has it; only Blockbench emotes have these (after the pose channels). */
+    public static final int X_SCALE = 6;
+    public static final int Y_SCALE = 7;
+    public static final int Z_SCALE = 8;
+    /** Every channel a part may have: pose, then size. */
+    public static final int ALL_CHANNELS = 9;
 
     /** Waist rotations turn around the hips. */
     public static final float WAIST_PIVOT_Y = 12f;

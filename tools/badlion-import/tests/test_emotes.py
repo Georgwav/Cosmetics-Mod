@@ -72,20 +72,24 @@ def test_player_animations_anywhere_become_emotes_and_cosmetic_animations_dont(t
     found = emotes.find(make_input(tmp_path))
     ids = sorted(e.id for e in found.emotes)
     # In an archive only what says "emote" counts: the mob's walk doesn't, the player emote file does.
-    assert ids == ["imported_emotes:funky_dance", "imported_emotes:wave", "lunar_emotes:wave"]
+    assert ids == ["imported_emotes:funky_dance", "imported_emotes:player_emotes", "lunar_emotes:wave"]
     assert found.archive_animations_passed == 1
 
     wave = next(e for e in found.emotes if e.id == "lunar_emotes:wave")
     animation = wave.doc["animations"]["animation.emote.wave"]
     # Bones renamed to the mod's, numbers made numbers, GeckoLib's easing kept.
-    assert sorted(animation["bones"]) == ["body", "right_arm"]
+    assert sorted(animation["bones"]) == ["body", "head", "right_arm"]
     assert animation["bones"]["right_arm"]["rotation"]["0.0"] == [0.0, 0.0, 0.0]
     assert animation["bones"]["right_arm"]["rotation"]["0.5"] == {"vector": [-10, 0, 150.0], "easing": "easeInOutSine"}
     # No length given: as long as its last keyframe.
     assert animation["animation_length"] == 1.25
     assert animation["loop"] is False
     notes = " ".join(wave.notes)
-    assert "Molang" in notes and "scale" in notes and "cape_bone" in notes
+    assert "cape_bone" in notes
+    # Parts made bigger or smaller stay so.
+    assert animation["bones"]["right_arm"]["scale"] == [1, 1.2, 1]
+    # Molang is kept for the mod to work out as the emote plays.
+    assert animation["bones"]["head"]["rotation"] == ["math.sin(query.anim_time * 90) * 10", 0, 0]
 
     # Emotecraft emotes are copied as they are, inside archives too.
     dance = next(e for e in found.emotes if e.id == "imported_emotes:funky_dance")
@@ -135,3 +139,48 @@ def test_command_refuses_a_folder_it_did_not_write(tmp_path):
     (out / "file.txt").write_text("keep me")
     assert cli.main(["emotes", str(root), str(out), "--quiet"]) == 2
     assert (out / "file.txt").read_text() == "keep me"
+
+
+def test_norisk_emotes_whole_body_names_and_no_repeats_from_earlier_packs(tmp_path):
+    root = tmp_path / "norisk" / "NoRiskClientV3"
+    emotes_dir = root / "assets" / "noriskclient-cosmetics" / "emotes"
+    spin = {"format_version": "1.8.0", "animations": {"ballett_spin": {"animation_length": 2, "bones": {
+        "bipedRig": {"rotation": {"0": [0, 0, 0], "2": [0, 720, 0]}},
+        "bipedRightArm": {"rotation": [0, 0, 90]}, "bipedLeftArm": {"rotation": [0, 0, -90]}}}}}
+    _write(emotes_dir / "ballettspin.animation.json", spin)
+    # Its model: the whole player turns 12 px up, at the hips.
+    _write(emotes_dir / "ballettspin.geo.json", {"format_version": "1.12.0", "minecraft:geometry": [
+        {"bones": [{"name": "bipedRig", "pivot": [0, 12, 0]}, {"name": "bipedHead", "parent": "bipedRig",
+                                                                "pivot": [0, 24, 0]}]}]})
+    # Two animations in one file: one emote each, named after the file and the animation.
+    _write(emotes_dir / "handschlag" / "handschlag.animation.json", {"animations": {
+        "nrc.emote.idle": {"bones": {"bipedRightArm": {"rotation": [-90, 0, 0]}, "bipedHead": {"rotation": [5, 0, 0]}}},
+        "nrc.emote.interaction": {"bones": {"bipedRightArm": {"rotation": [-60, 0, 0]},
+                                            "bipedRig2": {"rotation": [0, 180, 0]},
+                                            "bipedHead": {"rotation": [5, 0, 0]}}}}})
+    _write(root / "assets" / "noriskclient-cosmetics" / "shop" / "emotes" / "ballettspin.norisk.json",
+           {"id": "ballettspin", "name": "Ballett Spin", "emoteFile": "ballettspin", "price": 100})
+    # An earlier run's pack copied into a resource pack folder: passed over.
+    out = tmp_path / "first"
+    assert cli.main(["emotes", str(tmp_path / "norisk"), str(out), "--quiet"]) == 0
+    copy = tmp_path / "norisk" / "resourcepacks" / "emotes-appdata"
+    import shutil
+    shutil.copytree(out, copy)
+
+    found = emotes.find(tmp_path / "norisk")
+    ids = sorted(e.id for e in found.emotes)
+    assert ids == ["norisk_emotes:ballettspin", "norisk_emotes:handschlag_nrc_emote_idle",
+                   "norisk_emotes:handschlag_nrc_emote_interaction"], "no _2 copies from the earlier pack"
+    ballett = next(e for e in found.emotes if e.id == "norisk_emotes:ballettspin")
+    animation = ballett.doc["animations"]["animation.emote.ballettspin"]
+    assert animation["bones"]["root"]["rotation"]["2"] == [0.0, 720.0, 0.0]
+    assert animation["root_pivot"] == 12.0
+    assert ballett.name == "Ballett Spin"
+    # The second player of an interaction isn't the player.
+    handshake = next(e for e in found.emotes if e.id.endswith("interaction"))
+    assert "root" not in handshake.doc["animations"]["animation.emote.handschlag_nrc_emote_interaction"]["bones"]
+
+    out2 = tmp_path / "second"
+    assert cli.main(["emotes", str(tmp_path / "norisk"), str(out2), "--quiet"]) == 0
+    lang = json.loads((out2 / "assets" / "norisk_emotes" / "lang" / "en_us.json").read_text(encoding="utf-8"))
+    assert lang == {"emote.norisk_emotes.ballettspin": "Ballett Spin"}

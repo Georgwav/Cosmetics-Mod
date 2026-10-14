@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import io.github.georgwav.cosmetics.model.Molang;
 
 import java.io.Reader;
 import java.util.ArrayList;
@@ -43,6 +44,12 @@ public final class EmoteParser {
     /** Blockbench's root bone turns around the feet; Emotecraft's whole body around the hips. */
     private static final float BEDROCK_ROOT_PIVOT = 24f;
     private static final float EMOTECRAFT_ROOT_PIVOT = 12f;
+    /** Molang channels are worked out this many times a second into keyframes. */
+    private static final float MOLANG_RATE = 30f;
+    /** How long a Molang channel of an animation with no length and no later keyframe is worked out (seconds). */
+    private static final float MOLANG_SPAN = 4f;
+    /** Most keyframes a channel with Molang in it may have (each sample works all of them out). */
+    private static final int MAX_MOLANG_KEYFRAMES = 256;
 
     private EmoteParser() {
     }
@@ -97,6 +104,7 @@ public final class EmoteParser {
         }
         Map<Emote.Bone, Channel[]> bones = new EnumMap<>(Emote.Bone.class);
         float lastKey = 0f;
+        float declaredLength = json.has("animation_length") ? json.get("animation_length").getAsFloat() : -1f;
         JsonObject bonesJson = json.has("bones") ? json.getAsJsonObject("bones") : new JsonObject();
         for (Map.Entry<String, JsonElement> bone : bonesJson.entrySet()) {
             Emote.Bone target = bone(bone.getKey(), false);
@@ -108,13 +116,16 @@ public final class EmoteParser {
                 throw new JsonParseException(where + ": bone '" + bone.getKey() + "' must be an object");
             }
             JsonObject boneJson = bone.getValue().getAsJsonObject();
-            Channel[] channels = bones.computeIfAbsent(target, b -> new Channel[Emote.CHANNELS]);
+            Channel[] channels = bones.computeIfAbsent(target, b -> new Channel[Emote.ALL_CHANNELS]);
             for (String key : boneJson.keySet()) {
                 String w = where + "." + bone.getKey() + "." + key;
                 switch (key) {
-                    case "rotation" -> lastKey = Math.max(lastKey, bedrockTimeline(boneJson.get(key), channels, true, w));
-                    case "position" -> lastKey = Math.max(lastKey, bedrockTimeline(boneJson.get(key), channels, false, w));
-                    case "scale" -> warnings.accept(w + ": scaling body parts isn't supported; ignored");
+                    case "rotation" -> lastKey = Math.max(lastKey,
+                            bedrockTimeline(boneJson.get(key), channels, ROTATION, declaredLength, w));
+                    case "position" -> lastKey = Math.max(lastKey,
+                            bedrockTimeline(boneJson.get(key), channels, POSITION, declaredLength, w));
+                    case "scale" -> lastKey = Math.max(lastKey,
+                            bedrockTimeline(boneJson.get(key), channels, SCALE, declaredLength, w));
                     default -> { }
                 }
             }
@@ -128,16 +139,40 @@ public final class EmoteParser {
             ending = Emote.Ending.HOLD;
         }
         return new Emote(id, string(json, "name"), string(json, "author"), length, ending, 0f, DEFAULT_FADE_IN,
-                DEFAULT_FADE_OUT, BEDROCK_ROOT_PIVOT, bones, elytra(json), props(json, where));
+                DEFAULT_FADE_OUT, rootPivot(json, where), bones, elytra(json), props(json, where));
+    }
+
+    /**
+     * Where {@code root} turns: {@code "root_pivot"} (pixels up from the feet, a number or {@code [x, y, z]}), else
+     * the feet.
+     */
+    private static float rootPivot(JsonObject json, String where) {
+        if (!json.has("root_pivot")) {
+            return BEDROCK_ROOT_PIVOT;
+        }
+        JsonElement pivot = json.get("root_pivot");
+        JsonElement y = pivot.isJsonArray() && pivot.getAsJsonArray().size() == 3 ? pivot.getAsJsonArray().get(1) : pivot;
+        float up = y.isJsonPrimitive() && y.getAsJsonPrimitive().isNumber() ? y.getAsFloat() : Float.NaN;
+        if (!Float.isFinite(up) || Math.abs(up) > 64f) {
+            throw new JsonParseException(where + ": \"root_pivot\" must be pixels up from the feet (-64 to 64)");
+        }
+        return BEDROCK_ROOT_PIVOT - up;
     }
 
     /**
      * Reads a rotation or position: a fixed vector, or keyframes by time. Fills the three channels and returns
      * the last keyframe's time.
      */
-    private static float bedrockTimeline(JsonElement json, Channel[] channels, boolean rotation, String where) {
-        int first = rotation ? Emote.X_ROT : Emote.X;
-        TreeMap<Float, float[][]> keys = new TreeMap<>();
+    /** What a Bedrock channel moves, and the first of its three channels. */
+    private static final int POSITION = Emote.X;
+    private static final int ROTATION = Emote.X_ROT;
+    private static final int SCALE = Emote.X_SCALE;
+
+    private static float bedrockTimeline(JsonElement json, Channel[] channels, int kind, float declaredLength,
+                                         String where) {
+        int first = kind;
+        // Each keyframe as {pre, post} vectors of expressions (plain numbers are constant ones).
+        TreeMap<Float, Molang.Expr[][]> keys = new TreeMap<>();
         TreeMap<Float, Ease> eases = new TreeMap<>();
         if (json.isJsonObject() && !isKeyframe(json.getAsJsonObject())) {
             for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject().entrySet()) {
@@ -150,51 +185,108 @@ public final class EmoteParser {
                 if (!(time >= 0f) || time > MAX_LENGTH) {
                     throw new JsonParseException(where + ": time " + entry.getKey() + " is out of range");
                 }
-                keys.put(time, keyframe(entry.getValue(), rotation, where + "." + entry.getKey(), eases, time));
+                keys.put(time, keyframe(entry.getValue(), where + "." + entry.getKey(), eases, time));
             }
             if (keys.size() > MAX_KEYFRAMES) {
                 throw new JsonParseException(where + ": more than " + MAX_KEYFRAMES + " keyframes");
             }
         } else {
-            keys.put(0f, keyframe(json, rotation, where, eases, 0f));
+            keys.put(0f, keyframe(json, where, eases, 0f));
         }
         if (keys.isEmpty()) {
             return 0f;
         }
+        boolean molang = keys.values().stream().flatMap(Arrays::stream).flatMap(Arrays::stream)
+                .anyMatch(e -> !e.isConstant());
+        if (!molang) {
+            Channel[] built = channels(keys, eases, kind, CONSTANT_CONTEXT);
+            System.arraycopy(built, 0, channels, first, 3);
+            return keys.lastKey();
+        }
+        // Molang that changes as the animation plays (q.anim_time): worked out MOLANG_RATE times a second over
+        // the animation into plain keyframes, between the keyframes as they move then.
+        if (keys.size() > MAX_MOLANG_KEYFRAMES) {
+            throw new JsonParseException(where + ": more than " + MAX_MOLANG_KEYFRAMES + " keyframes with Molang");
+        }
+        float span = declaredLength > 0f ? declaredLength : keys.lastKey() > 0f ? keys.lastKey() : MOLANG_SPAN;
+        span = Math.min(span, MAX_LENGTH);
+        int samples = Math.max(1, (int) Math.ceil(span * MOLANG_RATE)) + 1;
+        List<List<Float>> values = List.of(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        List<Float> times = new ArrayList<>();
+        Molang.Context context = new Molang.Context().clear();
+        for (int i = 0; i < samples; i++) {
+            float t = Math.min(span, i / MOLANG_RATE);
+            context.set(Molang.Query.ANIM_TIME, t).set(Molang.Query.LIFE_TIME, t);
+            Channel[] now = channels(keys, eases, kind, context);
+            times.add(t);
+            for (int axis = 0; axis < 3; axis++) {
+                values.get(axis).add(now[axis].sample(t, 0f));
+            }
+        }
+        List<Ease> linear = new ArrayList<>(java.util.Collections.nCopies(times.size(), Ease.LINEAR));
+        for (int axis = 0; axis < 3; axis++) {
+            channels[first + axis] = channel(times, values.get(axis), linear, false);
+        }
+        return span;
+    }
+
+    /** Molang that reads no queries is worked out once, with every query 0. */
+    private static final Molang.Context CONSTANT_CONTEXT = new Molang.Context().clear();
+
+    /** The three channels (x, y, z) of keyframes whose values are worked out in {@code context}. */
+    private static Channel[] channels(TreeMap<Float, Molang.Expr[][]> keys, Map<Float, Ease> eases, int kind,
+                                      Molang.Context context) {
+        Channel[] result = new Channel[3];
         for (int axis = 0; axis < 3; axis++) {
             List<Float> times = new ArrayList<>();
             List<Float> values = new ArrayList<>();
             List<Ease> axisEases = new ArrayList<>();
             Ease previous = Ease.LINEAR;
-            for (Map.Entry<Float, float[][]> key : keys.entrySet()) {
-                float[][] prePost = key.getValue();
+            for (Map.Entry<Float, Molang.Expr[][]> key : keys.entrySet()) {
+                Molang.Expr[][] prePost = key.getValue();
+                float pre = units((float) prePost[0][axis].eval(context), kind, axis);
+                float post = units((float) prePost[1][axis].eval(context), kind, axis);
                 Ease ease = eases.get(key.getKey());
                 // Blockbench: a segment is smooth when either end is catmullrom, a step when it starts on one.
                 Ease into = previous == Ease.STEP ? Ease.STEP
                         : previous == Ease.CATMULLROM || ease == Ease.CATMULLROM ? Ease.CATMULLROM
                         : ease != null && ease != Ease.LINEAR && ease != Ease.STEP ? ease : Ease.LINEAR;
                 times.add(key.getKey());
-                values.add(prePost[0][axis]);
+                values.add(pre);
                 axisEases.add(into);
-                if (prePost[1][axis] != prePost[0][axis]) {
+                if (post != pre) {
                     times.add(key.getKey());
-                    values.add(prePost[1][axis]);
+                    values.add(post);
                     axisEases.add(Ease.STEP);
                 }
                 previous = ease == null ? Ease.LINEAR : ease;
             }
-            channels[first + axis] = channel(times, values, axisEases, false);
+            result[axis] = channel(times, values, axisEases, false);
         }
-        return keys.lastKey();
+        return result;
+    }
+
+    /**
+     * A Bedrock value in our units: rotations to radians, positions with Y flipped (Bedrock's +Y is up), sizes as
+     * they are (no smaller than nothing).
+     */
+    private static float units(float value, int kind, int axis) {
+        if (!Float.isFinite(value)) {
+            return kind == SCALE ? 1f : 0f;
+        }
+        return switch (kind) {
+            case ROTATION -> (float) Math.toRadians(value);
+            case SCALE -> Math.max(0f, Math.min(value, 16f));
+            default -> axis == 1 ? -value : value;
+        };
     }
 
     private static boolean isKeyframe(JsonObject json) {
         return json.has("pre") || json.has("post") || json.has("vector") || json.has("lerp_mode");
     }
 
-    /** One keyframe as {pre, post}, each an {x, y, z} in our units; its easing goes into {@code eases}. */
-    private static float[][] keyframe(JsonElement json, boolean rotation, String where, Map<Float, Ease> eases,
-                                      float time) {
+    /** One keyframe as {pre, post}, each an {x, y, z} of expressions; its easing goes into {@code eases}. */
+    private static Molang.Expr[][] keyframe(JsonElement json, String where, Map<Float, Ease> eases, float time) {
         if (json.isJsonObject()) {
             JsonObject object = json.getAsJsonObject();
             String mode = object.has("lerp_mode") ? object.get("lerp_mode").getAsString()
@@ -212,37 +304,55 @@ public final class EmoteParser {
             if (pre == null) {
                 throw new JsonParseException(where + ": a keyframe needs \"pre\", \"post\" or \"vector\"");
             }
-            return new float[][]{vector(pre, rotation, where), vector(post, rotation, where)};
+            return new Molang.Expr[][]{vector(pre, where), vector(post, where)};
         }
-        float[] v = vector(json, rotation, where);
-        return new float[][]{v, v};
+        Molang.Expr[] v = vector(json, where);
+        return new Molang.Expr[][]{v, v};
     }
 
-    /** A Bedrock vector in our units: rotations to radians, positions with Y flipped (Bedrock's +Y is up). */
-    private static float[] vector(JsonElement json, boolean rotation, String where) {
-        float[] v = new float[3];
+    /** A Bedrock vector, as Bedrock writes it (degrees, +Y up): {@code [x, y, z]} or one value for all three. */
+    private static Molang.Expr[] vector(JsonElement json, String where) {
         if (json.isJsonArray()) {
             JsonArray array = json.getAsJsonArray();
+            // Blockbench writes one-value arrays for some channels: the same value on every axis.
+            if (array.size() == 1) {
+                Molang.Expr n = value(array.get(0), where);
+                return new Molang.Expr[]{n, n, n};
+            }
             if (array.size() != 3) {
                 throw new JsonParseException(where + ": expected [x, y, z]");
             }
-            for (int i = 0; i < 3; i++) {
-                v[i] = number(array.get(i), where);
-            }
-        } else {
-            float n = number(json, where);
-            v[0] = n;
-            v[1] = n;
-            v[2] = n;
+            return new Molang.Expr[]{value(array.get(0), where), value(array.get(1), where), value(array.get(2), where)};
         }
-        if (rotation) {
-            for (int i = 0; i < 3; i++) {
-                v[i] = (float) Math.toRadians(v[i]);
+        Molang.Expr n = value(json, where);
+        return new Molang.Expr[]{n, n, n};
+    }
+
+    /** A number, or Molang (text): what the mod's Molang understands, with {@code q.anim_time} as the emote plays. */
+    private static Molang.Expr value(JsonElement json, String where) {
+        if (json.isJsonPrimitive()) {
+            JsonPrimitive p = json.getAsJsonPrimitive();
+            if (p.isNumber()) {
+                return Molang.constant(finite(p.getAsFloat(), where));
             }
-        } else {
-            v[1] = -v[1];
+            if (p.isString()) {
+                String text = p.getAsString().trim();
+                if (text.isEmpty()) {
+                    return Molang.constant(0);
+                }
+                try {
+                    return Molang.constant(finite(Float.parseFloat(text), where));
+                } catch (NumberFormatException e) {
+                    try {
+                        return Molang.compile(text);
+                    } catch (IllegalArgumentException bad) {
+                        throw new JsonParseException(where + ": '" + text + "' isn't Molang the mod understands: "
+                                + bad.getMessage());
+                    }
+                }
+            }
         }
-        return v;
+        throw new JsonParseException(where + ": expected a number or Molang");
     }
 
     private static float number(JsonElement json, String where) {
@@ -255,8 +365,7 @@ public final class EmoteParser {
                 try {
                     return finite(Float.parseFloat(p.getAsString().trim()), where);
                 } catch (NumberFormatException e) {
-                    throw new JsonParseException(where + ": '" + p.getAsString()
-                            + "' is a Molang expression; emotes need plain numbers (bake the animation in Blockbench)");
+                    throw new JsonParseException(where + ": '" + p.getAsString() + "' is not a number");
                 }
             }
         }
@@ -401,11 +510,15 @@ public final class EmoteParser {
     /** The bone a file's name means; {@code emotecraft} for its names (its "body" is the whole player). */
     static Emote.Bone bone(String name, boolean emotecraft) {
         String key = name.toLowerCase(Locale.ROOT).replace("_", "").replace("-", "").replace(" ", "");
+        // GeckoLib's player bones (bipedHead, bipedRightArm, ...; NoRisk's bipedRig is the whole player).
+        if (key.startsWith("biped") && key.length() > 5) {
+            key = key.substring(5);
+        }
         if (emotecraft && key.equals("body")) {
             return Emote.Bone.ROOT;
         }
         return switch (key) {
-            case "root", "player", "all", "whole", "wholebody", "entity" -> Emote.Bone.ROOT;
+            case "root", "player", "all", "whole", "wholebody", "entity", "rig" -> Emote.Bone.ROOT;
             case "waist", "hips", "hip" -> Emote.Bone.WAIST;
             case "body", "torso", "chest", "upperbody" -> Emote.Bone.BODY;
             case "head" -> Emote.Bone.HEAD;

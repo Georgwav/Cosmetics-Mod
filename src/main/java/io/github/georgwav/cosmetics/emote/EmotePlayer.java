@@ -42,6 +42,10 @@ public final class EmotePlayer {
 
     private static final float[][] POSE = new float[EmotePose.PARTS][6];
     private static final float[][] REST = new float[EmotePose.PARTS][3];
+    private static final float[][] SIZE = new float[EmotePose.PARTS][3];
+    /** Models whose parts an emote sized this frame (to size back next time). */
+    private static final java.util.Set<HumanoidModel<?>> SIZED =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     private EmotePlayer() {
     }
@@ -154,6 +158,16 @@ public final class EmotePlayer {
      * game posed it. Returns whether it changed anything.
      */
     public static boolean pose(int entityId, HumanoidModel<?> model) {
+        // Sizes an emote gave the parts last time go back first: the game keeps them otherwise (before 1.21.2),
+        // and one model draws every player of its kind.
+        if (SIZED.remove(model)) {
+            for (ModelPart part : new ModelPart[]{model.head, model.body, model.rightArm, model.leftArm, model.rightLeg,
+                    model.leftLeg}) {
+                part.xScale = 1f;
+                part.yScale = 1f;
+                part.zScale = 1f;
+            }
+        }
         Emote emote = current;
         if (emote == null) {
             return false;
@@ -188,7 +202,8 @@ public final class EmotePlayer {
             REST[p][2] = rest.z;
             *///?}
         }
-        EmotePose.apply(emote, emote.timeAt(elapsed), weight, POSE, REST);
+        float time = emote.timeAt(elapsed);
+        EmotePose.apply(emote, time, weight, POSE, REST);
         for (int p = 0; p < EmotePose.PARTS; p++) {
             ModelPart part = parts[p];
             float[] pose = POSE[p];
@@ -198,6 +213,15 @@ public final class EmotePlayer {
             part.xRot = pose[3];
             part.yRot = pose[4];
             part.zRot = pose[5];
+        }
+        // Body parts an emote makes bigger or smaller (Blockbench "scale").
+        if (EmotePose.scales(emote, time, weight, SIZE)) {
+            for (int p = 0; p < EmotePose.PARTS; p++) {
+                parts[p].xScale = SIZE[p][0];
+                parts[p].yScale = SIZE[p][1];
+                parts[p].zScale = SIZE[p][2];
+            }
+            SIZED.add(model);
         }
         posedFrames++;
         return true;

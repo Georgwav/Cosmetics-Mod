@@ -5,9 +5,13 @@ any .jar or .zip in it) for the formats the mod plays:
 
 - **Bedrock / GeckoLib animations** (`{"animations": {...}}`, what Blockbench exports, and what Lunar and NoRisk
   build with) whose bones are a player's: `head`, `body`, `right_arm`, ... in any spelling, GeckoLib's
-  `bipedHead`, `bipedRightArm`, ... too. Each animation becomes one emote, its bones renamed to the mod's and
-  anything the mod can't play dropped (other bones, `scale`, channels written in Molang), with the reason in the
-  report. Animations of cosmetics (files next to a cosmetic's `.geo.json`, `.gek.json` or `.norisk.json`) aren't
+  `bipedHead`, `bipedRightArm`, ... too, and NoRisk's `bipedRig`, the whole player). Each animation becomes one
+  emote, its bones renamed to the mod's and anything the mod can't play dropped (other bones), with the reason in
+  the report. Body parts made bigger or smaller (`scale`) stay so. Molang is kept: the mod works it out as the emote plays. A whole-player bone turns where
+  the model next to the animation has it (`root_pivot`).
+- **NoRisk's names**: its shop files (`*.norisk.json` with an `emoteFile`) name the emotes.
+- Packs this tool wrote (an earlier run copied into `resourcepacks`, say) are passed over, so emotes aren't found
+  twice. Animations of cosmetics (files next to a cosmetic's `.geo.json`, `.gek.json` or `.norisk.json`) aren't
   emotes and are left out, unless their path says "emote". Inside archives (mostly mods, whose mobs have bones
   named like a player's too) only animations whose path or name says "emote" are taken.
 - **Emotecraft** JSON emotes (`{"emote": {"moves": [...]}}`), copied as they are.
@@ -48,15 +52,15 @@ BONES = {
     "head": ("head", "bipedhead", "playerhead"),
     "body": ("body", "torso", "chest", "upperbody", "bipedbody", "playerbody"),
     "waist": ("waist", "hips", "hip"),
-    "root": ("root", "player", "wholebody", "entity"),
+    "root": ("root", "player", "wholebody", "entity", "bipedrig", "rig"),
     "right_arm": ("rightarm", "armright", "rarm", "bipedrightarm", "playerrightarm"),
     "left_arm": ("leftarm", "armleft", "larm", "bipedleftarm", "playerleftarm"),
     "right_leg": ("rightleg", "legright", "rleg", "bipedrightleg", "playerrightleg"),
     "left_leg": ("leftleg", "legleft", "lleg", "bipedleftleg", "playerleftleg"),
 }
 _BONE_OF = {alias: bone for bone, aliases in BONES.items() for alias in aliases}
-# Channels the mod plays (it has no scale).
-CHANNELS = ("rotation", "position")
+# Channels the mod plays.
+CHANNELS = ("rotation", "position", "scale")
 # Files that say a folder holds a cosmetic, whose animations are the cosmetic's own.
 COSMETIC_FILES = (".geo.json", ".gek.json", ".norisk.json")
 NUMBER = re.compile(r"^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$")
@@ -93,6 +97,19 @@ class Emote:
     source: str  # where it came from (inside an archive: archive!/entry)
     doc: dict  # the emote file to write
     notes: list[str] = field(default_factory=list)
+    name: str | None = None  # the name its client gives it (the mod shows it), or None for one from the file
+
+
+@dataclass
+class Context:
+    """What the first look through the folder found that the emotes need."""
+    cosmetic_folders: set[str] = field(default_factory=set)
+    # Folders (as _folder gives them) with Bedrock models in them, to find a whole-player bone's pivot.
+    models: dict[str, list[Path]] = field(default_factory=dict)
+    # Emote names from NoRisk's shop files, by the animation file's name (see _key).
+    names: dict[str, str] = field(default_factory=dict)
+    # Folders of packs this tool wrote, passed over.
+    own_packs: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -106,37 +123,76 @@ class Found:
     archive_animations_passed: int = 0
 
 
+# Files marking a pack this tool (or the cosmetics importer) wrote.
+OWN_MARKERS = (MARKER, ".client-import.json")
+
+
+def _key(name: str) -> str:
+    """An animation file's name, compared loosely: no folders, extension or punctuation, lower case."""
+    name = name.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    name = re.sub(r"(\.animations?)?(\.json)?$", "", name)
+    return re.sub(r"[^a-z0-9]+", "", name)
+
+
 def find(folder: Path, progress=lambda message: None) -> Found:
     found = Found()
     used: set[str] = set()
     paths = sorted(p for p in folder.rglob("*") if p.is_file())
-    cosmetic_folders = {_folder(p.relative_to(folder).as_posix()) for p in paths
-                        if p.name.lower().endswith(COSMETIC_FILES)}
+    context = Context()
+    for p in paths:
+        rel = p.relative_to(folder).as_posix()
+        lower = p.name.lower()
+        if lower.endswith(COSMETIC_FILES):
+            context.cosmetic_folders.add(_folder(rel))
+        if lower.endswith(".geo.json"):
+            context.models.setdefault(_folder(rel), []).append(p)
+        if lower in OWN_MARKERS:
+            context.own_packs.append(_folder(rel))
+        if lower.endswith(".norisk.json") and p.stat().st_size <= MAX_JSON_BYTES:
+            _norisk_name(context, p)
     for i, path in enumerate(paths):
         if i and i % 1000 == 0:
             progress(f"{i} of {len(paths)} files")
         rel = path.relative_to(folder).as_posix()
+        # Inside a pack this tool wrote ("" is the folder itself).
+        if any(own == "" or rel.startswith(own + "/") for own in context.own_packs):
+            continue
         try:
             _file(found, used, rel, path.stat().st_size, path.read_bytes if path.stat().st_size <= MAX_JSON_BYTES
-                  or path.suffix.lower() in ARCHIVES else None, path, cosmetic_folders)
+                  or path.suffix.lower() in ARCHIVES else None, path, context)
         except (OSError, zipfile.BadZipFile, RuntimeError) as e:
             found.problems.append(f"{rel}: {e}")
     return found
 
 
-def _file(found: Found, used: set[str], rel: str, size: int, read, path: Path | None, cosmetic_folders: set[str],
+def _norisk_name(context: Context, path: Path) -> None:
+    """A NoRisk shop file naming an emote: its `name` for the animation file its `emoteFile` gives."""
+    try:
+        doc = json.loads(path.read_bytes().decode("utf-8-sig"))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return
+    if not isinstance(doc, dict) or not isinstance(doc.get("emoteFile"), str) or not isinstance(doc.get("name"), str):
+        return
+    name = doc["name"].strip()
+    if name:
+        context.names.setdefault(_key(doc["emoteFile"]), name)
+        if isinstance(doc.get("id"), str):
+            context.names.setdefault(_key(doc["id"]), name)
+
+
+def _file(found: Found, used: set[str], rel: str, size: int, read, path: Path | None, context: Context,
           depth: int = 0) -> None:
     found.files += 1
     name = rel.rsplit("/", 1)[-1].lower()
     ext = Path(name).suffix
     if ext in ARCHIVES and depth == 0:
-        _archive(found, used, rel, path, cosmetic_folders)
+        _archive(found, used, rel, path, context)
         return
     if ext == ".emotecraft":
         found.unknown.append((rel, f"Emotecraft binary emote ({size} bytes): not supported yet"))
         return
     if ext != ".json" or read is None or size > MAX_JSON_BYTES:
-        if "emote" in rel.lower() and ext not in (".png", ".ogg", ".webp", ".jpg"):
+        if "emote" in rel.lower() and ext not in (".png", ".ogg", ".webp", ".jpg", ".mcmeta", ".class"):
             found.unknown.append((rel, f"{ext or 'no extension'} file, {size} bytes"))
         return
     try:
@@ -151,28 +207,28 @@ def _file(found: Found, used: set[str], rel: str, size: int, read, path: Path | 
     if isinstance(doc.get("emote"), dict) and isinstance(doc["emote"].get("moves"), list):
         _emotecraft(found, used, rel, doc)
     elif isinstance(doc.get("animations"), dict):
-        cosmetic = folder in cosmetic_folders and "emote" not in rel.lower()
-        _bedrock(found, used, rel, doc, cosmetic, in_archive=depth > 0)
-    elif "emote" in rel.lower() and not name.endswith(".particle.json"):
+        cosmetic = folder in context.cosmetic_folders and "emote" not in rel.lower()
+        _bedrock(found, used, rel, doc, cosmetic, context, in_archive=depth > 0)
+    elif "emote" in rel.lower() and not name.endswith((".particle.json", ".geo.json", ".norisk.json")):
         found.unknown.append((rel, "JSON with keys " + ", ".join(sorted(doc)[:12])))
 
 
-def _archive(found: Found, used: set[str], rel: str, path: Path, cosmetic_folders: set[str]) -> None:
+def _archive(found: Found, used: set[str], rel: str, path: Path, context: Context) -> None:
     try:
         z = zipfile.ZipFile(path)
     except zipfile.BadZipFile:
         return
     with z:
         infos = [i for i in z.infolist() if not i.is_dir()]
-        inner_cosmetic = {_folder(f"{rel}!/{i.filename}") for i in infos
-                          if i.filename.lower().endswith(COSMETIC_FILES)}
+        inner = Context(context.cosmetic_folders | {_folder(f"{rel}!/{i.filename}") for i in infos
+                                                    if i.filename.lower().endswith(COSMETIC_FILES)},
+                        context.models, context.names, context.own_packs)
         for info in infos:
-            inner = f"{rel}!/{info.filename}"
+            entry = f"{rel}!/{info.filename}"
             try:
-                _file(found, used, inner, info.file_size, lambda i=info: z.read(i), None,
-                      cosmetic_folders | inner_cosmetic, depth=1)
+                _file(found, used, entry, info.file_size, lambda i=info: z.read(i), None, inner, depth=1)
             except (OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as e:
-                found.problems.append(f"{inner}: {e}")
+                found.problems.append(f"{entry}: {e}")
 
 
 def _folder(rel: str) -> str:
@@ -195,7 +251,9 @@ def _emotecraft(found: Found, used: set[str], rel: str, doc: dict) -> None:
     found.emotes.append(Emote(_unique(namespace_for(rel), slug(name), used), rel, doc))
 
 
-def _bedrock(found: Found, used: set[str], rel: str, doc: dict, cosmetic: bool, in_archive: bool = False) -> None:
+def _bedrock(found: Found, used: set[str], rel: str, doc: dict, cosmetic: bool, context: Context | None = None,
+             in_archive: bool = False) -> None:
+    context = context or Context()
     stem = re.sub(r"(\.animations?)?\.json$", "", rel.rsplit("/", 1)[-1], flags=re.I)
     animations = {k: v for k, v in doc["animations"].items() if isinstance(v, dict)}
     for key, animation in animations.items():
@@ -224,14 +282,39 @@ def _bedrock(found: Found, used: set[str], rel: str, doc: dict, cosmetic: bool, 
         if not converted["bones"]:
             found.skipped.append((source, "nothing the mod can play: " + "; ".join(notes)))
             continue
-        name = re.sub(r"^animation\.", "", key, flags=re.I)
-        name = re.sub(r"^(emote|emotes|player)\.", "", name, flags=re.I)
-        if len(animations) == 1 and name.lower() in ("", "emote", "animation", "main", "default"):
-            name = stem
+        root = next((name for name, bone in mapped.items() if bone == "root"), None)
+        if root is not None and "root" in converted["bones"]:
+            pivot = _pivot(context.models.get(_folder(rel), []), root)
+            if pivot:
+                converted["root_pivot"] = pivot
+        # One animation in a file: the file's name (NoRisk names its animations nrc.idle, emote, ...); several:
+        # the file's and each one's.
+        key_name = re.sub(r"^(animation|emote|emotes|player)\.", "", key, flags=re.I)
+        name = stem if len(animations) == 1 else f"{stem}_{key_name}"
         emote_id = _unique(namespace_for(rel), slug(name), used)
         out = {"format_version": doc.get("format_version", "1.8.0"),
                "animations": {f"animation.emote.{emote_id.split(':', 1)[1]}": converted}}
-        found.emotes.append(Emote(emote_id, source, out, notes))
+        shown = context.names.get(_key(rel)) if len(animations) == 1 else None
+        found.emotes.append(Emote(emote_id, source, out, notes, shown))
+
+
+def _pivot(models: list[Path], bone: str) -> float | None:
+    """How far up from the feet (pixels) the whole-player bone {@code bone} turns in a model next to the animation,
+    or None (the feet, or no model says)."""
+    for model in models:
+        try:
+            doc = json.loads(model.read_bytes().decode("utf-8-sig"))
+        except (OSError, ValueError, UnicodeDecodeError):
+            continue
+        for geometry in doc.get("minecraft:geometry", []) if isinstance(doc, dict) else []:
+            for b in geometry.get("bones", []) if isinstance(geometry, dict) else []:
+                if isinstance(b, dict) and b.get("name") == bone and isinstance(b.get("pivot"), list) \
+                        and len(b["pivot"]) == 3:
+                    y = b["pivot"][1]
+                    if isinstance(y, (int, float)) and y and abs(y) <= 64:
+                        return round(float(y), 4)
+                    return None
+    return None
 
 
 def convert_animation(animation: dict, mapped: dict[str, str | None]) -> tuple[dict, list[str]]:
@@ -254,12 +337,10 @@ def convert_animation(animation: dict, mapped: dict[str, str | None]) -> tuple[d
         channels = {}
         for channel, value in bone.items():
             if channel not in CHANNELS:
-                if channel == "scale":
-                    notes.append(f"'{name}' scale: the mod doesn't scale emote parts, left out")
                 continue
             clean, ok = _numbers(value)
             if not ok:
-                notes.append(f"'{name}' {channel} uses Molang (bake it in Blockbench): left out")
+                notes.append(f"'{name}' {channel} isn't numbers or Molang: left out")
                 continue
             channels[channel] = clean
             if isinstance(clean, dict):
@@ -287,7 +368,8 @@ def _numbers(value):
     if isinstance(value, str):
         if NUMBER.match(value):
             return float(value), True
-        return value, value.strip() == ""
+        # Molang: the mod works it out as the emote plays.
+        return value.strip() or 0.0, True
     if isinstance(value, list):
         items = [_numbers(v) for v in value]
         return [v for v, _ in items], all(ok for _, ok in items)
@@ -327,6 +409,18 @@ def write(found: Found, output: Path) -> list[Path]:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(emote.doc, indent=1) + "\n", encoding="utf-8")
         written.append(target)
+    # Names the clients give their emotes, as the mod's translations of the emote ids.
+    for old in output.glob("assets/*/lang/en_us.json"):
+        old.unlink()
+    names: dict[str, dict[str, str]] = {}
+    for emote in found.emotes:
+        if emote.name:
+            namespace, name = emote.id.split(":", 1)
+            names.setdefault(namespace, {})[f"emote.{namespace}.{name}"] = emote.name
+    for namespace, lang in names.items():
+        target = output / "assets" / namespace / "lang" / "en_us.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(lang, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     (output / "pack.mcmeta").write_text(json.dumps(PACK_MCMETA, indent=2) + "\n", encoding="utf-8")
     (output / MARKER).write_text(json.dumps({"version": __version__}), encoding="utf-8")
     return written
@@ -338,9 +432,9 @@ def report(found: Found, folder: Path) -> str:
              f"{len(found.emotes)} emote(s) written, {len(found.skipped)} animation(s) left out, "
              f"{len(found.unknown)} emote-like file(s) not understood.", ""]
     if found.emotes:
-        lines += ["## Emotes", "", "| Emote | From | Notes |", "|---|---|---|"]
+        lines += ["## Emotes", "", "| Emote | Name | From | Notes |", "|---|---|---|---|"]
         for e in found.emotes:
-            lines.append(f"| `{e.id}` | `{e.source}` | {'; '.join(e.notes) or '-'} |")
+            lines.append(f"| `{e.id}` | {e.name or '-'} | `{e.source}` | {'; '.join(e.notes) or '-'} |")
         lines.append("")
     if found.unknown:
         lines += ["## Emote-like files not understood", "",
