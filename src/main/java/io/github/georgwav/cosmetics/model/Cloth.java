@@ -12,7 +12,7 @@ public final class Cloth {
     /** Strip height, in blocks: one pixel. */
     static final float STRIP = 1f / 16f;
     /** Points along the centre line per shape. */
-    static final int SAMPLES = 24;
+    public static final int SAMPLES = 24;
     /** Bend at the bottom edge when moving at full speed, radians. */
     static final float MAX_BLOW = (float) Math.toRadians(55);
     /** Ripple either way, radians: standing still, and added at full speed. */
@@ -92,6 +92,14 @@ public final class Cloth {
      * @param strength the cape swing setting: 0 (a flat, still cape) to 2
      */
     public static Shape shape(float length, float blow, double seconds, float phase, float strength) {
+        return shape(length, blow, seconds, phase, strength, null);
+    }
+
+    /**
+     * {@link #shape(float, float, double, float, float)} plus {@code lag}: radians each of the {@link #SAMPLES}
+     * points is turned further back (wavy capes), or null for none.
+     */
+    public static Shape shape(float length, float blow, double seconds, float phase, float strength, float[] lag) {
         float step = Math.max(length, STRIP) / (SAMPLES - 1);
         float[] y = new float[SAMPLES];
         float[] z = new float[SAMPLES];
@@ -105,6 +113,9 @@ public final class Cloth {
             // Blown back more towards the bottom, plus a ripple that grows towards the bottom too.
             float a = MAX_BLOW * b * strength * t * t
                     + ripple * t * (float) Math.sin(2 * Math.PI * (i * step) / wavelength - speed * seconds + phase);
+            if (lag != null) {
+                a += lag[i];
+            }
             angle[i] = a;
             if (i > 0) {
                 float mid = (angle[i - 1] + a) / 2f;

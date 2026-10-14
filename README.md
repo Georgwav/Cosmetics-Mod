@@ -114,6 +114,7 @@ repaired on load.
 | `severalOfAKind` | `false` | Wear several cosmetics of one kind at once (two hats, two pairs of wings). Off: putting one on in the Wardrobe takes off the one of its kind you wore. |
 | `hideCapeWithElytra` | `true` | Capes hide while an elytra is worn. |
 | `capePhysics` / `capeSwing` | `true` / `1.0` | Cape sway on or off, and its strength (0 to 2). Also stops or scales a skeletal cape's own waving (for example imported capes' styles). |
+| `wavyCapes` | `true` | Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, and its lower part lags behind the top as you start, stop, jump and land, rippling through. Needs cape physics. The vanilla cape is left alone (Wavey Capes can be installed alongside for that). |
 | `emissiveParts` / `translucentParts` | `true` | Draw glowing and see-through parts. |
 | `maxRenderDistance` | `64` | Only players within this many blocks get cosmetics (`0` = no limit). |
 | `renderInShadowPass` | `true` | Cosmetics cast shadows with Iris shaderpacks. Turn off for FPS. |

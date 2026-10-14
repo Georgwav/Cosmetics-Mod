@@ -27,6 +27,7 @@ Status values:
 | Figura | pass (all 10; NoFigura where Figura has no build) | Untested | Defaults to DEFER on every slot for players with a Figura avatar. Set a slot to OVERRIDE to draw anyway. |
 | Mod Menu | pass (all 10, Mod Menu 11.0.5 to 21.0.0) | Untested | Optional entry point to the settings screen; also `/cosmetics` and an unbound key. CI opens Mod Menu's list and the screen Mod Menu gets for this mod's "Configure" button, and checks that it draws. |
 | Essential | not in CI | Untested | Essential has no public API for its cosmetics. Capes that reach the vanilla cape slot are detected; set the cape slot to DEFER to keep them over ours. Other Essential cosmetics simply render alongside ours. |
+| Wavey Capes | not in CI | Untested | Separate capes: Wavey Capes waves the vanilla cape, our "Wavy capes" setting waves this mod's cape cosmetics, and neither touches the other's. With the cape slot on OVERRIDE the vanilla cape is hidden through Fabric API's cape event; if Wavey Capes draws it anyway, set the cape slot to DEFER or turn off one of the two capes. |
 
 ## By Minecraft version
 

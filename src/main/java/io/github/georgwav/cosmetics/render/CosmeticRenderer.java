@@ -183,12 +183,16 @@ public final class CosmeticRenderer {
                     }
                     // A flat cape drawn as cloth: blown back by how fast the player moves, rippling, as strong as the
                     // cape swing setting; still with cape physics off.
-                    float[] cloth = slot == CosmeticSlot.CAPE && options.cloth && config.capePhysics
+                    // Wavy capes: every flat cape is cloth, its lower part lagging behind the top's swing.
+                    boolean wavy = slot == CosmeticSlot.CAPE && config.wavyCapes && config.capePhysics;
+                    float[] cloth = slot == CosmeticSlot.CAPE && (options.cloth || wavy) && config.capePhysics
                             ? new float[]{Math.min(1f, info.capeLean / 100f), (info.uuid.hashCode() & 0xFFFF) * 1.0e-4f,
                             config.capeSwing} : null;
+                    float[] lag = wavy ? WavyCapes.lag(info.uuid, (float) Math.toRadians(
+                            6.0 + (info.capeLean / 2.0 + info.capeFlap) * config.capeSwing), seconds) : null;
                     drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
-                            wings, wingAngle, wingPhase, seconds, shadowPass, cloth, following ? BoneRig.Follow.NONE : null,
-                            sink);
+                            wings, wingAngle, wingPhase, seconds, shadowPass, cloth, lag,
+                            following ? BoneRig.Follow.NONE : null, sink);
                 } catch (RuntimeException | LinkageError e) {
                     RenderGuard.cosmeticFailed(cosmetic.id(), e);
                 } finally {
@@ -205,7 +209,8 @@ public final class CosmeticRenderer {
     private static void drawLayers(PoseStack poseStack, BakedCosmetic cosmetic, int packedLight, int color,
                                    boolean glow, boolean animate, float animationSpeed, int style, float capeMotion,
                                    CosmeticDefinition.Wings wings, float wingAngle, double wingPhase, double seconds,
-                                   boolean shadowPass, float[] cloth, BoneRig.Follow only, Sink sink) {
+                                   boolean shadowPass, float[] cloth, float[] clothLag, BoneRig.Follow only,
+                                   Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         BoneRig bones = cosmetic.bones();
         for (BakedCosmetic.Layer layer : cosmetic.layers()) {
@@ -260,7 +265,7 @@ public final class CosmeticRenderer {
                 }
                 // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
                 Cloth.Shape shape = cloth != null && rig == null
-                        ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2]) : null;
+                        ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2], clothLag) : null;
                 for (int copy = 0; copy < RenderStats.COPIES; copy++) {
                     sink.draw(poseStack, cosmetic, layer, light, layerColor, frame, clip, clipTime, shape);
                 }
@@ -312,7 +317,7 @@ public final class CosmeticRenderer {
                 poseBones(cosmetic.bones(), cosmetic, options, holder, seconds, context);
             }
             drawLayers(poseStack, cosmetic, packedLight, Tint.argb(options, cosmetic, seconds), glow, animate,
-                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), null, null, sink);
+                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), null, null, null, sink);
             RenderStats.heldDrawn++;
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(cosmetic.id(), e);
@@ -341,7 +346,7 @@ public final class CosmeticRenderer {
         }
         applyTurn(poseStack, options, cosmetic);
         drawLayers(poseStack, cosmetic, MeshEmitter.FULL_BRIGHT, Tint.argb(options, cosmetic, 0.0), glow, false, 1f,
-                style, 0f, wings, wingAngle, 0.0, 0.0, false, null, null, sink);
+                style, 0f, wings, wingAngle, 0.0, 0.0, false, null, null, null, sink);
     }
 
     /**
@@ -528,7 +533,7 @@ public final class CosmeticRenderer {
                 applyPlacement(poseStack, options, cosmetic);
                 poseStack.translate(-follow.pivotX / 16f, -follow.pivotY / 16f, 0f);
                 drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, 1f, null, 0f,
-                        0.0, seconds, shadowPass, null, follow, sink);
+                        0.0, seconds, shadowPass, null, null, follow, sink);
             } finally {
                 poseStack.popPose();
             }

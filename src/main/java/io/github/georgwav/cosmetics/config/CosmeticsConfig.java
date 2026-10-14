@@ -66,6 +66,12 @@ public final class CosmeticsConfig {
     public boolean capePhysics = true;
     /** How strongly capes react to movement, 0..2 (1 = vanilla). */
     public float capeSwing = 1.0f;
+    /**
+     * Wavy capes, like the Wavey Capes mod: every flat cape cosmetic bends as cloth, its lower part lagging behind
+     * the top as you start, stop, jump and land. Needs cape physics. Only this mod's capes; the vanilla cape is
+     * left to the game (or to Wavey Capes, which can be installed alongside).
+     */
+    public boolean wavyCapes = true;
     /** Particle cosmetics (auras, trails) give off particles. */
     public boolean particles = true;
     /** How many particles, 0..2 (1 = as the cosmetic says). */
@@ -350,6 +356,7 @@ public final class CosmeticsConfig {
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         capePhysics = defaults.capePhysics;
         capeSwing = defaults.capeSwing;
+        wavyCapes = defaults.wavyCapes;
         particles = defaults.particles;
         particleDensity = defaults.particleDensity;
         ownParticlesInFirstPerson = defaults.ownParticlesInFirstPerson;
