@@ -120,7 +120,7 @@ public final class EmotePlayer {
         }
         var options = client.options;
         return options.keyAttack.isDown() || options.keyUse.isDown() || options.keyShift.isDown()
-                || player.swinging || player.isUsingItem();
+                || player.isUsingItem();
     }
 
     private static boolean interrupted(LocalPlayer player) {
