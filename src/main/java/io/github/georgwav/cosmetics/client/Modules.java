@@ -14,6 +14,7 @@ import io.github.georgwav.cosmetics.client.hud.FpsHud;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.Keystrokes;
 import io.github.georgwav.cosmetics.client.hud.PingHud;
+import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.TimeChanger;
@@ -37,6 +38,8 @@ import java.util.function.Function;
  */
 public final class Modules {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    /** Where the game's own HUD parts were moved, kept with the modules (and in profiles). */
+    private static final String VANILLA_HUD = "vanilla_hud";
 
     public static final Fullbright FULLBRIGHT = new Fullbright();
     public static final ToggleSprint TOGGLE_SPRINT = new ToggleSprint();
@@ -160,6 +163,9 @@ public final class Modules {
                 root = read(shared);
             }
             JsonObject modules = root.has("modules") ? root.getAsJsonObject("modules") : new JsonObject();
+            if (modules.has(VANILLA_HUD) && modules.get(VANILLA_HUD).isJsonObject()) {
+                VanillaHud.load(modules.getAsJsonObject(VANILLA_HUD));
+            }
             for (Module m : ALL) {
                 if (modules.has(m.id)) {
                     JsonObject saved = modules.getAsJsonObject(m.id);
@@ -203,6 +209,7 @@ public final class Modules {
             }
             modules.add(m.id, saved);
         }
+        modules.add(VANILLA_HUD, VanillaHud.save());
         return modules;
     }
 
@@ -214,6 +221,9 @@ public final class Modules {
         Minecraft mc = Minecraft.getInstance();
         loading = true;
         try {
+            if (modules.has(VANILLA_HUD) && modules.get(VANILLA_HUD).isJsonObject()) {
+                VanillaHud.load(modules.getAsJsonObject(VANILLA_HUD));
+            }
             for (Module m : ALL) {
                 if (!modules.has(m.id) || !modules.get(m.id).isJsonObject()) {
                     continue;

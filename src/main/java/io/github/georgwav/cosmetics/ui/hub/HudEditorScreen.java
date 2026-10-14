@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.ui.hub;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
+import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.minecraft.client.Minecraft;
@@ -38,7 +39,7 @@ public final class HudEditorScreen extends Screen {
     public static int framesRendered;
 
     private final Screen parent;
-    private HudModule dragging;
+    private Box dragging;
     private float grabX;
     private float grabY;
     // The guides a dragged module snapped to, GUI pixels, or NaN.
@@ -83,34 +84,111 @@ public final class HudEditorScreen extends Screen {
         ScreenOpener.open(parent);
     }
 
-    // ------------------------------------------------------------------ modules
+    // ------------------------------------------------------------------ what can be moved
 
-    private float left(HudModule m) {
-        return m.x(width, Minecraft.getInstance());
+    /** Something on the HUD the editor moves: one of the client's modules, or a part of the game's own HUD. */
+    private interface Box {
+        float x();
+
+        float y();
+
+        float w();
+
+        float h();
+
+        void moveTo(float x, float y);
     }
 
-    private float top(HudModule m) {
-        return m.y(height, Minecraft.getInstance());
+    private final class ModuleBox implements Box {
+        final HudModule m;
+
+        ModuleBox(HudModule m) {
+            this.m = m;
+        }
+
+        public float x() {
+            return m.x(width, Minecraft.getInstance());
+        }
+
+        public float y() {
+            return m.y(height, Minecraft.getInstance());
+        }
+
+        public float w() {
+            return m.width(Minecraft.getInstance()) * m.scale();
+        }
+
+        public float h() {
+            return m.height(Minecraft.getInstance()) * m.scale();
+        }
+
+        public void moveTo(float x, float y) {
+            m.moveTo(x, y, width, height, Minecraft.getInstance());
+        }
     }
 
-    private float w(HudModule m) {
-        return m.width(Minecraft.getInstance()) * m.scale();
+    private final class PartBox implements Box {
+        final VanillaHud.Part part;
+
+        PartBox(VanillaHud.Part part) {
+            this.part = part;
+        }
+
+        public float x() {
+            return part.box(width, height)[0] + VanillaHud.dx(part);
+        }
+
+        public float y() {
+            return part.box(width, height)[1] + VanillaHud.dy(part);
+        }
+
+        public float w() {
+            return part.box(width, height)[2];
+        }
+
+        public float h() {
+            return part.box(width, height)[3];
+        }
+
+        public void moveTo(float x, float y) {
+            float[] home = part.box(width, height);
+            VanillaHud.move(part, x - home[0], y - home[1]);
+        }
     }
 
-    private float h(HudModule m) {
-        return m.height(Minecraft.getInstance()) * m.scale();
+    /** What can be moved now, bottom to top: the game's HUD parts (when this version allows), then the modules on. */
+    private List<Box> boxes() {
+        List<Box> boxes = new ArrayList<>();
+        if (VanillaHud.supported()) {
+            for (VanillaHud.Part part : VanillaHud.Part.values()) {
+                boxes.add(new PartBox(part));
+            }
+        }
+        for (HudModule m : Modules.hud()) {
+            if (m.enabled()) {
+                boxes.add(new ModuleBox(m));
+            }
+        }
+        return boxes;
     }
 
-    /** The module on top under (x, y) in GUI pixels, or null. */
-    private HudModule moduleAt(double x, double y) {
-        List<HudModule> all = Modules.hud();
+    /** The box on top under (x, y) in GUI pixels, or null. */
+    private Box boxAt(double x, double y) {
+        List<Box> all = boxes();
         for (int i = all.size() - 1; i >= 0; i--) {
-            HudModule m = all.get(i);
-            if (m.enabled() && x >= left(m) && x < left(m) + w(m) && y >= top(m) && y < top(m) + h(m)) {
-                return m;
+            Box b = all.get(i);
+            if (x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h()) {
+                return b;
             }
         }
         return null;
+    }
+
+    private static boolean same(Box a, Box b) {
+        if (a instanceof ModuleBox ma && b instanceof ModuleBox mb) {
+            return ma.m == mb.m;
+        }
+        return a instanceof PartBox pa && b instanceof PartBox pb && pa.part == pb.part;
     }
 
     /**
@@ -135,24 +213,22 @@ public final class HudEditorScreen extends Screen {
     }
 
     private void moveDragged(double mouseX, double mouseY) {
-        HudModule m = dragging;
-        float w = w(m);
-        float h = h(m);
+        Box box = dragging;
+        float w = box.w();
+        float h = box.h();
         List<Float> xs = new ArrayList<>(List.of(MARGIN, width / 2f, width - MARGIN));
         List<Float> ys = new ArrayList<>(List.of(MARGIN, height / 2f, height - MARGIN));
-        for (HudModule other : Modules.hud()) {
-            if (other != m && other.enabled()) {
-                xs.addAll(List.of(left(other), left(other) + w(other) / 2f, left(other) + w(other)));
-                ys.addAll(List.of(top(other), top(other) + h(other) / 2f, top(other) + h(other)));
+        for (Box other : boxes()) {
+            if (!same(other, box)) {
+                xs.addAll(List.of(other.x(), other.x() + other.w() / 2f, other.x() + other.w()));
+                ys.addAll(List.of(other.y(), other.y() + other.h() / 2f, other.y() + other.h()));
             }
         }
         float[] x = snap((float) mouseX - grabX, w, xs);
         float[] y = snap((float) mouseY - grabY, h, ys);
         guideX = x[1];
         guideY = y[1];
-        float nx = Math.max(0f, Math.min(width - w, x[0]));
-        float ny = Math.max(0f, Math.min(height - h, y[0]));
-        m.moveTo(nx, ny, width, height, Minecraft.getInstance());
+        box.moveTo(Math.max(0f, Math.min(width - w, x[0])), Math.max(0f, Math.min(height - h, y[0])));
     }
 
     // ------------------------------------------------------------------ input
@@ -177,18 +253,24 @@ public final class HudEditorScreen extends Screen {
                 return true;
             }
         }
-        HudModule m = moduleAt(mouseX, mouseY);
-        if (m == null) {
+        Box box = boxAt(mouseX, mouseY);
+        if (box == null) {
             return false;
         }
         if (button == 1) {
-            ScreenOpener.open(HubScreen.moduleSettings(m.id));
+            if (box instanceof ModuleBox mb) {
+                ScreenOpener.open(HubScreen.moduleSettings(mb.m.id));
+            } else if (box instanceof PartBox pb) {
+                // A part of the game's HUD goes back where the game puts it.
+                VanillaHud.move(pb.part, 0f, 0f);
+                Modules.save();
+            }
             return true;
         }
         if (button == 0) {
-            dragging = m;
-            grabX = (float) mouseX - left(m);
-            grabY = (float) mouseY - top(m);
+            dragging = box;
+            grabX = (float) mouseX - box.x();
+            grabY = (float) mouseY - box.y();
             return true;
         }
         return false;
@@ -215,15 +297,15 @@ public final class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        HudModule m = moduleAt(mouseX, mouseY);
-        if (m == null || scrollY == 0) {
+        if (!(boxAt(mouseX, mouseY) instanceof ModuleBox box) || scrollY == 0) {
             return false;
         }
         // Resized about its middle.
-        float cx = left(m) + w(m) / 2f;
-        float cy = top(m) + h(m) / 2f;
+        HudModule m = box.m;
+        float cx = box.x() + box.w() / 2f;
+        float cy = box.y() + box.h() / 2f;
         m.setScale(Math.max(0.5, Math.min(2.0, m.scale() + (scrollY > 0 ? 0.05 : -0.05))));
-        m.moveTo(cx - w(m) / 2f, cy - h(m) / 2f, width, height, Minecraft.getInstance());
+        box.moveTo(cx - box.w() / 2f, cy - box.h() / 2f);
         return true;
     }
 
@@ -290,17 +372,31 @@ public final class HudEditorScreen extends Screen {
         // The middle of the screen, faintly; a guide line where the dragged module snapped.
         g.fill(width / 2, 0, width / 2 + 1, height, 0x18FFFFFF);
         g.fill(0, height / 2, width, height / 2 + 1, 0x18FFFFFF);
-        HudModule hot = dragging != null ? dragging : moduleAt(mouseX, mouseY);
-        for (HudModule m : Modules.hud()) {
-            if (!m.enabled()) {
-                continue;
+        Box hot = dragging != null ? dragging : boxAt(mouseX, mouseY);
+        for (Box box : boxes()) {
+            if (box instanceof ModuleBox mb) {
+                Hud.drawModule(g, mb.m, width, height);
             }
-            Hud.drawModule(g, m, width, height);
-            int x0 = Math.round(left(m));
-            int y0 = Math.round(top(m));
-            int x1 = Math.round(left(m) + w(m));
-            int y1 = Math.round(top(m) + h(m));
-            g.outline(x0 - 1, y0 - 1, x1 + 1, y1 + 1, m == hot ? 0xE0FFFFFF : 0x50FFFFFF);
+            int x0 = Math.round(box.x());
+            int y0 = Math.round(box.y());
+            int x1 = Math.round(box.x() + box.w());
+            int y1 = Math.round(box.y() + box.h());
+            boolean lit = hot != null && same(box, hot);
+            if (box instanceof PartBox pb) {
+                // The game's own parts: a blue frame and their name, the game draws them (moved) underneath.
+                g.fill(x0, y0, x1, y1, lit ? 0x2870A8FF : 0x1470A8FF);
+                g.outline(x0 - 1, y0 - 1, x1 + 1, y1 + 1, lit ? 0xE090C8FF : 0x6090C8FF);
+                if (lit) {
+                    String label = t("part." + pb.part.id);
+                    g.push();
+                    g.translate(x0 + 1, y0 - 6);
+                    g.scale(0.5f, 0.5f);
+                    g.text(font, label, 0, 0, 0xFFB8DCFF, true);
+                    g.pop();
+                }
+            } else {
+                g.outline(x0 - 1, y0 - 1, x1 + 1, y1 + 1, lit ? 0xE0FFFFFF : 0x50FFFFFF);
+            }
         }
         if (!Float.isNaN(guideX)) {
             int x = Math.round(guideX);
@@ -335,9 +431,10 @@ public final class HudEditorScreen extends Screen {
         boolean any = Modules.hud().stream().anyMatch(HudModule::enabled);
         String line = any ? t("hint") : t("empty");
         String done = Component.translatable("cosmeticsmod.hub.done").getString();
-        float bw = ui.buttonWidth(done);
+        String reset = VanillaHud.moved() ? t("reset") : null;
+        float bw = ui.buttonWidth(done) + (reset != null ? ui.buttonWidth(reset) + 8f : 0f);
         float textW = Math.max(ui.textWidth(name, Ui.NAME, true), ui.textWidth(line, Ui.SMALL, false));
-        float w = Math.max(440f, Math.min(760f, 62f + textW + 12f + bw + 18f));
+        float w = Math.max(440f, Math.min(820f, 62f + textW + 12f + bw + 18f));
         float left = CX - w / 2f;
         float top = 20f;
         ui.roundRect(left - 4f, top + 10f, w + 8f, 68f, 34f, 0x30000000);
@@ -345,6 +442,12 @@ public final class HudEditorScreen extends Screen {
         ui.circle(left + 30f, top + 30f, 20f, Ui.WELL);
         ui.icon("layout", left + 30f, top + 30f, 20f, false);
         float right = ui.buttonRight(done, left + w - 8f, top + 8f, 44f, false, this::onClose) - 12f;
+        if (reset != null) {
+            right = ui.buttonRight(reset, right + 4f, top + 8f, 44f, false, () -> {
+                VanillaHud.reset();
+                Modules.save();
+            }) - 12f;
+        }
         float room = right - (left + 62f);
         ui.text(ui.fit(name, room, Ui.NAME, true), left + 62f, top + 17f, Ui.TEXT, Ui.NAME, true);
         ui.text(ui.fit(line, room, Ui.SMALL, false), left + 62f, top + 34f, Ui.TEXT_DIM, Ui.SMALL, false);
