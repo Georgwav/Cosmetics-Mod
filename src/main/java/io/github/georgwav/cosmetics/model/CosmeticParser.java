@@ -109,11 +109,16 @@ public final class CosmeticParser {
         CosmeticDefinition.TextureAnimation textureAnimation = json.has("texture_animation")
                 ? parseTextureAnimation(json.get("texture_animation"), namespace, "texture_animation") : null;
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
+        BoneRig boneRig = null;
         if (json.has("model")) {
-            BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models);
+            float[] placement = json.has("model_placement") ? modelPlacement(json.get("model_placement")) : null;
+            BedrockGeometry.Model model = loadModel(json, namespace, texture, defaultAnimations, models, placement);
+            boneRig = boneRig(json, namespace, model, models, context.warnings(), placement);
             for (CosmeticDefinition.Part part : model.parts()) {
-                parts.add(textureAnimation != null && part.texture().equals(texture)
-                        ? part.withTextureAnimation(textureAnimation) : part);
+                // Parts that move share a layer per moving bone; without bone animations the model is one piece.
+                CosmeticDefinition.Part placed = part.withBone(boneRig != null ? boneRig.driver(part.bone()) : -1);
+                parts.add(textureAnimation != null && placed.texture().equals(texture)
+                        ? placed.withTextureAnimation(textureAnimation) : placed);
             }
             if (!json.has("texture_size")) {
                 textureSize = new int[]{model.textureWidth(), model.textureHeight()};
@@ -229,7 +234,7 @@ public final class CosmeticParser {
             }
         }
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind);
+                options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind, boneRig);
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */
@@ -648,7 +653,7 @@ public final class CosmeticParser {
      */
     private static BedrockGeometry.Model loadModel(JsonObject json, String namespace, String texture,
                                                    List<CosmeticDefinition.Animation> defaultAnimations,
-                                                   ModelSource models) {
+                                                   ModelSource models, float[] placement) {
         String modelId = json.get("model").getAsString();
         if (modelId.indexOf(':') < 0) {
             modelId = namespace + ":" + modelId;
@@ -683,7 +688,121 @@ public final class CosmeticParser {
             }
         }
         return BedrockGeometry.convert(geometry.getAsJsonObject(), "model '" + modelId + "'", texture,
-                new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations);
+                new BedrockGeometry.BoneOptions(modes, animations, textures), defaultAnimations, placement);
+    }
+
+    /**
+     * {@code "model_placement": {"offset": [x, y, z], "rotation": [x, y, z], "scale": s or [x, y, z]}}: moves the whole
+     * model around the anchor's pivot (pixels, degrees; scaled, then turned, then moved). As an affine transform.
+     */
+    private static float[] modelPlacement(JsonElement element) {
+        if (!element.isJsonObject()) {
+            throw new JsonParseException("model_placement must be an object");
+        }
+        JsonObject json = element.getAsJsonObject();
+        float[] offset = json.has("offset") ? floats(json.get("offset"), 3, "model_placement.offset") : new float[3];
+        float[] rotation = json.has("rotation") ? floats(json.get("rotation"), 3, "model_placement.rotation") : new float[3];
+        float[] scale = {1f, 1f, 1f};
+        if (json.has("scale")) {
+            JsonElement s = json.get("scale");
+            scale = s.isJsonArray() ? floats(s, 3, "model_placement.scale")
+                    : new float[]{s.getAsFloat(), s.getAsFloat(), s.getAsFloat()};
+        }
+        for (float v : scale) {
+            if (!(Math.abs(v) >= 0.01f && Math.abs(v) <= 100f)) {
+                throw new JsonParseException("model_placement.scale must be 0.01 to 100 (negative mirrors)");
+            }
+        }
+        float[] m = CosmeticBaker.rotationMatrix(rotation);
+        float[] result = new float[12];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                result[row * 3 + col] = m[row * 3 + col] * scale[col];
+            }
+            result[9 + row] = offset[row];
+        }
+        return result;
+    }
+
+    /**
+     * The model's bones when they move or follow the player: {@code "model_animations"} (a Bedrock / GeckoLib
+     * animation file, {@code namespace:name} for {@code cosmetic_models/name.json}), {@code "model_states"} (which
+     * animation plays when) and {@code "skeleton": "player"}. Null when the cosmetic has none of them.
+     */
+    private static BoneRig boneRig(JsonObject json, String namespace, BedrockGeometry.Model model, ModelSource models,
+                                   Consumer<String> warnings, float[] placement) {
+        boolean skeleton = false;
+        if (json.has("skeleton")) {
+            String kind = requireString(json, "skeleton");
+            if (!kind.equals("player") && !kind.equals("none")) {
+                throw new JsonParseException("skeleton must be \"player\" or \"none\"");
+            }
+            skeleton = kind.equals("player");
+        }
+        if (!json.has("model_animations") && !skeleton) {
+            if (json.has("model_states")) {
+                warnings.accept("model_states without model_animations does nothing");
+            }
+            return null;
+        }
+        List<BoneRig.Clip> clips = List.of();
+        if (json.has("model_animations")) {
+            String animationsId = requireString(json, "model_animations");
+            if (animationsId.indexOf(':') < 0) {
+                animationsId = namespace + ":" + animationsId;
+            }
+            JsonElement file;
+            try (Reader reader = models.open(animationsId)) {
+                file = JsonParser.parseReader(reader);
+            } catch (IOException e) {
+                throw new JsonParseException("Can't read model_animations '" + animationsId + "': " + e.getMessage());
+            }
+            if (!file.isJsonObject()) {
+                throw new JsonParseException("model_animations '" + animationsId + "' must be a JSON object");
+            }
+            clips = BoneAnimationParser.parse(file.getAsJsonObject(), model.bones(),
+                    "model_animations '" + animationsId + "'", warnings);
+        }
+        List<List<BoneRig.State>> controllers = new ArrayList<>();
+        if (json.has("model_states")) {
+            JsonArray list = requireArray(json, "model_states");
+            boolean flat = list.isEmpty() || list.get(0).isJsonObject();
+            for (int c = 0; c < (flat ? 1 : list.size()); c++) {
+                JsonArray statesJson = flat ? list : list.get(c).getAsJsonArray();
+                List<BoneRig.State> states = new ArrayList<>();
+                for (int s = 0; s < statesJson.size(); s++) {
+                    String where = "model_states[" + (flat ? s : c + "][" + s) + "]";
+                    JsonObject state = statesJson.get(s).getAsJsonObject();
+                    int clip = -1;
+                    if (state.has("animation") && !state.get("animation").isJsonNull()) {
+                        String name = state.get("animation").getAsString();
+                        clip = BoneAnimationParser.clipNamed(clips, name);
+                        if (clip < 0) {
+                            warnings.accept(where + ": no animation '" + name + "'; skipped");
+                            continue;
+                        }
+                    }
+                    Molang.Expr when = null;
+                    if (state.has("when")) {
+                        String condition = state.get("when").getAsString().trim();
+                        try {
+                            when = condition.isEmpty() || condition.equals("1") || condition.equals("true") ? null
+                                    : Molang.compile(condition);
+                        } catch (IllegalArgumentException e) {
+                            warnings.accept(where + ": can't read '" + condition + "' (" + e.getMessage() + "); never plays");
+                            when = Molang.constant(0);
+                        }
+                    }
+                    float blend = state.has("blend") ? state.get("blend").getAsFloat() : 0f;
+                    if (!(blend >= 0f) || blend > 60f) {
+                        throw new JsonParseException(where + ": blend must be 0 to 60 seconds");
+                    }
+                    states.add(new BoneRig.State(clip, when, blend));
+                }
+                controllers.add(List.copyOf(states));
+            }
+        }
+        return new BoneRig(model.bones(), clips, controllers, skeleton, placement);
     }
 
     /** Most frames a texture animation may have. */

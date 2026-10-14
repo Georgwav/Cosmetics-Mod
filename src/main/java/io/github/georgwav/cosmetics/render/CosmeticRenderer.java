@@ -5,16 +5,20 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.config.SlotPriority;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.BoneRig;
 import io.github.georgwav.cosmetics.model.Cloth;
 import io.github.georgwav.cosmetics.model.CosmeticDefinition;
 import io.github.georgwav.cosmetics.model.CosmeticOption;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.model.PetPosition;
 import io.github.georgwav.cosmetics.model.MeshRig;
+import io.github.georgwav.cosmetics.model.Molang;
 import io.github.georgwav.cosmetics.model.RenderMode;
 import io.github.georgwav.cosmetics.model.TextureFrames;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import net.minecraft.client.model.geom.ModelPart;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
 /**
@@ -105,6 +109,17 @@ public final class CosmeticRenderer {
             int sides = cosmetic.definition().sides();
             CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
             PetPosition pet = slot == CosmeticSlot.PET ? petPosition(cosmetic, options) : null;
+            BoneRig bones = cosmetic.bones();
+            boolean following = false;
+            if (bones != null) {
+                try {
+                    poseBones(bones, cosmetic, options, info.uuid, seconds, bonesContext(info, false));
+                    following = bones.followsParts();
+                } catch (RuntimeException e) {
+                    RenderGuard.cosmeticFailed(cosmetic.id(), e);
+                    continue;
+                }
+            }
             for (int part = 0; part < 2; part++) {
                 ModelPart anchor = pet == PetPosition.HEAD ? (part == 0 ? head : null) : switch (slot.anchor()) {
                     case HEAD -> part == 0 ? head : null;
@@ -123,6 +138,10 @@ public final class CosmeticRenderer {
                 try {
                     if (root != null) {
                         root.translateAndRotate(poseStack);
+                    }
+                    if (following && part == 0) {
+                        drawFollowing(poseStack, cosmetic, options, packedLight, seconds, shadowPass, head, body, limbs,
+                                sink);
                     }
                     anchor.translateAndRotate(poseStack);
                     if (slot == CosmeticSlot.CAPE) {
@@ -167,7 +186,8 @@ public final class CosmeticRenderer {
                             ? new float[]{Math.min(1f, info.capeLean / 100f), (info.uuid.hashCode() & 0xFFFF) * 1.0e-4f,
                             config.capeSwing} : null;
                     drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, capeMotion,
-                            wings, wingAngle, wingPhase, seconds, shadowPass, cloth, sink);
+                            wings, wingAngle, wingPhase, seconds, shadowPass, cloth, following ? BoneRig.Follow.NONE : null,
+                            sink);
                 } catch (RuntimeException | LinkageError e) {
                     RenderGuard.cosmeticFailed(cosmetic.id(), e);
                 } finally {
@@ -184,11 +204,18 @@ public final class CosmeticRenderer {
     private static void drawLayers(PoseStack poseStack, BakedCosmetic cosmetic, int packedLight, int color,
                                    boolean glow, boolean animate, float animationSpeed, int style, float capeMotion,
                                    CosmeticDefinition.Wings wings, float wingAngle, double wingPhase, double seconds,
-                                   boolean shadowPass, float[] cloth, Sink sink) {
+                                   boolean shadowPass, float[] cloth, BoneRig.Follow only, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
+        BoneRig bones = cosmetic.bones();
         for (BakedCosmetic.Layer layer : cosmetic.layers()) {
             if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
                     || (layer.mode() == RenderMode.TRANSLUCENT && !config.translucentParts)) {
+                continue;
+            }
+            int bone = bones != null ? layer.bone() : -1;
+            // Only the layers following this body part (those that follow none at the cosmetic's own anchor), and
+            // none whose bone is scaled to nothing.
+            if ((only != null && bones != null && bones.follow(bone) != only) || (bone >= 0 && bones.isHidden(bone))) {
                 continue;
             }
             int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
@@ -224,6 +251,11 @@ public final class CosmeticRenderer {
                     pushes++;
                     applyRig(poseStack, rig, layer.joint(), clip, clipTime);
                 }
+                if (bone >= 0 && !bones.isIdentity(bone)) {
+                    poseStack.pushPose();
+                    pushes++;
+                    applyBone(poseStack, bones.correction(), bone * 12);
+                }
                 // cloth = {blow, phase, strength}; skeletal layers animate themselves instead.
                 Cloth.Shape shape = cloth != null && rig == null
                         ? Cloth.shape(layer.clothMesh().length(), cloth[0], seconds, cloth[1], cloth[2]) : null;
@@ -247,10 +279,11 @@ public final class CosmeticRenderer {
      * where vanilla would draw the item's model (after the item's display transform), so the cosmetic is built
      * like the vanilla model of that item. Returns false, drawing nothing, when the cosmetic shouldn't show
      * (the mod or the slot is off, the player is hidden, or the cosmetic failed before); the caller then
-     * draws the vanilla item.
+     * draws the vanilla item. {@code holder}'s hand, in first person or not, blocking or not, for a model whose
+     * animations show it differently then.
      */
     public static boolean renderHeld(PoseStack poseStack, int packedLight, BakedCosmetic cosmetic, boolean local,
-                                     Sink sink) {
+                                     java.util.UUID holder, boolean firstPerson, boolean blocking, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || RenderGuard.isDisabled(cosmetic.id())
                 || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
@@ -270,8 +303,13 @@ public final class CosmeticRenderer {
             boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
             float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
             int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+            if (cosmetic.bones() != null) {
+                Molang.Context context = MOLANG.clear().set(Molang.Query.IS_FIRST_PERSON, firstPerson)
+                        .set(Molang.Query.IS_BLOCKING, blocking);
+                poseBones(cosmetic.bones(), cosmetic, options, holder, seconds, context);
+            }
             drawLayers(poseStack, cosmetic, packedLight, Tint.argb(options, cosmetic, seconds), glow, animate,
-                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), null, sink);
+                    animationSpeed, style, 1f, null, 0f, 0.0, seconds, Compat.isShadowPass(), null, null, sink);
             RenderStats.heldDrawn++;
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(cosmetic.id(), e);
@@ -295,8 +333,11 @@ public final class CosmeticRenderer {
         int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
         CosmeticDefinition.Wings wings = cosmetic.wings();
         float wingAngle = wings != null ? wings.idle().base() : 0f;
+        if (cosmetic.bones() != null) {
+            cosmetic.bones().poseStill();
+        }
         drawLayers(poseStack, cosmetic, MeshEmitter.FULL_BRIGHT, Tint.argb(options, cosmetic, 0.0), glow, false, 1f,
-                style, 0f, wings, wingAngle, 0.0, 0.0, false, null, sink);
+                style, 0f, wings, wingAngle, 0.0, 0.0, false, null, null, sink);
     }
 
     /**
@@ -381,6 +422,115 @@ public final class CosmeticRenderer {
             default -> ROTATION.rotationY(radians);
         });
         poseStack.translate(-px, -py, -pz);
+    }
+
+    /** Body parts bone layers can follow, in drawing order. */
+    private static final BoneRig.Follow[] FOLLOWS = {BoneRig.Follow.BODY, BoneRig.Follow.HEAD, BoneRig.Follow.RIGHT_ARM,
+            BoneRig.Follow.LEFT_ARM, BoneRig.Follow.RIGHT_LEG, BoneRig.Follow.LEFT_LEG};
+
+    /** Queries for bone animations, refilled for each cosmetic drawn. Render thread only. */
+    private static final Molang.Context MOLANG = new Molang.Context();
+
+    /** Where each player is in each cosmetic's animation states. Render thread only. */
+    private static final java.util.Map<java.util.UUID, java.util.Map<String, BoneRig.Playback>> PLAYBACKS =
+            new java.util.HashMap<>();
+    private static final java.util.UUID NOBODY = new java.util.UUID(0L, 0L);
+    private static double lastPlaybackSweep;
+
+    /** Reused for bone corrections. Render thread only. */
+    private static final Matrix4f BONE = new Matrix4f();
+    private static final Matrix3f BONE_NORMAL = new Matrix3f();
+
+    /** What the bone animations' queries see of the player being drawn. */
+    private static Molang.Context bonesContext(PlayerRenderInfo info, boolean inGui) {
+        return MOLANG.clear()
+                .set(Molang.Query.IS_IN_GUI, inGui)
+                .set(Molang.Query.IS_ELYTRA_FLYING, info.gliding)
+                .set(Molang.Query.IS_SWIMMING, info.swimming)
+                .set(Molang.Query.IS_SNEAKING, info.sneaking)
+                .set(Molang.Query.IS_FLYING, info.flying && !info.gliding)
+                .set(Molang.Query.IS_BLOCKING, info.blocking)
+                .set(Molang.Query.IS_ON_GROUND, info.onGround)
+                .set(Molang.Query.IS_SPRINTING, info.sprinting)
+                .set(Molang.Query.IS_RIDING, info.riding)
+                .set(Molang.Query.IS_MOVING, info.moveSpeed > 0.01f)
+                .set(Molang.Query.GROUND_SPEED, info.moveSpeed * 20f)
+                .set(Molang.Query.MODIFIED_DISTANCE_MOVED, info.walked);
+    }
+
+    /** Works out a cosmetic's bones for one player now (each animation's speed and on/off from its settings). */
+    private static void poseBones(BoneRig bones, BakedCosmetic cosmetic, CosmeticsConfig.CosmeticOptions options,
+                                  java.util.UUID player, double seconds, Molang.Context context) {
+        boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+        float speed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+        context.set(Molang.Query.LIFE_TIME, seconds);
+        java.util.Map<String, BoneRig.Playback> mine = PLAYBACKS.computeIfAbsent(player != null ? player : NOBODY,
+                k -> new java.util.HashMap<>());
+        BoneRig.Playback playback = mine.get(cosmetic.id());
+        if (playback == null || playback.controllers() != bones.controllerCount()) {
+            playback = bones.newPlayback();
+            mine.put(cosmetic.id(), playback);
+        }
+        playback.lastUsed = seconds;
+        bones.pose(playback, seconds, animate ? speed : 0f, context);
+        if (seconds - lastPlaybackSweep > 30.0) {
+            // Players who left (and cosmetics taken off) stop being remembered after a minute.
+            lastPlaybackSweep = seconds;
+            PLAYBACKS.values().forEach(m -> m.values().removeIf(p -> seconds - p.lastUsed > 60.0));
+            PLAYBACKS.values().removeIf(java.util.Map::isEmpty);
+        }
+    }
+
+    /**
+     * Draws the layers of a player-skeleton model that follow a body part, each from that part: from the model's
+     * root, turned and moved with the part, then back by where the part sits at rest, so the geometry (made where
+     * it sits on the player) moves with the part.
+     */
+    private static void drawFollowing(PoseStack poseStack, BakedCosmetic cosmetic, CosmeticsConfig.CosmeticOptions options,
+                                      int packedLight, double seconds, boolean shadowPass, ModelPart head, ModelPart body,
+                                      ModelPart[] limbs, Sink sink) {
+        int color = Tint.argb(options, cosmetic, seconds);
+        boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+        boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+        float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+        int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+        for (BoneRig.Follow follow : FOLLOWS) {
+            ModelPart part = switch (follow) {
+                case HEAD -> head;
+                case BODY -> body;
+                case LEFT_ARM -> limbs[0];
+                case RIGHT_ARM -> limbs[1];
+                case LEFT_LEG -> limbs[2];
+                case RIGHT_LEG -> limbs[3];
+                default -> null;
+            };
+            if (part == null || !part.visible) {
+                continue;
+            }
+            poseStack.pushPose();
+            try {
+                part.translateAndRotate(poseStack);
+                applyPlacement(poseStack, options, cosmetic);
+                poseStack.translate(-follow.pivotX / 16f, -follow.pivotY / 16f, 0f);
+                drawLayers(poseStack, cosmetic, packedLight, color, glow, animate, animationSpeed, style, 1f, null, 0f,
+                        0.0, seconds, shadowPass, null, follow, sink);
+            } finally {
+                poseStack.popPose();
+            }
+        }
+    }
+
+    /** Moves a bone's geometry from where it was baked to where its animation puts it ({@link BoneRig#correction}). */
+    private static void applyBone(PoseStack poseStack, float[] c, int m) {
+        // JOML takes columns: column 0 is the first entry of each row.
+        BONE.set(c[m], c[m + 3], c[m + 6], 0f,
+                c[m + 1], c[m + 4], c[m + 7], 0f,
+                c[m + 2], c[m + 5], c[m + 8], 0f,
+                c[m + 9], c[m + 10], c[m + 11], 1f);
+        PoseStack.Pose last = poseStack.last();
+        last.pose().mul(BONE);
+        // Normals by the inverse transpose, so scaled bones still light right (they are normalised when drawn).
+        last.normal().mul(BONE_NORMAL.set(BONE).invert().transpose());
     }
 
     /**

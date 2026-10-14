@@ -31,6 +31,17 @@ public final class PlayerRenderInfo {
     public boolean flying;
     /** Something other than an elytra is worn in the chest slot. */
     public boolean chestArmor;
+    /** Gliding with an elytra. */
+    public boolean gliding;
+    public boolean swimming;
+    /** Holding a shield up. */
+    public boolean blocking;
+    public boolean onGround;
+    public boolean sprinting;
+    /** Sitting on something (a horse, a boat, ...). */
+    public boolean riding;
+    /** Distance walked, in blocks (the walk animation's position). */
+    public float walked;
 
     public void reset() {
         uuid = null;
@@ -47,5 +58,12 @@ public final class PlayerRenderInfo {
         sneaking = false;
         flying = false;
         chestArmor = false;
+        gliding = false;
+        swimming = false;
+        blocking = false;
+        onGround = false;
+        sprinting = false;
+        riding = false;
+        walked = 0;
     }
 }

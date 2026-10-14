@@ -28,9 +28,13 @@ class BundledCosmeticsTest {
             files = stream.filter(p -> p.toString().endsWith(".json")).toList();
         }
         assertFalse(files.isEmpty());
-        CosmeticParser.ModelSource models = modelId -> Files.newBufferedReader(assets
-                .resolve(modelId.substring(0, modelId.indexOf(':')))
-                .resolve("cosmetic_models/" + modelId.substring(modelId.indexOf(':') + 1) + ".geo.json"));
+        // As the loader finds them: cosmetic_models/<name>.geo.json, or <name>.json (animation files).
+        CosmeticParser.ModelSource models = modelId -> {
+            Path folder = assets.resolve(modelId.substring(0, modelId.indexOf(':'))).resolve("cosmetic_models");
+            String name = modelId.substring(modelId.indexOf(':') + 1);
+            Path geo = folder.resolve(name + ".geo.json");
+            return Files.newBufferedReader(Files.isRegularFile(geo) ? geo : folder.resolve(name + ".json"));
+        };
         CosmeticParser.FileSource meshFiles = location -> Files.newInputStream(assets
                 .resolve(location.substring(0, location.indexOf(':')))
                 .resolve(location.substring(location.indexOf(':') + 1)));

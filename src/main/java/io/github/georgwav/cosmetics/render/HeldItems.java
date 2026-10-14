@@ -39,6 +39,8 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 public final class HeldItems {
     private static UUID holder;
     private static boolean holderLocal;
+    private static boolean holderFirstPerson;
+    private static boolean holderBlocking;
 
     private HeldItems() {
     }
@@ -49,6 +51,9 @@ public final class HeldItems {
         if (owner instanceof AbstractClientPlayer player && isHand(context)) {
             holder = player.getUUID();
             holderLocal = player == Minecraft.getInstance().player;
+            holderFirstPerson = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
+                    || context == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+            holderBlocking = player.isBlocking();
         }
     }
 
@@ -73,7 +78,8 @@ public final class HeldItems {
 
     //? if >=1.21.4 {
     // A shield's components, with the shield cosmetic that replaces it. Reads exactly like the components.
-    public record ShieldArgument(DataComponentMap components, String cosmetic, boolean local) implements DataComponentMap {
+    public record ShieldArgument(DataComponentMap components, String cosmetic, boolean local, UUID holder,
+                                 boolean firstPerson, boolean blocking) implements DataComponentMap {
         @Override
         public <T> T get(DataComponentType<? extends T> type) {
             return components.get(type);
@@ -89,7 +95,7 @@ public final class HeldItems {
     public static DataComponentMap tag(DataComponentMap components) {
         BakedCosmetic shield = shield();
         return shield == null || components instanceof ShieldArgument ? components
-                : new ShieldArgument(components, shield.id(), holderLocal);
+                : new ShieldArgument(components, shield.id(), holderLocal, holder, holderFirstPerson, holderBlocking);
     }
     //?}
 
@@ -101,8 +107,8 @@ public final class HeldItems {
             return false;
         }
         BakedCosmetic cosmetic = CosmeticRegistry.get(tag.cosmetic());
-        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(),
-                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(), tag.holder(),
+                tag.firstPerson(), tag.blocking(), (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
                         CosmeticsLayer.submit(collector, pose, c, layer, l, color, frame, clip, clipTime, cloth));
     }
     //?} elif >=1.21.4 {
@@ -113,8 +119,8 @@ public final class HeldItems {
             return false;
         }
         BakedCosmetic cosmetic = CosmeticRegistry.get(tag.cosmetic());
-        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(),
-                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, tag.local(), tag.holder(),
+                tag.firstPerson(), tag.blocking(), (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
                         CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
     }
     *///?} else {
@@ -122,8 +128,8 @@ public final class HeldItems {
     // when they have none.
     public static boolean drawShield(PoseStack poseStack, MultiBufferSource buffers, int light) {
         BakedCosmetic cosmetic = shield();
-        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, holderLocal,
-                (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, holderLocal, holder,
+                holderFirstPerson, holderBlocking, (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
                         CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
     }
     *///?}

@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,8 +42,12 @@ public final class BedrockGeometry {
                               Map<String, String> textures) {
     }
 
-    /** A converted model: its texture size and one part per bone with cubes. */
-    public record Model(int textureWidth, int textureHeight, List<CosmeticDefinition.Part> parts) {
+    /**
+     * A converted model: its texture size, one part per bone with cubes (each part's {@code bone} is its bone's
+     * index in {@code bones}), and every bone, parents before children.
+     */
+    public record Model(int textureWidth, int textureHeight, List<CosmeticDefinition.Part> parts,
+                        List<BoneRig.Bone> bones) {
     }
 
     /**
@@ -52,6 +57,15 @@ public final class BedrockGeometry {
      */
     public static Model convert(JsonObject geometryJson, String where, String texture, BoneOptions options,
                                 List<CosmeticDefinition.Animation> defaultAnimations) {
+        return convert(geometryJson, where, texture, options, defaultAnimations, null);
+    }
+
+    /**
+     * @param root placement of the whole model around the anchor's pivot ({@code [m00..m22, tx, ty, tz]}, pixels),
+     *             or null to keep it where it was modelled
+     */
+    public static Model convert(JsonObject geometryJson, String where, String texture, BoneOptions options,
+                                List<CosmeticDefinition.Animation> defaultAnimations, float[] root) {
         JsonObject geometry = firstGeometry(geometryJson, where);
         JsonObject description = geometry.has("description") ? geometry.getAsJsonObject("description") : new JsonObject();
         int textureWidth = description.has("texture_width") ? description.get("texture_width").getAsInt() : 64;
@@ -66,6 +80,8 @@ public final class BedrockGeometry {
             JsonObject bone = element.getAsJsonObject();
             bones.put(key(bone), bone);
         }
+        Map<JsonObject, Integer> order = new IdentityHashMap<>();
+        List<BoneRig.Bone> rigBones = orderBones(bonesJson, bones, order, where);
 
         List<CosmeticDefinition.Part> parts = new ArrayList<>();
         for (JsonElement element : bonesJson) {
@@ -76,6 +92,9 @@ public final class BedrockGeometry {
             String name = bone.has("name") ? bone.get("name").getAsString() : "bone";
             String key = key(bone);
             float[] boneTransform = chain(bone, bones, where, 0);
+            if (root != null) {
+                boneTransform = CosmeticBaker.compose(root, boneTransform);
+            }
             boolean boneMirror = bone.has("mirror") && bone.get("mirror").getAsBoolean();
             float boneInflate = bone.has("inflate") ? bone.get("inflate").getAsFloat() : 0f;
 
@@ -90,12 +109,49 @@ public final class BedrockGeometry {
             List<CosmeticDefinition.Animation> animations = options.animations().containsKey(key)
                     ? withBonePivot(options.animations().get(key), bone)
                     : defaultAnimations;
-            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations));
+            parts.add(new CosmeticDefinition.Part(name, mode, partTexture, List.copyOf(cubes), animations)
+                    .withBone(order.get(bone)));
         }
         if (parts.isEmpty()) {
             throw new JsonParseException(where + " has no cubes");
         }
-        return new Model(textureWidth, textureHeight, List.copyOf(parts));
+        return new Model(textureWidth, textureHeight, List.copyOf(parts), rigBones);
+    }
+
+    /** Every bone, parents before children, with pivots in our space; fills {@code order} with each one's index. */
+    private static List<BoneRig.Bone> orderBones(JsonArray bonesJson, Map<String, JsonObject> byName,
+                                                 Map<JsonObject, Integer> order, String where) {
+        List<JsonObject> pending = new ArrayList<>();
+        for (JsonElement element : bonesJson) {
+            pending.add(element.getAsJsonObject());
+        }
+        List<BoneRig.Bone> result = new ArrayList<>();
+        while (!pending.isEmpty()) {
+            boolean progress = false;
+            for (java.util.Iterator<JsonObject> it = pending.iterator(); it.hasNext(); ) {
+                JsonObject bone = it.next();
+                JsonObject parent = bone.has("parent") ? byName.get(bone.get("parent").getAsString().toLowerCase(Locale.ROOT)) : null;
+                if (parent == bone) {
+                    parent = null;
+                }
+                if (parent != null && !order.containsKey(parent)) {
+                    continue;
+                }
+                String name = bone.has("name") ? bone.get("name").getAsString() : "bone";
+                float[] pivot = bone.has("pivot") ? point(floats(bone.get("pivot"), 3, where + " bone '" + name + "'.pivot"))
+                        : new float[3];
+                float[] rotation = bone.has("rotation") ? floats(bone.get("rotation"), 3, where + " bone '" + name + "'.rotation")
+                        : new float[3];
+                order.put(bone, result.size());
+                result.add(new BoneRig.Bone(name, parent == null ? -1 : order.get(parent), pivot, rotation));
+                it.remove();
+                progress = true;
+            }
+            if (!progress) {
+                throw new JsonParseException(where + ": bone parents form a loop");
+            }
+        }
+        return List.copyOf(result);
     }
 
     private static JsonObject firstGeometry(JsonObject json, String where) {

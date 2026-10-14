@@ -3,6 +3,7 @@
   "slot": "head",
   "texture": "cosmeticsmod:textures/cosmetic/crown.png",
   "model": "cosmeticsmod:crown",
+  "model_animations": "cosmeticsmod:crown.animation",
   "bones": {
     "gems": {
       "mode": "emissive"
