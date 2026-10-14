@@ -1126,6 +1126,7 @@ public final class CosmeticsScreen extends Screen {
                 () -> c.emoteCamera, v -> c.emoteCamera = v,
                 v -> t("emote_camera." + v.name().toLowerCase(Locale.ROOT))));
         toggle("emote_stop_on_move", () -> c.emoteStopOnMove, v -> c.emoteStopOnMove = v);
+        toggle("elytra_emote_rockets", () -> c.elytraEmoteRockets, v -> c.elytraEmoteRockets = v);
     }
 
     private void buildPerformance() {

@@ -115,6 +115,8 @@ public final class DevScenario {
     private long emoteFramesAtStart;
     private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
+    /** Whether the elytra emote still played after a right-click mid-flight; null when it wasn't tried. */
+    private Boolean elytraEmoteKeptAfterUse;
     private long elytraFramesAtStart;
     private long fittedFramesAtStart;
     private double[] groundPosition;
@@ -489,13 +491,28 @@ public final class DevScenario {
                 }
             }
             case ELYTRA_EMOTE -> {
+                // Right-click (a rocket) mid-flight: the elytra emote goes on.
+                if (ticks == 40) {
+                    client.options.keyUse.setDown(true);
+                } else if (ticks == 46) {
+                    client.options.keyUse.setDown(false);
+                } else if (ticks == 50 && client.player.isFallFlying()) {
+                    elytraEmoteKeptAfterUse = EmotePlayer.playing() != null;
+                }
                 if (ticks >= ELYTRA_TICKS || (ticks > 20 && !client.player.isFallFlying())) {
+                    client.options.keyUse.setDown(false);
                     JsonObject elytra = phases.getAsJsonObject("elytra");
                     elytra.addProperty("ticks", ticks);
                     elytra.addProperty("posedFrames", EmotePlayer.posedFrames - emoteFramesAtStart);
                     elytra.addProperty("uprightFrames", ElytraUpright.frames - uprightFramesAtStart);
                     elytra.addProperty("elytraHiddenFrames", ElytraLook.hiddenFrames - elytraFramesAtStart);
                     elytra.addProperty("stillPlaying", EmotePlayer.playing() != null);
+                    if (elytraEmoteKeptAfterUse != null) {
+                        elytra.addProperty("keptAfterRightClick", elytraEmoteKeptAfterUse);
+                        if (!elytraEmoteKeptAfterUse) {
+                            failures.add("right-clicking (a rocket) stopped the elytra emote");
+                        }
+                    }
                     CosmeticsMod.LOGGER.info("Dev scenario elytra: {}", elytra);
                     if (elytra.get("gliding").getAsBoolean()) {
                         if (!elytra.get("elytraWheel").getAsBoolean()) {
