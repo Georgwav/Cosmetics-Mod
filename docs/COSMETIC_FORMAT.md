@@ -625,17 +625,21 @@ the file is an emote: a file with one animation is the emote `<namespace>:<name>
 }
 ```
 
-- **Bones** are found by name, in any spelling (`right_arm`, `rightArm`, `RightArm`): `head`, `body` (or
-  `torso`), `right_arm`, `left_arm`, `right_leg`, `left_leg`, plus `waist` (bends the upper body at the hips)
-  and `root` (moves or turns the whole player, around the feet). They hang together like the Bedrock player:
+- **Bones** are found by name, in any spelling (`right_arm`, `rightArm`, `RightArm`, GeckoLib's `bipedRightArm`):
+  `head`, `body` (or `torso`), `right_arm`, `left_arm`, `right_leg`, `left_leg`, plus `waist` (bends the upper
+  body at the hips) and `root` (or `bipedRig`; moves or turns the whole player, around the feet, or around
+  `"root_pivot"`: pixels up from the feet, next to `bones`). They hang together like the Bedrock player:
   the head and arms move with the body, the body with the waist, everything with the root. Other bones are
   ignored with a warning in the log.
 - **`rotation`** is in degrees, `[x, y, z]`, with the Bedrock player's signs (raising the right arm sideways is
-  `+z`, forward is `-x`). **`position`** is in pixels with +Y up. `scale` isn't supported.
+  `+z`, forward is `-x`). **`position`** is in pixels with +Y up. **`scale`** makes a part bigger or smaller
+  around its pivot (1 = as it is, 0 = gone); the root's scales every part.
 - A value is a vector, or keyframes by time in seconds. A keyframe is a vector or
   `{"pre": [...], "post": [...], "lerp_mode": "linear" | "catmullrom" | "step"}`; GeckoLib's
   `{"vector": [...], "easing": "easeInOutSine"}` works too.
-- Values must be numbers: Molang expressions are refused (bake the animation in Blockbench first).
+- Values are numbers or Molang (`"math.sin(q.anim_time * 90) * 30"`), which is worked out as the emote plays,
+  30 times a second (`q.anim_time` is seconds into the emote; queries about the player are 0). Molang the mod
+  doesn't understand makes the file fail, with the reason in the log.
 - **`loop`**: `true` loops until you stop it, `"hold_on_last_frame"` stays on the last frame until you move,
   anything else plays once. An animation with no length is a still pose that holds.
 - A part the emote doesn't move keeps its normal pose (so the head still looks around while you wave).

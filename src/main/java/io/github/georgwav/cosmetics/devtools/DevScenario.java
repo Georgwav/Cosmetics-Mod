@@ -69,6 +69,9 @@ public final class DevScenario {
     private static final int ELYTRA_LOOK_TICKS = 120;
     /** How far the body is turned from where the camera looks for those, degrees: nearly from the side. */
     private static final float SIDE_VIEW = 90f;
+    /** Field of view for the elytra close-ups, and the game's default to go back to. */
+    private static final int ZOOMED_FOV = 30;
+    private static final int NORMAL_FOV = 70;
     /** Ticks the elytra emote plays while gliding. */
     private static final int ELYTRA_TICKS = 140;
     /** How high above where the test stands the player starts gliding, blocks. */
@@ -319,6 +322,8 @@ public final class DevScenario {
                         CosmeticsConfig.get().slotVisible.put(slot, false);
                     }
                     client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                    // Zoomed in, so a gap of a pixel between the elytra and the back shows in the screenshots.
+                    client.options.fov().set(ZOOMED_FOV);
                     elytraFramesAtStart = ElytraLook.followedFrames;
                     enter(Phase.EMOTE_ELYTRA);
                 }
@@ -360,6 +365,7 @@ public final class DevScenario {
                         config.slotVisible.put(slot, true);
                     }
                     CosmeticsMod.LOGGER.info("Dev scenario elytra look: {}", phases.getAsJsonObject("elytra_look"));
+                    client.options.fov().set(NORMAL_FOV);
                     client.player.setXRot(0f);
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     // Next an elytra emote: glide high above the ground.
@@ -562,6 +568,10 @@ public final class DevScenario {
             var player = server.getPlayerList().getPlayer(id);
             if (player != null) {
                 player.setItemSlot(EquipmentSlot.CHEST, on ? new ItemStack(Items.ELYTRA) : ItemStack.EMPTY);
+                if (on) {
+                    // The shield from earlier would hide the elytra in the side views.
+                    player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                }
             }
         });
     }

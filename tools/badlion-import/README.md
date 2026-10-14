@@ -207,8 +207,11 @@ badlion-import emotes C:\Users\Pc\AppData\Roaming\.minecraft C:\badlion-packs\em
 
 - **Bedrock / GeckoLib animations** (`{"animations": ...}`, what Blockbench exports and Lunar and NoRisk build
   with) that move a player: bones named `head`, `body`, `right_arm`, ... in any spelling, GeckoLib's
-  `bipedHead`, `bipedRightArm`, ... too. Each animation is one emote. Bones are renamed to the mod's; other bones,
-  `scale` and channels written in Molang are left out (each noted in the report). Animations of cosmetics (a
+  `bipedHead`, `bipedRightArm`, ... too, and NoRisk's `bipedRig` (the whole player, turning where the model next
+  to the animation has it). Each animation is one emote, named after its file. Bones are renamed to the mod's;
+  other bones are left out (noted in the report). Molang and `scale` (parts made bigger or smaller) are kept: the
+  mod plays them.
+- **NoRisk's names**: its shop files (`shop/emotes/*.norisk.json`) give the emotes their names in the game. Animations of cosmetics (a
   folder with the cosmetic's `.geo.json`, `.gek.json` or `.norisk.json`) and of models that move one player bone
   or mostly other bones aren't emotes. Inside archives (mostly mods, whose mobs have bones named like a player's
   too) only animations whose path or name says "emote" are taken.
@@ -218,7 +221,8 @@ Emotes get the client in their id when the path says which (`lunar_emotes:`, `no
 `badlion_emotes:`, else `imported_emotes:`). The report (`emote-report.md`) lists every emote, what was left out
 and why, and every **emote-like file it couldn't read** (a path with "emote" in it, Emotecraft's binary
 `.emotecraft`): send that list to get those supported. Running it again on the same pack folder replaces its
-emotes. Copy the pack into `resourcepacks` and turn it on; the emotes appear in Wardrobe → Emotes.
+emotes. Packs this tool wrote are passed over wherever they are (an earlier one copied into `resourcepacks`), so
+emotes aren't found twice. Copy the pack into `resourcepacks` and turn it on; the emotes appear in Wardrobe → Emotes.
 
 #### Settings file
 

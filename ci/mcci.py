@@ -511,6 +511,11 @@ def log_screenshot(name, width, height, rows):
         step, x0, y0, x1, y1 = 4, 0, 0, width, height
     elif name.startswith("screenshot-shield"):
         step, x0, y0, x1, y1 = 2, 0, 0, width, height  # first person: the shield is low on the left
+    elif name.startswith(("screenshot-elytra_stand", "screenshot-emote_elytra")):
+        # Zoomed close-ups of the elytra on the back: full size, so a gap of a pixel shows.
+        size = min(360, width, height)
+        x0, y0 = (width - size) // 2, max(0, (height - size) // 2 - 20)
+        step, x1, y1 = 1, x0 + size, y0 + size
     else:
         size = min(512, width, height)
         x0, y0 = (width - size) // 2, max(0, (height - size) // 2 - 40)

@@ -85,8 +85,8 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 
 Hold **B** (the "Emote wheel" key; change it in Controls or in Display → Keys, they're the same), point at an emote on the wheel and let go, or tap B and click
 one: your player plays it and the camera moves in front of you. The wheel has eight square slots, each with a
-picture of its emote's best pose. It starts empty: click a **+** to pick an emote for that slot, and the gear on
-a slot to change or empty it. **+ Page** adds another page of eight (scroll to turn pages); an empty page can be
+picture of its emote's best pose. It starts empty: click a **+** to pick an emote for that slot, the gear on
+a slot to change it, and the **×** under the gear to empty it. **+ Page** adds another page of eight (scroll to turn pages); an empty page can be
 removed. Walking, jumping, sneaking or getting hurt stops it, as do
 attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 

@@ -202,15 +202,83 @@ class EmoteTest {
     }
 
     @Test
-    void rejectsMolangAndBrokenFiles() {
+    void rejectsBrokenMolangAndBrokenFiles() {
         JsonParseException molang = assertThrows(JsonParseException.class, () -> parse("""
-                {"animations": {"a": {"bones": {"head": {"rotation": ["math.sin(query.anim_time * 90)", 0, 0]}}}}}
+                {"animations": {"a": {"bones": {"head": {"rotation": ["math.sin(query.anim_time * ", 0, 0]}}}}}
                 """));
         assertTrue(molang.getMessage().contains("Molang"));
         assertThrows(JsonParseException.class, () -> parse("{\"cubes\": []}"));
         assertThrows(JsonParseException.class, () -> parse("""
                 {"animations": {"a": {"animation_length": 99999, "bones": {}}}}
                 """));
+    }
+
+    @Test
+    void molangMovesAsTheEmotePlays() {
+        // NoRisk's clap: the arm swings by a formula of the emote's time.
+        Emote clap = parse("""
+                {"animations": {"a": {"loop": true, "animation_length": 2,
+                  "bones": {"bipedRightArm": {"rotation": ["math.sin(query.anim_time * 90) * 10", 0, "-5"]}}}}}
+                """).get(0);
+        Channel[] arm = clap.channels(Emote.Bone.RIGHT_ARM);
+        assertEquals(0f, arm[Emote.X_ROT].sample(0f, 0f), EPS);
+        assertEquals(10f * DEG, arm[Emote.X_ROT].sample(1f, 0f), EPS);
+        assertEquals(0f, arm[Emote.X_ROT].sample(2f, 0f), 1e-3f);
+        assertEquals(-5f * DEG, arm[Emote.Z_ROT].sample(1.5f, 0f), EPS);
+        assertEquals(2f, clap.length(), EPS);
+
+        // Molang in keyframes, between plain ones; with no length, as long as its keyframes.
+        Emote keyed = parse("""
+                {"animations": {"a": {"bones": {"head": {"position": {
+                  "0": [0, 0, 0], "1": ["q.anim_time * 2", 0, 0], "2": [0, 0, 0]}}}}}}
+                """).get(0);
+        Channel x = keyed.channels(Emote.Bone.HEAD)[Emote.X];
+        assertEquals(2f, x.sample(1f, 0f), 1e-3f);
+        assertEquals(0f, x.sample(2f, 0f), 1e-3f);
+        assertEquals(2f, keyed.length(), EPS);
+
+        // Molang that doesn't change is worked out once.
+        Emote still = parse("""
+                {"animations": {"a": {"bones": {"head": {"rotation": ["math.pi * 0 + 45", "10 * 2", 0]}}}}}
+                """).get(0);
+        assertEquals(45f * DEG, still.channels(Emote.Bone.HEAD)[Emote.X_ROT].sample(5f, 0f), EPS);
+        assertEquals(20f * DEG, still.channels(Emote.Bone.HEAD)[Emote.Y_ROT].sample(5f, 0f), EPS);
+    }
+
+    @Test
+    void norisksWholeBodyBoneAndItsPivot() {
+        Emote spin = parse("""
+                {"animations": {"a": {"animation_length": 1, "root_pivot": [0, 12, 0],
+                  "bones": {"bipedRig": {"rotation": {"0": [0, 0, 0], "1": [0, 360, 0]}}, "bipedHead": {"rotation": [5, 0, 0]}}}}}
+                """).get(0);
+        assertNotNull(spin.channels(Emote.Bone.ROOT));
+        assertNotNull(spin.channels(Emote.Bone.HEAD));
+        // 12 px up from the feet: the hips, as Emotecraft's whole body turns.
+        assertEquals(12f, spin.rootPivotY(), EPS);
+        assertEquals(24f, parse("{\"animations\": {\"a\": {\"bones\": {}}}}").get(0).rootPivotY(), EPS);
+    }
+
+    @Test
+    void emotesMakeBodyPartsBiggerOrSmaller() {
+        // NoRisk's iron golem: big arms; its headless emote: no head; the whole player a little bigger.
+        Emote golem = parse("""
+                {"animations": {"a": {"animation_length": 1, "bones": {
+                  "bipedRightArm": {"scale": {"0": [1, 1, 1], "1": [2, 3, 2]}},
+                  "bipedHead": {"scale": 0},
+                  "bipedRig": {"scale": [1.5, 1.5, 1.5]}}}}}
+                """).get(0);
+        float[][] size = new float[EmotePose.PARTS][3];
+        assertTrue(EmotePose.scales(golem, 1f, 1f, size));
+        assertEquals(0f, size[0][1], EPS);
+        assertEquals(1.5f, size[EmotePose.BODY][0], EPS);
+        assertEquals(4.5f, size[2][1], EPS);
+        assertEquals(1.5f, size[2][0] / 2f, EPS);
+        // Fading in, half way.
+        assertTrue(EmotePose.scales(golem, 1f, 0.5f, size));
+        assertEquals(2.75f, size[2][1], EPS);
+        // No sizes: the game's are left alone.
+        assertTrue(!EmotePose.scales(parse("{\"animations\": {\"a\": {\"bones\": {\"head\": {\"rotation\": [5, 0, 0]}}}}}")
+                .get(0), 0f, 1f, size));
     }
 
     @Test
