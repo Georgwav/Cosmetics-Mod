@@ -1032,7 +1032,7 @@ public final class CosmeticsScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (listeningFor != null) {
             return bindListened(event.key() == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN
-                    : KeyBinds.keyboard(event.key(), event.scancode()));
+                    : KeyBinds.keyboard(event));
         }
         return super.keyPressed(event);
     }
