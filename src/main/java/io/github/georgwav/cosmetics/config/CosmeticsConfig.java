@@ -63,8 +63,8 @@ public final class CosmeticsConfig {
     /** Hide capes while an elytra is worn, like the vanilla cape. */
     public boolean hideCapeWithElytra = true;
     /**
-     * Your elytra sits close to your back while you aren't gliding (the game holds its lower edge 15 degrees out,
-     * this 5); see {@link io.github.georgwav.cosmetics.render.ElytraLook}.
+     * Your elytra sits close to your back until you spread it to glide (the game holds its lower edge 15 degrees
+     * out, this 5); see {@link io.github.georgwav.cosmetics.render.ElytraLook}.
      */
     public boolean elytraCloseToBack = true;
     /** Capes sway with movement like the vanilla cape. Off: they hang still. */

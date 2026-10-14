@@ -2,7 +2,8 @@ package io.github.georgwav.cosmetics.mixin;
 
 // The game's elytra on your player (see ElytraLook): not drawn during your elytra emote, and drawn from your posed
 // body during any other emote (the body's pose is put on the pose stack just before the layer moves the elytra
-// behind the back, as the cape layer does with the body). The layer is ElytraLayer before 1.21.2, WingsLayer
+// behind the back, as the cape layer does with the body), except while crouching: the elytra copies the crouch's
+// lean itself, and the body's would lean it twice. The layer is ElytraLayer before 1.21.2, WingsLayer
 // after, taking a render state from 1.21.2 and submitting instead of rendering from 1.21.9.
 //? if >=1.21.9 {
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -34,7 +35,7 @@ abstract class WingsLayerMixin {
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V"))
     private void cosmeticsmod$followBody(PoseStack poseStack, SubmitNodeCollector collector, int light,
                                          HumanoidRenderState state, float yRot, float xRot, CallbackInfo ci) {
-        if (state instanceof AvatarRenderState avatar && ElytraLook.followsBody(avatar.id)
+        if (state instanceof AvatarRenderState avatar && !state.isCrouching && ElytraLook.followsBody(avatar.id)
                 && ((RenderLayer<?, ?>) (Object) this).getParentModel() instanceof HumanoidModel<?> model) {
             model.body.translateAndRotate(poseStack);
             ElytraLook.followedFrames++;
@@ -71,7 +72,7 @@ abstract class WingsLayerMixin {
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V"))
     private void cosmeticsmod$followBody(PoseStack poseStack, MultiBufferSource buffers, int light,
                                          HumanoidRenderState state, float yRot, float xRot, CallbackInfo ci) {
-        if (state instanceof PlayerRenderState player && ElytraLook.followsBody(player.id)
+        if (state instanceof PlayerRenderState player && !state.isCrouching && ElytraLook.followsBody(player.id)
                 && ((RenderLayer<?, ?>) (Object) this).getParentModel() instanceof HumanoidModel<?> model) {
             model.body.translateAndRotate(poseStack);
             ElytraLook.followedFrames++;
@@ -109,7 +110,7 @@ abstract class WingsLayerMixin {
     private void cosmeticsmod$followBody(PoseStack poseStack, MultiBufferSource buffers, int light, LivingEntity entity,
                                          float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                                          float netHeadYaw, float headPitch, CallbackInfo ci) {
-        if (ElytraLook.followsBody(entity.getId())
+        if (!entity.isCrouching() && ElytraLook.followsBody(entity.getId())
                 && ((RenderLayer<?, ?>) (Object) this).getParentModel() instanceof HumanoidModel<?> model) {
             model.body.translateAndRotate(poseStack);
             ElytraLook.followedFrames++;

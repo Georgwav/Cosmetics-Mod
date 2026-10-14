@@ -1,7 +1,7 @@
 package io.github.georgwav.cosmetics.mixin;
 
 // Before 1.21.2 the elytra model poses its wings from the entity itself: a player's elytra is tucked in towards the
-// back there while not gliding (see ElytraLook). From 1.21.2 the render state carries the pose and
+// back there (see ElytraLook). From 1.21.2 the render state carries the pose and
 // PlayerRendererMixin tucks it there.
 //? if <1.21.2 {
 /*import io.github.georgwav.cosmetics.render.ElytraLook;
@@ -25,7 +25,7 @@ abstract class ElytraModelMixin {
     private void cosmeticsmod$tuck(LivingEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks,
                                    float netHeadYaw, float headPitch, CallbackInfo ci) {
         if (entity instanceof Player) {
-            leftWing.xRot = ElytraLook.tucked(leftWing.xRot, entity.isCrouching(), entity.isFallFlying());
+            leftWing.xRot = ElytraLook.tucked(leftWing.xRot, leftWing.zRot);
             rightWing.xRot = leftWing.xRot;
         }
     }

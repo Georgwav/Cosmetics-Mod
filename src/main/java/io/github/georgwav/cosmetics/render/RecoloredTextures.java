@@ -26,8 +26,9 @@ import java.util.Optional;
  * drawn, {@link CosmeticRenderer} sets its recolour ({@link #begin}/{@link #end}) and {@link CosmeticRenderTypes}
  * asks here for the texture.
  *
- * <p>One copy per original texture, remade (at most every {@link #REMAKE_NANOS}) when its recolour changes, so
- * dragging a slider doesn't pile up textures. Dropped on resource reload. Render thread only.
+ * <p>One copy per cosmetic and original texture (cosmetics sharing a texture can be recoloured differently), remade
+ * (at most every {@link #REMAKE_NANOS}) when its recolour changes, so dragging a slider doesn't pile up textures.
+ * Dropped on resource reload. Render thread only.
  */
 public final class RecoloredTextures {
     /** Fewest nanoseconds between two remakes of one texture (a slider being dragged). */
@@ -48,17 +49,20 @@ public final class RecoloredTextures {
 
     private static final Map<String, Copy> COPIES = new HashMap<>();
     private static Recolor current;
+    private static String currentCosmetic;
     private static int made;
 
     private RecoloredTextures() {
     }
 
-    /** The recolour of the cosmetic about to be drawn (null for none), until {@link #end}. */
-    public static void begin(Recolor recolor) {
+    /** The cosmetic about to be drawn and its recolour (null for none), until {@link #end}. */
+    public static void begin(String cosmetic, Recolor recolor) {
+        currentCosmetic = cosmetic;
         current = recolor;
     }
 
     public static void end() {
+        currentCosmetic = null;
         current = null;
     }
 
@@ -73,7 +77,7 @@ public final class RecoloredTextures {
         if (recolor == null) {
             return null;
         }
-        Copy copy = COPIES.computeIfAbsent(texture, k -> new Copy());
+        Copy copy = COPIES.computeIfAbsent(currentCosmetic + "\n" + texture, k -> new Copy());
         if (copy.failed) {
             return null;
         }

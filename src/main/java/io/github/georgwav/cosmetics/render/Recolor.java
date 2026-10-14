@@ -6,8 +6,9 @@ import io.github.georgwav.cosmetics.model.CosmeticOption;
 /**
  * How a cosmetic's texture itself is recoloured: its hue turned, its saturation scaled (0 is black and white) and
  * its brightness scaled, pixel by pixel, on top of the tint colour. Unlike the tint, which can only darken a
- * texture towards a colour, this turns red wings blue. Plain maths, no Minecraft types, so it is unit-tested;
- * {@link RecoloredTextures} makes the recoloured textures.
+ * texture towards a colour, this turns red wings blue. The saturation setting pales the tint instead when the
+ * cosmetic is tinted ({@link Tint}), so it isn't applied twice. Plain maths, no Minecraft types, so it is
+ * unit-tested; {@link RecoloredTextures} makes the recoloured textures.
  *
  * @param hue        degrees the hue turns, -180..180
  * @param saturation saturation factor, 0..1
@@ -15,14 +16,20 @@ import io.github.georgwav.cosmetics.model.CosmeticOption;
  */
 public record Recolor(int hue, float saturation, float brightness) {
 
-    /** The recolour a cosmetic's settings ask for, or null to draw its texture as it is. */
-    public static Recolor of(CosmeticsConfig.CosmeticOptions options, int allowed) {
+    /**
+     * The recolour a cosmetic's settings ask for, or null to draw its texture as it is. {@code defaultColor} is the
+     * cosmetic's own tint colour (RGB, white for none).
+     */
+    public static Recolor of(CosmeticsConfig.CosmeticOptions options, int allowed, int defaultColor) {
         if ((allowed & CosmeticOption.SATURATION.bit()) == 0) {
             return null;
         }
+        boolean rainbow = options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0;
+        int tint = options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0 ? options.color : defaultColor;
+        boolean tinted = rainbow || (tint & 0xFFFFFF) != 0xFFFFFF;
         // Rounded so dragging a slider makes few distinct textures.
         int hue = Math.round(options.hue);
-        float saturation = Math.round(options.saturation * 100f) / 100f;
+        float saturation = tinted ? 1f : Math.round(options.saturation * 100f) / 100f;
         float brightness = Math.round(options.brightness * 100f) / 100f;
         if (hue % 360 == 0 && saturation >= 1f && brightness == 1f) {
             return null;

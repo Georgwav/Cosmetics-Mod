@@ -214,7 +214,8 @@ public final class CosmeticRenderer {
         CosmeticsConfig config = CosmeticsConfig.get();
         BoneRig bones = cosmetic.bones();
         // Its texture recoloured as its settings ask (CosmeticRenderTypes picks the copy up while drawing).
-        RecoloredTextures.begin(Recolor.of(config.options(cosmetic.id()), config.allowedOptions(cosmetic)));
+        RecoloredTextures.begin(cosmetic.id(),
+                Recolor.of(config.options(cosmetic.id()), config.allowedOptions(cosmetic), cosmetic.defaultColor()));
         try {
             for (BakedCosmetic.Layer layer : cosmetic.layers()) {
                 if ((layer.mode() == RenderMode.EMISSIVE && !(config.emissiveParts && glow))
