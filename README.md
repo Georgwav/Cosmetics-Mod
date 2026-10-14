@@ -207,7 +207,7 @@ To run the same scenario yourself, start the game with these JVM arguments:
 |---|---|
 | `-Dcosmeticsmod.equipAll=true` | Every player wears every cosmetic. |
 | `-Dcosmeticsmod.smokeTest=true` | After joining a world: third person front and back, then (with Iris and `-Dcosmeticsmod.expectShaders=true`) shaders on and the shadow-pass option off. It writes `cosmeticsmod-results.json`, logs PASSED/FAILED and quits. |
-| `-Dcosmeticsmod.benchmark=true` | Same phases, timed, shaders off then on. Add `-Dcosmeticsmod.benchmark.copies=50` to draw every cosmetic 50 times and simulate a crowded server. |
+| `-Dcosmeticsmod.benchmark=true` | Timed, shaders off then on. Each view runs three times: at the stress load, with every cosmetic drawn once, and with the mod switched off, so the frame rates show what cosmetics cost. Add `-Dcosmeticsmod.benchmark.copies=50` to make the stress load every cosmetic 50 times, like a crowded server. |
 
 Locally, `python3 ci/mcci.py runtime --node 1.21.8` does what CI does. You need Xvfb, `xwd` and the jar in
 `build/libs`.

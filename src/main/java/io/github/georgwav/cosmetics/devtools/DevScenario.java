@@ -48,6 +48,11 @@ import java.util.List;
  * off, also three-quarters from behind), an elytra emote while gliding, every page of the settings screen (and, with Mod Menu, the screen its
  * "Configure" button opens),
  * then (with Iris and a shaderpack) shaders on, and shaders on with "render in shadow pass" turned off.
+ * The benchmark instead runs the back view and the shaders-on view three times each: at its stress load (every
+ * cosmetic drawn {@code benchmark.copies} times), at a normal load (once), and with the mod switched off, so the
+ * frame rates show what cosmetics cost. The stress-load phases come first and at the same time as in older builds
+ * (front, back, shaders on), so an A/B run compares them like for like; the back view's normal and off phases run
+ * last, after shaders are off again.
  * Each phase records what the render layer did. The result goes to {@code cosmeticsmod-results.json}
  * in the game directory, a PASSED/FAILED line goes to the log, and the game quits.
  *
@@ -57,7 +62,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -243,6 +248,27 @@ public final class DevScenario {
                     } else {
                         startShadersOrFinish();
                     }
+                }
+            }
+            case BACK_WARMUP -> {
+                // Shaders were just switched off: let the game settle before timing again.
+                if (ticks >= 100) {
+                    normalLoad();
+                    enter(Phase.BACK_NORMAL);
+                }
+            }
+            case BACK_NORMAL -> {
+                if (ticks >= phaseTicks) {
+                    record("vanilla_back_normal");
+                    cosmeticsOff();
+                    enter(Phase.BACK_OFF);
+                }
+            }
+            case BACK_OFF -> {
+                if (ticks >= phaseTicks) {
+                    record("vanilla_back_off");
+                    restoreLoad();
+                    enter(Phase.DONE);
                 }
             }
             case SHIELD_ON -> {
@@ -519,9 +545,25 @@ public final class DevScenario {
                         CosmeticsConfig.get().renderInShadowPass = false;
                         enter(Phase.SHADOW_SKIP);
                     } else {
-                        IrisCompat.setShadersEnabled(false);
-                        enter(Phase.DONE);
+                        normalLoad();
+                        enter(Phase.SHADERS_NORMAL);
                     }
+                }
+            }
+            case SHADERS_NORMAL -> {
+                if (ticks >= phaseTicks) {
+                    record("shaders_on_normal");
+                    cosmeticsOff();
+                    enter(Phase.SHADERS_OFF);
+                }
+            }
+            case SHADERS_OFF -> {
+                if (ticks >= phaseTicks) {
+                    record("shaders_on_off");
+                    restoreLoad();
+                    IrisCompat.setShadersEnabled(false);
+                    // The back view at a normal load, then with the mod off (see normalLoad / cosmeticsOff).
+                    enter(Phase.BACK_WARMUP);
                 }
             }
             case SHADOW_SKIP -> {
@@ -534,6 +576,22 @@ public final class DevScenario {
             }
             case DONE -> finish(client);
         }
+    }
+
+    /** Benchmark: every cosmetic drawn once, as on a normal server, instead of the stress load. */
+    private static void normalLoad() {
+        RenderStats.copies = 1;
+    }
+
+    /** Benchmark: the mod's master switch off, so the same view shows what the game does without cosmetics. */
+    private static void cosmeticsOff() {
+        CosmeticsConfig.get().enabled = false;
+    }
+
+    /** Benchmark: back to the stress load with the mod on. */
+    private static void restoreLoad() {
+        CosmeticsConfig.get().enabled = true;
+        RenderStats.copies = RenderStats.COPIES;
     }
 
     /** A shield in the off hand, so the shield cosmetic (equipped with everything else) gets drawn. */
@@ -669,7 +727,7 @@ public final class DevScenario {
             if (expectShaders) {
                 failures.add("shaders were expected but Iris could not enable them");
             }
-            enter(Phase.DONE);
+            enter(benchmark ? Phase.BACK_WARMUP : Phase.DONE);
         }
     }
 
@@ -701,7 +759,10 @@ public final class DevScenario {
         p.addProperty("particles", AuraParticles.spawned - particlesAtPhaseStart);
         if (RenderStats.TIMING && RenderStats.localPlayerFrames > 0) {
             p.addProperty("cosmeticsMsPerFrame", RenderStats.nanos / 1.0e6 / RenderStats.localPlayerFrames);
+            p.addProperty("verticesPerFrame", (double) RenderStats.vertices / RenderStats.localPlayerFrames);
         }
+        p.addProperty("cosmeticsOn", CosmeticsConfig.get().enabled);
+        p.addProperty("copies", RenderStats.copies);
         p.addProperty("shaderPackInUse", Compat.IRIS && IrisCompat.isShaderPackInUse());
         phases.add(name, p);
         CosmeticsMod.LOGGER.info("Dev scenario {}: {}", name, p);

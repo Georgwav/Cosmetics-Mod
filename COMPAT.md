@@ -84,7 +84,9 @@ roughly 0.003–0.009 ms and 0.014–0.042 ms per frame.
 3. **Compat matrix** (weekly, manual, on `main`, or a commit message containing `[compat]`): the newest release of each build runs with each stack in `ci/compat-sets.json`. With shaderpacks it also checks that:
    - cosmetics are drawn in the Iris shadow pass;
    - turning `renderInShadowPass` off removes them from the shadow pass but not from the main pass.
-4. **Benchmark**: 50x cosmetic load, shaders off then on. It reports FPS and the CPU time spent in cosmetics per frame.
+4. **Benchmark**: shaders off then on, each view at a 50x cosmetic load, with every cosmetic once, and with the mod
+   switched off. It reports FPS, the CPU time spent in cosmetics per frame and the vertices drawn per frame; a
+   `[bench]` commit adds a table of FPS with cosmetics against FPS with the mod off.
 
 The **Test matrix** job writes the results table into the run summary and uploads it as `compat-matrix.md`.
 
