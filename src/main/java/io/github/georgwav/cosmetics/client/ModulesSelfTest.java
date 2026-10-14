@@ -104,8 +104,11 @@ public final class ModulesSelfTest {
             m.setEnabled(true);
         }
         Modules.CROSSHAIR.setEnabled(true);
-        // The game's hotbar raised a little, as the HUD editor would (from 1.21.6).
-        VanillaHud.move(VanillaHud.Part.HOTBAR, 0f, -30f);
+        // The game's hotbar with its hearts, armor, hunger and air raised a little, as the HUD editor would.
+        for (VanillaHud.Part part : new VanillaHud.Part[]{VanillaHud.Part.HOTBAR, VanillaHud.Part.HEALTH,
+                VanillaHud.Part.ARMOR, VanillaHud.Part.FOOD, VanillaHud.Part.AIR}) {
+            VanillaHud.move(part, 0f, -30f);
+        }
     }
 
     public static void switchOffHud(Minecraft mc) {

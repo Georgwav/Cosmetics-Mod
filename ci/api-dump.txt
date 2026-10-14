@@ -4,9 +4,9 @@
 #
 # Example:
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
-# A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
+# A class starting with ! also prints private members and bytecode (!Class#text: only the members whose line
+# contains the text); ~Class prints private members without bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-1.21.10 net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext,net.minecraft.client.renderer.ShapeRenderer
-1.21.11 net.minecraft.client.renderer.rendertype.RenderTypes,net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
-26.1.2 net.minecraft.client.renderer.RenderPipelines,net.minecraft.client.renderer.state.*,net.fabricmc.fabric.api.client.rendering.v1.world.*
-26.3 net.minecraft.client.renderer.RenderPipelines,net.minecraft.client.renderer.state.level.*,net.minecraft.client.renderer.ShapeRenderer,net.minecraft.client.gui.Hud,net.fabricmc.fabric.api.client.rendering.v1.world.*,net.fabricmc.fabric.api.client.rendering.v1.*
+26.3 !net.minecraft.client.renderer.LevelRenderer#utline,net.fabricmc.fabric.api.client.rendering.v1.SubmitRenderPhase,net.fabricmc.fabric.api.client.rendering.v1.SubmitRenderPhases,net.minecraft.client.renderer.*
+26.1.2 !net.minecraft.client.renderer.LevelRenderer#utline,net.fabricmc.fabric.api.client.rendering.v1.*
+26.2 net.fabricmc.fabric.api.client.rendering.v1.world.*

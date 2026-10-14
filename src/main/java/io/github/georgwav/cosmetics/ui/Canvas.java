@@ -32,8 +32,7 @@ import net.minecraft.resources.Identifier;
 *///?} else {
 /*import com.mojang.blaze3d.systems.RenderSystem;
 *///?}
-//? if >=26.1 {
-//?} elif >=1.21.6 {
+//? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines;
 //?}
 
@@ -205,22 +204,12 @@ public final class Canvas {
         //?}
     }
 
-    /** Whether {@link #mobEffect} draws anything on this version (26.x: not yet). */
-    public static boolean mobEffectIcons() {
-        //? if >=26.1 {
-        /*return false;
-        *///?} else {
-        return true;
-        //?}
-    }
-
     /**
      * A mob effect's icon, the one the inventory shows, size x size with its top left at (x, y). Up to 1.21.1 the
      * icons have an atlas of their own; from 1.21.2 they are GUI sprites named mob_effect/&lt;effect&gt;.
      */
     public void mobEffect(Holder<MobEffect> effect, int x, int y, int size) {
-        //? if >=26.1 {
-        //?} elif >=1.21.6 {
+        //? if >=1.21.6 {
         var sprite = mobEffectSprite(effect);
         if (sprite != null) {
             raw.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, size, size);
@@ -238,8 +227,7 @@ public final class Canvas {
         *///?}
     }
 
-    //? if >=26.1 {
-    //?} elif >=1.21.11 {
+    //? if >=1.21.11 {
     private static Identifier mobEffectSprite(Holder<MobEffect> effect) {
         Identifier key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
         return key == null ? null : key.withPrefix("mob_effect/");

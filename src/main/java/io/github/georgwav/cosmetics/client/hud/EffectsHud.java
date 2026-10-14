@@ -57,7 +57,7 @@ public final class EffectsHud extends TextHud {
 
     @Override
     protected int iconRoom() {
-        return icons.get() && Canvas.mobEffectIcons() ? ICON + 3 : 0;
+        return icons.get() ? ICON + 3 : 0;
     }
 
     @Override
