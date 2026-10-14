@@ -147,6 +147,12 @@ public final class CosmeticsScreen extends Screen {
     private Tab tab = lastTab;
     /** Cosmetic whose page is open in the Wardrobe tab, or null for the list. */
     private String detailId;
+    /** The outfit whose page is open in the Wardrobe tab, or null. */
+    private CosmeticsConfig.Outfit outfitPage;
+    /** The name typed for the open outfit is empty or another outfit's. */
+    private boolean outfitNameProblem;
+    /** Outfit tiles on the page, to find the one the mouse points at. */
+    private final List<OutfitRow> outfitRows = new ArrayList<>();
     private int scroll;
     private int contentHeight;
     private int px, py, pw, ph;
@@ -242,6 +248,10 @@ public final class CosmeticsScreen extends Screen {
         contentHeight = 0;
         searchBox = null;
         tileRows.clear();
+        outfitRows.clear();
+        if (outfitPage != null && !CosmeticsConfig.get().savedOutfits.contains(outfitPage)) {
+            outfitPage = null; // deleted, or the settings were reset
+        }
 
         // As big as the window allows, within reason.
         pw = Math.min(width - 16, 1080);
@@ -249,7 +259,7 @@ public final class CosmeticsScreen extends Screen {
         px = (width - pw) / 2;
         py = (height - ph) / 2;
         BakedCosmetic detail = detailId != null && tab == Tab.WARDROBE ? CosmeticRegistry.get(detailId) : null;
-        boolean wardrobeList = tab == Tab.WARDROBE && detail == null;
+        boolean wardrobeList = tab == Tab.WARDROBE && detail == null && outfitPage == null;
         int left = px + Theme.PAD;
         if (wardrobeList) {
             sidebarX = left;
@@ -272,6 +282,8 @@ public final class CosmeticsScreen extends Screen {
         addChrome(new Rows.Button(px + Theme.PAD - 4, py + 6, 20, Theme.HEADER_HEIGHT - 12, "<", false, () -> {
             if (detailId != null) {
                 openDetail(null);
+            } else if (outfitPage != null) {
+                openOutfit(null);
             } else {
                 onClose();
             }
@@ -317,6 +329,19 @@ public final class CosmeticsScreen extends Screen {
             addWidget(searchBox);
             listY += SEARCH_HEIGHT + 4;
             listH -= SEARCH_HEIGHT + 4;
+        } else if (tab == Tab.WARDROBE && outfitPage != null) {
+            // An outfit's page: its name, to change.
+            CosmeticsConfig.Outfit outfit = outfitPage;
+            Component hint = Component.translatable("cosmeticsmod.screen.outfits.name_hint").withStyle(ChatFormatting.DARK_GRAY);
+            searchBox = new EditBox(font, listX, listY, listW, SEARCH_HEIGHT, hint);
+            searchBox.setMaxLength(48);
+            searchBox.setValue(outfit.name);
+            searchBox.setHint(hint);
+            searchBox.setResponder(text -> outfitNameProblem = !CosmeticsConfig.get().renameOutfit(outfit, text));
+            outfitNameProblem = false;
+            addWidget(searchBox);
+            listY += SEARCH_HEIGHT + 4;
+            listH -= SEARCH_HEIGHT + 4;
         } else if (tab != Tab.WARDROBE) {
             // The settings tabs: a search over every setting's name (and its section's).
             Component hint = Component.translatable("cosmeticsmod.screen.settings_search").withStyle(ChatFormatting.DARK_GRAY);
@@ -341,7 +366,9 @@ public final class CosmeticsScreen extends Screen {
         pendingSection = null;
         switch (tab) {
             case WARDROBE -> {
-                if (detail != null) {
+                if (outfitPage != null) {
+                    buildOutfitPage(outfitPage);
+                } else if (detail != null) {
                     buildDetail(detail);
                 } else {
                     buildWardrobe();
@@ -442,7 +469,7 @@ public final class CosmeticsScreen extends Screen {
         for (View each : View.values()) {
             int count;
             if (each == View.OUTFITS) {
-                count = CosmeticsConfig.get().outfits.size();
+                count = CosmeticsConfig.get().savedOutfits.size();
             } else if (each == View.EMOTES) {
                 count = Emotes.all().size();
             } else {
@@ -471,6 +498,12 @@ public final class CosmeticsScreen extends Screen {
 
     private void openDetail(String cosmeticId) {
         detailId = cosmeticId;
+        scroll = 0;
+        rebuildWidgets();
+    }
+
+    private void openOutfit(CosmeticsConfig.Outfit outfit) {
+        outfitPage = outfit;
         scroll = 0;
         rebuildWidgets();
     }
@@ -654,33 +687,59 @@ public final class CosmeticsScreen extends Screen {
                 : onElytraWheel ? t("emotes.on_elytra") : "";
     }
 
-    /** Saved outfits: save what you wear, then wear, update or delete each one. */
+    /**
+     * Saved outfits as tiles: point at one to see it on you (with its settings), click it to wear it, the gear for
+     * its page. Saving opens the new outfit's page, to name it.
+     */
     private void buildOutfits() {
         CosmeticsConfig config = CosmeticsConfig.get();
-        add(new Rows.Button(listX, 0, listW, Theme.ROW_HEIGHT, t("outfits.save"), true, () -> {
-            config.saveOutfit(t("outfits.name"));
-            rebuildWidgets(); // the side bar's count changes too
-        }));
+        add(new Rows.Button(listX, 0, listW, Theme.ROW_HEIGHT, t("outfits.save"), true,
+                () -> openOutfit(config.saveOutfit(t("outfits.name")))));
         contentHeight += 4;
-        if (config.outfits.isEmpty()) {
+        if (config.savedOutfits.isEmpty()) {
             add(new Rows.Info(listX, 0, listW, t("outfits.empty"), () -> "", Theme.TEXT_DIM));
             return;
         }
-        for (Map.Entry<String, List<String>> outfit : config.outfits.entrySet()) {
-            String name = outfit.getKey();
-            List<String> ids = outfit.getValue();
-            add(new Rows.Actions(listX, 0, listW, name,
-                    () -> config.wearsOutfit(name) ? t("outfits.wearing", ids.size()) : t("outfits.count", ids.size()),
-                    List.of(t("outfits.wear"), t("outfits.update"), t("outfits.delete")),
-                    List.of(() -> {
-                        config.wearOutfit(name);
-                        EquippedCosmetics.invalidate();
-                    }, () -> {
-                        config.outfits.put(name, new ArrayList<>(config.localEquipped()));
-                    }, () -> {
-                        config.outfits.remove(name);
-                        rebuildWidgets();
-                    })));
+        add(new Rows.Info(listX, 0, listW, t("outfits.hint"), () -> "", Theme.TEXT_DIM));
+        int columns = Math.max(1, (listW + TILE_GAP) / (TILE_MIN_WIDTH + TILE_GAP));
+        int tileW = (listW - (columns - 1) * TILE_GAP) / columns;
+        List<CosmeticsConfig.Outfit> outfits = config.savedOutfits;
+        for (int i = 0; i < outfits.size(); i += columns) {
+            outfitRows.add(add(new OutfitRow(listX, listW, tileW,
+                    List.copyOf(outfits.subList(i, Math.min(outfits.size(), i + columns))))));
+        }
+    }
+
+    /** An outfit's page: wear, update or delete it, and what it holds. Its name is the field at the top. */
+    private void buildOutfitPage(CosmeticsConfig.Outfit outfit) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        add(new Rows.Info(listX, 0, listW, t("outfits.name_label"),
+                () -> outfitNameProblem ? t("outfits.name_taken") : "", Theme.WARN));
+        add(new Rows.Actions(listX, 0, listW, t("outfits.this"),
+                () -> config.wearsOutfit(outfit) ? t("outfits.wearing", outfit.cosmetics.size())
+                        : t("outfits.count", outfit.cosmetics.size()),
+                List.of(t("outfits.wear"), t("outfits.update"), t("outfits.delete")),
+                List.of(() -> {
+                    config.wearOutfit(outfit);
+                    EquippedCosmetics.invalidate();
+                }, () -> {
+                    config.updateOutfit(outfit);
+                    rebuildWidgets();
+                }, () -> {
+                    config.savedOutfits.remove(outfit);
+                    openOutfit(null);
+                })));
+        add(new Rows.Info(listX, 0, listW, t("outfits.update_hint"), () -> "", Theme.TEXT_DIM));
+        add(new Rows.Section(listX, 0, listW, t("outfits.cosmetics", outfit.cosmetics.size())));
+        if (outfit.cosmetics.isEmpty()) {
+            add(new Rows.Info(listX, 0, listW, t("outfits.nothing"), () -> "", Theme.TEXT_DIM));
+        }
+        for (String id : outfit.cosmetics) {
+            BakedCosmetic cosmetic = CosmeticRegistry.get(id);
+            String note = cosmetic == null ? t("outfits.missing")
+                    : outfit.options.containsKey(id) ? t("outfits.own_settings") : t("outfits.as_made");
+            add(new Rows.Info(listX, 0, listW, cosmetic != null ? cosmetic.name() : id, () -> note,
+                    cosmetic == null ? Theme.WARN : Theme.TEXT_DIM));
         }
     }
 
@@ -1186,6 +1245,22 @@ public final class CosmeticsScreen extends Screen {
      * preview, without wearing it. Called every frame; the preview lapses on its own once the screen is gone.
      */
     private void updateTryOn(int mouseX, int mouseY) {
+        // An outfit: the one pointed at, else the one whose page is open, shown instead of what you wear.
+        CosmeticsConfig.Outfit outfit = tab == Tab.WARDROBE ? outfitPage : null;
+        if (tab == Tab.WARDROBE && outfit == null && mouseY >= listY && mouseY < listY + listH) {
+            for (OutfitRow row : outfitRows) {
+                CosmeticsConfig.Outfit tile = row.visible && row.isMouseOver(mouseX, mouseY) ? row.at(mouseX, mouseY) : null;
+                if (tile != null) {
+                    outfit = tile;
+                    break;
+                }
+            }
+        }
+        if (outfit != null) {
+            tryingOn = null;
+            EquippedCosmetics.previewOutfit(outfit);
+            return;
+        }
         String pointed = null;
         if (tab == Tab.WARDROBE && detailId != null) {
             pointed = detailId;
@@ -1334,6 +1409,105 @@ public final class CosmeticsScreen extends Screen {
                 openDetail(id);
             } else {
                 setEquipped(id, !CosmeticsConfig.get().localEquipped().contains(id));
+            }
+        }
+    }
+
+    /** A row of outfit tiles: a picture of each of its first cosmetics, its name and how many it holds. */
+    private final class OutfitRow extends FlatWidget {
+        private static final int GEAR = 12;
+        private final List<CosmeticsConfig.Outfit> outfits;
+        private final int tileW;
+
+        OutfitRow(int x, int width, int tileW, List<CosmeticsConfig.Outfit> outfits) {
+            super(x, 0, width, TILE_HEIGHT + TILE_GAP - Theme.ROW_GAP, Component.literal(outfits.get(0).name));
+            this.outfits = outfits;
+            this.tileW = tileW;
+        }
+
+        private int index(double mouseX) {
+            int dx = (int) Math.floor(mouseX) - getX();
+            int i = dx / (tileW + TILE_GAP);
+            return dx >= 0 && i < outfits.size() && dx - i * (tileW + TILE_GAP) < tileW ? i : -1;
+        }
+
+        /** The outfit whose tile is at the mouse, or null. */
+        CosmeticsConfig.Outfit at(double mouseX, double mouseY) {
+            int i = mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            return i >= 0 ? outfits.get(i) : null;
+        }
+
+        private boolean onGear(double mouseX, double mouseY, int i) {
+            int right = getX() + i * (tileW + TILE_GAP) + tileW - 2;
+            return mouseX >= right - GEAR && mouseX < right && mouseY >= getY() + 2 && mouseY < getY() + 2 + GEAR;
+        }
+
+        @Override
+        protected void draw(Canvas g, Font font, int mouseX, int mouseY, boolean hovered) {
+            CosmeticsConfig config = CosmeticsConfig.get();
+            int pointed = hovered && mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            for (int i = 0; i < outfits.size(); i++) {
+                CosmeticsConfig.Outfit outfit = outfits.get(i);
+                int x = getX() + i * (tileW + TILE_GAP);
+                int y = getY();
+                boolean worn = config.wearsOutfit(outfit);
+                boolean over = i == pointed;
+                if (worn) {
+                    rect(g, x - 1, y - 1, tileW + 2, TILE_HEIGHT + 2, Theme.ACCENT);
+                }
+                rect(g, x, y, tileW, TILE_HEIGHT, over ? Theme.TILE_HOVER : Theme.TILE);
+                // Its first four cosmetics, two by two.
+                int area = Math.min(tileW - 8, TILE_HEIGHT - 2 * font.lineHeight - 14);
+                int cell = area / 2;
+                int ax = x + (tileW - 2 * cell) / 2;
+                int ay = y + 4;
+                int shown = 0;
+                for (String id : outfit.cosmetics) {
+                    BakedCosmetic cosmetic = CosmeticRegistry.get(id);
+                    if (cosmetic == null) {
+                        continue;
+                    }
+                    int cx = ax + (shown % 2) * cell;
+                    int cy = ay + (shown / 2) * cell;
+                    if (!pictures.draw(g, cosmetic, cx + 1, cy + 1, cell - 2, false)) {
+                        rect(g, cx + cell / 2 - 1, cy + cell / 2 - 1, 2, 2, Theme.TEXT_FAINT);
+                    }
+                    if (++shown == 4) {
+                        break;
+                    }
+                }
+                int more = outfit.cosmetics.size() - shown;
+                if (shown == 4 && more > 0) {
+                    textRight(g, font, "+" + more, x + tileW - 4, ay + 2 * cell - font.lineHeight, Theme.TEXT_DIM);
+                }
+                String name = fit(font, outfit.name, tileW - 6);
+                g.centeredText(font, name, x + tileW / 2, y + TILE_HEIGHT - 2 * font.lineHeight - 6,
+                        worn ? Theme.ACCENT_HOVER : over ? Theme.TEXT : Theme.TEXT_DIM);
+                g.centeredText(font, fit(font, t("outfits.count", outfit.cosmetics.size()), tileW - 6), x + tileW / 2,
+                        y + TILE_HEIGHT - font.lineHeight - 3, Theme.TEXT_FAINT);
+                // The gear: this outfit's page (name, update, delete).
+                int gx = x + tileW - 2 - GEAR;
+                int gy = y + 2;
+                boolean onGear = over && onGear(mouseX, mouseY, i);
+                if (over || worn) {
+                    rect(g, gx, gy, GEAR, GEAR, onGear ? Theme.TRACK_HOVER : Theme.TRACK);
+                    g.centeredText(font, "\u2699", gx + GEAR / 2 + 1, gy + 2, onGear ? Theme.TEXT : Theme.TEXT_DIM);
+                }
+            }
+        }
+
+        @Override
+        protected void pressed(double mouseX, double mouseY) {
+            int i = mouseY < getY() + TILE_HEIGHT ? index(mouseX) : -1;
+            if (i < 0) {
+                return;
+            }
+            CosmeticsConfig.Outfit outfit = outfits.get(i);
+            if (onGear(mouseX, mouseY, i)) {
+                openOutfit(outfit);
+            } else {
+                CosmeticsConfig.get().wearOutfit(outfit);
+                EquippedCosmetics.invalidate();
             }
         }
     }

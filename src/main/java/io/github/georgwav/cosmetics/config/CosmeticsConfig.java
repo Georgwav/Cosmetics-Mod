@@ -34,7 +34,7 @@ public final class CosmeticsConfig {
      * 2 made capes override the vanilla cape.
      */
     public int configVersion;
-    static final int CONFIG_VERSION = 4;
+    static final int CONFIG_VERSION = 5;
 
     public boolean enabled = true;
     /** Draw the cosmetics you wear yourself (third person, inventory, mirrors...). */
@@ -177,8 +177,36 @@ public final class CosmeticsConfig {
      */
     public Map<String, List<String>> equipped = defaultEquipped();
 
-    /** Saved outfits: a name and the cosmetic ids it puts on, in the order they were saved. */
+    /** Saved outfits, in the order they were saved: a name, the cosmetics it puts on and their settings. */
+    public List<Outfit> savedOutfits = new ArrayList<>();
+    /** Outfits as files before format 5 kept them (name to cosmetic ids); moved into {@link #savedOutfits} on load. */
     public Map<String, List<String>> outfits = new LinkedHashMap<>();
+
+    /** An outfit shown on you without being worn (see {@link #showOutfitSettings}); never saved. */
+    private transient Outfit shownOutfit;
+
+    /** A saved outfit. */
+    public static final class Outfit {
+        public String name;
+        /** The cosmetic ids it puts on, in order. */
+        public List<String> cosmetics = new ArrayList<>();
+        /** Each of its cosmetics' settings as they were when saved; one not listed had its creator's settings. */
+        public Map<String, CosmeticOptions> options = new LinkedHashMap<>();
+
+        public Outfit() {
+        }
+
+        Outfit(String name, List<String> cosmetics) {
+            this.name = name;
+            this.cosmetics = new ArrayList<>(cosmetics);
+        }
+
+        /** The settings this outfit gives a cosmetic. */
+        public CosmeticOptions optionsFor(String id) {
+            CosmeticOptions options = this.options.get(id);
+            return options != null ? options : DEFAULT_OPTIONS;
+        }
+    }
 
     /** Your settings for individual cosmetics (colour, size, position, glow, animation), keyed by cosmetic id. */
     public Map<String, CosmeticOptions> cosmeticOptions = new LinkedHashMap<>();
@@ -231,6 +259,16 @@ public final class CosmeticsConfig {
         public boolean turned = false;
         /** How it takes the colour picked for it, or null to choose from its texture (see {@link io.github.georgwav.cosmetics.render.Recolor#paintFor}). */
         public io.github.georgwav.cosmetics.model.ColorStyle colorStyle = null;
+
+        /** A copy, to keep in an outfit (or take out of one) without the two changing together. */
+        public CosmeticOptions copy() {
+            return GSON.fromJson(GSON.toJsonTree(this), CosmeticOptions.class);
+        }
+
+        /** Whether every setting is the same as {@code other}'s. */
+        public boolean sameAs(CosmeticOptions other) {
+            return GSON.toJsonTree(this).equals(GSON.toJsonTree(other));
+        }
 
         public boolean isDefault() {
             CosmeticOptions d = DEFAULT_OPTIONS;
@@ -297,6 +335,10 @@ public final class CosmeticsConfig {
 
     /** Settings for a cosmetic, for reading. Never null; don't modify the result. */
     public CosmeticOptions options(String cosmeticId) {
+        Outfit shown = shownOutfit;
+        if (shown != null && shown.cosmetics.contains(cosmeticId)) {
+            return shown.optionsFor(cosmeticId);
+        }
         CosmeticOptions options = cosmeticOptions.get(cosmeticId);
         return options != null ? options : DEFAULT_OPTIONS;
     }
@@ -311,34 +353,91 @@ public final class CosmeticsConfig {
         cosmeticOptions.remove(cosmeticId);
     }
 
-    /** The local player's equipped cosmetic ids (mutable; call {@code EquippedCosmetics.invalidate()} after changes). */
-    /** Saves what the local player wears as a new outfit named "Outfit N" and returns its name. */
-    public String saveOutfit(String namePrefix) {
+    /** The saved outfit called {@code name}, or null. */
+    public Outfit outfit(String name) {
+        for (Outfit outfit : savedOutfits) {
+            if (outfit.name.equals(name)) {
+                return outfit;
+            }
+        }
+        return null;
+    }
+
+    /** Saves what the local player wears, with those cosmetics' settings, as a new outfit "{prefix} N". */
+    public Outfit saveOutfit(String namePrefix) {
         int n = 1;
-        while (outfits.containsKey(namePrefix + " " + n)) {
+        while (outfit(namePrefix + " " + n) != null) {
             n++;
         }
-        String name = namePrefix + " " + n;
-        outfits.put(name, new ArrayList<>(localEquipped()));
-        return name;
+        Outfit outfit = new Outfit(namePrefix + " " + n, List.of());
+        updateOutfit(outfit);
+        savedOutfits.add(outfit);
+        return outfit;
     }
 
-    /** Puts on exactly the cosmetics of an outfit (what you wore before comes off). */
-    public void wearOutfit(String name) {
-        List<String> ids = outfits.get(name);
-        if (ids != null) {
-            List<String> wearing = localEquipped();
-            wearing.clear();
-            wearing.addAll(ids);
+    /** Makes the outfit what the local player wears now, with those cosmetics' settings now. */
+    public void updateOutfit(Outfit outfit) {
+        outfit.cosmetics = new ArrayList<>(localEquipped());
+        outfit.options = new LinkedHashMap<>();
+        for (String id : outfit.cosmetics) {
+            CosmeticOptions options = cosmeticOptions.get(id);
+            if (options != null && !options.isDefault()) {
+                outfit.options.put(id, options.copy());
+            }
         }
     }
 
-    /** Whether the local player wears exactly this outfit (in any order). */
-    public boolean wearsOutfit(String name) {
-        List<String> ids = outfits.get(name);
-        return ids != null && new java.util.HashSet<>(ids).equals(new java.util.HashSet<>(localEquipped()));
+    /**
+     * Puts on exactly the outfit's cosmetics (what you wore before comes off), each with the settings it has in
+     * the outfit.
+     */
+    public void wearOutfit(Outfit outfit) {
+        List<String> wearing = localEquipped();
+        wearing.clear();
+        wearing.addAll(outfit.cosmetics);
+        for (String id : outfit.cosmetics) {
+            CosmeticOptions options = outfit.options.get(id);
+            if (options != null) {
+                cosmeticOptions.put(id, options.copy());
+            } else {
+                cosmeticOptions.remove(id);
+            }
+        }
     }
 
+    /** Whether the local player wears exactly this outfit (in any order), with its settings. */
+    public boolean wearsOutfit(Outfit outfit) {
+        if (!new java.util.HashSet<>(outfit.cosmetics).equals(new java.util.HashSet<>(localEquipped()))) {
+            return false;
+        }
+        for (String id : outfit.cosmetics) {
+            CosmeticOptions mine = cosmeticOptions.get(id);
+            if (!outfit.optionsFor(id).sameAs(mine != null ? mine : DEFAULT_OPTIONS)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Renames an outfit; false (and nothing changes) when the name is blank or another outfit has it. */
+    public boolean renameOutfit(Outfit outfit, String name) {
+        String clean = name == null ? "" : name.strip();
+        if (clean.isEmpty() || (outfit(clean) != null && outfit(clean) != outfit)) {
+            return false;
+        }
+        outfit.name = clean;
+        return true;
+    }
+
+    /**
+     * Shows {@code outfit}'s settings on its cosmetics without changing yours (null stops): what the settings screen
+     * uses to show an outfit on you before you wear it.
+     */
+    public void showOutfitSettings(Outfit outfit) {
+        shownOutfit = outfit;
+    }
+
+    /** The local player's equipped cosmetic ids (mutable; call {@code EquippedCosmetics.invalidate()} after changes). */
     public List<String> localEquipped() {
         return equipped.computeIfAbsent("local", k -> new ArrayList<>());
     }
@@ -468,11 +567,31 @@ public final class CosmeticsConfig {
         }
         equipped.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         equipped.values().forEach(list -> list.removeIf(id -> id == null));
-        if (outfits == null) {
-            outfits = new LinkedHashMap<>();
+        if (savedOutfits == null) {
+            savedOutfits = new ArrayList<>();
         }
-        outfits.entrySet().removeIf(e -> e.getKey() == null || e.getKey().isBlank() || e.getValue() == null);
-        outfits.values().forEach(list -> list.removeIf(id -> id == null));
+        // Outfits from before format 5 (name to cosmetics, no settings) become saved outfits.
+        if (outfits != null) {
+            outfits.forEach((name, ids) -> {
+                if (name != null && ids != null) {
+                    savedOutfits.add(new Outfit(name, ids));
+                }
+            });
+        }
+        outfits = new LinkedHashMap<>();
+        java.util.Set<String> names = new java.util.HashSet<>();
+        savedOutfits.removeIf(o -> o == null || o.name == null || o.name.isBlank() || !names.add(o.name.strip()));
+        for (Outfit outfit : savedOutfits) {
+            outfit.name = outfit.name.strip();
+            outfit.cosmetics = cleanIds(outfit.cosmetics);
+            if (outfit.options == null) {
+                outfit.options = new LinkedHashMap<>();
+            }
+            outfit.options.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null
+                    || !outfit.cosmetics.contains(e.getKey()));
+            outfit.options.values().forEach(CosmeticOptions::sanitize);
+            outfit.options.values().removeIf(CosmeticOptions::isDefault);
+        }
         if (emoteCamera == null) {
             emoteCamera = EmoteCamera.FRONT;
         }

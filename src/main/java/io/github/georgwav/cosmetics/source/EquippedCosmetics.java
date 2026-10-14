@@ -29,6 +29,8 @@ public final class EquippedCosmetics {
 
     /** A cosmetic the settings screen shows on you while you point at it (trying it on), or null. */
     private static String previewId;
+    /** An outfit the settings screen shows on you instead of what you wear, with its settings, or null. */
+    private static CosmeticsConfig.Outfit previewOutfit;
     /** When the screen last asked for the preview; it lapses on its own if the screen stops asking. */
     private static long previewTouched;
     private static final long PREVIEW_LAPSE_NANOS = 500_000_000L;
@@ -49,8 +51,31 @@ public final class EquippedCosmetics {
      */
     public static void preview(String id) {
         previewTouched = System.nanoTime();
+        stopOutfitPreview();
         if (!java.util.Objects.equals(id, previewId)) {
             previewId = id;
+            localCache = null;
+        }
+    }
+
+    /**
+     * Shows {@code outfit} on the local player in place of everything they wear, each cosmetic with the outfit's
+     * settings, without wearing it. Called every frame like {@link #preview}, and lapses the same way.
+     */
+    public static void previewOutfit(CosmeticsConfig.Outfit outfit) {
+        previewTouched = System.nanoTime();
+        previewId = null;
+        if (outfit != previewOutfit) {
+            previewOutfit = outfit;
+            CosmeticsConfig.get().showOutfitSettings(outfit);
+            localCache = null;
+        }
+    }
+
+    private static void stopOutfitPreview() {
+        if (previewOutfit != null) {
+            previewOutfit = null;
+            CosmeticsConfig.get().showOutfitSettings(null);
             localCache = null;
         }
     }
@@ -77,8 +102,9 @@ public final class EquippedCosmetics {
             cachedConfigVersion = configVersion;
         }
         if (local) {
-            if (previewId != null && System.nanoTime() - previewTouched > PREVIEW_LAPSE_NANOS) {
+            if ((previewId != null || previewOutfit != null) && System.nanoTime() - previewTouched > PREVIEW_LAPSE_NANOS) {
                 previewId = null;
+                stopOutfitPreview();
                 localCache = null;
             }
             if (localCache == null) {
@@ -103,6 +129,16 @@ public final class EquippedCosmetics {
      * several of a kind are allowed), and the props of the emote they play.
      */
     private static BakedCosmetic[] withPreview(BakedCosmetic[] worn) {
+        if (previewOutfit != null && !EQUIP_ALL) {
+            List<BakedCosmetic> outfit = new ArrayList<>();
+            for (String id : previewOutfit.cosmetics) {
+                BakedCosmetic cosmetic = CosmeticRegistry.get(id);
+                if (cosmetic != null) {
+                    outfit.add(cosmetic);
+                }
+            }
+            worn = outfit.toArray(NONE);
+        }
         BakedCosmetic shown = previewId != null && !EQUIP_ALL ? CosmeticRegistry.get(previewId) : null;
         if (shown == null && emoteProps.isEmpty()) {
             return worn;
