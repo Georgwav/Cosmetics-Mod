@@ -84,8 +84,12 @@
   "cosmeticsmod.screen.outfits.as_made": "as made",
   "cosmeticsmod.screen.preview.trying": "Trying on %s",
   "cosmeticsmod.screen.preview.drag": "Drag to turn and tilt",
+  "cosmeticsmod.screen.preview.elytra": "Elytra",
   "cosmeticsmod.screen.cloth": "Cloth cloak",
   "cosmeticsmod.screen.cloth.physics_off": "cape physics is off",
+  "cosmeticsmod.screen.section.elytra": "Elytra",
+  "cosmeticsmod.screen.elytra": "Show on elytra",
+  "cosmeticsmod.screen.preview_elytra": "Preview with an elytra",
 
   "cosmeticsmod.screen.detail.back": "<  Back to wardrobe",
   "cosmeticsmod.screen.detail.wear": "Wear it",

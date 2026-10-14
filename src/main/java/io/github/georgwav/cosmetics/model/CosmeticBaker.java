@@ -265,6 +265,11 @@ public final class CosmeticBaker {
         }
     }
 
+    /** A cube's UVs in texture pixels, indexed like {@link CosmeticDefinition.Face} (null for a face that isn't drawn). */
+    public static float[][] faceUvs(CosmeticDefinition.Cube cube) {
+        return cube.boxUv() != null ? boxUv(cube) : cube.faces() != null ? cube.faces() : new float[6][];
+    }
+
     /** Vanilla box UV layout, in pixels, indexed like {@link CosmeticDefinition.Face}. */
     private static float[][] boxUv(CosmeticDefinition.Cube cube) {
         float dx = cube.to()[0] - cube.from()[0];

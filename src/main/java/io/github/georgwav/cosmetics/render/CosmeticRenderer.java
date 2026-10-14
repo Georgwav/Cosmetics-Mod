@@ -306,8 +306,13 @@ public final class CosmeticRenderer {
         }
     }
 
+    /** Seconds on the animation clock (what animations and the rainbow read). */
+    static double seconds() {
+        return (System.nanoTime() - START_NANOS) / 1.0e9;
+    }
+
     /** How a part with {@code texture} that takes the player's colour is painted (see {@link Recolor#paintFor}). */
-    private static Recolor.Paint paint(io.github.georgwav.cosmetics.model.ColorStyle style, boolean picked, boolean rainbow,
+    static Recolor.Paint paint(io.github.georgwav.cosmetics.model.ColorStyle style, boolean picked, boolean rainbow,
                                        String texture) {
         if (!picked) {
             return Recolor.Paint.NONE;

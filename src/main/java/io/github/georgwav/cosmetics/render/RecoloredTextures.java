@@ -207,7 +207,7 @@ public final class RecoloredTextures {
     }
 
     /** {@code {{width, height}, argb pixels}} of a texture in the resource packs, or null when it isn't there. */
-    private static int[][] read(String texture) throws Exception {
+    static int[][] read(String texture) throws Exception {
         //? if >=1.21.11 {
         Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(texture));
         //?} else {
@@ -236,29 +236,43 @@ public final class RecoloredTextures {
             copy.height = read[0][1];
             copy.source = read[1];
             copy.painted = new int[read[1].length];
-            //? if >=1.21.11 {
-            copy.id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
-            //?} else {
-            /*copy.id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "recolored/" + made++);
-            *///?}
-            //? if >=1.21.5 {
-            copy.texture = new DynamicTexture("cosmeticsmod recolored", copy.width, copy.height, false);
-            //?} else {
-            /*copy.texture = new DynamicTexture(copy.width, copy.height, false);
-            *///?}
+            copy.id = newId("recolored/" + made++);
+            copy.texture = newTexture(copy.width, copy.height);
             register(copy.id, copy.texture);
         }
-        int w = copy.width;
-        int h = copy.height;
         recolor.applyAll(copy.source, copy.painted);
         PAINTED[recolor.paint().ordinal()]++;
         if (!recolor.swaps().isEmpty()) {
             swapped++;
         }
-        NativeImage pixels = copy.texture.getPixels();
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int c = copy.painted[y * w + x];
+        upload(copy.texture, copy.painted, copy.width, copy.height);
+        return true;
+    }
+
+    /** A texture id of this mod's, {@code cosmeticsmod:<path>} (an Identifier, a ResourceLocation before 1.21.11). */
+    static Object newId(String path) {
+        //? if >=1.21.11 {
+        return Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, path);
+        //?} else {
+        /*return ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, path);
+        *///?}
+    }
+
+    /** An empty texture of this size, to fill with {@link #upload}. */
+    static DynamicTexture newTexture(int width, int height) {
+        //? if >=1.21.5 {
+        return new DynamicTexture("cosmeticsmod recolored", width, height, false);
+        //?} else {
+        /*return new DynamicTexture(width, height, false);
+        *///?}
+    }
+
+    /** Puts ARGB pixels ({@code width} x {@code height}, the texture's size) into a texture and uploads it. */
+    static void upload(DynamicTexture texture, int[] argb, int width, int height) {
+        NativeImage pixels = texture.getPixels();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int c = argb[y * width + x];
                 //? if >=1.21.2 {
                 pixels.setPixel(x, y, c);
                 //?} else {
@@ -266,8 +280,7 @@ public final class RecoloredTextures {
                 *///?}
             }
         }
-        copy.texture.upload();
-        return true;
+        texture.upload();
     }
 
     /** ARGB to ABGR and back (red and blue swapped). */
@@ -275,7 +288,7 @@ public final class RecoloredTextures {
         return (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF);
     }
 
-    private static void register(Object id, DynamicTexture texture) {
+    static void register(Object id, DynamicTexture texture) {
         //? if >=1.21.11 {
         Minecraft.getInstance().getTextureManager().register((Identifier) id, texture);
         //?} else {
@@ -283,7 +296,7 @@ public final class RecoloredTextures {
         *///?}
     }
 
-    private static void release(Object id) {
+    static void release(Object id) {
         //? if >=1.21.11 {
         Minecraft.getInstance().getTextureManager().release((Identifier) id);
         //?} else {
