@@ -46,7 +46,6 @@ public final class ModulesSelfTest {
             problems.add("the time changer's midnight doesn't show on the world clocks (" + clock + ")");
         }
         *///?} elif >=26.1 {
-        // 26.1 and 26.2: not yet (TimeChanger.supported()).
         //?} else {
         if (mc.level.getDayTime() != 18000L) {
             problems.add("the time changer's midnight doesn't show (day time " + mc.level.getDayTime() + ")");
