@@ -102,6 +102,9 @@ public final class HubScreen extends Screen {
 
     private long lastNanos;
     private float pending;
+    // The island's width eases to fit what it shows.
+    private float islandW = 440f;
+    private float islandTarget = 440f;
 
     private EditBox search;
     private String query = "";
@@ -337,6 +340,7 @@ public final class HubScreen extends Screen {
     }
 
     private void stepOnce() {
+        islandW += (islandTarget - islandW) * 0.25f;
         switch (mode) {
             case COAST -> {
                 // Let go: it keeps spinning, slows down, then the nearest usable orb settles in the middle.
@@ -614,26 +618,25 @@ public final class HubScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
-    // Minecraft's draw entry points; 26.1 renamed them. The backdrop is drawn here, once, without the game's blur.
+    // Minecraft's draw entry points; 26.1 renamed them. Behind the hub is the game's own menu background: the world
+    // blurred and darkened. From 1.21.6 the game draws it before the screen; before that the screen draws it, once.
     //? if >=26.1 {
     /*@Override
-    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-    }
-
-    @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         draw(new Canvas(g), mouseX, mouseY);
     }
-    *///?} else {
-    @Override
-    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-    }
-
+    *///?} elif >=1.21.6 {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         draw(new Canvas(g), mouseX, mouseY);
     }
-    //?}
+    //?} else {
+    /*@Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        renderBackground(g, mouseX, mouseY, partialTick);
+        draw(new Canvas(g), mouseX, mouseY);
+    }
+    *///?}
 
     private float sx(float x) {
         return ox + x * u;
@@ -652,7 +655,7 @@ public final class HubScreen extends Screen {
         u = Math.min(screenW / DESIGN_W, screenH / DESIGN_H);
         ox = (screenW - DESIGN_W * u) / 2f;
         oy = (screenH - DESIGN_H * u) / 2f;
-        textScale = Math.max(1, Math.round(u * 1.6f));
+        textScale = Math.max(1, Math.round(u * 1.8f));
         advance();
         if (notice != null && System.currentTimeMillis() > noticeUntil) {
             notice = null;
@@ -662,7 +665,7 @@ public final class HubScreen extends Screen {
 
         g.push();
         g.scale(1f / gs, 1f / gs);
-        g.gradient(0, 0, (int) Math.ceil(screenW), (int) Math.ceil(screenH), 0xA00C0B16, 0xD00C0B16);
+        g.gradient(0, 0, (int) Math.ceil(screenW), (int) Math.ceil(screenH), 0x500C0B16, 0x900C0B16);
         hits.clear();
         drawSphere(g, mx, my);
         g.nextLayer();
@@ -748,9 +751,12 @@ public final class HubScreen extends Screen {
             // A darker rim at the bottom, the body, and a soft shine at the top left.
             Shapes.fill(g, Shapes.circle(cx, cy, r), Shapes.fade(Shapes.shade(body, 0.62f), opacity));
             Shapes.fill(g, Shapes.circle(cx, cy - 0.07f * r, r * 0.92f), Shapes.fade(body, opacity));
+            // The shine fades out from its middle: a few circles, each smaller and adding a little more light.
             float shine = (isOn ? 0.35f : 0.05f + 0.13f * depth) * opacity;
-            Shapes.fill(g, Shapes.circle(cx - 0.36f * r, cy - 0.46f * r, r * 0.36f), Shapes.fade(0xFFFFFFFF, shine * 0.55f));
-            Shapes.fill(g, Shapes.circle(cx - 0.36f * r, cy - 0.46f * r, r * 0.2f), Shapes.fade(0xFFFFFFFF, shine * 0.6f));
+            for (int ring = 0; ring < 4; ring++) {
+                Shapes.fill(g, Shapes.circle(cx - 0.34f * r, cy - 0.44f * r, r * (0.42f - ring * 0.09f)),
+                        Shapes.fade(0xFFFFFFFF, shine * 0.32f));
+            }
             if (!usable) {
                 continue;
             }
@@ -820,7 +826,14 @@ public final class HubScreen extends Screen {
             line = t(MODS.equals(transOut ? transTo : level) ? "opening_mods" : "back_to_hub");
         }
 
-        float w = 440f;
+        boolean action = settled && missing == null && it.kind != HubItem.Kind.LATER;
+        String label = !action ? null
+                : it.kind == HubItem.Kind.TOGGLE ? t(isOn ? "turn_off" : "turn_on") : t("button." + it.button);
+        float bw = label == null ? 0f : font.width(label) * textScale / u + 32f;
+        float textW = Math.max(font.width(name(it)), font.width(line)) * textScale / u;
+        // The island grows to fit what it says, like the real one.
+        islandTarget = Math.max(440f, Math.min(640f, 62f + textW + 12f + (label == null ? 0f : bw + 12f) + 10f));
+        float w = islandW;
         float h = 60f;
         float left = CX - w / 2f;
         float top = 20f;
@@ -844,10 +857,7 @@ public final class HubScreen extends Screen {
 
         float textX = left + 62f;
         float right = left + w - 10f;
-        boolean action = settled && missing == null && it.kind != HubItem.Kind.LATER;
-        if (action) {
-            String label = it.kind == HubItem.Kind.TOGGLE ? t(isOn ? "turn_off" : "turn_on") : t("button." + it.button);
-            float bw = font.width(label) * textScale / u + 32f;
+        if (label != null) {
             float bx = right - bw;
             float by = top + 8f;
             int bg = it.kind == HubItem.Kind.TOGGLE && !isOn ? ACCENT : WELL;
@@ -870,7 +880,7 @@ public final class HubScreen extends Screen {
         boolean back = !level.equals(MAIN);
         String backLabel = t("back");
         float backW = back ? font.width(backLabel) * textScale / u + 46f : 0f;
-        float searchW = 280f;
+        float searchW = Math.max(280f, Math.min(420f, font.width(t("search")) * textScale / u + 60f));
         float w = 4f + (back ? backW + 6f : 0f) + 44f + 6f + searchW + 6f + 44f + 4f;
         float left = CX - w / 2f;
         float top = 744f;
