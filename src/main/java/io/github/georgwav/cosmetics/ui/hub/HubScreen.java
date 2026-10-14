@@ -332,11 +332,11 @@ public final class HubScreen extends Screen {
         lastNanos = now;
         while (pending >= STEP) {
             pending -= STEP;
-            tick();
+            stepOnce();
         }
     }
 
-    private void tick() {
+    private void stepOnce() {
         switch (mode) {
             case COAST -> {
                 // Let go: it keeps spinning, slows down, then the nearest usable orb settles in the middle.
