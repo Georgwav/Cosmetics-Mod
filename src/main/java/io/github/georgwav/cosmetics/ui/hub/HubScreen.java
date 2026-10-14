@@ -8,7 +8,6 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.Canvas;
-import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.loader.api.FabricLoader;
@@ -130,6 +129,7 @@ public final class HubScreen extends Screen {
     static final String SKINS_PAGE = "skins";
     static final String WARDROBE_PAGE = "wardrobe";
     static final String SETTINGS_PAGE = "settings";
+    static final String EMOTES_PAGE = "emotes";
     private String page;
     private float pageP;
     private float pageV;
@@ -139,6 +139,7 @@ public final class HubScreen extends Screen {
     private final SkinsPage skinsPage = new SkinsPage(this);
     private final WardrobePage wardrobePage = new WardrobePage(this);
     private final SettingsPage settingsPage = new SettingsPage(this);
+    private final EmotesPage emotesPage = new EmotesPage();
     /** The slider being dragged. */
     private Ui.Hit dragging;
     /** The key bind waiting for a key (or mouse button). */
@@ -229,7 +230,7 @@ public final class HubScreen extends Screen {
                 voxy,
                 new HubItem("skins", "you", HubItem.Kind.ACTION).icon("shirt").action(() -> openPage(SKINS_PAGE)),
                 new HubItem("emotes", "c", HubItem.Kind.ACTION).icon("smile")
-                        .action(() -> ScreenOpener.open(CosmeticsScreen.emotes(this))),
+                        .action(() -> openPage(EMOTES_PAGE)),
                 new HubItem("music", "d", HubItem.Kind.LATER).icon("music"),
                 new HubItem("hud", "e", HubItem.Kind.ACTION).icon("layout")
                         .action(() -> ScreenOpener.open(new HudEditorScreen(this))),
@@ -458,6 +459,16 @@ public final class HubScreen extends Screen {
         transOut = true;
         transStart = System.nanoTime();
         mode = Mode.TRANS;
+    }
+
+    /** From one open page straight to another (the Wardrobe's Emotes). */
+    void showPage(String id) {
+        if (page != null && mode != Mode.TRANS) {
+            page = id;
+            if (!query.isEmpty()) {
+                search.setValue("");
+            }
+        }
     }
 
     /** Back from the page to the sphere. */
@@ -986,6 +997,7 @@ public final class HubScreen extends Screen {
             case SKINS_PAGE -> skinsPage;
             case WARDROBE_PAGE -> wardrobePage;
             case SETTINGS_PAGE -> settingsPage;
+            case EMOTES_PAGE -> emotesPage;
             default -> modsPage;
         };
     }

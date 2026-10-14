@@ -243,7 +243,7 @@ final class WardrobePage implements HubPage {
 
     private void pick(View v) {
         if (v == View.EMOTES) {
-            ScreenOpener.open(CosmeticsScreen.emotes(hub));
+            hub.showPage(HubScreen.EMOTES_PAGE);
             return;
         }
         if (v == View.OUTFITS) {
