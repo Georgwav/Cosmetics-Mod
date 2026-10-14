@@ -134,6 +134,15 @@ public final class DevScenario {
             CosmeticsConfig.CosmeticOptions crown = CosmeticsConfig.get().editOptions("cosmeticsmod:crown");
             crown.color = 0x3366FF;
             crown.colorStyle = ColorStyle.WHOLE;
+            // A saved outfit with its own settings, for the outfits page's tiles.
+            CosmeticsConfig.Outfit outfit = new CosmeticsConfig.Outfit();
+            outfit.name = "Purple";
+            outfit.cosmetics = new ArrayList<>(List.of("cosmeticsmod:crown", "cosmeticsmod:feather_wings",
+                    "cosmeticsmod:starlight_cape", "cosmeticsmod:halo", "cosmeticsmod:top_hat"));
+            CosmeticsConfig.CosmeticOptions purpleCrown = new CosmeticsConfig.CosmeticOptions();
+            purpleCrown.color = 0x8833FF;
+            outfit.options.put("cosmeticsmod:crown", purpleCrown);
+            CosmeticsConfig.get().savedOutfits.add(outfit);
         }
         DevScenario scenario = new DevScenario(smoke, benchmark);
         CosmeticsMod.LOGGER.info("Dev scenario armed (smokeTest={}, benchmark={}, phaseTicks={}, shaders={})",

@@ -105,13 +105,13 @@ class CosmeticsConfigTest {
     void outfitsSaveAndPutOnExactlyWhatWasWorn() {
         CosmeticsConfig config = new CosmeticsConfig();
         config.localEquipped().addAll(List.of("a:hat", "a:cape"));
-        String first = config.saveOutfit("Outfit");
-        assertEquals("Outfit 1", first);
+        CosmeticsConfig.Outfit first = config.saveOutfit("Outfit");
+        assertEquals("Outfit 1", first.name);
         assertTrue(config.wearsOutfit(first));
 
         config.localEquipped().clear();
         config.localEquipped().add("a:wings");
-        assertEquals("Outfit 2", config.saveOutfit("Outfit"));
+        assertEquals("Outfit 2", config.saveOutfit("Outfit").name);
         assertFalse(config.wearsOutfit(first));
 
         config.wearOutfit(first);
@@ -119,10 +119,60 @@ class CosmeticsConfigTest {
         assertTrue(config.wearsOutfit(first));
         // Changing what you wear doesn't change the saved outfit.
         config.localEquipped().add("a:wings");
-        assertEquals(List.of("a:hat", "a:cape"), config.outfits.get(first));
+        assertEquals(List.of("a:hat", "a:cape"), config.outfit("Outfit 1").cosmetics);
 
-        config.outfits.remove(first);
-        assertEquals("Outfit 1", config.saveOutfit("Outfit"));
+        config.savedOutfits.remove(first);
+        assertEquals("Outfit 1", config.saveOutfit("Outfit").name);
+    }
+
+    @Test
+    void outfitsKeepTheirCosmeticsSettings() {
+        CosmeticsConfig config = new CosmeticsConfig();
+        config.localEquipped().addAll(List.of("a:hat", "a:wings"));
+        config.editOptions("a:hat").color = 0x8000FF;
+        CosmeticsConfig.Outfit purple = config.saveOutfit("Outfit");
+        assertTrue(config.renameOutfit(purple, "  Purple "));
+        assertEquals("Purple", purple.name);
+
+        // The same cosmetics, green: another outfit.
+        config.editOptions("a:hat").color = 0x00FF00;
+        config.editOptions("a:wings").scale = 1.5f;
+        CosmeticsConfig.Outfit green = config.saveOutfit("Outfit");
+        assertTrue(config.renameOutfit(green, "Green"));
+        assertFalse(config.renameOutfit(green, "Purple"), "another outfit's name");
+        assertFalse(config.renameOutfit(green, " "), "no name");
+        assertEquals("Green", green.name);
+        assertFalse(config.wearsOutfit(purple), "same cosmetics, other settings");
+        assertTrue(config.wearsOutfit(green));
+
+        config.wearOutfit(purple);
+        assertEquals(0x8000FF, config.options("a:hat").color);
+        assertEquals(1.0f, config.options("a:wings").scale, "it had its creator's settings in the purple outfit");
+        assertTrue(config.wearsOutfit(purple));
+        // The outfit keeps its own copy: changing the settings worn doesn't change it.
+        config.editOptions("a:hat").color = 0xFF0000;
+        assertEquals(0x8000FF, purple.optionsFor("a:hat").color);
+        assertFalse(config.wearsOutfit(purple));
+
+        // Shown on you without wearing it: its settings win while shown, yours are untouched.
+        config.showOutfitSettings(green);
+        assertEquals(0x00FF00, config.options("a:hat").color);
+        assertEquals(1.5f, config.options("a:wings").scale);
+        config.showOutfitSettings(null);
+        assertEquals(0xFF0000, config.options("a:hat").color);
+
+        config.updateOutfit(purple);
+        assertEquals(0xFF0000, purple.optionsFor("a:hat").color);
+    }
+
+    @Test
+    void outfitsFromOlderFilesKeepTheirCosmetics() {
+        CosmeticsConfig config = new CosmeticsConfig();
+        config.outfits.put("Old", new java.util.ArrayList<>(List.of("a:hat", "a:cape")));
+        config.sanitize();
+        assertTrue(config.outfits.isEmpty());
+        assertEquals(List.of("a:hat", "a:cape"), config.outfit("Old").cosmetics);
+        assertTrue(config.outfit("Old").options.isEmpty());
     }
 
     @Test
@@ -144,14 +194,23 @@ class CosmeticsConfigTest {
     @Test
     void sanitizeRepairsOutfits() {
         CosmeticsConfig config = new CosmeticsConfig();
+        config.savedOutfits = null;
         config.outfits = null;
         config.sanitize();
-        assertTrue(config.outfits.isEmpty());
-        config.outfits.put(" ", List.of("a:hat"));
-        config.outfits.put("Mine", new java.util.ArrayList<>(java.util.Arrays.asList("a:hat", null)));
+        assertTrue(config.savedOutfits.isEmpty());
+        CosmeticsConfig.Outfit blank = new CosmeticsConfig.Outfit();
+        blank.name = " ";
+        CosmeticsConfig.Outfit mine = new CosmeticsConfig.Outfit();
+        mine.name = "Mine";
+        mine.cosmetics = new java.util.ArrayList<>(java.util.Arrays.asList("a:hat", null, "a:hat"));
+        mine.options = null;
+        CosmeticsConfig.Outfit twin = new CosmeticsConfig.Outfit();
+        twin.name = "Mine ";
+        config.savedOutfits.addAll(java.util.Arrays.asList(blank, null, mine, twin));
         config.sanitize();
-        assertEquals(java.util.Set.of("Mine"), config.outfits.keySet());
-        assertEquals(List.of("a:hat"), config.outfits.get("Mine"));
+        assertEquals(List.of(mine), config.savedOutfits, "blank, missing and repeated names go");
+        assertEquals(List.of("a:hat"), mine.cosmetics);
+        assertTrue(mine.options.isEmpty());
     }
 
     @Test
