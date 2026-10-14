@@ -6,6 +6,4 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
-26.3 net.minecraft.world.level.Level,net.minecraft.client.multiplayer.ClientLevel,net.minecraft.client.multiplayer.ClientLevel$ClientLevelData,net.minecraft.client.OptionInstance,net.minecraft.client.Options,net.minecraft.world.effect.MobEffectInstance,net.minecraft.world.effect.MobEffects
-1.21.11 net.minecraft.world.level.Level,net.minecraft.client.multiplayer.ClientLevel$ClientLevelData
-1.21.1 net.minecraft.world.level.Level,net.minecraft.client.OptionInstance
+26.3 !net.minecraft.client.ClientClockManager,!net.minecraft.world.clock.ClockManager,net.minecraft.world.clock.WorldClock,net.minecraft.world.clock.ClockState

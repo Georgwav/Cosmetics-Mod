@@ -37,6 +37,9 @@ final class HubItem {
     };
     /** Why it can't be used right now (a mod that isn't installed), or null. */
     Supplier<String> missing = () -> null;
+    /** Its name and note when they aren't the hub's own (a module's), or null. */
+    Supplier<String> label;
+    Supplier<String> note;
 
     HubItem(String id, String group, Kind kind) {
         this.id = id;
@@ -83,5 +86,13 @@ final class HubItem {
     HubItem missing(Supplier<String> missing) {
         this.missing = missing;
         return this;
+    }
+
+    /** An orb that switches one of the client's modules. */
+    static HubItem module(io.github.georgwav.cosmetics.client.Module m, String group) {
+        HubItem item = new HubItem(m.id, group, Kind.TOGGLE).icon(m.icon).toggle(m::enabled, m::setEnabled);
+        item.label = m::name;
+        item.note = m::note;
+        return item;
     }
 }

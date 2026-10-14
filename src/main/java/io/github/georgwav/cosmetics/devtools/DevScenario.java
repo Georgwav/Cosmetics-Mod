@@ -24,6 +24,7 @@ import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
 import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.hub.HubScreen;
+import io.github.georgwav.cosmetics.client.ModulesSelfTest;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -63,7 +64,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, WORLD_MODULES, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -528,12 +529,25 @@ public final class DevScenario {
                         ScreenOpener.open(HubScreen.inMods());
                         enter(Phase.HUB_MODS);
                         writeMarker("ui_hub_mods");
-                    } else if (FabricLoader.getInstance().isModLoaded("modmenu")) {
+                    } else {
+                        // The client's world modules: thunder, midnight and fullbright, on your screen only.
+                        ScreenOpener.open(null);
+                        ModulesSelfTest.switchOn(client);
+                        enter(Phase.WORLD_MODULES);
+                        writeMarker("ui_world_modules");
+                    }
+                }
+            }
+            case WORLD_MODULES -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
+                    phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
+                    failures.addAll(problems);
+                    if (FabricLoader.getInstance().isModLoaded("modmenu")) {
                         openThroughModMenu();
                         enter(Phase.MOD_MENU);
                         writeMarker("ui_modmenu");
                     } else {
-                        ScreenOpener.open(null);
                         startShadersOrFinish();
                     }
                 }

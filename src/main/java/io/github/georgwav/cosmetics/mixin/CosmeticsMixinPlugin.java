@@ -19,13 +19,13 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     public List<String> getMixins() {
         //? if >=1.21.4 {
         return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin");
         //?} elif >=1.21.2 {
         /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin");
         *///?} else {
         /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin");
         *///?}
     }
 

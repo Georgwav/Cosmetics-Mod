@@ -2,6 +2,8 @@ package io.github.georgwav.cosmetics.ui.hub;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.modules.TimeChanger;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
@@ -180,13 +182,16 @@ public final class HubScreen extends Screen {
                         .missing(() -> Compat.MOD_MENU ? null : t("missing", "Mod Menu")),
                 modsShaders,
                 modsVoxy,
-                new HubItem("bright", "render", HubItem.Kind.LATER).icon("bulb"),
+                HubItem.module(Modules.FULLBRIGHT, "render"),
+                HubItem.module(Modules.WEATHER, "render"),
+                HubItem.module(Modules.TIME, "render")
+                        .missing(() -> TimeChanger.supported() ? null : t("not_on_version")),
                 new HubItem("zoom", "modules", HubItem.Kind.LATER).icon("zoom"),
                 new HubItem("free", "modules", HubItem.Kind.LATER).icon("eye"),
                 new HubItem("mouse", "modules", HubItem.Kind.LATER).icon("mouse"),
                 new HubItem("apple", "modules", HubItem.Kind.LATER).icon("apple"),
                 new HubItem("keys", "modules", HubItem.Kind.LATER).icon("keys"),
-                new HubItem("sprint", "modules", HubItem.Kind.LATER).icon("sprint"),
+                HubItem.module(Modules.TOGGLE_SPRINT, "modules"),
                 new HubItem("fps", "hud", HubItem.Kind.LATER).live("fps"),
                 new HubItem("clock", "hud", HubItem.Kind.LATER).live("clock"),
                 new HubItem("coords", "hud", HubItem.Kind.LATER).icon("pin"),
@@ -235,7 +240,7 @@ public final class HubScreen extends Screen {
             String player = mc.player != null ? mc.player.getName().getString() : t("you_unknown");
             return t("you", player);
         }
-        return t("item." + it.id);
+        return it.label != null ? it.label.get() : t("item." + it.id);
     }
 
     // ------------------------------------------------------------------ screen
@@ -809,7 +814,7 @@ public final class HubScreen extends Screen {
         HubItem it = s.items.get(centered);
         boolean isOn = it.kind == HubItem.Kind.TOGGLE && it.on.getAsBoolean();
         String missing = it.missing.get();
-        String line = t("note." + it.id);
+        String line = it.note != null ? it.note.get() : t("note." + it.id);
         if (it.kind == HubItem.Kind.TOGGLE) {
             line = t(isOn ? "on" : "off") + " · " + line;
         }

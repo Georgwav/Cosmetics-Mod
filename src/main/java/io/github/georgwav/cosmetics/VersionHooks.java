@@ -96,6 +96,11 @@ final class VersionHooks {
         return registerKeyMapping("key.cosmeticsmod.emotes", InputConstants.KEY_B);
     }
 
+    /** A key bind for a client module: unbound until the player binds it (here or in Controls). */
+    public static KeyMapping registerUnboundKey(String name) {
+        return registerKeyMapping(name, InputConstants.UNKNOWN.getValue());
+    }
+
     private static KeyMapping registerKeyMapping(String name, int defaultKey) {
         //? if <1.21.9 {
         /*KeyMapping key = new KeyMapping(name, InputConstants.Type.KEYSYM, defaultKey, "key.categories.cosmeticsmod");

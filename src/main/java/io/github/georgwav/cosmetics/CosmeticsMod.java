@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics;
 
 import io.github.georgwav.cosmetics.aura.AuraParticles;
+import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
@@ -35,6 +36,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         EmoteWheelScreen.key = emoteKey;
         KeyBinds.open = openKey;
         KeyBinds.emotes = emoteKey;
+        Modules.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
                 ScreenOpener.requestOpenHub();
@@ -43,6 +45,7 @@ public final class CosmeticsMod implements ClientModInitializer {
                 EmoteWheelScreen.openIfAllowed(client);
             }
             ScreenOpener.tick();
+            Modules.tick(client);
             AuraParticles.tick(client);
             EmotePlayer.tick(client);
         });
