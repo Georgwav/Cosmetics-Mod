@@ -65,7 +65,7 @@ public final class DevScenario {
     /** Ticks each look at an elytra on the ground lasts (CI screenshots 4 s in). */
     private static final int ELYTRA_LOOK_TICKS = 120;
     /** How far the body is turned from where the camera looks for those, degrees: nearly from the side. */
-    private static final float SIDE_VIEW = 70f;
+    private static final float SIDE_VIEW = 90f;
     /** Ticks the elytra emote plays while gliding. */
     private static final int ELYTRA_TICKS = 140;
     /** How high above where the test stands the player starts gliding, blocks. */
@@ -275,9 +275,12 @@ public final class DevScenario {
                         failures.add("playing an emote never posed the player model");
                     }
                     // The emote goes on with an elytra on, seen from the side: the elytra must stay on the posed
-                    // body, as armour does.
+                    // body, as armour does. Cosmetics are hidden meanwhile, so the screenshots show the elytra.
                     groundPosition = new double[]{client.player.getX(), client.player.getY(), client.player.getZ()};
                     wearElytra(client, true);
+                    for (CosmeticSlot slot : CosmeticSlot.values()) {
+                        CosmeticsConfig.get().slotVisible.put(slot, false);
+                    }
                     client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
                     elytraFramesAtStart = ElytraLook.followedFrames;
                     enter(Phase.EMOTE_ELYTRA);
@@ -314,7 +317,11 @@ public final class DevScenario {
             case ELYTRA_STAND_OFF -> {
                 sideView(client);
                 if (ticks >= ELYTRA_LOOK_TICKS) {
-                    CosmeticsConfig.get().enabled = true;
+                    CosmeticsConfig config = CosmeticsConfig.get();
+                    config.enabled = true;
+                    for (CosmeticSlot slot : CosmeticSlot.values()) {
+                        config.slotVisible.put(slot, true);
+                    }
                     CosmeticsMod.LOGGER.info("Dev scenario elytra look: {}", phases.getAsJsonObject("elytra_look"));
                     client.player.setXRot(0f);
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -528,7 +535,7 @@ public final class DevScenario {
      */
     private static void sideView(Minecraft client) {
         var player = client.player;
-        player.setXRot(20f);
+        player.setXRot(10f);
         player.yBodyRot = player.getYRot() - SIDE_VIEW;
         player.yBodyRotO = player.yBodyRot;
     }
