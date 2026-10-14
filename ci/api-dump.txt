@@ -6,8 +6,10 @@
 # 26.3 net.minecraft.client.renderer.entity.state.AvatarRenderState,net.minecraft.client.renderer.SubmitNodeCollector
 # A class starting with ! also prints private members and bytecode; ?text lists resource files whose path
 # contains the text (e.g. ?cape).
+1.21.1 net.minecraft.client.resources.MobEffectTextureManager
+1.21.4 net.minecraft.client.gui.Gui
+1.21.8 net.minecraft.client.gui.Gui
+26.3 net.minecraft.client.gui.Gui
 1.21.10 net.fabricmc.fabric.api.client.rendering.v1.world.WorldTerrainRenderContext,net.fabricmc.fabric.api.client.rendering.v1.world.AbstractWorldRenderContext,net.minecraft.client.Camera
 1.21.11 net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents$BeforeBlockOutline,net.fabricmc.fabric.api.client.rendering.v1.world.WorldTerrainRenderContext,net.fabricmc.fabric.api.client.rendering.v1.world.AbstractWorldRenderContext,net.minecraft.client.Camera,net.minecraft.client.renderer.rendertype.*,net.minecraft.client.renderer.ShapeRenderer
 26.3 net.minecraft.client.renderer.state.level.BlockOutlineRenderState,net.minecraft.client.renderer.LevelRenderer,net.minecraft.client.Camera,net.minecraft.client.renderer.rendertype.*,net.minecraft.client.renderer.ShapeRenderer$*,?shape_renderer
-1.21.1 !net.minecraft.client.gui.Gui
-1.21.5 !net.minecraft.client.gui.Gui

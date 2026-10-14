@@ -31,15 +31,15 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         //?} elif >=1.21.4 {
         /*return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
-                "GuiMixin");
+                "GuiMixin", "BossOverlayMixin");
         *///?} elif >=1.21.2 {
         /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
-                "GuiMixin");
+                "GuiMixin", "BossOverlayMixin");
         *///?} else {
         /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
-                "GuiMixin");
+                "GuiMixin", "BossOverlayMixin");
         *///?}
     }
 

@@ -9,8 +9,8 @@ import java.util.Map;
 
 /**
  * Where the game's own HUD parts sit: each moved by an offset from its usual place (GUI pixels), set in the HUD
- * editor. From 1.21.6 Fabric's HUD elements draw each part moved (see {@link Hud#register()}); before 1.21.6 the
- * parts stay where the game puts them.
+ * editor. From 1.21.6 Fabric's HUD elements draw each part moved (see {@link Hud#register()}); before 1.21.6 mixins on
+ * the game's HUD do (GuiMixin, BossOverlayMixin).
  */
 public final class VanillaHud {
     /** A part of the game's HUD and where the game draws it on a screen of w x h GUI pixels: {x, y, width, height}. */
@@ -91,13 +91,12 @@ public final class VanillaHud {
     private VanillaHud() {
     }
 
-    /** Whether this Minecraft version lets the client move the game's HUD (Fabric's HUD elements, from 1.21.6). */
+    /**
+     * Whether this Minecraft version lets the client move the game's HUD: from 1.21.6 through Fabric's HUD elements,
+     * before through mixins on the game's HUD (GuiMixin), whose parts that version draws in their own methods.
+     */
     public static boolean supported() {
-        //? if >=1.21.6 {
         return true;
-        //?} else {
-        /*return false;
-        *///?}
     }
 
     public static float dx(Part part) {
