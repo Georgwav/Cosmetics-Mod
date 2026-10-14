@@ -193,11 +193,11 @@ public final class Canvas {
     }
 
     /**
-     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub). From 1.21.2 the clip
+     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub). From 1.21.4 the clip
      * goes through the transform; before, it is in GUI units.
      */
     public void clipScreen(float x0, float y0, float x1, float y1, float guiScale) {
-        //? if >=1.21.2 {
+        //? if >=1.21.4 {
         raw.enableScissor((int) Math.floor(x0), (int) Math.floor(y0), (int) Math.ceil(x1), (int) Math.ceil(y1));
         //?} else {
         /*raw.enableScissor((int) Math.floor(x0 / guiScale), (int) Math.floor(y0 / guiScale),
