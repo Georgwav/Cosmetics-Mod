@@ -1,0 +1,148 @@
+{
+  "name": "Sakura Dusk",
+  "line": "Violet dusk over a coral horizon, blossoms falling.",
+  "order": 1,
+  "ui": {
+    "accent": "#f59ac0",
+    "panel": "#341e38",
+    "panelAlpha": 0.52,
+    "rim": "#ffbed7",
+    "rimAlpha": 0.55
+  },
+  "sky": {
+    "top": "#4a3866",
+    "middle": "#5d3f68",
+    "horizon": "#a3606c",
+    "glow": "#fa9588",
+    "sunWarmth": 0.45
+  },
+  "fog": {
+    "color": "#cf7b72",
+    "density": 0.35
+  },
+  "light": {
+    "tint": "#ffc4cc",
+    "strength": 0.16
+  },
+  "show": {
+    "phase": "dusk",
+    "azimuth": 90
+  },
+  "sun": {
+    "size": 0.026,
+    "core": "#ffe1cf",
+    "halo": "#ff9b86",
+    "haloRadius": 0.3,
+    "haloAlpha": 0.55,
+    "x": 0.8,
+    "y": 0.61
+  },
+  "stars": {
+    "count": 24,
+    "palette": "warm",
+    "milkyWay": 0.35
+  },
+  "clouds": {
+    "tint": "#ffb4a8",
+    "litBySun": true
+  },
+  "wind": [
+    0.35,
+    0.0,
+    0.12
+  ],
+  "particles": [
+    {
+      "type": "petal",
+      "count": 70,
+      "colors": [
+        "#f7a8c4",
+        "#ffc9da",
+        "#ee93b4"
+      ],
+      "size": [
+        3,
+        6
+      ]
+    },
+    {
+      "type": "blossom",
+      "count": 22,
+      "colors": [
+        "#f9b3cb",
+        "#ffd3e2"
+      ],
+      "size": [
+        4,
+        7
+      ]
+    },
+    {
+      "type": "lens",
+      "count": 3,
+      "colors": [
+        "#f7a8c4"
+      ],
+      "size": [
+        34,
+        52
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#6f86c9",
+        "middle": "#9aa6d8",
+        "horizon": "#f2b8c4",
+        "glow": "#ffd0d0",
+        "sunWarmth": 0.25
+      },
+      "fog": {
+        "color": "#e8bcc4",
+        "density": 0.3
+      },
+      "light": {
+        "tint": "#fff0f2",
+        "strength": 0.08
+      },
+      "clouds": {
+        "tint": "#fff2f4"
+      }
+    },
+    "dawn": {
+      "sky": {
+        "top": "#5a4a7c",
+        "middle": "#8a6a98",
+        "horizon": "#e8a0a8",
+        "glow": "#ffb8b0",
+        "sunWarmth": 0.4
+      },
+      "fog": {
+        "color": "#dca0a4",
+        "density": 0.38
+      }
+    },
+    "night": {
+      "sky": {
+        "top": "#120c22",
+        "middle": "#1e1430",
+        "horizon": "#3a2440",
+        "glow": "#6a3a52",
+        "sunWarmth": 0.1
+      },
+      "fog": {
+        "color": "#2a1a2e",
+        "density": 0.4
+      },
+      "light": {
+        "tint": "#c8b0ff",
+        "strength": 0.12
+      },
+      "clouds": {
+        "tint": "#3a2a44"
+      },
+      "particleScale": 0.6
+    }
+  }
+}

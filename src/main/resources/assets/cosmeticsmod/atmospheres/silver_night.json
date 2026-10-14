@@ -1,0 +1,131 @@
+{
+  "name": "Silver Night",
+  "line": "A huge square moon, silver haze, pollen drifting in its light.",
+  "order": 11,
+  "ui": {
+    "accent": "#b9c8ff",
+    "panel": "#10162c",
+    "panelAlpha": 0.52,
+    "rim": "#c8d7ff",
+    "rimAlpha": 0.5
+  },
+  "sky": {
+    "top": "#070b1c",
+    "middle": "#121c3a",
+    "horizon": "#33436a",
+    "glow": "#8ea3d6",
+    "sunWarmth": 0.1
+  },
+  "fog": {
+    "color": "#26314f",
+    "density": 0.5
+  },
+  "light": {
+    "tint": "#c8d4ff",
+    "strength": 0.16
+  },
+  "show": {
+    "phase": "night",
+    "azimuth": -90
+  },
+  "moon": {
+    "size": 0.045,
+    "color": "#eef3ff",
+    "halo": "#b9c8ff",
+    "haloRadius": 0.32,
+    "haloAlpha": 0.45,
+    "ring": true,
+    "dogs": true,
+    "x": 0.7,
+    "y": 0.28
+  },
+  "stars": {
+    "count": 120,
+    "palette": "silver",
+    "tint": "#dfe6ff",
+    "milkyWay": 0.45
+  },
+  "clouds": {
+    "tint": "#28324e",
+    "litBySun": true
+  },
+  "wind": [
+    0.12,
+    0.0,
+    0.05
+  ],
+  "particles": [
+    {
+      "type": "dust",
+      "count": 60,
+      "colors": [
+        "#dfe7ff",
+        "#b9c8ff"
+      ],
+      "size": [
+        1,
+        2.4
+      ]
+    },
+    {
+      "type": "sparkle",
+      "count": 8,
+      "colors": [
+        "#ffffff"
+      ],
+      "size": [
+        3,
+        5
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#6a84c0",
+        "middle": "#94a8d4",
+        "horizon": "#d4dcef",
+        "glow": "#eef2fb",
+        "sunWarmth": 0.2
+      },
+      "fog": {
+        "color": "#c0cae0",
+        "density": 0.42
+      },
+      "light": {
+        "tint": "#f2f4ff",
+        "strength": 0.06
+      },
+      "clouds": {
+        "tint": "#f4f6ff"
+      },
+      "particleScale": 0.5
+    },
+    "dawn": {
+      "sky": {
+        "top": "#1e2a50",
+        "middle": "#3a4a78",
+        "horizon": "#8a98c0",
+        "glow": "#c8d0ea",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#4a5678",
+        "density": 0.48
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#161e40",
+        "middle": "#2e3a66",
+        "horizon": "#7684b0",
+        "glow": "#b8c4e6",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#3e4a6c",
+        "density": 0.48
+      }
+    }
+  }
+}

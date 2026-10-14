@@ -1,0 +1,101 @@
+{
+  "name": "Monsoon",
+  "line": "Slate clouds, heavy rain, lightning that lights the whole sky.",
+  "order": 7,
+  "ui": {
+    "accent": "#7fc4ff",
+    "panel": "#141c24",
+    "panelAlpha": 0.55,
+    "rim": "#a0d2ff",
+    "rimAlpha": 0.5
+  },
+  "sky": {
+    "top": "#1d232b",
+    "middle": "#2f3842",
+    "horizon": "#56626e",
+    "glow": "#7b8794",
+    "sunWarmth": 0.05
+  },
+  "fog": {
+    "color": "#4f5a65",
+    "density": 0.7
+  },
+  "light": {
+    "tint": "#b8c8d8",
+    "strength": 0.14
+  },
+  "show": {
+    "phase": "day",
+    "azimuth": 0
+  },
+  "sun": null,
+  "stars": {
+    "count": 20,
+    "palette": "natural",
+    "milkyWay": 0.2,
+    "through": "cloudGaps"
+  },
+  "lightning": true,
+  "clouds": {
+    "tint": "#4a5460",
+    "litBySun": false
+  },
+  "wind": [
+    0.6,
+    0.0,
+    0.25
+  ],
+  "particles": [
+    {
+      "type": "rain",
+      "count": 150,
+      "colors": [
+        "#b8c8d8"
+      ],
+      "size": [
+        1,
+        1.6
+      ]
+    }
+  ],
+  "keyframes": {
+    "dawn": {
+      "sky": {
+        "top": "#1a1e28",
+        "middle": "#2c323e",
+        "horizon": "#5a5a66",
+        "glow": "#8a7e84",
+        "sunWarmth": 0.15
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#181c24",
+        "middle": "#282e38",
+        "horizon": "#4e5260",
+        "glow": "#7a7480",
+        "sunWarmth": 0.15
+      }
+    },
+    "night": {
+      "sky": {
+        "top": "#06080c",
+        "middle": "#0c1016",
+        "horizon": "#161c24",
+        "glow": "#28323e",
+        "sunWarmth": 0.0
+      },
+      "fog": {
+        "color": "#12161c",
+        "density": 0.7
+      },
+      "light": {
+        "tint": "#90a8c8",
+        "strength": 0.12
+      },
+      "clouds": {
+        "tint": "#14181e"
+      }
+    }
+  }
+}

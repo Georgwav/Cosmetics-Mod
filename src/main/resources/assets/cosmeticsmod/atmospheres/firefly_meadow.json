@@ -1,0 +1,132 @@
+{
+  "name": "Firefly Meadow",
+  "line": "Warm green dusk; fireflies blink low over the grass.",
+  "order": 6,
+  "ui": {
+    "accent": "#d6f26a",
+    "panel": "#16221a",
+    "panelAlpha": 0.52,
+    "rim": "#dcff8c",
+    "rimAlpha": 0.5
+  },
+  "sky": {
+    "top": "#18243a",
+    "middle": "#33484f",
+    "horizon": "#c48c5a",
+    "glow": "#f2b36b",
+    "sunWarmth": 0.4
+  },
+  "fog": {
+    "color": "#6d775a",
+    "density": 0.4
+  },
+  "light": {
+    "tint": "#ffe2a8",
+    "strength": 0.16
+  },
+  "show": {
+    "phase": "dusk",
+    "azimuth": 90
+  },
+  "sun": {
+    "size": 0.026,
+    "core": "#ffe2a8",
+    "halo": "#ffb35c",
+    "haloRadius": 0.24,
+    "haloAlpha": 0.5,
+    "x": 0.86,
+    "y": 0.63
+  },
+  "stars": {
+    "count": 30,
+    "palette": "warm",
+    "milkyWay": 0.4
+  },
+  "clouds": {
+    "tint": "#f2b88a",
+    "litBySun": true
+  },
+  "wind": [
+    0.08,
+    0.0,
+    0.03
+  ],
+  "particles": [
+    {
+      "type": "firefly",
+      "count": 46,
+      "colors": [
+        "#e9ff7a",
+        "#fff3a0"
+      ],
+      "size": [
+        1.4,
+        2.8
+      ]
+    },
+    {
+      "type": "dust",
+      "count": 14,
+      "colors": [
+        "#fff0b0"
+      ],
+      "size": [
+        1,
+        2
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#5a8ac0",
+        "middle": "#86aac8",
+        "horizon": "#e0d4a8",
+        "glow": "#f6e6b8",
+        "sunWarmth": 0.25
+      },
+      "fog": {
+        "color": "#b8c49a",
+        "density": 0.35
+      },
+      "light": {
+        "tint": "#fff6dc",
+        "strength": 0.08
+      },
+      "clouds": {
+        "tint": "#fff6e0"
+      },
+      "particleScale": 0.2
+    },
+    "dawn": {
+      "sky": {
+        "top": "#24344a",
+        "middle": "#4a6068",
+        "horizon": "#d4a070",
+        "glow": "#f8c888",
+        "sunWarmth": 0.38
+      }
+    },
+    "night": {
+      "sky": {
+        "top": "#070c16",
+        "middle": "#0e1820",
+        "horizon": "#1e2a26",
+        "glow": "#3a4a30",
+        "sunWarmth": 0.05
+      },
+      "fog": {
+        "color": "#141c16",
+        "density": 0.45
+      },
+      "light": {
+        "tint": "#d8ffb0",
+        "strength": 0.1
+      },
+      "clouds": {
+        "tint": "#1a221c"
+      },
+      "particleScale": 1.2
+    }
+  }
+}

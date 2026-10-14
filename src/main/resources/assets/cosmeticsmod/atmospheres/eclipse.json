@@ -1,0 +1,129 @@
+{
+  "name": "Eclipse",
+  "line": "A black sun inside a burning ring; ash drifting down.",
+  "order": 9,
+  "ui": {
+    "accent": "#ff5a3c",
+    "panel": "#1e0808",
+    "panelAlpha": 0.55,
+    "rim": "#ff785a",
+    "rimAlpha": 0.55
+  },
+  "sky": {
+    "top": "#040405",
+    "middle": "#12070a",
+    "horizon": "#5e130f",
+    "glow": "#ff4b2b",
+    "sunWarmth": 0.3
+  },
+  "fog": {
+    "color": "#3a0d0b",
+    "density": 0.5
+  },
+  "light": {
+    "tint": "#ff9a7a",
+    "strength": 0.18
+  },
+  "show": {
+    "phase": "day",
+    "azimuth": 0
+  },
+  "sun": {
+    "size": 0.055,
+    "core": "#000000",
+    "halo": "#ff6a3a",
+    "haloRadius": 0.3,
+    "haloAlpha": 0.7,
+    "rays": 0,
+    "coreRays": 0,
+    "plasma": false,
+    "sunDogs": false,
+    "pillar": false,
+    "shimmer": false,
+    "x": 0.5,
+    "y": 0.34
+  },
+  "eclipse": {
+    "x": 0.5,
+    "y": 0.34,
+    "size": 0.055,
+    "corona": "#ff6a3a"
+  },
+  "stars": {
+    "count": 60,
+    "palette": "warm",
+    "milkyWay": 0.3
+  },
+  "clouds": {
+    "tint": "#2a0e0c",
+    "litBySun": false
+  },
+  "wind": [
+    0.2,
+    0.0,
+    0.08
+  ],
+  "particles": [
+    {
+      "type": "ash",
+      "count": 70,
+      "colors": [
+        "#8a8380",
+        "#b5aca8",
+        "#5f5856"
+      ],
+      "size": [
+        1.4,
+        3.2
+      ]
+    },
+    {
+      "type": "ember",
+      "count": 12,
+      "colors": [
+        "#ff7a3a"
+      ],
+      "size": [
+        1.2,
+        2.4
+      ]
+    }
+  ],
+  "keyframes": {
+    "dawn": {
+      "sky": {
+        "top": "#060406",
+        "middle": "#160a0c",
+        "horizon": "#6a1a12",
+        "glow": "#ff5a34",
+        "sunWarmth": 0.32
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#060406",
+        "middle": "#160a0c",
+        "horizon": "#6a1a12",
+        "glow": "#ff5a34",
+        "sunWarmth": 0.32
+      }
+    },
+    "night": {
+      "sky": {
+        "top": "#020203",
+        "middle": "#080405",
+        "horizon": "#2a0a08",
+        "glow": "#7a2014",
+        "sunWarmth": 0.1
+      },
+      "fog": {
+        "color": "#1e0706",
+        "density": 0.5
+      },
+      "light": {
+        "tint": "#ff8060",
+        "strength": 0.14
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "name": "Ember Solstice",
+  "line": "A red sky, a haloed sun, sparks rising off the sand.",
+  "order": 3,
+  "ui": {
+    "accent": "#ffb347",
+    "panel": "#3c1608",
+    "panelAlpha": 0.52,
+    "rim": "#ffc878",
+    "rimAlpha": 0.6
+  },
+  "sky": {
+    "top": "#5e0f06",
+    "middle": "#7a1a07",
+    "horizon": "#c2461a",
+    "glow": "#fe8a2c",
+    "sunWarmth": 0.35
+  },
+  "fog": {
+    "color": "#f08a3a",
+    "density": 0.55,
+    "bands": 4
+  },
+  "light": {
+    "tint": "#ffcf9a",
+    "strength": 0.22
+  },
+  "show": {
+    "phase": "dusk",
+    "azimuth": 90
+  },
+  "sun": {
+    "size": 0.042,
+    "core": "#fff3c4",
+    "halo": "#ffb347",
+    "haloRadius": 0.36,
+    "haloAlpha": 0.85,
+    "rays": 14,
+    "coreRays": 9,
+    "x": 0.5,
+    "y": 0.585
+  },
+  "stars": {
+    "count": 40,
+    "palette": "warm",
+    "milkyWay": 0.3
+  },
+  "clouds": {
+    "tint": "#ff9a5c",
+    "litBySun": true
+  },
+  "wind": [
+    0.4,
+    0.0,
+    0.1
+  ],
+  "particles": [
+    {
+      "type": "ember",
+      "count": 70,
+      "colors": [
+        "#ffb24a",
+        "#ff7a2a",
+        "#ffd27a"
+      ],
+      "size": [
+        1.4,
+        3.2
+      ]
+    },
+    {
+      "type": "dust",
+      "count": 22,
+      "colors": [
+        "#ffd9a0"
+      ],
+      "size": [
+        1,
+        2
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#a8461e",
+        "middle": "#c8622a",
+        "horizon": "#f0a058",
+        "glow": "#ffc27a",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#f4a868",
+        "density": 0.45
+      },
+      "light": {
+        "tint": "#ffe0b8",
+        "strength": 0.14
+      },
+      "clouds": {
+        "tint": "#ffc89a"
+      }
+    },
+    "dawn": {
+      "sky": {
+        "top": "#4a1410",
+        "middle": "#7a2a14",
+        "horizon": "#d06a2a",
+        "glow": "#ffa04a",
+        "sunWarmth": 0.38
+      }
+    },
+    "night": {
+      "sky": {
+        "top": "#160403",
+        "middle": "#260806",
+        "horizon": "#4a1408",
+        "glow": "#8a2e10",
+        "sunWarmth": 0.1
+      },
+      "fog": {
+        "color": "#3a1408",
+        "density": 0.55
+      },
+      "light": {
+        "tint": "#ff9a6a",
+        "strength": 0.16
+      },
+      "clouds": {
+        "tint": "#4a1a0e"
+      },
+      "particleScale": 0.8
+    }
+  }
+}
