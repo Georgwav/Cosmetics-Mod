@@ -572,8 +572,11 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         "-Xmx3G", "-XX:+UseG1GC",
         "-Dmixin.debug.export=true", "-Dmixin.debug.verify=true",
         "-Dcosmeticsmod.equipAll=true",
-        "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else "-Dcosmeticsmod.smokeTest=true",
+        "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else
+        ("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO if mode == "sol" else "-Dcosmeticsmod.smokeTest=true"),
     ]
+    if mode != "sol" and SOL_SCENARIO_IN_SMOKE:
+        jvm.append("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO_IN_SMOKE)
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
     if shaderpack:
@@ -633,9 +636,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 break
             for marker in game_dir.glob("cosmeticsmod-phase-*"):
                 phase = marker.name[len("cosmeticsmod-phase-"):]
-                if phase not in seen_markers and (phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_cape", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
+                if phase not in seen_markers and (phase.startswith("sol_") or phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_cape", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
                     seen_markers.add(phase)
-                    time.sleep(1 if phase.startswith("ui_") else 4)  # let the phase settle
+                    time.sleep(1 if phase.startswith(("ui_", "sol_")) else 4)  # let the phase settle (Sol phases settle in-game first)
                     png = game_dir / f"screenshot-{phase}.png"
                     if display.screenshot(png):
                         shots.append(png.name)
@@ -680,6 +683,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
 
 
 CONTROL_SURVIVE_SECONDS = 40
+# The Sol scenario: "full" or "reduced" for a run of its own (mode "sol"); set through --sol.
+SOL_SCENARIO = "full"
+SOL_SCENARIO_IN_SMOKE = ""
 
 
 def crash_summary(game_dir, max_lines=40):
@@ -703,8 +709,10 @@ def crash_summary(game_dir, max_lines=40):
 
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
     problems = []
-    results_path = game_dir / "cosmeticsmod-results.json"
+    results_path = game_dir / ("cosmeticsmod-sol-results.json" if mode == "sol" else "cosmeticsmod-results.json")
     results = json.loads(results_path.read_text()) if results_path.exists() else None
+    if results is not None and mode == "sol":
+        results["failures"] = results.get("problems", [])
     if timed_out:
         problems.append("timed out")
     if results is None:
@@ -781,6 +789,18 @@ def cmd_runtime(args):
             summary = setup_failure(args, mc, "vanilla", "smoke", e)
         failures += not summary["passed"]
     return 1 if failures else 0
+
+
+def cmd_look(args):
+    """One release with the Sol scenario only, screenshots of every theme; for looking at the sky locally."""
+    global SOL_SCENARIO
+    SOL_SCENARIO = args.sol
+    info = node_info(args.node)
+    mc = args.release or info["test"][-1]
+    jar = mod_jar_for(args.node, args.jars)
+    inst = Instance(mc, java_for(info["java"]), args.cache)
+    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout)
+    return 0 if summary["passed"] else 1
 
 
 def cmd_compat(args):
@@ -1112,6 +1132,14 @@ def main():
         if name == "compat":
             p.add_argument("--sets", default="", help="comma-separated stacks from compat-sets.json (default: all)")
             p.add_argument("--benchmark", action="store_true", help="also run the benchmark (shaders off/on)")
+    p = sub.add_parser("look")
+    p.add_argument("--node", required=True, help="build (Stonecutter version), e.g. 1.21.11")
+    p.add_argument("--release", default="", help="Minecraft release to run (default: the build's newest)")
+    p.add_argument("--sol", default="full", help="Sol scenario: full, reduced or look")
+    p.add_argument("--timeout", type=int, default=1500)
+    p.add_argument("--jars", default=str(ROOT / "build" / "libs"))
+    p.add_argument("--cache", default=str(ROOT / "ci" / "work" / "cache"))
+    p.add_argument("--out", default=str(ROOT / "ci" / "work" / "runs"))
     p = sub.add_parser("bench-ab")
     p.add_argument("--node", required=True, help="build (Stonecutter version) both jars are for, e.g. 1.21.11")
     p.add_argument("--base", required=True, help="jar to compare against, e.g. built from main")
@@ -1123,7 +1151,7 @@ def main():
     p.add_argument("--runs", default=str(ROOT / "ci" / "work" / "runs"))
     p.add_argument("--output", default=str(ROOT / "ci" / "work" / "compat-matrix.md"))
     args = parser.parse_args()
-    return {"runtime": cmd_runtime, "compat": cmd_compat, "bench-ab": cmd_bench_ab,
+    return {"runtime": cmd_runtime, "compat": cmd_compat, "look": cmd_look, "bench-ab": cmd_bench_ab,
             "summarize": cmd_summarize}[args.command](args)
 
 

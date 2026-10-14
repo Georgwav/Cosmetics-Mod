@@ -13,6 +13,9 @@ name: CI
 # - a commit message containing [api-dump]: prints Minecraft class APIs listed in ci/api-dump.txt.
 # - a commit message containing [shots]: the in-game runs' screenshots of the mod's screens go to the
 #                       ci-screenshots branch (one commit, replaced each time), to look at them with git alone.
+#                       World shots (Atmosphere themes, stellar sky, items) go there too, full size, for one node
+#                       per rendering era (1.21.1, 1.21.11, 26.3).
+# - a commit message containing [quick]: only the build and unit tests (no game runs, no importer jobs).
 # Normal CI never reads the private cosmetics pack; only personal-release.yml (manual) does.
 on:
   push:
@@ -69,6 +72,7 @@ jobs:
   importer:
     # tools/badlion-import, tested only with synthetic fixtures the tests generate. Never reads Badlion files.
     name: Badlion importer tests (${{ matrix.os }})
+    if: ${{ !contains(github.event.head_commit.message, '[quick]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -92,6 +96,7 @@ jobs:
     # The importer's output read by the mod's real parser: packs converted from the synthetic fixtures (never
     # Badlion files) must load without warnings and bake, with textures the size their cosmetics say.
     name: Badlion importer packs load in the mod
+    if: ${{ !contains(github.event.head_commit.message, '[quick]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -129,6 +134,7 @@ jobs:
     # one, which only the manual personal-release workflow reads): the jar gets the pack's files and the
     # -personal name, and a pack file that clashes with one of the mod's own fails the build.
     name: Personal build check (synthetic pack)
+    if: ${{ !contains(github.event.head_commit.message, '[quick]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -168,9 +174,9 @@ jobs:
   runtime:
     name: In-game ${{ matrix.node }}
     needs: build
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[quick]') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -237,6 +243,9 @@ jobs:
             node="${dir#artifacts/runtime-}"
             mkdir -p "pub/$node"
             (cd "$dir" && find . -name 'screenshot-ui*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;)
+            case "$node" in 1.21.1|1.21.11|26.3)
+              (cd "$dir" && find . -name 'screenshot-sol*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;) ;;
+            esac
           done
           cd pub
           echo "$GITHUB_SHA" > commit.txt
@@ -307,7 +316,7 @@ jobs:
   summary:
     name: Test matrix
     needs: [runtime, compat]
-    if: ${{ always() }}
+    if: ${{ always() && !contains(github.event.head_commit.message, '[quick]') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
