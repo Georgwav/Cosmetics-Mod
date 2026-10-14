@@ -43,7 +43,8 @@ public record CosmeticDefinition(
         boolean prop,
         PetPosition petPosition,
         String kind,
-        BoneRig bones
+        BoneRig bones,
+        boolean firstPersonTurned
 ) {
     public static final int WHITE = 0xFFFFFF;
     public static final int LEFT = 1;
@@ -52,7 +53,7 @@ public record CosmeticDefinition(
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
         this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
-                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null, null);
+                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null, null, false);
     }
 
     /**

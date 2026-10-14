@@ -165,7 +165,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert json.loads((out / "pack.mcmeta").read_text())["pack"]["pack_format"] == 34
     # Stamped with the conversion's format, for the mod to ask for a new import when the pack is older.
     stamp = json.loads((out / "assets/blc_import/cosmetics_import.json").read_text())
-    assert stamp["format"] == pack.IMPORT_FORMAT >= 2
+    assert stamp["format"] == pack.IMPORT_FORMAT >= 3
     names = sorted(p.name for p in (out / COSMETICS).iterdir())
     assert names == ["arm_band_1_fire_fist.json", "back_4_hiker_pack.json", "boots_2_fire_boots.json",
                      "cape_11_old_cloak.json", "cape_12_blank_model.json",
@@ -222,10 +222,10 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     obj = (out / "assets/blc_import/models/cosmetic/back/pack.obj").read_text()
     assert "100000" not in obj
 
-    # A shield: in place of the held shield, at its arm scale (0.125 blocks a unit), not turned by Badlion's
-    # third-person half turn (that showed it back to front), its middle on the vanilla shield's plate.
+    # A shield: in place of the held shield, at its arm scale (0.125 blocks a unit), facing as Badlion has it (its
+    # half turn undoes its inverted model, in both views), its middle on the vanilla shield's plate.
     shield = cosmetic(out, "shield_3_*.json")
-    assert shield["slot"] == "shield"
+    assert shield["slot"] == "shield" and "first_person_turned" not in shield
     shield_mesh = shield["parts"][0]["meshes"][0]
     assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
     assert shield_mesh["scale"] == 2.0
@@ -333,14 +333,35 @@ def test_shields_are_centred_and_mirrored_as_badlion_scales_them():
     bounds = ((-4, -4, 0), (4, 4, 3.4))
     place = convert.shield_placement(goat, bounds, False, convert.RULES["SHIELD"], convert.TypeSettings())
     assert place.mirror and place.scale == 2.0
-    # The half turn of `rotate` isn't applied: the same as the shield without it.
-    plain = badlion.Model("SHIELD", "plain", {"scale": 0.0, "shieldModelData": {"armScale": 0.125, "thirdPerson": {
-        "scale": {"x": 1.0, "y": 1.0, "z": -1.0}}}})
-    assert place.rotation == convert.shield_placement(plain, bounds, False, convert.RULES["SHIELD"],
-                                                      convert.TypeSettings()).rotation
+    # Its half turn and its front-to-back mirror together are a mirror on the side: it faces forward, not turned.
+    assert same_rotation(place.rotation, [180, 0, 0])  # the OBJ axes alone
     m = convert.rotation_matrix(place.rotation)
     middle = convert.apply(m, [-0.0 * 2.0, 0.0, 1.7 * 2.0])  # mirrored X first, then turned
     assert close([middle[i] + place.offset[i] for i in range(3)], [0, 0, -1.5])
+
+
+def test_shields_face_each_view_as_badlion_turns_them():
+    half = {"w": 180.0, "x": 0.0, "y": 1.0, "z": 0.0}
+    rule, ts, bounds = convert.RULES["SHIELD"], convert.TypeSettings(), ((-4, -4, -0.5), (4, 4, 0.5))
+
+    def shield(**data):
+        return badlion.Model("SHIELD", "s", {"scale": 0.0, "shieldModelData": {"armScale": 0.125, **data}})
+
+    plain = shield(firstPerson={}, thirdPerson={})
+    # Inverted with a half turn in both views (the round shield, ZickZack): faces as a plain one, both views.
+    round_shield = shield(inverted=True, firstPerson={"rotate": half}, thirdPerson={"rotate": half})
+    facing = convert.shield_placement(plain, bounds, False, rule, ts).rotation
+    assert convert.shield_placement(round_shield, bounds, False, rule, ts).rotation == facing
+    assert not convert.first_person_turned(round_shield) and not convert.first_person_turned(plain)
+    # A half turn in one view only: turned around in first person against third.
+    assert convert.first_person_turned(shield(firstPerson={"rotate": half}, thirdPerson={}))  # Badlion's own
+    dragon = shield(inverted=True, firstPerson={}, thirdPerson={"rotate": half})
+    assert convert.first_person_turned(dragon)
+    assert convert.shield_placement(dragon, bounds, False, rule, ts).rotation == facing
+    # Inverted with no turn at all: turned around in both views.
+    knight = shield(inverted=True, firstPerson={"rotate": {"w": 0.0}}, thirdPerson={"rotate": {"w": 0.0}})
+    assert not convert.first_person_turned(knight)
+    assert not same_rotation(convert.shield_placement(knight, bounds, False, rule, ts).rotation, facing)
 
 
 def test_pets_sit_on_the_head_float_or_stay_on_the_shoulder():

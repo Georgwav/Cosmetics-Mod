@@ -140,8 +140,10 @@ conversion used.
   front to back (listed in the report's notes);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
 - shields: shown instead of the vanilla shield while you hold one, at the size Badlion holds them
-  (`shieldModelData.armScale`), mirrored as Badlion shows them in third person, and centred on the vanilla
-  shield's plate (a shield that still faces the wrong way has **Turn around** on its Wardrobe page);
+  (`shieldModelData.armScale`), facing as Badlion shows them (each view's `rotate` and `scale` after the half turn
+  of an `inverted` model; a shield Badlion turns around in one view only gets `first_person_turned`), and
+  centred on the vanilla shield's plate (a shield that still faces the wrong way has **Turn around** on its
+  Wardrobe page);
 - boots (one model on both feet) and armbands (on the left arm);
 - pets: on your left shoulder, on your head for pets Badlion puts there, and floating beside you for pets
   that only have an `air` animation. Their `shoulder` and `air` animations are styles; the mod plays `air`

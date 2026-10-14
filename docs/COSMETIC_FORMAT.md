@@ -43,6 +43,7 @@ stops the game or the other cosmetics.
 | `prop` | no | `true`: only shown while an emote that brings it plays (a cloud to ride), and not listed in the Wardrobe. See [Emotes](#emotes). |
 | `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head` or `floating`. See [Slots](#top-level). |
 | `kind` | no | What the cosmetic counts as when players wear one of a kind at a time, e.g. `"hat"` and `"ears"` so a hat and ears can be worn together. Default: `"wings"` for wings, else the slot. See [Equipping](#equipping). |
+| `first_person_turned` | no | `true`: a held cosmetic (a shield) made to face the other way round in first person than in third; it is turned half around its middle there. |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
 
 ## Parts

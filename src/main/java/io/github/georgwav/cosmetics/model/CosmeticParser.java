@@ -233,8 +233,12 @@ public final class CosmeticParser {
                 throw new JsonParseException("kind must be 1 to 32 letters, digits or _");
             }
         }
+        // A held cosmetic (a shield) made to face the other way round in first person than in third.
+        boolean firstPersonTurned = json.has("first_person_turned")
+                && bool(json.get("first_person_turned"), "first_person_turned");
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
-                options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind, boneRig);
+                options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind, boneRig,
+                firstPersonTurned);
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */

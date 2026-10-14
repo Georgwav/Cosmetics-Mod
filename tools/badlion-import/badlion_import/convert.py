@@ -522,23 +522,48 @@ def turned_front_to_back(place: Placement) -> list[float]:
 SIZING_BLOCKS_BELOW = 0.5
 
 
-def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeRule, ts: TypeSettings) -> Placement:
-    """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), mirrored as Badlion
-    mirrors it in third person, and centred on the vanilla shield's plate (the type's origin), because Badlion's
-    shields are each placed by their own hand-tuned offsets we can't reproduce.
+IDENTITY = [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]]
 
-    Not turned by its `rotate`: the half turn some shields have there (the round shield, the fire shield) undoes
-    their `inverted` model for Badlion's own hand transform; applied here it showed them back to front, while
-    the shields without one already faced the right way."""
+
+def shield_view(data: dict, view: str) -> list[list[float]]:
+    """How a shield faces in one view ("thirdPerson" or "firstPerson") of Badlion's shieldModelData: that view's
+    `rotate` and `scale` (its mirror) after the half turn of an `inverted` model. Shields without either face the
+    vanilla shield's way; the inverted ones (the round shield, ZickZack) carry a half turn that undoes it in both
+    views, so they face that way too; a few turn in one view only (Badlion's own shield in first person, the dragon
+    and goat shields in third)."""
+    each = data.get(view) if isinstance(data.get(view), dict) else {}
+    turn = axis_angle(each.get("rotate")) or IDENTITY
+    if data.get("inverted") is True:
+        turn = multiply(turn, rotation_matrix((0, 180, 0)))
+    flip = vector(each.get("scale")) if isinstance(each.get("scale"), dict) else [1.0, 1.0, 1.0]
+    signs = [[1.0 if flip[0] >= 0 else -1.0, 0, 0], [0, 1.0 if flip[1] >= 0 else -1.0, 0],
+             [0, 0, 1.0 if flip[2] >= 0 else -1.0]]
+    return multiply(turn, signs)
+
+
+def first_person_turned(model: badlion.Model | None) -> bool:
+    """Whether the shield faces the other way round in first person than in third: its views differ by a half
+    turn (front to back; a mirror on the side alone doesn't count)."""
+    data = model.raw.get("shieldModelData") if model and isinstance(model.raw.get("shieldModelData"), dict) else {}
+    if not data:
+        return False
+    third, first = shield_view(data, "thirdPerson"), shield_view(data, "firstPerson")
+    # third is a rotation or a mirror: its inverse is its transpose.
+    difference = multiply(first, [[third[j][i] for j in range(3)] for i in range(3)])
+    return difference[2][2] < 0
+
+
+def shield_placement(model: badlion.Model | None, bounds, md5: bool, rule: TypeRule, ts: TypeSettings) -> Placement:
+    """A shield: scaled by its shieldModelData armScale (blocks per unit, as held in the arm), facing as Badlion
+    shows it in third person (shield_view; first person, where it differs, is first_person_turned), and centred on
+    the vanilla shield's plate (the type's origin), because Badlion's shields are each placed by their own
+    hand-tuned offsets we can't reproduce."""
     convert = MD5_TO_MOD if md5 else OBJ_TO_MOD
     extra = rotation_matrix(ts.rotation)
     data = model.raw.get("shieldModelData") if model and isinstance(model.raw.get("shieldModelData"), dict) else {}
     arm = _number(data.get("armScale"))
     s = arm * PIXELS_PER_BLOCK if arm and arm > 0 else model_scale(model)
-    third = data.get("thirdPerson") if isinstance(data.get("thirdPerson"), dict) else {}
-    flip = vector(third.get("scale")) if isinstance(third.get("scale"), dict) else [1.0, 1.0, 1.0]
-    own = [[1.0 if flip[0] >= 0 else -1.0, 0, 0], [0, 1.0 if flip[1] >= 0 else -1.0, 0],
-           [0, 0, 1.0 if flip[2] >= 0 else -1.0]]
+    own = shield_view(data, "thirdPerson")
     mirror = determinant(own) < 0
     if mirror:  # the mod mirrors X before turning
         own = multiply(own, [[-1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
@@ -794,10 +819,12 @@ class Planner:
         # The texture decides when it clearly fits the other way; not for calibration variants, which test both.
         fit = not (variant and "flip" in variant)
         turned = False
+        turned_first = False
         if rule.slot == "shield":
             text = self.text(mesh_path)
             summary = meshes.summarize_md5mesh(text) if mf.md5 else meshes.summarize_obj(text)
             place = shield_placement(model, summary.bounds, mf.md5, rule, ts)
+            turned_first = first_person_turned(model)
         else:
             place = placement(c, model, mf.md5, rule, ts)
             if rule.kind == "wings" and not mf.md5:
@@ -859,6 +886,8 @@ class Planner:
             options = options_of(c)
             if options:
                 doc["options"] = options
+            if turned_first:
+                doc["first_person_turned"] = True
             color = color_of(c.raw.get("defaultColor"))
             if color:
                 doc["default_color"] = color
