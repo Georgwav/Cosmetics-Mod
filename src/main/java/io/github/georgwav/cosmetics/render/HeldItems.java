@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.model.BakedCosmetic;
 import io.github.georgwav.cosmetics.model.CosmeticRegistry;
 import io.github.georgwav.cosmetics.model.CosmeticSlot;
@@ -34,7 +35,8 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
  *       skipped.</li>
  * </ol>
  *
- * Shields in the inventory, in item frames and on the ground stay vanilla. Render thread only.
+ * Shields in item frames and on the ground stay vanilla; in your inventory and hotbar they show your shield cosmetic
+ * when {@link CosmeticsConfig#shieldItemIcons} is on. Render thread only.
  */
 public final class HeldItems {
     private static UUID holder;
@@ -48,7 +50,8 @@ public final class HeldItems {
     /** The game starts working out how {@code owner}'s item looks; only hand items of players count. */
     public static void enter(Object owner, ItemDisplayContext context) {
         holder = null;
-        if (owner instanceof AbstractClientPlayer player && isHand(context)) {
+        if (owner instanceof AbstractClientPlayer player && (isHand(context)
+                || (isIcon(context) && player == Minecraft.getInstance().player))) {
             holder = player.getUUID();
             holderLocal = player == Minecraft.getInstance().player;
             holderFirstPerson = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
@@ -64,6 +67,11 @@ public final class HeldItems {
 
     public static void exit() {
         holder = null;
+    }
+
+    /** A shield in your inventory or hotbar, when your shield cosmetic should show there too. */
+    private static boolean isIcon(ItemDisplayContext context) {
+        return context == ItemDisplayContext.GUI && CosmeticsConfig.get().shieldItemIcons;
     }
 
     private static boolean isHand(ItemDisplayContext context) {
@@ -124,13 +132,24 @@ public final class HeldItems {
                         CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
     }
     *///?} else {
-    /*// Draws the shield cosmetic of the player holding the shield being drawn; false (draw the vanilla shield)
-    // when they have none.
-    public static boolean drawShield(PoseStack poseStack, MultiBufferSource buffers, int light) {
-        BakedCosmetic cosmetic = shield();
-        return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, holderLocal, holder,
-                holderFirstPerson, holderBlocking, (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
-                        CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
+    /*// Draws the shield cosmetic of the player holding the shield being drawn (or yours, for a shield in your
+    // inventory); false (draw the vanilla shield) when there is none.
+    public static boolean drawShield(PoseStack poseStack, MultiBufferSource buffers, int light, ItemDisplayContext context) {
+        // An inventory shield has no hand: yours, just for this one.
+        boolean icon = holder == null && isIcon(context);
+        if (icon) {
+            enter(Minecraft.getInstance().player, context);
+        }
+        try {
+            BakedCosmetic cosmetic = shield();
+            return cosmetic != null && CosmeticRenderer.renderHeld(poseStack, light, cosmetic, holderLocal, holder,
+                    holderFirstPerson, holderBlocking, (pose, c, layer, l, color, frame, clip, clipTime, cloth) ->
+                            CosmeticsLayer.drawToBuffers(buffers, pose, layer, l, color, frame, clip, clipTime, cloth));
+        } finally {
+            if (icon) {
+                exit();
+            }
+        }
     }
     *///?}
 }

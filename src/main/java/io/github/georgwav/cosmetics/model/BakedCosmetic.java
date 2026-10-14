@@ -20,11 +20,15 @@ public final class BakedCosmetic {
     private int lastStyle;
     // Highest point of the geometry (smallest y, blocks), worked out on first use.
     private float top = Float.NaN;
+    // Middle of the geometry's bounds (blocks), worked out on first use.
+    private float[] middle;
+    private final boolean tintedLayer;
 
     BakedCosmetic(CosmeticDefinition definition, List<Layer> layers, String[] styles) {
         this.definition = definition;
         this.layers = layers.toArray(new Layer[0]);
         this.emissive = layers.stream().anyMatch(l -> l.mode() == RenderMode.EMISSIVE);
+        this.tintedLayer = layers.stream().anyMatch(Layer::tinted);
         this.animated = layers.stream().anyMatch(l -> l.animations().length > 0 || l.textureFrames() != null
                 || (l.rig() != null && l.rig().animated())) || definition.wings() != null
                 || (definition.bones() != null && definition.bones().animated());
@@ -134,6 +138,41 @@ public final class BakedCosmetic {
             top = min;
         }
         return -top;
+    }
+
+    /** Some layer takes the player's colour. */
+    public boolean hasTintedLayer() {
+        return tintedLayer;
+    }
+
+    /**
+     * The middle of the geometry's bounds at rest, in blocks around the anchor's pivot ({0, 0, 0} for a cosmetic
+     * with no geometry). Render thread only.
+     */
+    public float[] middle() {
+        if (middle == null) {
+            float[] lo = {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY};
+            float[] hi = {Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY};
+            for (Layer layer : layers) {
+                BakedMesh[] meshes = layer.skin() != null ? new BakedMesh[]{layer.skin().update(0, 0f)}
+                        : new BakedMesh[]{layer.mesh(), layer.smoothMesh()};
+                for (BakedMesh mesh : meshes) {
+                    if (mesh == null) {
+                        continue;
+                    }
+                    float[] data = mesh.data();
+                    for (int i = 0; i < data.length; i += BakedMesh.FLOATS_PER_VERTEX) {
+                        for (int a = 0; a < 3; a++) {
+                            lo[a] = Math.min(lo[a], data[i + a]);
+                            hi[a] = Math.max(hi[a], data[i + a]);
+                        }
+                    }
+                }
+            }
+            middle = lo[0] > hi[0] ? new float[3]
+                    : new float[]{(lo[0] + hi[0]) / 2f, (lo[1] + hi[1]) / 2f, (lo[2] + hi[2]) / 2f};
+        }
+        return middle;
     }
 
     /** Layers in draw order: cutout, then translucent, then emissive. */

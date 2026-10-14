@@ -15,6 +15,9 @@
     "modmenu": ["io.github.georgwav.cosmetics.compat.modmenu.ModMenuCompat"]
   },
   "mixins": ["cosmeticsmod.mixins.json"],
+  "custom": {
+    "cosmeticsmod:build": "${build}"
+  },
   "depends": {
     "fabricloader": ">=${loader}",
     "fabric-api": "*",

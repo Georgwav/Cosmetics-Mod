@@ -137,14 +137,14 @@ conversion used.
   flap);
 - hats, masks, glasses, ears, mouth and nose cosmetics, bandanas, necklaces, backpacks, tails and belts;
 - shields: shown instead of the vanilla shield while you hold one, at the size Badlion holds them
-  (`shieldModelData.armScale`), turned and mirrored as Badlion shows them in third person, and centred on the
-  vanilla shield's plate;
+  (`shieldModelData.armScale`), mirrored as Badlion shows them in third person, and centred on the vanilla
+  shield's plate (a shield that still faces the wrong way has **Turn around** on its Wardrobe page);
 - boots (one model on both feet) and armbands (on the left arm);
 - pets: on your left shoulder, on your head for pets Badlion puts there, and floating beside you for pets
   that only have an `air` animation. Their `shoulder` and `air` animations are styles; the mod plays `air`
   while a pet floats and `shoulder` elsewhere, and you can move any pet in its Wardrobe page;
-- animated textures (as frame strips with their timing), glow layers, see-through cosmetics, default colours,
-  and whether Badlion lets the cosmetic be recoloured (chroma, saturation);
+- animated textures (as frame strips with their timing), glow layers, see-through cosmetics and default colours;
+  every cosmetic can be recoloured, whatever Badlion allowed;
 - what each counts as when you wear one of a kind at a time (Badlion's type: a hat, ears, a mask, ...), so
   putting on new wings takes off the old ones but not your backpack;
 - each model's texture direction: when the model's texture coordinates, read the other way up, land clearly

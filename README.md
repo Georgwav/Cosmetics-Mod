@@ -78,8 +78,8 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 ### Emotes
 
 Hold **B** (the "Emote wheel" key in Controls), point at an emote on the wheel and let go, or tap B and click
-one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking or getting hurt stops it, as does
-Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
+one: your player plays it and the camera moves in front of you. Walking, jumping, sneaking or getting hurt stops it, as do
+attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
 emotes. One plays until you land; moving doesn't stop it and the camera stays where it is. While it plays you

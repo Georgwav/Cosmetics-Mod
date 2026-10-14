@@ -149,9 +149,9 @@ def test_capes_default_to_v_up():
 def test_colours_and_options():
     assert convert.color_of(-1) is None and convert.color_of(0xFF8000) == "#FF8000"
     assert convert.color_of({"r": 1.0, "g": 0.5, "b": 0.0}) == "#FF8000"
-    assert convert.options_of(badlion.Cosmetic("HAT", 1, {"allowChroma": True})) == {"saturation": False}
-    assert convert.options_of(badlion.Cosmetic("HAT", 1, {"allowSaturation": True})) == {
-        "tint": False, "rainbow": False}
+    # Colour is the player's choice on every cosmetic, whatever Badlion allowed.
+    assert convert.options_of(badlion.Cosmetic("HAT", 1, {"allowChroma": True})) == {}
+    assert convert.options_of(badlion.Cosmetic("WINGS", 1, {"allowChroma": False})) == {}
 
 
 # ---------------------------------------------------------------------- the whole import
@@ -172,7 +172,7 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     cube = cape["parts"][0]["cubes"][0]
     assert cube["from"] == [-5, 0, -1] and cube["to"] == [5, 16, 0]
     assert cube["faces"]["north"] == [1, 1, 11, 17] and cube["faces"]["south"] == [12, 1, 22, 17]
-    assert cape["options"] == {"saturation": False}  # chroma allowed, saturation not
+    assert "options" not in cape  # every setting is the player's, colour included
     assert not (out / "assets/blc_import/models/cosmetic/cloak").exists()
     # Badlion's 22 x 23 layout is a 22 long cape, its UVs scaled to the (downscaled) texture.
     long = cosmetic(out, "cape_2_*.json")
@@ -202,10 +202,11 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     assert hat["parts"][1]["texture"] == "blc_import:textures/cosmetic/hat/hat_1_glow.png"
 
     # A backpack, placed from the middle of the back (its translation, half a block down, in blocks; 0.125
-    # blocks a unit is 2 pixels), see-through, untinted, with its own colour and V flipped (flipUVs).
+    # blocks a unit is 2 pixels), see-through, colourable even though Badlion's applyChroma is off, with its own
+    # colour and V flipped (flipUVs).
     back = cosmetic(out, "back_4_*.json")
     part = back["parts"][0]
-    assert back["slot"] == "back" and part["mode"] == "translucent" and part["tint"] is False
+    assert back["slot"] == "back" and part["mode"] == "translucent" and "tint" not in part
     assert back["default_color"] == "#FF8000"
     assert part["meshes"][0]["offset"] == [0, 14, 2] and part["meshes"][0]["scale"] == 2.0
     assert part["meshes"][0]["flip_v"] is True
@@ -213,12 +214,12 @@ def test_import_writes_a_pack_of_the_owned_wearable_cosmetics(input_folder, tmp_
     obj = (out / "assets/blc_import/models/cosmetic/back/pack.obj").read_text()
     assert "100000" not in obj
 
-    # A shield: in place of the held shield, at its arm scale (0.125 blocks a unit), turned half round as
-    # Badlion turns it in third person, its middle on the vanilla shield's plate.
+    # A shield: in place of the held shield, at its arm scale (0.125 blocks a unit), not turned by Badlion's
+    # third-person half turn (that showed it back to front), its middle on the vanilla shield's plate.
     shield = cosmetic(out, "shield_3_*.json")
     assert shield["slot"] == "shield"
     shield_mesh = shield["parts"][0]["meshes"][0]
-    assert same_rotation(shield_mesh["rotation"], [180, 180, 0])
+    assert same_rotation(shield_mesh["rotation"], [180, 0, 0])
     assert shield_mesh["scale"] == 2.0
     m = convert.rotation_matrix(shield_mesh["rotation"])
     middle = convert.apply(m, [0, -10 * 2.0, -4 * 2.0])  # the hat box's middle, scaled
@@ -299,6 +300,11 @@ def test_shields_are_centred_and_mirrored_as_badlion_scales_them():
     bounds = ((-4, -4, 0), (4, 4, 3.4))
     place = convert.shield_placement(goat, bounds, False, convert.RULES["SHIELD"], convert.TypeSettings())
     assert place.mirror and place.scale == 2.0
+    # The half turn of `rotate` isn't applied: the same as the shield without it.
+    plain = badlion.Model("SHIELD", "plain", {"scale": 0.0, "shieldModelData": {"armScale": 0.125, "thirdPerson": {
+        "scale": {"x": 1.0, "y": 1.0, "z": -1.0}}}})
+    assert place.rotation == convert.shield_placement(plain, bounds, False, convert.RULES["SHIELD"],
+                                                      convert.TypeSettings()).rotation
     m = convert.rotation_matrix(place.rotation)
     middle = convert.apply(m, [-0.0 * 2.0, 0.0, 1.7 * 2.0])  # mirrored X first, then turned
     assert close([middle[i] + place.offset[i] for i in range(3)], [0, 0, -1.5])

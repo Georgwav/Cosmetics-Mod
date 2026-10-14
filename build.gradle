@@ -75,9 +75,13 @@ tasks.named('test') {
     }
 }
 
+// Which commit the jar was built from, shown in the Wardrobe so it's clear which build is running.
+def buildId = (System.getenv('GITHUB_SHA') ?: 'local').take(7)
+
 processResources {
     def props = [
             version  : project.version.toString(),
+            build    : buildId,
             minecraft: minecraftDependency,
             loader   : loaderMinimum,
             java     : javaVersion.toString(),

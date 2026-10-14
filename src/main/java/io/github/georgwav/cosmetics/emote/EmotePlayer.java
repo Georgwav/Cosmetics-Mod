@@ -25,6 +25,8 @@ public final class EmotePlayer {
     private static final float MIN_STOP_FADE = 0.15f;
     /** Moving in the first moments of an emote doesn't stop it (you may still be sliding from a step). */
     private static final float GRACE_SECONDS = 0.3f;
+    /** Clicks in the first moment of an emote don't stop it (the click that picked it on the wheel). */
+    private static final float ACTION_GRACE_SECONDS = 0.15f;
 
     private static Emote current;
     /** Played while gliding with an elytra. */
@@ -102,10 +104,23 @@ public final class EmotePlayer {
             end(client);
             return;
         }
-        if (stopNanos == 0L && (elytra ? !player.isFallFlying()
-                : CosmeticsConfig.get().emoteStopOnMove && interrupted(player))) {
+        if (stopNanos == 0L && (acted(client, player) || (elytra ? !player.isFallFlying()
+                : CosmeticsConfig.get().emoteStopOnMove && interrupted(player)))) {
             stop();
         }
+    }
+
+    /**
+     * Doing something always stops an emote, an elytra emote too: attacking (or punching), using an item (a
+     * rocket while gliding, eating, blocking) or sneaking.
+     */
+    private static boolean acted(Minecraft client, LocalPlayer player) {
+        if (seconds(startNanos) < ACTION_GRACE_SECONDS) {
+            return false;
+        }
+        var options = client.options;
+        return options.keyAttack.isDown() || options.keyUse.isDown() || options.keyShift.isDown()
+                || player.isUsingItem();
     }
 
     private static boolean interrupted(LocalPlayer player) {

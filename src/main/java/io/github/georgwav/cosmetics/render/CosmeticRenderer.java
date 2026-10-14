@@ -155,6 +155,7 @@ public final class CosmeticRenderer {
                         poseStack.translate((part == 0 ? 1f : -1f) / 16f, 4f / 16f, 0f);
                     }
                     applyPlacement(poseStack, options, cosmetic);
+                    applyTurn(poseStack, options, cosmetic);
                     int color = Tint.argb(options, cosmetic, seconds);
                     // Options the cosmetic doesn't allow keep the creator's setting: glowing, animated at speed 1.
                     boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
@@ -219,7 +220,8 @@ public final class CosmeticRenderer {
                 continue;
             }
             int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
-            int layerColor = layer.tinted() ? color : WHITE;
+            // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be.
+            int layerColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer()) ? color : WHITE;
             TextureFrames frames = layer.textureFrames();
             int frame = frames != null && animate ? frames.frameAt(seconds, animationSpeed) : 0;
             // Pushes for this layer only; undone even if drawing throws, so the next cosmetic (and
@@ -299,6 +301,7 @@ public final class CosmeticRenderer {
             poseStack.scale(1f, -1f, -1f);
             CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
             applyPlacement(poseStack, options, cosmetic);
+            applyTurn(poseStack, options, cosmetic);
             boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
             boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
             float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
@@ -336,6 +339,7 @@ public final class CosmeticRenderer {
         if (cosmetic.bones() != null) {
             cosmetic.bones().poseStill();
         }
+        applyTurn(poseStack, options, cosmetic);
         drawLayers(poseStack, cosmetic, MeshEmitter.FULL_BRIGHT, Tint.argb(options, cosmetic, 0.0), glow, false, 1f,
                 style, 0f, wings, wingAngle, 0.0, 0.0, false, null, null, sink);
     }
@@ -380,6 +384,17 @@ public final class CosmeticRenderer {
     }
 
     /** The user's per-cosmetic offset and size, around the anchor's pivot, if the cosmetic allows them. */
+    /** Turns a cosmetic the player turned round half a turn around the upright line through its middle. */
+    private static void applyTurn(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options, BakedCosmetic cosmetic) {
+        if (!options.turned) {
+            return;
+        }
+        float[] middle = cosmetic.middle();
+        poseStack.translate(middle[0], 0f, middle[2]);
+        rotate(poseStack, ROTATION.rotationY((float) Math.PI));
+        poseStack.translate(-middle[0], 0f, -middle[2]);
+    }
+
     private static void applyPlacement(PoseStack poseStack, CosmeticsConfig.CosmeticOptions options,
                                        BakedCosmetic cosmetic) {
         if ((options.offsetX != 0f || options.offsetY != 0f || options.offsetZ != 0f)
