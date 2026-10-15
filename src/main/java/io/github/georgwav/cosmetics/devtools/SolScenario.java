@@ -36,7 +36,7 @@ public final class SolScenario {
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
-            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "keys", "gallery", "crash", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -483,6 +483,26 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
             return;
         }
+        if (what.equals("mods_browse")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(null, ""));
+            return;
+        }
+        if (what.equals("keys")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(null));
+            return;
+        }
+        if (what.equals("gallery")) {
+            sampleScreenshots();
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(null));
+            return;
+        }
+        if (what.equals("crash")) {
+            var crash = sampleCrash();
+            if (crash != null) {
+                io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.CrashHelperScreen(null, crash));
+            }
+            return;
+        }
         if (what.equals("title")) {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.SolTitleScreen());
             return;
@@ -535,6 +555,57 @@ public final class SolScenario {
         } else {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
                     io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
+        }
+    }
+
+    /** The gallery shot's pictures: a few themes' frames as screenshots, when the folder has none. */
+    private static void sampleScreenshots() {
+        java.nio.file.Path dir = io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery.folder();
+        try {
+            java.nio.file.Files.createDirectories(dir);
+            try (var files = java.nio.file.Files.list(dir)) {
+                if (files.anyMatch(p -> p.toString().endsWith(".png"))) {
+                    return;
+                }
+            }
+            int i = 0;
+            for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+                if (!e.builtIn() || i >= 10) {
+                    continue;
+                }
+                int[] px = io.github.georgwav.cosmetics.sol.util.MiniSky.render(e.base(), e.id(), 480, 270, 3f + i).toArgb(null);
+                java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(480, 270, java.awt.image.BufferedImage.TYPE_INT_RGB);
+                img.setRGB(0, 0, 480, 270, px, 0, 480);
+                java.nio.file.Path f = dir.resolve(String.format(java.util.Locale.ROOT, "2026-10-14_21.%02d.00.png", 10 + i));
+                javax.imageio.ImageIO.write(img, "png", f.toFile());
+                f.toFile().setLastModified(System.currentTimeMillis() - (10 - i) * 3_600_000L);
+                i++;
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            CosmeticsMod.LOGGER.warn("[Sol] Couldn't write the gallery's sample screenshots", e);
+        }
+    }
+
+    /** The crash helper shot's report: a made-up crash in a made-up mod. */
+    private static io.github.georgwav.cosmetics.sol.client.CrashHelper.Crash sampleCrash() {
+        try {
+            java.nio.file.Path dir = io.github.georgwav.cosmetics.sol.client.CrashHelper.folder();
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path f = dir.resolve("crash-2026-10-14_21.03.11-client.txt");
+            java.nio.file.Files.writeString(f, String.join("\n", "---- Minecraft Crash Report ----", "// Oops.", "",
+                    "Time: 2026-10-14 21:03:11", "Description: Rendering screen", "",
+                    "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"label\" is null",
+                    "\tat com.example.fancymenu.Widgets.label(Widgets.java:42)",
+                    "\tat net.minecraft.client.gui.screens.TitleScreen.handler$zza000$fancymenu$onRender(TitleScreen.java:9001)",
+                    "\tat net.minecraft.client.gui.screens.TitleScreen.render(TitleScreen.java:300)", ""));
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().lastCrashSeen = 0L;
+            var crash = io.github.georgwav.cosmetics.sol.client.CrashHelper.unseen();
+            // Read: gone again, so the run's own crash check doesn't take it for a real one.
+            java.nio.file.Files.deleteIfExists(f);
+            return crash;
+        } catch (java.io.IOException | RuntimeException e) {
+            CosmeticsMod.LOGGER.warn("[Sol] Couldn't write the crash helper's sample report", e);
+            return null;
         }
     }
 

@@ -76,10 +76,11 @@ final class ModsSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.mods.count", styled.size() + overlaps.size() + alongside.size(), overlaps.size()),
                 x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
-        List<String> missing = new ArrayList<>();
+        List<String> missing = new ArrayList<>(), missingIds = new ArrayList<>();
         for (String id : new String[]{"lithium", "ferritecore", "immediatelyfast"}) {
             if (!FabricLoader.getInstance().isModLoaded(id)) {
                 missing.add(SolMenu.tr("sol.mods." + id));
+                missingIds.add(id);
             }
         }
         float hr = x + w;
@@ -91,9 +92,13 @@ final class ModsSection implements Section {
                 }
             }) + 8f;
         }
+        hr -= ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.browse"), true,
+                () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(menu, ""))) + 8f;
         if (!missing.isEmpty()) {
+            // The speed mods worth having: the browser, searching for the first one missing.
+            String first = missingIds.get(0);
             ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.worth", String.join(", ", missing)), false,
-                    () -> menu.toast(SolMenu.tr("sol.notify.worth_adding")));
+                    () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(menu, first)));
         }
 
         float gy = y + 42f, gh = h - 42f;

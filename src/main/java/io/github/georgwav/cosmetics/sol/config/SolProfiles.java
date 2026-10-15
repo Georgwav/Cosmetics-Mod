@@ -111,6 +111,53 @@ public final class SolProfiles {
         }
     }
 
+    /** A server's host as profiles keep it: lower case, without the default port. */
+    public static String host(String address) {
+        if (address == null) {
+            return "";
+        }
+        String h = address.trim().toLowerCase(java.util.Locale.ROOT);
+        return h.endsWith(":25565") ? h.substring(0, h.length() - 6) : h;
+    }
+
+    /** Whether the active profile is used on this server. */
+    public static boolean usedOn(String address) {
+        String h = host(address);
+        return servers.stream().anyMatch(s -> host(s).equals(h));
+    }
+
+    /** Uses the active profile on this server, or stops. */
+    public static void setUsedOn(String address, boolean on) {
+        String h = host(address);
+        servers.removeIf(s -> host(s).equals(h));
+        if (on && !h.isEmpty()) {
+            servers.add(h);
+        }
+        changed();
+    }
+
+    /** The profile kept for this server (the first by name), or null. */
+    public static String forServer(String address) {
+        String h = host(address);
+        if (h.isEmpty()) {
+            return null;
+        }
+        if (usedOn(h)) {
+            return active();
+        }
+        for (String name : names()) {
+            JsonObject p = read(name);
+            if (p != null && p.has("servers") && p.get("servers").isJsonArray()) {
+                for (JsonElement e : p.getAsJsonArray("servers")) {
+                    if (e.isJsonPrimitive() && host(e.getAsString()).equals(h)) {
+                        return name;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     /** Switches to a profile: modules, theme, accent, edits, pins. False when it can't be read. */
     public static boolean switchTo(String name) {
         JsonObject p = read(name);

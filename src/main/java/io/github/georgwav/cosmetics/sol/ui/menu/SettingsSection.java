@@ -35,7 +35,8 @@ final class SettingsSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
 
-        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "main_folder", "updates"};
+        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "keys", "screenshots",
+                "main_folder", "updates"};
         Row[] rows = {
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.solUi, () -> {
                     cfg.solUi = !cfg.solUi;
@@ -77,6 +78,10 @@ final class SettingsSection implements Section {
                 },
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.cosmetics_open"), false,
                         () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, "settings"))),
+                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
+                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(menu))),
+                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
+                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(menu))),
                 (gg, u, t, r, cy) -> {
                     // Click to choose another folder; Threadrinth's app folder is offered when it's on this computer.
                     String name = MainFolder.isDefault() ? ".minecraft" : MainFolder.folder().getFileName().toString();
@@ -86,7 +91,24 @@ final class SettingsSection implements Section {
                         u.button(t, r - bw - 6f, cy, SolMenu.tr("cosmeticsmod.hub.skins.use_launcher"), false, () -> useFolder(menu, launcher));
                     }
                 },
-                (gg, u, t, r, cy) -> u.pill(t, r, cy, VERSION, true),
+                (gg, u, t, r, cy) -> {
+                    // The version, and looking for (or installing) a newer one from GitHub Releases.
+                    String state = io.github.georgwav.cosmetics.sol.client.Updates.state();
+                    var rel = io.github.georgwav.cosmetics.sol.client.Updates.available();
+                    float bw;
+                    if (state.equals("available") && rel != null) {
+                        bw = u.button(t, r, cy, SolMenu.tr("sol.menu.settings.update_install", rel.version()), true,
+                                io.github.georgwav.cosmetics.sol.client.Updates::install);
+                    } else if (state.equals("staged")) {
+                        bw = u.pill(t, r, cy, SolMenu.tr("sol.menu.settings.update_restart"), true);
+                    } else if (state.equals("checking") || state.equals("downloading")) {
+                        bw = u.pill(t, r, cy, SolMenu.tr("sol.menu.loading"), false);
+                    } else {
+                        bw = u.button(t, r, cy, SolMenu.tr("sol.menu.settings.update_check"), false,
+                                () -> io.github.georgwav.cosmetics.sol.client.Updates.check(true));
+                    }
+                    u.pill(t, r - bw - 8f, cy, VERSION, false);
+                },
         };
         float gy = y + 42f, gh = h - 42f;
         g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);

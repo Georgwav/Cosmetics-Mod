@@ -56,7 +56,7 @@ public final class Screenshots extends Module {
     }
 
     /** Puts a PNG on the clipboard with the system's tool; false if none worked. */
-    static boolean copy(File png) {
+    public static boolean copy(File png) {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String path = png.getAbsolutePath();
         List<List<String>> tries;

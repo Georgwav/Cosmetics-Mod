@@ -35,12 +35,21 @@ public final class KeyBinds {
         if (mapping.isUnbound()) {
             return false;
         }
+        if (debugCombo(mapping)) {
+            return false;
+        }
         for (KeyMapping other : Minecraft.getInstance().options.keyMappings) {
-            if (other != mapping && mapping.same(other)) {
+            if (other != mapping && mapping.same(other) && !debugCombo(other)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** The debug keys from 1.21.9 that only work with F3 held (F3+A, F3+D...): they share keys by design. */
+    private static boolean debugCombo(KeyMapping m) {
+        String n = m.getName();
+        return n.startsWith("key.debug.") && !n.equals("key.debug.overlay") && !n.equals("key.debug.modifier");
     }
 
     // A keyboard key pressed: by its key code, or by its scan code when it has none (as the game reads it).
@@ -133,5 +142,14 @@ public final class KeyBinds {
     /** The key's name as the game shows it ("B", "Mouse Button 4", "Not Bound"). */
     public static String name(KeyMapping mapping) {
         return mapping == null ? "" : mapping.getTranslatedKeyMessage().getString();
+    }
+
+    /** The key bind's group as the Controls screen names it ("Movement", "Multiplayer", a mod's own). */
+    public static String category(KeyMapping mapping) {
+        //? if >=1.21.9 {
+        return mapping.getCategory().label().getString();
+        //?} else {
+        /*return net.minecraft.network.chat.Component.translatable(mapping.getCategory()).getString();
+        *///?}
     }
 }

@@ -39,6 +39,8 @@ public final class Sol {
         // Cosmetics set to follow the theme take its accent or glow.
         io.github.georgwav.cosmetics.render.Tint.theme = which -> which == 1 ? ThemeState.tokens().glow : ThemeState.tokens().accent;
         io.github.georgwav.cosmetics.sol.compat.AppleSkinBridge.init();
+        io.github.georgwav.cosmetics.sol.client.ServerProfiles.register();
+        io.github.georgwav.cosmetics.sol.client.Updates.registerSwap();
         SolScenario.init();
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }

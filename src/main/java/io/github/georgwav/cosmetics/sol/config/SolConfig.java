@@ -44,6 +44,8 @@ public final class SolConfig {
     public java.util.List<String> solUiOff = new java.util.ArrayList<>();
     /** Notifications the player has turned off, by kind. */
     public java.util.List<String> mutedNotifications = new java.util.ArrayList<>();
+    /** The newest crash report the crash helper has shown (its file time, ms). */
+    public long lastCrashSeen;
 
     public static final class Music {
         public String ciderHost = "127.0.0.1";
@@ -63,6 +65,8 @@ public final class SolConfig {
     public static final class Updates {
         public String repo = "georgwav/cosmetics-mod";
         public boolean check = true;
+        /** When updates were last looked for (ms); once a day. */
+        public long lastCheck;
     }
 
     private static SolConfig current;
