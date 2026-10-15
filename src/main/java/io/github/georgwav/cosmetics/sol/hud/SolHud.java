@@ -53,7 +53,9 @@ public final class SolHud {
         // Restyled rather than redrawn (SolHudCards): the game still lays them out and writes their text.
         BOSS("boss"), SIDEBAR("sidebar"), TAB("tab"), ACTION_BAR("action_bar"),
         // The client's HUD modules (Stats, Coordinates, ...) in Sol's glass.
-        MODULES("modules");
+        MODULES("modules"),
+        // The chat's backgrounds in the theme's panel colour.
+        CHAT("chat");
 
         public final String id;
 

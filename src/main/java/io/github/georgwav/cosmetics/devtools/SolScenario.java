@@ -485,6 +485,10 @@ public final class SolScenario {
                     hudShown.add(m);
                 }
             }
+            if (!io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.enabled()) {
+                io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.setEnabled(true);
+                hudShown.add(io.github.georgwav.cosmetics.client.Modules.SOL_CHAT);
+            }
             // Stats with a few lines, Coordinates with the biome.
             for (var setting : io.github.georgwav.cosmetics.client.Modules.STATS.settings()) {
                 if (java.util.Set.of("cps", "ping", "clock").contains(setting.id) && Boolean.FALSE.equals(setting.get())) {
@@ -579,7 +583,10 @@ public final class SolScenario {
                     "scoreboard objectives add solshow dummy {\"text\":\"Sol Client\",\"color\":\"gold\"}",
                     "scoreboard objectives setdisplay sidebar solshow", "scoreboard objectives setdisplay list solshow",
                     "scoreboard players set @s solshow 23", "scoreboard players set Kills solshow 12",
-                    "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450"));
+                    "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450",
+                    // Chat: a repeat that stacks, a mention of you, an emoji.
+                    "tellraw @a \"[Sol] Welcome to the showcase\"", "tellraw @a \"[Sol] Welcome to the showcase\"",
+                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\""));
         }
         if (on) {
             cfg.solUi = !vanilla;

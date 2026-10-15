@@ -146,4 +146,35 @@ public abstract class Setting<T> {
             }
         }
     }
+
+    /** A line of text (up to {@code max} characters): what an auto-text key sends, a word to be mentioned by. */
+    public static final class Text extends Setting<String> {
+        public final int max;
+
+        public Text(String id, String def, int max) {
+            super(id, def);
+            this.max = max;
+        }
+
+        @Override
+        protected String clean(String v) {
+            if (v == null) {
+                return def;
+            }
+            String flat = v.replaceAll("[\\r\\n\\t]", " ");
+            return flat.length() > max ? flat.substring(0, max) : flat;
+        }
+
+        @Override
+        JsonElement save() {
+            return new JsonPrimitive(value);
+        }
+
+        @Override
+        void load(JsonElement json) {
+            if (json.isJsonPrimitive() && json.getAsJsonPrimitive().isString()) {
+                value = clean(json.getAsString());
+            }
+        }
+    }
 }

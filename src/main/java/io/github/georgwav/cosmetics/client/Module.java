@@ -103,6 +103,11 @@ public abstract class Module {
         keys.put(name, null);
     }
 
+    /** Its other keys' names, in the order declared. */
+    public java.util.Set<String> keyNames() {
+        return keys.keySet();
+    }
+
     /** One of its other keys, or null before startup. */
     public KeyMapping key(String name) {
         return keys.get(name);

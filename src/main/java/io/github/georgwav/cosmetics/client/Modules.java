@@ -17,6 +17,7 @@ import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.Movement;
+import io.github.georgwav.cosmetics.client.modules.SolChat;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -47,11 +48,12 @@ public final class Modules {
     public static final CoordinatesHud COORDINATES = new CoordinatesHud();
     public static final ArmourItemsHud ARMOUR_ITEMS = new ArmourItemsHud();
     public static final PotionEffectsHud POTION_EFFECTS = new PotionEffectsHud();
+    public static final SolChat SOL_CHAT = new SolChat();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
     private static final List<Module> ALL = List.of(ATMOSPHERE, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, SOL_CHAT);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
 
     private static boolean loading;

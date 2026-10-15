@@ -126,4 +126,17 @@ public final class SolHudCards {
             SolHud.end(c);
         });
     }
+
+    /**
+     * The chat's line backgrounds: the game's black at its own opacity becomes the theme's panel colour while Sol
+     * UI draws the chat (its other fills, the scroll bar and the message tags, keep their colours).
+     */
+    public static int chatTint(int argb) {
+        if ((argb & 0xFFFFFF) != 0 || !SolHud.draws(SolHud.Part.CHAT)) {
+            return argb;
+        }
+        SolHud.DRAWN[SolHud.Part.CHAT.ordinal()]++;
+        int a = Math.min(255, Math.round((argb >>> 24) * 1.15f));
+        return (a << 24) | (ThemeState.tokens().panel & 0xFFFFFF);
+    }
 }

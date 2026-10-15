@@ -32,7 +32,10 @@ public final class ModuleDrawer {
     private final Scroll scroll = new Scroll();
     private boolean advancedOpen;
     private float knob;
-    private boolean bindingKey;
+    /** The key waiting for a new binding, or null. */
+    private KeyMapping binding;
+    /** The text settings' fields. */
+    private final java.util.Map<Setting.Text, io.github.georgwav.cosmetics.sol.ui.kit.TextField> fields = new java.util.HashMap<>();
     private SolTexture sky;
     private String skyFor;
     private int skyGeneration = -1;
@@ -73,11 +76,11 @@ public final class ModuleDrawer {
         float rowY = by - scroll.value();
         // The key sits on top when it's bound (the prototype's Zoom on C); an unbound one waits under Advanced.
         KeyMapping key = module.toggleKey();
-        boolean keyOnTop = key != null && (bindingKey || !key.isUnbound());
+        boolean keyOnTop = key != null && (binding == key || !key.isUnbound());
         if (keyOnTop) {
             rowY = keyRow(g, ui, tk, key, x, w, rowY);
         }
-        int advanced = key != null && !keyOnTop ? 1 : 0;
+        int advanced = (key != null && !keyOnTop ? 1 : 0) + module.keyNames().size();
         for (Setting<?> st : module.settings()) {
             if (st.advanced) {
                 advanced++;
@@ -100,6 +103,13 @@ public final class ModuleDrawer {
             if (advancedOpen) {
                 if (key != null && !keyOnTop) {
                     rowY = keyRow(g, ui, tk, key, x, w, rowY);
+                }
+                for (String name : module.keyNames()) {
+                    KeyMapping other = module.key(name);
+                    if (other != null) {
+                        rowY = keyRow(g, ui, tk, other, x, w, rowY,
+                                net.minecraft.network.chat.Component.translatable(other.getName()).getString());
+                    }
                 }
                 for (Setting<?> st : module.settings()) {
                     if (st.advanced) {
@@ -127,9 +137,14 @@ public final class ModuleDrawer {
     }
 
     private float keyRow(Gfx g, Ui ui, Tokens tk, KeyMapping key, float x, float w, float y) {
-        float next = row(g, x, w, y, SolMenu.tr("sol.menu.drawer.key"));
-        String label = bindingKey ? SolMenu.tr("sol.menu.drawer.press_key") : KeyBinds.name(key);
-        ui.button(tk, x + w - 14f, y + 13f, label, bindingKey, () -> bindingKey = !bindingKey);
+        return keyRow(g, ui, tk, key, x, w, y, SolMenu.tr("sol.menu.drawer.key"));
+    }
+
+    private float keyRow(Gfx g, Ui ui, Tokens tk, KeyMapping key, float x, float w, float y, String name) {
+        float next = row(g, x, w, y, name);
+        boolean waiting = binding == key;
+        String label = waiting ? SolMenu.tr("sol.menu.drawer.press_key") : KeyBinds.name(key);
+        ui.button(tk, x + w - 14f, y + 13f, label, waiting, () -> binding = waiting ? null : key);
         return next;
     }
 
@@ -162,6 +177,13 @@ public final class ModuleDrawer {
         } else if (st instanceof Setting.Slider sl) {
             float v = (float) ((sl.get() - sl.min) / Math.max(1e-9, sl.max - sl.min));
             ui.slider(tk, right, cy, v, sl.text(), k -> sl.set(sl.min + k * (sl.max - sl.min)));
+        } else if (st instanceof Setting.Text t) {
+            var field = fields.computeIfAbsent(t, k -> new io.github.georgwav.cosmetics.sol.ui.kit.TextField(k.max, k::set));
+            if (!field.focused()) {
+                field.set(t.get());
+            }
+            float fw = w * 0.5f;
+            field.draw(g, ui, tk, right - fw, cy - 13f, fw, 26f, null, SolMenu.tr("sol.menu.drawer.text_hint"), menu.dt());
         } else if (st instanceof Setting.Choice c) {
             String[] names = new String[c.options.size()];
             float total = 0f;
@@ -227,16 +249,27 @@ public final class ModuleDrawer {
     }
 
     boolean typed(String text) {
+        for (var field : fields.values()) {
+            if (field.typed(text)) {
+                return true;
+            }
+        }
         return false;
     }
 
     /** While waiting for a key to bind: that key, or Esc to clear it. */
     boolean key(int key, boolean ctrl) {
-        if (!bindingKey || module.toggleKey() == null) {
+        for (var field : fields.values()) {
+            if (field.key(key, ctrl)) {
+                return true;
+            }
+        }
+        if (binding == null) {
             return false;
         }
-        bindingKey = false;
-        KeyBinds.bind(module.toggleKey(), key == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN : KeyBinds.keyboard(key, 0));
+        KeyMapping target = binding;
+        binding = null;
+        KeyBinds.bind(target, key == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN : KeyBinds.keyboard(key, 0));
         Minecraft.getInstance().options.save();
         return true;
     }
