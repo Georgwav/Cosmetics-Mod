@@ -48,6 +48,11 @@ public final class Zoom extends Module {
         if (key == null) {
             return;
         }
+        if (!io.github.georgwav.cosmetics.sol.compat.Overlaps.solZooms()) {
+            // Zoomify does it (the Mods page): Sol's zoom stays still.
+            zooming = false;
+            return;
+        }
         boolean was = zooming;
         if (mode.get().equals("toggle")) {
             while (key.consumeClick()) {

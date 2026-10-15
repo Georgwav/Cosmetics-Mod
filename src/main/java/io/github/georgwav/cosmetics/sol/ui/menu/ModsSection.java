@@ -39,12 +39,14 @@ final class ModsSection implements Section {
             Map.entry("voxy", new Known("voxy", "grid", Kind.NOTE)),
             Map.entry("distanthorizons", new Known("distanthorizons", "grid", Kind.NOTE)),
             Map.entry("modmenu", new Known("modmenu", "puzzle", Kind.NOTE)),
-            Map.entry("chat_heads", new Known("chat_heads", "chat", Kind.OVERLAP)),
+            Map.entry("chat_heads", new Known("chat_heads", "chat", Kind.NOTE)),
             Map.entry("zoomify", new Known("zoomify", "zoom", Kind.OVERLAP)),
-            Map.entry("shulkerboxtooltip", new Known("shulkerboxtooltip", "chest", Kind.OVERLAP)),
-            Map.entry("controlling", new Known("controlling", "key", Kind.OVERLAP)),
+            Map.entry("ok_zoomer", new Known("ok_zoomer", "zoom", Kind.OVERLAP)),
+            Map.entry("shulkerboxtooltip", new Known("shulkerboxtooltip", "chest", Kind.NOTE)),
+            Map.entry("controlling", new Known("controlling", "key", Kind.NOTE)),
             Map.entry("freelook", new Known("freelook", "eye", Kind.OVERLAP)),
-            Map.entry("screenshot_viewer", new Known("screenshot_viewer", "camera", Kind.OVERLAP)));
+            Map.entry("perspectivemod", new Known("perspectivemod", "eye", Kind.OVERLAP)),
+            Map.entry("screenshot_viewer", new Known("screenshot_viewer", "camera", Kind.NOTE)));
 
     private final Scroll scroll = new Scroll();
 
@@ -139,7 +141,8 @@ final class ModsSection implements Section {
             float actionsW;
             float cy = ry + rh / 2f;
             if (kind == Kind.OVERLAP) {
-                String choice = SolConfig.get().overlaps.getOrDefault(id, "sol");
+                // The installed mod keeps the job until Sol is picked (D7).
+                String choice = SolConfig.get().overlaps.getOrDefault(id, "mod");
                 String[] options = {SolMenu.tr("sol.menu.mods.by_sol"), mod.getMetadata().getName()};
                 actionsW = ui.segmented(tk, x + w - 12f, cy, options, choice.equals("sol") ? 0 : 1, i -> {
                     SolConfig.get().overlaps.put(id, i == 0 ? "sol" : "mod");

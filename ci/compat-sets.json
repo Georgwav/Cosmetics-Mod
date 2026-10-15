@@ -52,5 +52,21 @@
     "mods": [
       "modmenu"
     ]
+  },
+  "kept-hud": {
+    "mods": [
+      "appleskin",
+      "xaeros-minimap",
+      "jade",
+      "simple-voice-chat"
+    ]
+  },
+  "overlaps": {
+    "mods": [
+      "zoomify",
+      "chat-heads",
+      "shulkerboxtooltip",
+      "controlling"
+    ]
   }
 }

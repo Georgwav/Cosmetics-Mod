@@ -1038,5 +1038,12 @@
   "sol.notify.mod_installed": "%s installed (%s files): restart to load it",
   "sol.notify.mod_failed": "Couldn't install %s",
   "sol.menu.settings.fast_quit": "Fast quit (worlds save in the background)",
-  "sol.menu.settings.pack_folders": "Resource pack folders (packs in subfolders)"
+  "sol.menu.settings.pack_folders": "Resource pack folders (packs in subfolders)",
+  "sol.mods.ok_zoomer.note": "Zoom",
+  "sol.mods.perspectivemod.note": "Freelook",
+  "sol.mods.chat_heads.pill": "Heads in chat",
+  "sol.mods.shulkerboxtooltip.pill": "Box previews",
+  "sol.mods.controlling.pill": "Sol has Keys too",
+  "sol.mods.screenshot_viewer.pill": "Sol has a gallery too",
+  "sol.pack.kept_mods": "Sol for kept mods"
 }

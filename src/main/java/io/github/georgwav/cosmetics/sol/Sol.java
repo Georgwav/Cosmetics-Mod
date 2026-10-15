@@ -42,6 +42,7 @@ public final class Sol {
         io.github.georgwav.cosmetics.sol.client.ServerProfiles.register();
         io.github.georgwav.cosmetics.sol.client.Updates.registerSwap();
         io.github.georgwav.cosmetics.sol.client.FastQuit.register();
+        io.github.georgwav.cosmetics.sol.compat.KeptModsPack.register();
         SolScenario.init();
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }

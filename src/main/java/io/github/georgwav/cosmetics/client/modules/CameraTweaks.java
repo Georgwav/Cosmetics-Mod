@@ -39,6 +39,11 @@ public final class CameraTweaks extends Module {
         var free = key("freelook");
         var snap = key("snaplook");
         boolean wantFree = freelooking;
+        if (!io.github.georgwav.cosmetics.sol.compat.Overlaps.solFreelooks()) {
+            // Freelook does it (the Mods page): Sol's stays still.
+            free = null;
+            wantFree = false;
+        }
         if (free != null) {
             if (freelookMode.get().equals("toggle")) {
                 while (free.consumeClick()) {
