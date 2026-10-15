@@ -964,7 +964,7 @@
   "cosmeticsmod.module.glint.in_inventory": "In inventories and the hotbar",
   "cosmeticsmod.module.glint.dropped": "On dropped items",
   "cosmeticsmod.module.glint.item_frames": "In item frames",
-  "cosmeticsmod.module.glint.armour": "On worn armour",
+  "cosmeticsmod.module.glint.armour": "On worn armour, elytras and horse armour",
   "key.cosmeticsmod.module.glint": "Glint on/off",
   "cosmeticsmod.module.glint.color.purple": "Purple (the game's)",
   "cosmeticsmod.module.glint.color2.purple": "Purple (the game's)",

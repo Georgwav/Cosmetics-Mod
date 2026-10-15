@@ -184,6 +184,9 @@ public abstract class Setting<T> {
      */
     public static final class Secret extends Text {
         private final String key;
+        /** The value, read from the file once; written back half a second after the typing stops. */
+        private volatile String cached;
+        private final java.util.concurrent.atomic.AtomicLong edits = new java.util.concurrent.atomic.AtomicLong();
 
         public Secret(String id, String secretKey, int max) {
             super(id, "", max);
@@ -192,17 +195,34 @@ public abstract class Setting<T> {
 
         @Override
         public String get() {
-            String v = io.github.georgwav.cosmetics.sol.config.Secrets.get(key);
-            return v == null ? "" : v;
+            String v = cached;
+            if (v == null) {
+                v = io.github.georgwav.cosmetics.sol.config.Secrets.get(key);
+                v = v == null ? "" : v;
+                cached = v;
+            }
+            return v;
         }
 
         @Override
         public void set(String v) {
             String next = clean(v).strip();
             if (!next.equals(get())) {
-                io.github.georgwav.cosmetics.sol.config.Secrets.put(key, next);
+                cached = next;
+                long edit = edits.incrementAndGet();
+                java.util.concurrent.CompletableFuture.delayedExecutor(500, java.util.concurrent.TimeUnit.MILLISECONDS,
+                        io.github.georgwav.cosmetics.sol.util.SolExecutors.IO).execute(() -> {
+                    if (edits.get() == edit) {
+                        io.github.georgwav.cosmetics.sol.config.Secrets.put(key, next);
+                    }
+                });
                 onChange.run();
             }
+        }
+
+        /** A module's Reset leaves a secret alone: clearing a key is for its own field. */
+        @Override
+        public void reset() {
         }
 
         @Override

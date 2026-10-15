@@ -718,10 +718,13 @@ public final class WardrobeScreen extends SolScreen {
         // The floor you stand on.
         g.radial(x + w / 2f, y + h - 62f, 96f, 16f, g.radialB.set(0, 0, 1).stop(0f, 0x33000000).stop(1f, 0), 32);
         // Drag to turn and tilt (the Elytra chip first, so a click on it isn't a drag).
-        String elytra = t("preview.elytra");
-        SolFont cf = g.font(SolFont.Family.MEDIUM, 12f);
-        float chipW = g.width(cf, elytra) + 22f;
-        ui.chip(tk, x + w - 12f - chipW, y + 24f, elytra, previewElytra, () -> previewElytra = !previewElytra);
+        // (Not on the mannequin: it has no elytra to show.)
+        if (!mannequinShown()) {
+            String elytra = t("preview.elytra");
+            SolFont cf = g.font(SolFont.Family.MEDIUM, 12f);
+            float chipW = g.width(cf, elytra) + 22f;
+            ui.chip(tk, x + w - 12f - chipW, y + 24f, elytra, previewElytra, () -> previewElytra = !previewElytra);
+        }
         ui.drag(x, y, w, h - 40f, (px, py) -> {
             if (Float.isNaN(dragX)) {
                 dragX = px;
@@ -744,37 +747,37 @@ public final class WardrobeScreen extends SolScreen {
     /** For the in-game test: the mannequin even in a world. */
     public static boolean forceMannequin;
 
+    /** Whether the preview is the mannequin: no world yet (or the in-game test asks for it). */
+    private boolean mannequinShown() {
+        return minecraft.player == null || forceMannequin;
+    }
+
     @Override
     protected void game(Canvas c, int mouseX, int mouseY) {
         double gs = minecraft.getWindow().getGuiScale();
         int x1 = (int) Math.round(d.sx(PREVIEW_X) / gs), x2 = (int) Math.round(d.sx(PREVIEW_X + PREVIEW_W) / gs);
         int y1 = (int) Math.round(d.sy(TOP + 40f) / gs), y2 = (int) Math.round(d.sy(BOTTOM - 44f) / gs);
-        if (minecraft.player == null || forceMannequin) {
-            if (mannequin == null) {
-                mannequin = new io.github.georgwav.cosmetics.ui.Mannequin("wardrobe", 256);
-            }
-            BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
-            boolean back = shown != null ? shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK || shown.wings() != null
-                    : previewElytra;
-            float target = previewSpin + (back ? 180f : 0f);
-            shownSpin += (target - shownSpin) * 0.2f;
-            shownPitch += (previewPitch - shownPitch) * 0.3f;
-            int side = Math.min(x2 - x1, y2 - y1);
-            mannequin.draw(c, (x1 + x2 - side) / 2, (y1 + y2 - side) / 2, side, -shownSpin, 8f + shownPitch, false);
-            return;
-        }
-        // The player about two thirds of the panel's height, with room above for halos and below for the feet.
-        int scale = Math.max(20, (int) ((y2 - y1) / 3.4f));
+        boolean onMannequin = mannequinShown();
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
         // Capes, wings and backpacks are worn on the back: turn round to show them, and the elytra when it shows.
         boolean back = shown != null ? shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK || shown.wings() != null
-                : previewElytra;
+                : previewElytra && !onMannequin;
         float target = previewSpin + (back ? 180f : 0f);
         shownSpin += (target - shownSpin) * 0.2f;
         if (Math.abs(target - shownSpin) < 0.5f) {
             shownSpin = target;
         }
         shownPitch += (previewPitch - shownPitch) * 0.3f;
+        if (onMannequin) {
+            if (mannequin == null) {
+                mannequin = new io.github.georgwav.cosmetics.ui.Mannequin("wardrobe", 256);
+            }
+            int side = Math.min(x2 - x1, y2 - y1);
+            mannequin.draw(c, (x1 + x2 - side) / 2, (y1 + y2 - side) / 2, side, -shownSpin, 8f + shownPitch, false);
+            return;
+        }
+        // The player about two thirds of the panel's height, with room above for halos and below for the feet.
+        int scale = Math.max(20, (int) ((y2 - y1) / 3.4f));
         if (previewElytra) {
             CapeElytra.wearingElytra(minecraft.player, () -> c.entityTurned(x1, y1, x2, y2, scale, 0.0625f, mouseX, mouseY,
                     minecraft.player, shownSpin, shownPitch));

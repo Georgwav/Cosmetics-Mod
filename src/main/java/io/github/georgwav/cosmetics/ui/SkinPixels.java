@@ -127,7 +127,11 @@ public final class SkinPixels {
         return new String[]{url.replace("http://", "https://"), slim ? "slim" : null};
     }
 
-    /** A skin from PNG bytes: 64 x 64, or an old 64 x 32 one with its left limbs copied from the right. */
+    /**
+     * A skin from PNG bytes, prepared as the game prepares downloaded skins: an old 64 x 32 one gets its left leg
+     * and arm as mirrored copies of the right ones (face by face) and a see-through hat only where it isn't all
+     * solid; the base layer (head, body, arms and legs under the outer layer) is made solid.
+     */
     static Skin decode(byte[] png, boolean slim) throws java.io.IOException {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
         if (image == null || image.getWidth() != 64 || (image.getHeight() != 64 && image.getHeight() != 32)) {
@@ -135,16 +139,52 @@ public final class SkinPixels {
         }
         int[] argb = new int[64 * 64];
         image.getRGB(0, 0, 64, image.getHeight(), argb, 0, 64);
-        if (image.getHeight() == 32) {
-            copy(argb, 0, 16, 16, 48, 16, 16);
-            copy(argb, 40, 16, 32, 48, 16, 16);
+        boolean legacy = image.getHeight() == 32;
+        if (legacy) {
+            int[][] rects = {{4, 16, 16, 32, 4, 4}, {8, 16, 16, 32, 4, 4}, {0, 20, 24, 32, 4, 12}, {4, 20, 16, 32, 4, 12},
+                    {8, 20, 8, 32, 4, 12}, {12, 20, 16, 32, 4, 12}, {44, 16, -8, 32, 4, 4}, {48, 16, -8, 32, 4, 4},
+                    {40, 20, 0, 32, 4, 12}, {44, 20, -8, 32, 4, 12}, {48, 20, -16, 32, 4, 12}, {52, 20, -8, 32, 4, 12}};
+            for (int[] r : rects) {
+                copyMirrored(argb, r[0], r[1], r[2], r[3], r[4], r[5]);
+            }
+            hatHack(argb);
         }
+        solid(argb, 0, 0, 32, 16);
+        solid(argb, 0, 16, 64, 32);
+        solid(argb, 16, 48, 48, 64);
         return new Skin(new SoftRaster.Texture(64, 64, argb), slim);
     }
 
-    private static void copy(int[] argb, int fromX, int fromY, int toX, int toY, int w, int h) {
-        for (int y = 0; y < h; y++) {
-            System.arraycopy(argb, (fromY + y) * 64 + fromX, argb, (toY + y) * 64 + toX, w);
+    /** The game's legacy copy: the rect at (x, y) to (x + dx, y + dy), mirrored left to right. */
+    private static void copyMirrored(int[] argb, int x, int y, int dx, int dy, int w, int h) {
+        for (int row = 0; row < h; row++) {
+            for (int col = 0; col < w; col++) {
+                argb[(y + dy + row) * 64 + x + dx + col] = argb[(y + row) * 64 + x + w - 1 - col];
+            }
+        }
+    }
+
+    /** An old skin's hat that's solid everywhere was never meant as a hat: it goes see-through. */
+    private static void hatHack(int[] argb) {
+        for (int y = 0; y < 16; y++) {
+            for (int x = 32; x < 64; x++) {
+                if ((argb[y * 64 + x] >>> 24) < 128) {
+                    return;
+                }
+            }
+        }
+        for (int y = 0; y < 16; y++) {
+            for (int x = 32; x < 64; x++) {
+                argb[y * 64 + x] &= 0x00FFFFFF;
+            }
+        }
+    }
+
+    private static void solid(int[] argb, int x0, int y0, int x1, int y1) {
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                argb[y * 64 + x] |= 0xFF000000;
+            }
         }
     }
 }

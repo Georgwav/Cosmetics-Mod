@@ -68,11 +68,6 @@ public final class Hypixel extends Module {
         return name.copy().append(Component.literal(" Lv " + level).withStyle(net.minecraft.ChatFormatting.AQUA));
     }
 
-    @Override
-    protected void onSettingsChanged(Minecraft mc) {
-        io.github.georgwav.cosmetics.sol.client.HypixelLevels.keyChanged();
-    }
-
     /** Whether you're on Hypixel now (the server's address, or Hypixel's Mod API said hello). */
     public static boolean onHypixelNow() {
         return onHypixel() || io.github.georgwav.cosmetics.sol.client.HypixelModApi.connected();

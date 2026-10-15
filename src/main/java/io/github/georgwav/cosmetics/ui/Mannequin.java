@@ -32,7 +32,8 @@ public final class Mannequin {
     private static final double REPAINT = 1.0 / 30.0;
 
     private final SoftRaster raster;
-    private final PictureTexture texture;
+    private final String name;
+    private PictureTexture texture;
     private final int size;
     private final float[] matrix = new float[12];
     private final float[] normal = new float[9];
@@ -47,13 +48,14 @@ public final class Mannequin {
     private Boolean modelSlim;
     private long lastPaint;
     private boolean painted;
+    private int generation = -1;
     /** For the in-game test: frames painted. */
     public static int framesPainted;
 
     public Mannequin(String name, int size) {
         this.size = size;
+        this.name = name;
         this.raster = new SoftRaster(size);
-        this.texture = new PictureTexture("mannequin/" + name, size);
     }
 
     /**
@@ -61,6 +63,18 @@ public final class Mannequin {
      * degrees (0: facing you) and seen from {@code pitch} degrees above; on the island when {@code island}.
      */
     public void draw(Canvas g, int x, int y, int drawSize, float yaw, float pitch, boolean island) {
+        if (texture == null) {
+            // First use, or used again after release (a screen opened over the title screen, then closed).
+            texture = new PictureTexture("mannequin/" + name, size);
+            painted = false;
+        }
+        if (generation != io.github.georgwav.cosmetics.model.CosmeticRegistry.generation()) {
+            // Cosmetics or resource packs reloaded: their textures may have changed.
+            generation = io.github.georgwav.cosmetics.model.CosmeticRegistry.generation();
+            textures.clear();
+            recolored.clear();
+            painted = false;
+        }
         long now = System.nanoTime();
         if (!painted || now - lastPaint > REPAINT * 1e9) {
             lastPaint = now;
@@ -77,7 +91,10 @@ public final class Mannequin {
     }
 
     public void release() {
-        texture.release();
+        if (texture != null) {
+            texture.release();
+            texture = null;
+        }
     }
 
     private void model(boolean slim) {
@@ -231,6 +248,10 @@ public final class Mannequin {
     }
 
     private SoftRaster.Texture recolored(String id, Recolor recolor) {
+        if (recolored.size() > 64) {
+            // A colour being dragged makes a copy per step: keep only the latest few.
+            recolored.clear();
+        }
         return recolored.computeIfAbsent(id + "\n" + recolor, k -> {
             SoftRaster.Texture base = texture(id);
             int[] out = new int[base.argb().length];
