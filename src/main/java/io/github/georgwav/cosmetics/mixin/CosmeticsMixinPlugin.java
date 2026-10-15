@@ -21,6 +21,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SolOverlayMixin");
         all.add("SolCloudsMixin");
         all.add("SolGameRendererMixin");
+        all.add("FoodDataMixin");
         //? if <1.21.11 {
         /*all.add("SolLightMixin");
         *///?}
@@ -53,7 +54,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         *///?} else {
         /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
-                "GuiMixin", "BossOverlayMixin");
+                "GuiMixin", "GuiAirMixin", "BossOverlayMixin");
         *///?}
     }
 

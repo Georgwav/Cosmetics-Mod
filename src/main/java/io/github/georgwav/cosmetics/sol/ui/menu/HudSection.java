@@ -3,7 +3,9 @@ package io.github.georgwav.cosmetics.sol.ui.menu;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
+import io.github.georgwav.cosmetics.sol.config.SolConfig;
 import io.github.georgwav.cosmetics.sol.config.SolProfiles;
+import io.github.georgwav.cosmetics.sol.hud.SolHud;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
@@ -70,6 +72,21 @@ final class HudSection implements Section {
         g.endClip();
         g.stroke(x, my, mw, mh, 12f, Math.max(1f, g.d.u), 0x24FFFFFF);
 
+        // Sol UI: the game's HUD in Sol's look, and which of its parts Sol draws (lit) or hands back to the game.
+        SolConfig cfg = SolConfig.get();
+        float sy = my + mh + 24f;
+        SolFont sf = g.font(SolFont.Family.MEDIUM, 13f);
+        g.textMid(sf, SolMenu.tr("sol.menu.hud.sol_ui"), x, sy, 0xFFFFFFFF);
+        ui.smallSwitch(tk, x + mw - 30f, sy - 9f, cfg.solUi, () -> {
+            cfg.solUi = !cfg.solUi;
+            SolConfig.save();
+        });
+        float cxp = x;
+        for (SolHud.Part part : SOL_PARTS) {
+            boolean on = cfg.solUi && !cfg.solUiOff.contains(part.id);
+            cxp += ui.chip(tk, cxp, sy + 32f, SolMenu.tr("sol.menu.hud.part." + part.id), on, () -> toggle(cfg, part)) + 6f;
+        }
+
         // The HUD modules' switches in two columns.
         float lx = x + mw + 22f, lw = w - mw - 22f, colW = (lw - 24f) / 2f;
         List<HudModule> list = Modules.hud();
@@ -90,6 +107,23 @@ final class HudSection implements Section {
             g.text(hint, line, lx, ty, 0x99FFFFFF);
             ty += 18f;
         }
+    }
+
+    /** The parts with a chip; the level goes with the experience bar. */
+    private static final SolHud.Part[] SOL_PARTS = {SolHud.Part.HOTBAR, SolHud.Part.HEALTH, SolHud.Part.ARMOR, SolHud.Part.FOOD,
+            SolHud.Part.AIR, SolHud.Part.MOUNT, SolHud.Part.XP};
+
+    /** Hands a part back to the game, or gives it to Sol (turning Sol UI on if it was off). */
+    private static void toggle(SolConfig cfg, SolHud.Part part) {
+        boolean give = !cfg.solUi || cfg.solUiOff.contains(part.id);
+        cfg.solUi = true;
+        for (SolHud.Part p : part == SolHud.Part.XP ? new SolHud.Part[]{SolHud.Part.XP, SolHud.Part.LEVEL} : new SolHud.Part[]{part}) {
+            cfg.solUiOff.remove(p.id);
+            if (!give) {
+                cfg.solUiOff.add(p.id);
+            }
+        }
+        SolConfig.save();
     }
 
     /** One box of the layout: dashed, dark, its name in the middle. */

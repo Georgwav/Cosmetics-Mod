@@ -28,6 +28,18 @@ public final class Mc {
         //?}
     }
 
+    /** Clears the game's toasts (the test scenario's HUD shots). */
+    public static void clearToasts() {
+        Minecraft mc = Minecraft.getInstance();
+        //? if >=26.2 {
+        /*mc.gui.toastManager().clear();
+        *///?} elif >=1.21.2 {
+        mc.getToastManager().clear();
+        //?} else {
+        /*mc.getToasts().clear();
+        *///?}
+    }
+
     /** The game's main framebuffer: what the world is drawn into. */
     public static com.mojang.blaze3d.pipeline.RenderTarget mainTarget() {
         //? if >=26.2 {

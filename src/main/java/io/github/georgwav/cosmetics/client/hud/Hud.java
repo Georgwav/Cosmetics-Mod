@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.client.hud;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.sol.hud.SolHud;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
 //? if >=1.21.6 {
@@ -56,23 +57,26 @@ public final class Hud {
             }
         });
         //?}
-        // The game's own HUD parts, each drawn moved by where the HUD editor put it (VanillaHud).
+        // The game's own HUD parts, each drawn moved by where the HUD editor put it (VanillaHud), and in Sol UI's look
+        // where Sol draws that part (SolHud).
         //? if >=1.21.6 {
-        moveable(VanillaHud.Part.HOTBAR, VanillaHudElements.HOTBAR, VanillaHudElements.INFO_BAR,
-                VanillaHudElements.EXPERIENCE_LEVEL);
-        moveable(VanillaHud.Part.HEALTH, VanillaHudElements.HEALTH_BAR);
-        moveable(VanillaHud.Part.ARMOR, VanillaHudElements.ARMOR_BAR);
-        moveable(VanillaHud.Part.FOOD, VanillaHudElements.FOOD_BAR, VanillaHudElements.MOUNT_HEALTH);
-        moveable(VanillaHud.Part.AIR, VanillaHudElements.AIR_BAR);
-        moveable(VanillaHud.Part.HELD_ITEM, VanillaHudElements.HELD_ITEM_TOOLTIP);
-        moveable(VanillaHud.Part.ACTION_BAR, VanillaHudElements.OVERLAY_MESSAGE);
-        moveable(VanillaHud.Part.BOSS_BAR, VanillaHudElements.BOSS_BAR);
-        moveable(VanillaHud.Part.SCOREBOARD, VanillaHudElements.SCOREBOARD);
+        element(VanillaHud.Part.HOTBAR, SolHud.Part.HOTBAR, VanillaHudElements.HOTBAR);
+        element(VanillaHud.Part.HOTBAR, SolHud.Part.XP, VanillaHudElements.INFO_BAR);
+        element(VanillaHud.Part.HOTBAR, SolHud.Part.LEVEL, VanillaHudElements.EXPERIENCE_LEVEL);
+        element(VanillaHud.Part.HEALTH, SolHud.Part.HEALTH, VanillaHudElements.HEALTH_BAR);
+        element(VanillaHud.Part.ARMOR, SolHud.Part.ARMOR, VanillaHudElements.ARMOR_BAR);
+        element(VanillaHud.Part.FOOD, SolHud.Part.FOOD, VanillaHudElements.FOOD_BAR);
+        element(VanillaHud.Part.FOOD, SolHud.Part.MOUNT, VanillaHudElements.MOUNT_HEALTH);
+        element(VanillaHud.Part.AIR, SolHud.Part.AIR, VanillaHudElements.AIR_BAR);
+        element(VanillaHud.Part.HELD_ITEM, null, VanillaHudElements.HELD_ITEM_TOOLTIP);
+        element(VanillaHud.Part.ACTION_BAR, null, VanillaHudElements.OVERLAY_MESSAGE);
+        element(VanillaHud.Part.BOSS_BAR, null, VanillaHudElements.BOSS_BAR);
+        element(VanillaHud.Part.SCOREBOARD, null, VanillaHudElements.SCOREBOARD);
         //?}
         //? if >=26.1 {
-        /*moveable(VanillaHud.Part.EFFECTS, VanillaHudElements.MOB_EFFECTS);
+        /*element(VanillaHud.Part.EFFECTS, null, VanillaHudElements.MOB_EFFECTS);
         *///?} elif >=1.21.6 {
-        moveable(VanillaHud.Part.EFFECTS, VanillaHudElements.STATUS_EFFECTS);
+        element(VanillaHud.Part.EFFECTS, null, VanillaHudElements.STATUS_EFFECTS);
         //?}
         //? if >=1.21.11 {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "modules"),
@@ -85,52 +89,47 @@ public final class Hud {
         *///?}
     }
 
-    // Wraps a game HUD element so it draws moved; untouched while it isn't moved.
+    // Wraps a game HUD element so it draws moved, and drawn by Sol UI while Sol draws that part; untouched otherwise.
     //? if >=1.21.11 {
-    private static void moveable(VanillaHud.Part part, Identifier... ids) {
-        for (Identifier id : ids) {
-            HudElementRegistry.replaceElement(id, vanilla -> moved(part, vanilla));
-        }
+    private static void element(VanillaHud.Part part, SolHud.Part sol, Identifier id) {
+        HudElementRegistry.replaceElement(id, vanilla -> moved(part, sol, vanilla));
     }
     //?} elif >=1.21.6 {
-    /*private static void moveable(VanillaHud.Part part, ResourceLocation... ids) {
-        for (ResourceLocation id : ids) {
-            HudElementRegistry.replaceElement(id, vanilla -> moved(part, vanilla));
-        }
+    /*private static void element(VanillaHud.Part part, SolHud.Part sol, ResourceLocation id) {
+        HudElementRegistry.replaceElement(id, vanilla -> moved(part, sol, vanilla));
     }
     *///?}
 
-    //? if >=26.1 {
-    /*private static HudElement moved(VanillaHud.Part part, HudElement vanilla) {
+    //? if >=1.21.6 {
+    private static HudElement moved(VanillaHud.Part part, SolHud.Part sol, HudElement vanilla) {
         return (graphics, delta) -> {
+            boolean solDraws = sol != null && SolHud.draws(sol);
             float dx = VanillaHud.dx(part);
             float dy = VanillaHud.dy(part);
-            if (dx == 0f && dy == 0f) {
-                vanilla.extractRenderState(graphics, delta);
+            if (!solDraws && dx == 0f && dy == 0f) {
+                vanilla(vanilla, graphics, delta);
                 return;
             }
             Canvas g = new Canvas(graphics);
             g.push();
             g.translate(dx, dy);
-            vanilla.extractRenderState(graphics, delta);
+            if (solDraws) {
+                SolHud.draw(sol, g, delta.getGameTimeDeltaPartialTick(false));
+            } else {
+                vanilla(vanilla, graphics, delta);
+            }
             g.pop();
         };
     }
+    //?}
+
+    //? if >=26.1 {
+    /*private static void vanilla(HudElement vanilla, net.minecraft.client.gui.GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker delta) {
+        vanilla.extractRenderState(graphics, delta);
+    }
     *///?} elif >=1.21.6 {
-    private static HudElement moved(VanillaHud.Part part, HudElement vanilla) {
-        return (graphics, delta) -> {
-            float dx = VanillaHud.dx(part);
-            float dy = VanillaHud.dy(part);
-            if (dx == 0f && dy == 0f) {
-                vanilla.render(graphics, delta);
-                return;
-            }
-            Canvas g = new Canvas(graphics);
-            g.push();
-            g.translate(dx, dy);
-            vanilla.render(graphics, delta);
-            g.pop();
-        };
+    private static void vanilla(HudElement vanilla, net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.client.DeltaTracker delta) {
+        vanilla.render(graphics, delta);
     }
     //?}
 

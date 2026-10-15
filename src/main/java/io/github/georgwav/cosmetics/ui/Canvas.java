@@ -159,6 +159,16 @@ public final class Canvas {
     }
 
     /**
+     * Raises what is drawn next by {@code z} before 1.21.6, where the GUI has depth and the game draws items raised
+     * (by up to 150); from 1.21.6 drawing order alone decides, and this does nothing.
+     */
+    public void lift(float z) {
+        //? if <1.21.6 {
+        /*raw.pose().translate(0f, 0f, z);
+        *///?}
+    }
+
+    /**
      * What is drawn after this goes over what was drawn before, text included. From 1.21.6 the game draws text
      * after the shapes it was drawn among, so without this a later shape can't cover earlier text.
      */

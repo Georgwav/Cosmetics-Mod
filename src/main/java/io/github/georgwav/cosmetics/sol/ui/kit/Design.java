@@ -30,6 +30,19 @@ public final class Design {
         oy = (screenH - H * u) / 2f;
     }
 
+    /**
+     * Design units = the game's GUI units, from the window's top left: the HUD's layout, where Sol's glass sits
+     * exactly where the game's own HUD parts are.
+     */
+    public void gui(int guiWidth, int guiHeight, double guiScale) {
+        gs = (float) guiScale;
+        screenW = guiWidth * gs;
+        screenH = guiHeight * gs;
+        u = gs;
+        ox = 0f;
+        oy = 0f;
+    }
+
     public float sx(float x) {
         return ox + x * u;
     }

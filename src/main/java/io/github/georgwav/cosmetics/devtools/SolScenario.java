@@ -39,7 +39,8 @@ public final class SolScenario {
             "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
-            "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel"};
+            "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
+            "hud_sol", "hud_off"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -126,8 +127,16 @@ public final class SolScenario {
             // The menus over the game, as the prototype shows them: Deep Field's night, facing its galaxy.
             ThemeRegistry.Entry deep = ThemeRegistry.find("deep_field");
             float yaw = deep == null ? 180f : deep.base().show().azimuth();
+            // Only some menu shots (-Dcosmeticsmod.solUi=hud_sol,hud_off), for quick looks.
+            java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
             for (String ui : UI_SHOTS) {
-                shots.add(new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
+                if (!only.get(0).isBlank() && !only.contains(ui)) {
+                    continue;
+                }
+                // The HUD in play: Ember Solstice by day, facing west.
+                shots.add(ui.startsWith("hud_") && !ui.equals("hud_editor")
+                        ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
+                        : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
         }
         if ("ui".equals(SHOTS)) {
@@ -274,6 +283,10 @@ public final class SolScenario {
             mc.player.setXRot(s.pitch());
             mc.player.yRotO = s.yaw();
             mc.player.xRotO = s.pitch();
+            if (phaseTick == SETTLE - 2 && s.name().startsWith("ui_hud_") && !s.name().equals("ui_hud_editor")) {
+                // The toasts from the items given for the HUD shots.
+                io.github.georgwav.cosmetics.sol.render.Mc.clearToasts();
+            }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.
                 if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && !"empty".equals(s.theme())
@@ -345,9 +358,12 @@ public final class SolScenario {
     private static void stageUi(String name) {
         boolean ui = name.startsWith("ui_");
         io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.pointerOff = ui;
-        // The toast and the HUD editor are shown with the HUD, as in play; every other frame keeps the HUD hidden.
-        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor"));
+        // The toast, the HUD editor and the HUD shots are shown with the HUD, as in play; every other frame keeps the
+        // HUD hidden.
         String what = ui ? name.substring(3) : "";
+        boolean hud = what.equals("hud_sol") || what.equals("hud_off");
+        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
+        hudInPlay(hud, what.equals("hud_off"));
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
         hudForEditor(what.equals("hud_editor"));
@@ -371,6 +387,12 @@ public final class SolScenario {
             }
             var wheel = new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(what.equals("emote_wheel_elytra"));
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
+            return;
+        }
+        if (hud) {
+            if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
+                io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            }
             return;
         }
         if (what.equals("quick_wheel")) {
@@ -456,6 +478,71 @@ public final class SolScenario {
             hudShown.forEach(m -> m.setEnabled(false));
             hudShown = null;
         }
+    }
+
+    /** The game mode before the HUD shots (null while they aren't on). */
+    private static net.minecraft.world.level.GameType modeBefore;
+    private static boolean solUiBefore;
+    private static String difficultyBefore = "peaceful";
+
+    /**
+     * The HUD shots show a player in play: survival, hurt with absorption hearts, armour, an offhand shield, a full
+     * hotbar with counts and a worn pickaxe, and some levels; with Sol UI ({@code ui_hud_sol}) and without
+     * ({@code ui_hud_off}). All of it is put back after them.
+     */
+    private static void hudInPlay(boolean on, boolean vanilla) {
+        Minecraft mc = Minecraft.getInstance();
+        io.github.georgwav.cosmetics.sol.config.SolConfig cfg = io.github.georgwav.cosmetics.sol.config.SolConfig.get();
+        if (on && modeBefore == null && mc.gameMode != null) {
+            modeBefore = mc.gameMode.getPlayerMode();
+            solUiBefore = cfg.solUi;
+            // Hunger first (food 20 to about 15 in 2 s), so the hearts don't heal back before the shot; the golden
+            // apple in hand shows the shanks it would fill.
+            // Easy, so the hearts don't heal back as they do in peaceful. The game rule's name changed in 1.21.11; one
+            // of the two works.
+            difficultyBefore = mc.level == null ? "peaceful" : mc.level.getDifficulty().getSerializedName();
+            asPlayer(mc, List.of("gamerule announceAdvancements false", "gamerule show_advancement_messages false",
+                    "difficulty easy", "gamemode survival @s", "clear @s", "effect clear @s",
+                    "effect give @s minecraft:hunger 2 199 true",
+                    "item replace entity @s hotbar.0 with golden_apple 5", "item replace entity @s hotbar.1 with bow",
+                    "item replace entity @s hotbar.2 with cobblestone 48", "item replace entity @s hotbar.3 with diamond_sword",
+                    "item replace entity @s hotbar.4 with iron_pickaxe[damage=190]", "item replace entity @s hotbar.5 with torch 23",
+                    "item replace entity @s hotbar.6 with cooked_beef 12", "item replace entity @s hotbar.7 with ender_pearl 3",
+                    "item replace entity @s weapon.offhand with shield", "item replace entity @s armor.head with iron_helmet",
+                    "item replace entity @s armor.chest with iron_chestplate", "item replace entity @s armor.feet with iron_boots",
+                    "xp set @s 23 levels", "xp set @s 40 points", "damage @s 7 minecraft:generic",
+                    "effect give @s minecraft:absorption 120 0 true"));
+        }
+        if (on) {
+            cfg.solUi = !vanilla;
+        } else if (modeBefore != null) {
+            cfg.solUi = solUiBefore;
+            asPlayer(mc, List.of("clear @s", "effect clear @s", "xp set @s 0 levels", "xp set @s 0 points",
+                    "gamerule announceAdvancements true", "gamerule show_advancement_messages true",
+                    "difficulty " + difficultyBefore,
+                    "effect give @s minecraft:instant_health 1 10 true", "gamemode " + modeBefore.getName() + " @s"));
+            modeBefore = null;
+        }
+    }
+
+    /** Commands as if the player typed them (on the game's own server; {@code @s} is the player). */
+    private static void asPlayer(Minecraft mc, List<String> cmds) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return;
+        }
+        String name = mc.player.getName().getString();
+        server.execute(() -> {
+            // Not suppressed: the game logs each command's result (and why one failed).
+            var source = server.createCommandSourceStack();
+            for (String c : cmds) {
+                try {
+                    server.getCommands().performPrefixedCommand(source, c.replace("@s", name));
+                } catch (RuntimeException e) {
+                    CosmeticsMod.LOGGER.warn("[Sol] HUD shot command failed: {}", c, e);
+                }
+            }
+        });
     }
 
     private void finish(Minecraft mc) {

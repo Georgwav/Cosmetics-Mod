@@ -40,8 +40,8 @@ public final class SolConfig {
     public String hypixelApiKey = "";
     /** Set while Atmosphere has paused the shader pack, so it is put back even after a crash. */
     public boolean irisPausedByAtmosphere;
-    /** Quick wheel: the starred modules shown around the crosshair. */
-    public java.util.List<String> quickWheel = new java.util.ArrayList<>();
+    /** The parts of the game's HUD switched back from Sol UI's look to the game's own, by id (SolHud.Part). */
+    public java.util.List<String> solUiOff = new java.util.ArrayList<>();
     /** Notifications the player has turned off, by kind. */
     public java.util.List<String> mutedNotifications = new java.util.ArrayList<>();
 
@@ -120,7 +120,7 @@ public final class SolConfig {
         if (updates.repo == null || updates.repo.isBlank()) updates.repo = "georgwav/cosmetics-mod";
         if (discordAppId == null) discordAppId = "";
         if (hypixelApiKey == null) hypixelApiKey = "";
-        if (quickWheel == null) quickWheel = new java.util.ArrayList<>();
+        if (solUiOff == null) solUiOff = new java.util.ArrayList<>();
         if (mutedNotifications == null) mutedNotifications = new java.util.ArrayList<>();
         return this;
     }
