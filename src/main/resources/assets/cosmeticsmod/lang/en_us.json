@@ -1036,5 +1036,7 @@
   "sol.mods.browser.by": "by %s",
   "sol.mods.browser.note": "Mods go in your mods folder and load the next time the game starts.",
   "sol.notify.mod_installed": "%s installed (%s files): restart to load it",
-  "sol.notify.mod_failed": "Couldn't install %s"
+  "sol.notify.mod_failed": "Couldn't install %s",
+  "sol.menu.settings.fast_quit": "Fast quit (worlds save in the background)",
+  "sol.menu.settings.pack_folders": "Resource pack folders (packs in subfolders)"
 }

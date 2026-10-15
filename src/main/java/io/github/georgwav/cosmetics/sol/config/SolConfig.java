@@ -44,6 +44,10 @@ public final class SolConfig {
     public java.util.List<String> solUiOff = new java.util.ArrayList<>();
     /** Notifications the player has turned off, by kind. */
     public java.util.List<String> mutedNotifications = new java.util.ArrayList<>();
+    /** Leaving a single-player world returns at once while it saves in the background. */
+    public boolean fastQuit = true;
+    /** Resource packs in subfolders of resourcepacks show up too. */
+    public boolean packFolders = true;
     /** The newest crash report the crash helper has shown (its file time, ms). */
     public long lastCrashSeen;
 

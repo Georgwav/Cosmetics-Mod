@@ -27,6 +27,10 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TooltipLookMixin");
         all.add("PauseLookMixin");
         all.add("DeathLookMixin");
+        all.add("FastQuitMixin");
+        all.add("FastQuitGateMixin");
+        all.add("ListLookMixin");
+        all.add("PackFoldersMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");

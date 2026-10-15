@@ -36,7 +36,7 @@ final class SettingsSection implements Section {
         g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
 
         String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "keys", "screenshots",
-                "main_folder", "updates"};
+                "fast_quit", "pack_folders", "main_folder", "updates"};
         Row[] rows = {
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.solUi, () -> {
                     cfg.solUi = !cfg.solUi;
@@ -82,6 +82,14 @@ final class SettingsSection implements Section {
                         () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(menu))),
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
                         () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(menu))),
+                (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.fastQuit, () -> {
+                    cfg.fastQuit = !cfg.fastQuit;
+                    SolConfig.save();
+                }),
+                (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.packFolders, () -> {
+                    cfg.packFolders = !cfg.packFolders;
+                    SolConfig.save();
+                }),
                 (gg, u, t, r, cy) -> {
                     // Click to choose another folder; Threadrinth's app folder is offered when it's on this computer.
                     String name = MainFolder.isDefault() ? ".minecraft" : MainFolder.folder().getFileName().toString();

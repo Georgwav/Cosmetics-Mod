@@ -92,6 +92,15 @@ public final class VanillaLook {
         return ok;
     }
 
+    /** A list's chosen row: a soft glass of the accent with its rim. */
+    public static boolean selection(Canvas c, int x, int y, int w, int h) {
+        return draw(c, g -> {
+            Tokens tk = ThemeState.tokens();
+            g.round(x, y, w, h, 6f, Colors.withAlpha(tk.accent, 0.16f));
+            g.stroke(x, y, w, h, 6f, 1f / g.d.u, Colors.withAlpha(tk.accent, 0.7f));
+        });
+    }
+
     /** The pause screen's veil over the game: the theme's band at the top fading into a dark floor. */
     public static boolean pauseVeil(Canvas c, int w, int h) {
         veils++;
