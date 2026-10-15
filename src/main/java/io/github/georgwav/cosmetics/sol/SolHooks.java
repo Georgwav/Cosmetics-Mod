@@ -76,6 +76,7 @@ public final class SolHooks {
         ParticleField.render();
         io.github.georgwav.cosmetics.sol.atmosphere.GlitterPath.render();
         io.github.georgwav.cosmetics.sol.render.LightPass.world();
+        io.github.georgwav.cosmetics.client.modules.WorldOverlays.render();
         LensFlare.render();
     }
 

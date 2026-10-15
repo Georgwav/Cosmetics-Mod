@@ -38,6 +38,13 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SwingMixin");
         all.add("ScreenOverlayMixin");
         all.add("NametagMixin");
+        all.add("BackgroundFpsMixin");
+        all.add("ParticleTweaksMixin");
+        all.add("SoundMixerMixin");
+        all.add("DroppedItemsMixin");
+        all.add("ScreenshotMixin");
+        all.add("ItemDecorationsMixin");
+        all.add("DisconnectedScreenMixin");
         //? if >=26.1 {
         /*all.add("ZoomCameraMixin");
         *///?} else {

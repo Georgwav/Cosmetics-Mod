@@ -25,6 +25,19 @@ import io.github.georgwav.cosmetics.client.modules.HeldItems;
 import io.github.georgwav.cosmetics.client.modules.ScreenTweaks;
 import io.github.georgwav.cosmetics.client.modules.Hitboxes;
 import io.github.georgwav.cosmetics.client.modules.Nametags;
+import io.github.georgwav.cosmetics.client.modules.SolUiModule;
+import io.github.georgwav.cosmetics.client.modules.CosmeticsModule;
+import io.github.georgwav.cosmetics.client.modules.Performance;
+import io.github.georgwav.cosmetics.client.modules.ParticleTweaks;
+import io.github.georgwav.cosmetics.client.modules.SoundMixer;
+import io.github.georgwav.cosmetics.client.modules.Screenshots;
+import io.github.georgwav.cosmetics.client.modules.PvpEffects;
+import io.github.georgwav.cosmetics.client.modules.DroppedItems;
+import io.github.georgwav.cosmetics.client.modules.WorldOverlays;
+import io.github.georgwav.cosmetics.client.modules.InventoryTweaks;
+import io.github.georgwav.cosmetics.client.modules.Servers;
+import io.github.georgwav.cosmetics.client.modules.Hypixel;
+import io.github.georgwav.cosmetics.client.modules.Social;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -62,12 +75,26 @@ public final class Modules {
     public static final ScreenTweaks SCREEN = new ScreenTweaks();
     public static final Hitboxes HITBOXES = new Hitboxes();
     public static final Nametags NAMETAGS = new Nametags();
+    public static final SolUiModule SOL_UI = new SolUiModule();
+    public static final CosmeticsModule COSMETICS = new CosmeticsModule();
+    public static final Performance PERFORMANCE = new Performance();
+    public static final ParticleTweaks PARTICLES = new ParticleTweaks();
+    public static final SoundMixer SOUNDS = new SoundMixer();
+    public static final Screenshots SCREENSHOTS = new Screenshots();
+    public static final PvpEffects PVP_EFFECTS = new PvpEffects();
+    public static final DroppedItems DROPPED_ITEMS = new DroppedItems();
+    public static final WorldOverlays WORLD_OVERLAYS = new WorldOverlays();
+    public static final InventoryTweaks INVENTORY = new InventoryTweaks();
+    public static final Servers SERVERS = new Servers();
+    public static final Hypixel HYPIXEL = new Hypixel();
+    public static final Social SOCIAL = new Social();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, ZOOM, CAMERA, PVP_TWEAKS, HITBOXES, HELD_ITEMS, NAMETAGS,
-            SCREEN, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS,
-            SOL_CHAT);
+    private static final List<Module> ALL = List.of(ATMOSPHERE, ZOOM, CAMERA, PVP_TWEAKS, PVP_EFFECTS, HITBOXES, HELD_ITEMS,
+            NAMETAGS, SCREEN, PARTICLES, DROPPED_ITEMS, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS, SOUNDS,
+            SOCIAL, SERVERS, HYPIXEL, COSMETICS);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
 
     private static boolean loading;

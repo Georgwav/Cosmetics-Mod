@@ -32,7 +32,7 @@ public final class CoordinatesHud extends TextHud {
 
     @Override
     protected List<String> lines(Minecraft mc) {
-        if (mc.player == null || mc.level == null) {
+        if (mc.player == null || mc.level == null || io.github.georgwav.cosmetics.client.modules.Social.streaming()) {
             return List.of();
         }
         List<String> lines = new ArrayList<>();
@@ -89,7 +89,7 @@ public final class CoordinatesHud extends TextHud {
     private static final float PAD_X = 6f, PAD_Y = 4.5f, LINE = 9f, SMALL_LINE = 7.5f, STRIP_W = 112f, STRIP_H = 11f;
 
     private boolean has(Minecraft mc) {
-        return (mc.player != null && mc.level != null) || preview();
+        return (mc.player != null && mc.level != null && !io.github.georgwav.cosmetics.client.modules.Social.streaming()) || preview();
     }
 
     private int[] xyz(Minecraft mc) {

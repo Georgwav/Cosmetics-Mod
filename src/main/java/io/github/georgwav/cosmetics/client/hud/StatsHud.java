@@ -153,6 +153,9 @@ public final class StatsHud extends TextHud {
             case DAY -> mc.level == null ? null : Long.toString(io.github.georgwav.cosmetics.sol.render.Mc.dayTime(mc.level) / 24000L);
             case PLAYTIME -> joinedAt < 0L ? null : duration(System.currentTimeMillis() - joinedAt, false);
             case SERVER -> {
+                if (io.github.georgwav.cosmetics.client.modules.Social.streaming()) {
+                    yield null;
+                }
                 if (mc.hasSingleplayerServer()) {
                     yield Component.translatable("cosmeticsmod.module.stats.singleplayer").getString();
                 }
