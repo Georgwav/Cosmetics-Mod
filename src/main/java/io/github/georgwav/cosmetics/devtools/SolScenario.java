@@ -123,6 +123,12 @@ public final class SolScenario {
             }
             return;
         }
+        if (!"sheet".equals(SHOTS) && !"ui".equals(SHOTS)) {
+            // Zoom at 8x on Deep Field's galaxy: the field of view narrows (and the sky's planets swap sprites).
+            ThemeRegistry.Entry deepZoom = ThemeRegistry.find("deep_field");
+            shots.add(new Shot("sol_zoom_8x", "deep_field", -60f, false, deepZoom == null ? 180f : deepZoom.base().show().azimuth(),
+                    -Extras.SHOW_PITCH));
+        }
         if (!"world".equals(SHOTS) && !"sheet".equals(SHOTS)) {
             // The menus over the game, as the prototype shows them: Deep Field's night, facing its galaxy.
             ThemeRegistry.Entry deep = ThemeRegistry.find("deep_field");
@@ -303,8 +309,9 @@ public final class SolScenario {
                     problems.add(s.name() + ": the Sol sky didn't draw");
                 }
                 float fov = io.github.georgwav.cosmetics.sol.render.FrameInfo.fovY;
-                if (Math.abs(fov - 70f) > 4f) {
-                    problems.add(s.name() + ": the field of view read from the game is " + fov + "°, not 70°");
+                float want = s.name().equals("sol_zoom_8x") ? 70f / 8f : 70f;
+                if (Math.abs(fov - want) > Math.max(1f, want * 0.06f)) {
+                    problems.add(s.name() + ": the field of view read from the game is " + fov + "°, not " + want + "°");
                 }
                 if ((s.name().equals("sol_ember_sunlab") || s.name().equals("sol_ember_solstice_show")) && SkyPass.sunVisible < 0.5f) {
                     problems.add(s.name() + ": the sun isn't in the frame (visible " + SkyPass.sunVisible + ")");
@@ -332,6 +339,7 @@ public final class SolScenario {
             }
             Shot s = shots.get(index);
             stageUi(s.name());
+            io.github.georgwav.cosmetics.client.modules.Zoom.hold(s.name().equals("sol_zoom_8x") ? 8.0 : 0.0);
             ThemeState.setTheme(s.theme(), false);
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
@@ -546,6 +554,8 @@ public final class SolScenario {
     /** The game mode before the HUD shots (null while they aren't on). */
     private static net.minecraft.world.level.GameType modeBefore;
     private static boolean solUiBefore;
+    /** Whether the HUD shots posted chat (the chat hook then has to have been reached). */
+    private static boolean chatShown;
     private static String difficultyBefore = "peaceful";
 
     /**
@@ -564,6 +574,7 @@ public final class SolScenario {
             // Easy, so the hearts don't heal back as they do in peaceful. The game rule's name changed in 1.21.11; one
             // of the two works.
             difficultyBefore = mc.level == null ? "peaceful" : mc.level.getDifficulty().getSerializedName();
+            chatShown = true;
             asPlayer(mc, List.of("gamerule announceAdvancements false", "gamerule show_advancement_messages false",
                     "difficulty easy", "gamemode survival @s", "clear @s", "effect clear @s",
                     "effect give @s minecraft:hunger 2 199 true",
@@ -624,11 +635,19 @@ public final class SolScenario {
     private void finish(Minecraft mc) {
         finished = true;
         stageUi("");
+        io.github.georgwav.cosmetics.client.modules.Zoom.hold(0.0);
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
         crosshairOnly = false;
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
+        }
+        // Every module hook each frame passes through was reached; the chat's too (the HUD shots post messages).
+        for (io.github.georgwav.cosmetics.sol.Hooks hook : io.github.georgwav.cosmetics.sol.Hooks.values()) {
+            boolean expected = hook.everyFrame || hook == io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD && chatShown;
+            if (expected && hook.count() == 0) {
+                problems.add("the " + hook.name().toLowerCase(java.util.Locale.ROOT) + " hook was never reached");
+            }
         }
         boolean passed = problems.isEmpty();
         CosmeticsMod.LOGGER.info("[Sol] Scenario {}: {}", passed ? "PASSED" : "FAILED", problems);

@@ -98,9 +98,23 @@ public abstract class Module {
     public void drawPreview(Canvas g, int x0, int y0, int x1, int y1) {
     }
 
+    /** Its other keys' default bindings (a GLFW key code), by name; unbound when missing. */
+    final java.util.Map<String, Integer> keyDefaults = new java.util.HashMap<>();
+
     /** Declares another key (registered at startup, unbound); read it with {@link #key(String)}. */
     protected void addKey(String name) {
         keys.put(name, null);
+    }
+
+    /** Declares another key bound to {@code defaultKey} (a GLFW key code) until the player rebinds it. */
+    protected void addKey(String name, int defaultKey) {
+        keys.put(name, null);
+        keyDefaults.put(name, defaultKey);
+    }
+
+    /** Whether it is on in a fresh install (most modules start off). */
+    public boolean onByDefault() {
+        return false;
     }
 
     /** Its other keys' names, in the order declared. */

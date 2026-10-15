@@ -44,6 +44,7 @@ abstract class SolChatMixin {
     /** What to add instead (null: the message as it is), with the stacked one it repeats taken away. */
     @Unique
     private SolChat.Added cosmeticsmod$process(Component message) {
+        io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD.hit();
         if (cosmeticsmod$adding || !Guard.on(Feature.CHAT)) {
             return null;
         }

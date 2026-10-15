@@ -18,6 +18,13 @@ import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.Movement;
 import io.github.georgwav.cosmetics.client.modules.SolChat;
+import io.github.georgwav.cosmetics.client.modules.Zoom;
+import io.github.georgwav.cosmetics.client.modules.CameraTweaks;
+import io.github.georgwav.cosmetics.client.modules.PvpTweaks;
+import io.github.georgwav.cosmetics.client.modules.HeldItems;
+import io.github.georgwav.cosmetics.client.modules.ScreenTweaks;
+import io.github.georgwav.cosmetics.client.modules.Hitboxes;
+import io.github.georgwav.cosmetics.client.modules.Nametags;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -28,7 +35,6 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * The client's modules: made and given their keys at startup, saved to their own file, and ticked. Everything is
@@ -49,11 +55,19 @@ public final class Modules {
     public static final ArmourItemsHud ARMOUR_ITEMS = new ArmourItemsHud();
     public static final PotionEffectsHud POTION_EFFECTS = new PotionEffectsHud();
     public static final SolChat SOL_CHAT = new SolChat();
+    public static final Zoom ZOOM = new Zoom();
+    public static final CameraTweaks CAMERA = new CameraTweaks();
+    public static final PvpTweaks PVP_TWEAKS = new PvpTweaks();
+    public static final HeldItems HELD_ITEMS = new HeldItems();
+    public static final ScreenTweaks SCREEN = new ScreenTweaks();
+    public static final Hitboxes HITBOXES = new Hitboxes();
+    public static final Nametags NAMETAGS = new Nametags();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, SOL_CHAT);
+    private static final List<Module> ALL = List.of(ATMOSPHERE, ZOOM, CAMERA, PVP_TWEAKS, HITBOXES, HELD_ITEMS, NAMETAGS,
+            SCREEN, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS,
+            SOL_CHAT);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
 
     private static boolean loading;
@@ -81,11 +95,11 @@ public final class Modules {
     }
 
     /** At startup: registers each module's key (unbound, through {@code registerKey}) and reads the saved state. */
-    public static void init(Function<String, KeyMapping> registerKey) {
+    public static void init(java.util.function.BiFunction<String, Integer, KeyMapping> registerKey) {
         for (Module m : ALL) {
-            m.toggleKey = registerKey.apply("key.cosmeticsmod.module." + m.id);
+            m.toggleKey = registerKey.apply("key.cosmeticsmod.module." + m.id, -1);
             for (String name : new java.util.ArrayList<>(m.keys.keySet())) {
-                m.keys.put(name, registerKey.apply("key.cosmeticsmod.module." + m.id + "." + name));
+                m.keys.put(name, registerKey.apply("key.cosmeticsmod.module." + m.id + "." + name, m.keyDefaults.getOrDefault(name, -1)));
             }
         }
         load();
@@ -170,6 +184,10 @@ public final class Modules {
                 VanillaHud.load(modules.getAsJsonObject(VANILLA_HUD));
             }
             for (Module m : ALL) {
+                if (!modules.has(m.id)) {
+                    // A module new since the file was written starts as it does on a fresh install.
+                    m.loadEnabled(m.onByDefault());
+                }
                 if (modules.has(m.id)) {
                     JsonObject saved = modules.getAsJsonObject(m.id);
                     m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());

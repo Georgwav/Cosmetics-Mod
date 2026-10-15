@@ -106,6 +106,11 @@ final class VersionHooks {
         return registerKeyMapping(name, InputConstants.UNKNOWN.getValue());
     }
 
+    /** A module's key with a default (Zoom on C, freelook on Left Alt); -1 for unbound. */
+    static KeyMapping registerModuleKey(String name, int defaultKey) {
+        return registerKeyMapping(name, defaultKey < 0 ? InputConstants.UNKNOWN.getValue() : defaultKey);
+    }
+
     private static KeyMapping registerKeyMapping(String name, int defaultKey) {
         //? if <1.21.9 {
         /*KeyMapping key = new KeyMapping(name, InputConstants.Type.KEYSYM, defaultKey, "key.categories.cosmeticsmod");

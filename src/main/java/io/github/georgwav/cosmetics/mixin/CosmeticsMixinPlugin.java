@@ -28,6 +28,21 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TotemPopMixin");
         all.add("SolChatMixin");
         all.add("ChatSendMixin");
+        all.add("ZoomMouseMixin");
+        all.add("CameraTweaksMixin");
+        all.add("FreelookTurnMixin");
+        all.add("ViewBobMixin");
+        all.add("LowFireMixin");
+        all.add("OverlayTextureAccessor");
+        all.add("HeldItemsMixin");
+        all.add("SwingMixin");
+        all.add("ScreenOverlayMixin");
+        all.add("NametagMixin");
+        //? if >=26.1 {
+        /*all.add("ZoomCameraMixin");
+        *///?} else {
+        all.add("ZoomFovMixin");
+        //?}
         //? if >=1.21.11 {
         all.add("SolChatDrawMixin");
         //?} else {

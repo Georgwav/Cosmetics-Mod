@@ -41,7 +41,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyBinds.open = openKey;
         KeyBinds.quick = quickKey;
         KeyBinds.emotes = emoteKey;
-        Modules.init(VersionHooks::registerUnboundKey);
+        Modules.init(VersionHooks::registerModuleKey);
         Hud.register();
         io.github.georgwav.cosmetics.sol.Sol.init();
         try {
