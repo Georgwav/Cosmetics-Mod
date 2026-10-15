@@ -58,7 +58,7 @@ final class WardrobeSection implements Section {
                 : SolMenu.tr("sol.menu.wardrobe.count", SolProfiles.active());
         g.textMid(mono, count, tx + segW + 14f, headY, 0x8CFFFFFF);
         ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.wardrobe.open"), true,
-                () -> ScreenOpener.open(new io.github.georgwav.cosmetics.ui.CosmeticsScreen(menu)));
+                () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, tab.equals("outfits") ? "outfits" : null)));
 
         float gy = y + 42f, gh = h - 42f;
         g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);

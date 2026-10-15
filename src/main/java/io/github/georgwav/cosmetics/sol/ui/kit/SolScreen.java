@@ -102,6 +102,11 @@ public abstract class SolScreen extends Screen {
     protected void game(Canvas canvas, int mouseX, int mouseY) {
     }
 
+    /** Whether the game behind is blurred (the HUD editor shows the game as it is). */
+    protected boolean blurs() {
+        return true;
+    }
+
     /** Called when the screen is closed or replaced; free textures here. */
     protected void closed() {
     }
@@ -254,7 +259,9 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             extractPanorama(graphics, partialTick);
         }
-        extractBlurredBackground(graphics);
+        if (blurs()) {
+            extractBlurredBackground(graphics);
+        }
     }
     *///?} elif >=1.21.6 {
     @Override
@@ -267,7 +274,9 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
         }
-        renderBlurredBackground(graphics);
+        if (blurs()) {
+            renderBlurredBackground(graphics);
+        }
     }
     //?} elif >=1.21.2 {
     /*@Override
@@ -281,7 +290,9 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
         }
-        renderBlurredBackground();
+        if (blurs()) {
+            renderBlurredBackground();
+        }
     }
     *///?} else {
     /*@Override
@@ -295,7 +306,9 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
         }
-        renderBlurredBackground(partialTick);
+        if (blurs()) {
+            renderBlurredBackground(partialTick);
+        }
     }
     *///?}
 

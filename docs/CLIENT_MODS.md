@@ -8,17 +8,26 @@ snippets of Modrinth/CurseForge pages. Check anything marked unverified on Modri
 
 ## 1. Summary
 
-`cosmeticsmod` (Georgwav/Cosmetics-Mod) is a client-side Fabric mod that grew into a small client. Right Shift
-opens a hub: a sphere of orbs (Wardrobe, Skins, Settings, Emotes, HUD editor, Shaders, Screenshots, Mods, ...).
-The Mods orb opens a second sphere with the built-in modules and the third-party mods. One Stonecutter source tree
+`cosmeticsmod` (Georgwav/Cosmetics-Mod) is a client-side Fabric mod that grew into a client, now **Sol Client**.
+- **Right Shift:** the Sol quick menu.
+- **The full menu:** its Mods section lists every installed mod in three groups: works with Sol, overlaps, and
+  alongside.
+- **Each installed mod's row:**
+  - a gear for its own settings (through Mod Menu);
+  - Controlling: a key button opening the game's Key Binds;
+  - Screenshot Viewer: a camera button opening its screen.
+- **Iris's row:** the Shaders switch.
+- **Header button:** opens Mod Menu's list.
+- **Wording:** this note was written for the earlier "hub", a sphere of orbs. Below, a mod's "orb" now means its row
+  in the Mods section. One Stonecutter source tree
 builds 10 jars: 1.21.1 (also runs 1.21), 1.21.3 (1.21.2), 1.21.4, 1.21.5, 1.21.8 (1.21.6–1.21.7), 1.21.10 (1.21.9),
 1.21.11, 26.1.2 (26.1–26.1.1), 26.2 and 26.3. Fabric API is the only hard dependency.
 
 **Dependency policy (Georg's choice):** features should mostly come from existing mods, used as dependencies and
 never bundled into our jar. They are listed under `suggests` in `fabric.mod.json`, so that the launcher
 (Threadrinth, a Modrinth App fork) can install them and keep them updated. A missing mod never stops the game. The
-hub only shows a mod's orb when the mod is installed. The orb's gear button opens the mod's own settings through
-Mod Menu (`HubScreen.openModSettings`). Screenshot Viewer has its own screen opener.
+Mods section only lists installed mods. A row's gear opens the mod's own settings through Mod Menu
+(`ModScreens.openSettings`). Screenshot Viewer has its own screen opener.
 
 Fabric Loader does nothing with `suggests` (it is informational only). Threadrinth has to turn each mod id into a
 Modrinth project, and for most of these mods the id is **not** the slug (`chat_heads` → `chat-heads`). The table
@@ -26,8 +35,9 @@ below gives the mapping.
 
 ## 2. Mods
 
-Hub groups are positions on the Mods sphere (`modules`, `inventory`, `chat`, `tools`). "Gear" means the orb's
-button calls Mod Menu's `getConfigScreen(modId, hub)`. "Targets" refers to our 10 jars.
+The integration column was written for the hub: its group names (`modules`, `inventory`, `chat`, `tools`) were
+positions on the old Mods sphere. In the Sol menu every installed mod is a row of the Mods section. "Gear" means
+its row has a gear calling Mod Menu's `getConfigScreen(modId, menu)`. "Targets" refers to our 10 jars.
 
 | # | Mod | Fabric mod id | Modrinth | What it gives the client | Hub integration today | Our 10 targets | Its own deps |
 |---|---|---|---|---|---|---|---|
@@ -189,23 +199,23 @@ case below no longer shows a dead button; the Screenshots orb only shows when Sc
 
 - `src/main/resources/fabric.mod.json`: `depends` (Fabric API only), `suggests` (the mod ids above) and the
   `modmenu` entrypoint.
-- `src/main/java/io/github/georgwav/cosmetics/ui/hub/HubScreen.java`:
-  - `buildSpheres()`: the Shaders, Voxy and Screenshots orbs, and the module orbs.
-  - `DEPENDENCIES`: mod id, icon, sphere group.
-  - `openModSettings`, `openScreenshots`, `openModMenu`.
-- `src/main/java/io/github/georgwav/cosmetics/ui/hub/ModsPage.java`: the Mods page, with its "Mod Menu" header
-  button.
+- `src/main/java/io/github/georgwav/cosmetics/sol/ui/menu/ModsSection.java`: the Mods section.
+  - `KNOWN`: each known mod's icon and how it gets on with Sol.
+  - The overlap choices and the Shaders switch on Iris's row.
+  - The "Mod Menu" header button.
+- `src/main/java/io/github/georgwav/cosmetics/sol/ui/menu/ModScreens.java`: `openSettings`, `openKeyBinds`,
+  `openScreenshots`, `openModList`.
 - `src/main/java/io/github/georgwav/cosmetics/compat/Compat.java`: `IRIS`/`FIGURA`/`VOXY`/`MOD_MENU` flags, the
   shader toggle, and the `TRACKED` list used for logging.
 - `src/main/java/io/github/georgwav/cosmetics/compat/iris/IrisCompat.java`: Iris API via method handles.
 - `src/main/java/io/github/georgwav/cosmetics/compat/modmenu/ModMenuCompat.java`: our own "Configure" screen.
-- `src/main/resources/assets/cosmeticsmod/lang/en_us.json`: `cosmeticsmod.hub.dep.<modid>` orb notes and the
-  `needs_mod_menu` / `mods.no_settings` messages.
+- `src/main/resources/assets/cosmeticsmod/lang/en_us.json`: `sol.mods.<modid>.note` row notes and the
+  `sol.notify.no_screen` message.
 - Built-ins:
   - `client/Modules.java`, `client/modules/` (Fullbright, ToggleSprint, Weather/TimeChanger, Crosshair,
     BlockOutline).
   - `client/hud/` (HUD modules, `VanillaHud`).
-  - `ui/hub/HudEditorScreen.java`.
-  - `client/skins/`, `ui/hub/SkinsPage.java`.
+  - `sol/ui/screens/HudEditor.java` (snapping in `HudSnap`).
+  - `client/skins/` (with `MojangCapes`), `sol/ui/wardrobe/SkinsView.java`.
   - `client/MainFolder.java`, `client/Profiles.java`.
 - `COMPAT.md` (CI matrix: Sodium, Iris, Voxy, DH, Mod Menu ...), `ci/compat-sets.json`, `ci/versions.json`.

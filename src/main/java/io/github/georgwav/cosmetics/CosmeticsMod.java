@@ -8,7 +8,6 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
-import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.api.ClientModInitializer;
@@ -36,7 +35,9 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyMapping openKey = VersionHooks.registerKeyMapping();
         KeyMapping quickKey = VersionHooks.registerQuickMenuKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
-        EmoteWheelScreen.key = emoteKey;
+        KeyMapping wheelKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.quick_wheel");
+        io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.key = wheelKey;
+        io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.key = emoteKey;
         KeyBinds.open = openKey;
         KeyBinds.quick = quickKey;
         KeyBinds.emotes = emoteKey;
@@ -51,13 +52,16 @@ public final class CosmeticsMod implements ClientModInitializer {
         }
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
-                ScreenOpener.request(() -> io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "wardrobe", false));
+                ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null));
             }
             while (quickKey.consumeClick()) {
                 ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null));
             }
+            while (wheelKey.consumeClick()) {
+                io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.openIfAllowed(client);
+            }
             while (emoteKey.consumeClick()) {
-                EmoteWheelScreen.openIfAllowed(client);
+                io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.openIfAllowed(client);
             }
             ScreenOpener.tick();
             Modules.tick(client);

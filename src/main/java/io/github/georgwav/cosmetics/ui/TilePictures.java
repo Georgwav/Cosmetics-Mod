@@ -52,7 +52,7 @@ public final class TilePictures {
     private static final float FILL = 0.88f;
 
     /** Pictures made since the game started (read by the in-game test). */
-    static int made;
+    public static int made;
 
     private final SoftRaster raster = new SoftRaster(SIZE);
     private final Map<String, SoftRaster.Texture> textures = new HashMap<>();

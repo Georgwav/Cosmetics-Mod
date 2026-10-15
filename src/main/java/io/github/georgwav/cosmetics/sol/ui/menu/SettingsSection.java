@@ -76,10 +76,15 @@ final class SettingsSection implements Section {
                             pixel ? 0 : 1, i -> at.lightStyle.set(i == 0 ? "pixel" : "smooth"));
                 },
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.cosmetics_open"), false,
-                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.ui.CosmeticsScreen(menu))),
+                        () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, "settings"))),
                 (gg, u, t, r, cy) -> {
+                    // Click to choose another folder; Threadrinth's app folder is offered when it's on this computer.
                     String name = MainFolder.isDefault() ? ".minecraft" : MainFolder.folder().getFileName().toString();
-                    u.button(t, r, cy, name, false, () -> menu.toast(SolMenu.tr("sol.notify.main_folder", MainFolder.folder().toString())));
+                    float bw = u.button(t, r, cy, name, false, () -> chooseFolder(menu));
+                    java.nio.file.Path launcher = MainFolder.launcherFolder();
+                    if (launcher != null && !launcher.equals(MainFolder.folder())) {
+                        u.button(t, r - bw - 6f, cy, SolMenu.tr("cosmeticsmod.hub.skins.use_launcher"), false, () -> useFolder(menu, launcher));
+                    }
                 },
                 (gg, u, t, r, cy) -> u.pill(t, r, cy, VERSION, true),
         };
@@ -101,5 +106,23 @@ final class SettingsSection implements Section {
     @Override
     public boolean scroll(float amount) {
         return scroll.wheel(amount);
+    }
+
+    /** Asks for the main folder (Threadrinth's app folder has the launcher's skins). */
+    private static void chooseFolder(SolMenu menu) {
+        try {
+            java.nio.file.Path picked = io.github.georgwav.cosmetics.ui.FolderPicker.pick(
+                    SolMenu.tr("cosmeticsmod.hub.skins.choose_title"), MainFolder.folder());
+            if (picked != null) {
+                useFolder(menu, picked);
+            }
+        } catch (UnsupportedOperationException e) {
+            menu.toast(SolMenu.tr("cosmeticsmod.hub.skins.no_picker"));
+        }
+    }
+
+    private static void useFolder(SolMenu menu, java.nio.file.Path folder) {
+        MainFolder.choose(folder);
+        menu.toast(SolMenu.tr("sol.notify.main_folder", MainFolder.folder().toString()));
     }
 }

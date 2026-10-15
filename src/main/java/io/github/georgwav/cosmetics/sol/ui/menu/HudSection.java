@@ -34,7 +34,7 @@ final class HudSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.hud.count", SolProfiles.active()), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
         ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.hud.edit"), true,
-                () -> ScreenOpener.open(new io.github.georgwav.cosmetics.ui.hub.HudEditorScreen(menu)));
+                () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.HudEditor(menu)));
 
         // The mini layout.
         float my = y + 42f, mw = 420f, mh = 236f;

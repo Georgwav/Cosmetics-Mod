@@ -24,10 +24,11 @@ import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
-import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
-import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
-import io.github.georgwav.cosmetics.ui.hub.HubScreen;
-import io.github.georgwav.cosmetics.ui.hub.HudEditorScreen;
+import io.github.georgwav.cosmetics.sol.ui.menu.SolMenu;
+import io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu;
+import io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel;
+import io.github.georgwav.cosmetics.sol.ui.screens.HudEditor;
+import io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen;
 import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.client.ModulesSelfTest;
 import io.github.georgwav.cosmetics.client.OutlineHook;
@@ -72,7 +73,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -115,7 +116,9 @@ public final class DevScenario {
     private int uiTab;
     private int uiFramesAtTabStart;
     /** The settings page the UI check has open. */
-    private CosmeticsScreen uiScreen;
+    private WardrobeScreen uiScreen;
+    /** Whether Mod Menu's Configure button gave the Sol menu. */
+    private boolean modMenuOpened;
     private int hubFramesAtStart;
     private int hudFramesAtStart;
     private int outlineFramesAtStart;
@@ -338,20 +341,20 @@ public final class DevScenario {
                     for (String name : new String[]{"wave", "dance", "dab", "cheer", "salute"}) {
                         Emotes.setOnWheel(CosmeticsMod.MOD_ID + ":" + name, false, true);
                     }
-                    wheelFramesAtStart = EmoteWheelScreen.framesRendered;
-                    wheelPicturesAtStart = EmoteWheelScreen.picturesMade();
-                    ScreenOpener.open(new EmoteWheelScreen(false));
+                    wheelFramesAtStart = EmoteWheel.framesRendered;
+                    wheelPicturesAtStart = EmoteWheel.picturesMade();
+                    ScreenOpener.open(new EmoteWheel(false));
                     enter(Phase.EMOTE_WHEEL);
                     writeMarker("ui_emote_wheel");
                 }
             }
             case EMOTE_WHEEL -> {
                 if (ticks >= UI_TAB_TICKS) {
-                    int frames = EmoteWheelScreen.framesRendered - wheelFramesAtStart;
+                    int frames = EmoteWheel.framesRendered - wheelFramesAtStart;
                     if (frames <= 0) {
                         failures.add("the emote wheel never rendered");
                     }
-                    int pictures = EmoteWheelScreen.picturesMade() - wheelPicturesAtStart;
+                    int pictures = EmoteWheel.picturesMade() - wheelPicturesAtStart;
                     if (pictures <= 0) {
                         failures.add("the emote wheel drew no emote pictures");
                     }
@@ -488,8 +491,8 @@ public final class DevScenario {
                         failures.add("the elytra test never got the player gliding");
                     }
                     // Pressing the emote key while gliding opens the elytra wheel.
-                    EmoteWheelScreen.openIfAllowed(client);
-                    elytra.addProperty("elytraWheel", ScreenOpener.current() instanceof EmoteWheelScreen wheel
+                    EmoteWheel.openIfAllowed(client);
+                    elytra.addProperty("elytraWheel", ScreenOpener.current() instanceof EmoteWheel wheel
                             && wheel.isElytraWheel());
                     ScreenOpener.open(null);
                     EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":cloud_rider"), true);
@@ -539,24 +542,25 @@ public final class DevScenario {
                     }
                     EmotePlayer.stop();
                     launchGlider(client, false);
-                    // Open every tab of the settings screen, and a cosmetic's own page, to prove the
-                    // UI works on this version.
+                    // Open every page of the Wardrobe (a cosmetic's own page, the outfits, the emotes, a cape's page
+                    // with the elytra preview, and every settings page) to prove the UI works on this version.
                     uiTab = 0;
                     openSettingsTab(client);
                     enter(Phase.SETTINGS_UI);
-                    writeMarker("ui_" + CosmeticsScreen.testPageName(0));
+                    writeMarker("ui_wardrobe_" + WardrobeScreen.TEST_PAGES[0]);
                 }
             }
             case SETTINGS_UI -> {
                 if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
-                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    String name = WardrobeScreen.TEST_PAGES[uiTab];
+                    int frames = WardrobeScreen.framesRendered - uiFramesAtTabStart;
                     JsonObject ui = phases.has("settings_ui") ? phases.getAsJsonObject("settings_ui") : new JsonObject();
-                    ui.addProperty(CosmeticsScreen.testPageName(uiTab), frames);
+                    ui.addProperty(name, frames);
                     phases.add("settings_ui", ui);
                     if (frames <= 0) {
-                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
+                        failures.add("Wardrobe page '" + name + "' never rendered");
                     }
-                    if (CosmeticsScreen.testPageName(uiTab).equals("cape_elytra")) {
+                    if (name.equals("drawer_cape")) {
                         // The preview wore an elytra with the cape on it.
                         long previewed = CapeElytra.previewFrames - elytraFramesAtStart;
                         ui.addProperty("elytra_preview_frames", previewed);
@@ -566,74 +570,76 @@ public final class DevScenario {
                     }
                     if (uiTab == 0) {
                         // The Wardrobe's tiles draw each cosmetic's picture.
-                        ui.addProperty("tile_pictures", CosmeticsScreen.tilePicturesMade());
-                        if (CosmeticsScreen.tilePicturesMade() <= 0) {
+                        ui.addProperty("tile_pictures", WardrobeScreen.tilePicturesMade());
+                        if (WardrobeScreen.tilePicturesMade() <= 0) {
                             failures.add("the Wardrobe drew no tile pictures");
                         }
                     }
-                    // Switching tabs and resizing the window rebuild the page; its list must stay at the top.
-                    if (uiScreen != null && !uiScreen.rebuildKeepsListAtTop()) {
-                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab)
-                                + "' started its list lower after being rebuilt");
+                    // Every page opens at the top of its list.
+                    if (uiScreen != null && !uiScreen.listAtTop()) {
+                        failures.add("Wardrobe page '" + name + "' didn't start at the top of its list");
                     }
                     uiTab++;
-                    if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
+                    if (uiTab < WardrobeScreen.TEST_PAGES.length) {
                         openSettingsTab(client);
-                        writeMarker("ui_" + CosmeticsScreen.testPageName(uiTab));
+                        writeMarker("ui_wardrobe_" + WardrobeScreen.TEST_PAGES[uiTab]);
                     } else {
-                        // The hub (Right Shift), then its mods sphere.
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(new HubScreen(null));
-                        enter(Phase.HUB);
-                        writeMarker("ui_hub");
+                        // The quick menu (Right Shift), then the full menu's sections.
+                        hubFramesAtStart = QuickMenu.framesRendered;
+                        ScreenOpener.open(new QuickMenu(null));
+                        enter(Phase.QUICK_MENU);
+                        writeMarker("ui_quick");
                     }
                 }
             }
-            case HUB, HUB_MODS, HUB_PAGE, HUB_SKINS, HUB_WARDROBE, HUB_SETTINGS -> {
-                // The Skins page reads the launcher's skins in the background: it stays open until they're read.
-                boolean waiting = phase == Phase.HUB_SKINS && !HubScreen.skinsRead() && ticks < UI_TAB_TICKS * 10;
+            case QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS -> {
+                // The Skins view reads the launcher's skins in the background: it stays open until they're read.
+                boolean waiting = phase == Phase.WARDROBE_SKINS && !WardrobeScreen.skinsRead() && ticks < UI_TAB_TICKS * 10;
                 if (ticks >= UI_TAB_TICKS && !waiting) {
-                    int frames = HubScreen.framesRendered - hubFramesAtStart;
-                    String page = phase == Phase.HUB ? "hub" : phase == Phase.HUB_MODS ? "hub_mods"
-                            : phase == Phase.HUB_PAGE ? "hub_page" : phase == Phase.HUB_SKINS ? "hub_skins" : phase == Phase.HUB_WARDROBE ? "hub_wardrobe" : "hub_settings";
+                    int frames = (phase == Phase.QUICK_MENU ? QuickMenu.framesRendered
+                            : phase == Phase.WARDROBE_SKINS ? WardrobeScreen.framesRendered : SolMenu.framesRendered) - hubFramesAtStart;
+                    String page = switch (phase) {
+                        case QUICK_MENU -> "quick";
+                        case MENU_MODULES -> "menu_modules";
+                        case MENU_DRAWER -> "menu_drawer";
+                        case WARDROBE_SKINS -> "wardrobe_skins";
+                        case MENU_WARDROBE -> "menu_wardrobe";
+                        default -> "menu_settings";
+                    };
                     phases.getAsJsonObject("settings_ui").addProperty(page, frames);
                     if (frames <= 0) {
-                        failures.add("the hub (" + page + ") never rendered");
+                        failures.add("the Sol menus (" + page + ") never rendered");
                     }
-                    if (phase == Phase.HUB) {
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(HubScreen.inMods());
-                        enter(Phase.HUB_MODS);
-                        writeMarker("ui_hub_mods");
-                    } else if (phase == Phase.HUB_MODS) {
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(HubScreen.onModsPage());
-                        enter(Phase.HUB_PAGE);
-                        writeMarker("ui_hub_page");
-                    } else if (phase == Phase.HUB_PAGE) {
-                        // The Skins page, on the launcher folder the CI run gives (ci/mcci.py): ten saved skins.
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(HubScreen.onSkinsPage());
-                        enter(Phase.HUB_SKINS);
-                        writeMarker("ui_hub_skins");
-                    } else if (phase == Phase.HUB_SKINS) {
-                        phases.getAsJsonObject("settings_ui").addProperty("skins_shown", HubScreen.skinsShown());
+                    if (phase == Phase.QUICK_MENU) {
+                        openMenu("modules", null);
+                        enter(Phase.MENU_MODULES);
+                        writeMarker("ui_menu_modules");
+                    } else if (phase == Phase.MENU_MODULES) {
+                        openMenu("modules", "drawer_atmosphere");
+                        enter(Phase.MENU_DRAWER);
+                        writeMarker("ui_menu_drawer");
+                    } else if (phase == Phase.MENU_DRAWER) {
+                        // The Skins view, on the launcher folder the CI run gives (ci/mcci.py): ten saved skins.
+                        hubFramesAtStart = WardrobeScreen.framesRendered;
+                        ScreenOpener.open(WardrobeScreen.on(null, "skins"));
+                        enter(Phase.WARDROBE_SKINS);
+                        writeMarker("ui_wardrobe_skins");
+                    } else if (phase == Phase.WARDROBE_SKINS) {
+                        phases.getAsJsonObject("settings_ui").addProperty("skins_shown", WardrobeScreen.skinsShown());
                         phases.getAsJsonObject("settings_ui").addProperty("skins_read_ticks", ticks);
-                        if (HubScreen.skinsShown() != 10) {
-                            failures.add("the Skins page showed " + HubScreen.skinsShown() + " of the launcher's 10 skins");
+                        if (WardrobeScreen.skinsShown() != 10) {
+                            failures.add("the Skins view showed " + WardrobeScreen.skinsShown() + " of the launcher's 10 skins");
                         }
                         List<String> skinProblems = ModulesSelfTest.checkOwnSkin(client);
                         phases.getAsJsonObject("settings_ui").addProperty("own_skin", skinProblems.isEmpty() ? "ok" : String.join("; ", skinProblems));
                         failures.addAll(skinProblems);
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(HubScreen.onWardrobe());
-                        enter(Phase.HUB_WARDROBE);
-                        writeMarker("ui_hub_wardrobe");
-                    } else if (phase == Phase.HUB_WARDROBE) {
-                        hubFramesAtStart = HubScreen.framesRendered;
-                        ScreenOpener.open(HubScreen.onSettings());
-                        enter(Phase.HUB_SETTINGS);
-                        writeMarker("ui_hub_settings");
+                        openMenu("wardrobe", null);
+                        enter(Phase.MENU_WARDROBE);
+                        writeMarker("ui_menu_wardrobe");
+                    } else if (phase == Phase.MENU_WARDROBE) {
+                        openMenu("settings", null);
+                        enter(Phase.MENU_SETTINGS);
+                        writeMarker("ui_menu_settings");
                     } else {
                         // The client's world modules: thunder, midnight and fullbright, on your screen only.
                         ScreenOpener.open(null);
@@ -668,15 +674,15 @@ public final class DevScenario {
                     if (BlockOutline.supported() && outlines <= 0) {
                         failures.add("the block outline was never drawn");
                     }
-                    hudFramesAtStart = HudEditorScreen.framesRendered;
-                    ScreenOpener.open(new HudEditorScreen(null));
+                    hudFramesAtStart = HudEditor.framesRendered;
+                    ScreenOpener.open(new HudEditor(null));
                     enter(Phase.HUD_EDITOR);
                     writeMarker("ui_hud_editor");
                 }
             }
             case HUD_EDITOR -> {
                 if (ticks >= UI_TAB_TICKS) {
-                    int frames = HudEditorScreen.framesRendered - hudFramesAtStart;
+                    int frames = HudEditor.framesRendered - hudFramesAtStart;
                     phases.getAsJsonObject("settings_ui").addProperty("hud_editor", frames);
                     if (frames <= 0) {
                         failures.add("the HUD editor never rendered");
@@ -694,11 +700,11 @@ public final class DevScenario {
             }
             case MOD_MENU -> {
                 if (ticks >= UI_TAB_TICKS) {
-                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    int frames = SolMenu.framesRendered - uiFramesAtTabStart;
                     JsonObject ui = phases.getAsJsonObject("settings_ui");
                     ui.addProperty("modmenu", frames);
-                    if (uiScreen != null && frames <= 0) {
-                        failures.add("the settings screen opened from Mod Menu never rendered");
+                    if (modMenuOpened && frames <= 0) {
+                        failures.add("the Sol menu opened from Mod Menu never rendered");
                     }
                     ScreenOpener.open(null);
                     startShadersOrFinish();
@@ -877,35 +883,42 @@ public final class DevScenario {
     }
 
     private void openSettingsTab(Minecraft client) {
-        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
+        uiFramesAtTabStart = WardrobeScreen.framesRendered;
         elytraFramesAtStart = CapeElytra.previewFrames;
-        uiScreen = CosmeticsScreen.testPage(uiTab);
+        uiScreen = WardrobeScreen.testPage(uiTab);
         ScreenOpener.open(uiScreen);
     }
 
+    /** The full menu on a section (and in a state, such as a module's drawer). */
+    private void openMenu(String section, String state) {
+        hubFramesAtStart = SolMenu.framesRendered;
+        SolMenu menu = SolMenu.create(null, section, false);
+        ScreenOpener.open(state != null ? menu.stage(state) : menu);
+    }
+
     /**
-     * Opens the settings screen the way Mod Menu's "Configure" button does: Mod Menu's list, then the screen
-     * Mod Menu gets from this mod's "modmenu" entrypoint.
+     * Opens the Sol menu the way Mod Menu's "Configure" button does: Mod Menu's list, then the screen Mod Menu gets
+     * from this mod's "modmenu" entrypoint.
      */
     private void openThroughModMenu() {
-        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
-        uiScreen = null;
+        uiFramesAtTabStart = SolMenu.framesRendered;
+        modMenuOpened = false;
         try {
             Screen modList = (Screen) Class.forName("com.terraformersmc.modmenu.gui.ModsScreen")
                     .getConstructor(Screen.class).newInstance((Screen) null);
             Object screen = Class.forName("com.terraformersmc.modmenu.ModMenu")
                     .getMethod("getConfigScreen", String.class, Screen.class)
                     .invoke(null, CosmeticsMod.MOD_ID, modList);
-            if (screen instanceof CosmeticsScreen ours) {
-                uiScreen = ours;
+            if (screen instanceof SolMenu ours) {
+                modMenuOpened = true;
                 ScreenOpener.open(ours);
             } else {
                 failures.add("Mod Menu has no settings screen for this mod (got " + screen + ")");
             }
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
-            CosmeticsMod.LOGGER.error("Opening the settings screen through Mod Menu failed", cause);
-            failures.add("opening the settings screen through Mod Menu failed: " + cause);
+            CosmeticsMod.LOGGER.error("Opening the Sol menu through Mod Menu failed", cause);
+            failures.add("opening the Sol menu through Mod Menu failed: " + cause);
         }
     }
 

@@ -41,6 +41,8 @@ import java.util.Map;
  */
 public final class SolMenu extends SolScreen {
     public static final String[] STOPS = {"modules", "hud", "world", "wardrobe", "music", "mods", "settings"};
+    /** Frames drawn (the in-game check). */
+    public static int framesRendered;
     static final float[] TS = {0.1f, 0.233f, 0.367f, 0.5f, 0.633f, 0.767f, 0.9f};
     /** The content area under the horizon (the prototype's .content). */
     static final float CONTENT_X = 40f, CONTENT_Y = 294f, CONTENT_BOTTOM = 676f;
@@ -220,6 +222,7 @@ public final class SolMenu extends SolScreen {
 
     @Override
     protected void frame(Gfx g) {
+        framesRendered++;
         Tokens tk = ThemeState.tokens();
         openT += dt;
         sectionT += dt;

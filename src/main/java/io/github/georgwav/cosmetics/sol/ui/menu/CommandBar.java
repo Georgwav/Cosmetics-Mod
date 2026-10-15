@@ -80,7 +80,7 @@ final class CommandBar {
             }));
         }
         it.add(new Item("action:edit_hud", SolMenu.tr("sol.cmd.edit_hud"), SolMenu.tr("sol.cmd.kind.action"), "hud",
-                () -> ScreenOpener.open(new io.github.georgwav.cosmetics.ui.hub.HudEditorScreen(menu))));
+                () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.HudEditor(menu))));
         Atmosphere at = Atmosphere.INSTANCE;
         if (at != null) {
             boolean pixel = !"smooth".equals(at.lightStyle.get());

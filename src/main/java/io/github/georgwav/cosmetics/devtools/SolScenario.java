@@ -36,7 +36,10 @@ public final class SolScenario {
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_mods", "menu_settings",
-            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast"};
+            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "wardrobe_grid", "wardrobe_drawer",
+            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
+            "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
+            "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -342,15 +345,54 @@ public final class SolScenario {
     private static void stageUi(String name) {
         boolean ui = name.startsWith("ui_");
         io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.pointerOff = ui;
-        // The toast is shown with the HUD, as in play; every other frame keeps the HUD hidden.
-        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast"));
+        // The toast and the HUD editor are shown with the HUD, as in play; every other frame keeps the HUD hidden.
+        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor"));
+        String what = ui ? name.substring(3) : "";
+        boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
+        wearForWardrobe(wardrobe);
+        hudForEditor(what.equals("hud_editor"));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
                 io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
             }
             return;
         }
-        String what = name.substring(3);
+        if (what.startsWith("emote_")) {
+            // The wheel with emotes on it (a fresh config has none yet).
+            for (boolean elytra : new boolean[]{false, true}) {
+                java.util.List<io.github.georgwav.cosmetics.emote.Emote> all = new java.util.ArrayList<>(
+                        io.github.georgwav.cosmetics.emote.Emotes.all());
+                all.sort(java.util.Comparator.comparing((io.github.georgwav.cosmetics.emote.Emote e) -> e.elytra() != elytra));
+                for (int i = 0; i < Math.min(6, all.size()); i++) {
+                    if (io.github.georgwav.cosmetics.emote.Emotes.at(elytra, i) == null) {
+                        io.github.georgwav.cosmetics.emote.Emotes.assign(elytra, i, all.get(i).id());
+                    }
+                }
+            }
+            var wheel = new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(what.equals("emote_wheel_elytra"));
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
+            return;
+        }
+        if (what.equals("quick_wheel")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel());
+            return;
+        }
+        if (what.equals("hud_editor")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.HudEditor(null));
+            return;
+        }
+        if (wardrobe) {
+            var w = new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null);
+            if (what.startsWith("cosmetics_settings")) {
+                w.stage("settings");
+                w.stage(what.equals("cosmetics_settings") ? "settings_display" : "settings_" + what.substring("cosmetics_settings_".length()));
+            } else {
+                String state = what.substring("wardrobe_".length());
+                w.stage(state.equals("grid") ? "all" : state);
+            }
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
+            return;
+        }
         if (what.equals("toast")) {
             // A notification over the game, with a button, as Atmosphere's first start shows one.
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
@@ -365,6 +407,54 @@ public final class SolScenario {
         } else {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
                     io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
+        }
+    }
+
+    /** What you wore before the Wardrobe shots (null while they aren't on). */
+    private static java.util.List<String> wornBefore;
+
+    /**
+     * The Wardrobe shots show you wearing a few things (the world shots wear nothing): a cape, a hat, wings and an
+     * aura when there are some. Back to what you wore after them.
+     */
+    private static void wearForWardrobe(boolean on) {
+        var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
+        java.util.List<String> worn = config.localEquipped();
+        if (on && wornBefore == null) {
+            wornBefore = new java.util.ArrayList<>(worn);
+            worn.clear();
+            java.util.Set<String> taken = new java.util.HashSet<>();
+            for (var c : io.github.georgwav.cosmetics.model.CosmeticRegistry.all()) {
+                String kind = c.wings() != null ? "wings" : c.slot().name();
+                if (!c.definition().prop() && java.util.Set.of("CAPE", "HEAD", "wings", "AURA").contains(kind) && taken.add(kind)) {
+                    worn.add(c.id());
+                }
+            }
+            io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+        } else if (!on && wornBefore != null) {
+            worn.clear();
+            worn.addAll(wornBefore);
+            wornBefore = null;
+            io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+        }
+    }
+
+    /** The HUD modules switched on for the HUD editor's shot (and off again after it). */
+    private static java.util.List<io.github.georgwav.cosmetics.client.Module> hudShown;
+
+    private static void hudForEditor(boolean on) {
+        if (on && hudShown == null) {
+            hudShown = new java.util.ArrayList<>();
+            for (String id : new String[]{"fps", "coords", "keystrokes", "armor"}) {
+                var m = io.github.georgwav.cosmetics.client.Modules.byId(id);
+                if (m != null && !m.enabled()) {
+                    m.setEnabled(true);
+                    hudShown.add(m);
+                }
+            }
+        } else if (!on && hudShown != null) {
+            hudShown.forEach(m -> m.setEnabled(false));
+            hudShown = null;
         }
     }
 

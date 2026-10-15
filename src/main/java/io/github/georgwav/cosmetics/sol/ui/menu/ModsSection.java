@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.sol.ui.menu;
 
+import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.sol.config.SolConfig;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
@@ -81,8 +82,17 @@ final class ModsSection implements Section {
                 missing.add(SolMenu.tr("sol.mods." + id));
             }
         }
+        float hr = x + w;
+        if (Compat.MOD_MENU) {
+            // Mod Menu's own list of every mod.
+            hr -= ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.mod_menu"), false, () -> {
+                if (!ModScreens.openModList(menu)) {
+                    menu.toast(SolMenu.tr("sol.notify.no_screen"));
+                }
+            }) + 8f;
+        }
         if (!missing.isEmpty()) {
-            ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.mods.worth", String.join(", ", missing)), false,
+            ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.worth", String.join(", ", missing)), false,
                     () -> menu.toast(SolMenu.tr("sol.notify.worth_adding")));
         }
 
@@ -131,6 +141,12 @@ final class ModsSection implements Section {
                     SolConfig.save();
                     menu.toast(SolMenu.tr("sol.notify.overlap", options[i]));
                 });
+            } else if (id.equals("iris")) {
+                // The shaders switch: Iris's own setting.
+                boolean on = Compat.isShaderPackActive();
+                ui.smallSwitch(tk, x + w - 12f - 30f, cy - 9f, on, () -> Compat.setShadersEnabled(!on));
+                actionsW = 30f + g.width(s, SolMenu.tr("sol.menu.mods.shaders")) + 8f;
+                g.textRight(s, SolMenu.tr("sol.menu.mods.shaders"), x + w - 12f - 30f - 8f, cy, 0xB3FFFFFF);
             } else if (k != null && k.kind() == Kind.STYLED) {
                 boolean on = !"off".equals(SolConfig.get().overlaps.getOrDefault("style:" + id, "on"));
                 ui.smallSwitch(tk, x + w - 12f - 30f, cy - 9f, on, () -> {
@@ -145,12 +161,27 @@ final class ModsSection implements Section {
                         : SolMenu.tr(kind == null ? "sol.menu.mods.alongside_pill" : "sol.menu.mods.as_it_is");
                 actionsW = ui.pill(tk, x + w - 12f, cy, pill, k != null);
             }
+            // Its own screen: Controlling's key binds, Screenshot Viewer's screenshots, or its settings through Mod Menu.
+            Runnable own = id.equals("controlling") ? () -> opened(menu, ModScreens.openKeyBinds(menu))
+                    : id.equals("screenshot_viewer") ? () -> opened(menu, ModScreens.openScreenshots(menu))
+                    : !id.equals("modmenu") && ModScreens.hasSettings(id) ? () -> opened(menu, ModScreens.openSettings(menu, id)) : null;
+            if (own != null) {
+                String icon = id.equals("controlling") ? "key" : id.equals("screenshot_viewer") ? "camera" : "gear";
+                ui.tool(tk, x + w - 12f - actionsW - 10f - 26f, cy - 13f, icon, false, own);
+                actionsW += 36f;
+            }
             float room = w - 12f - 34f - 12f - actionsW - 24f;
             g.text(b, g.fit(b, mod.getMetadata().getName(), room), x + 58f, ry + 22f, 0xFFFFFFFF);
             g.text(s, g.fit(s, note, room), x + 58f, ry + 39f, 0x8FFFFFFF);
             ry += rh + 6f;
         }
         return ry - y;
+    }
+
+    private static void opened(SolMenu menu, boolean ok) {
+        if (!ok) {
+            menu.toast(SolMenu.tr("sol.notify.no_screen"));
+        }
     }
 
     @Override

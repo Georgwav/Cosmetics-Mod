@@ -19,7 +19,7 @@ public abstract class Module {
 
     public final String id;
     public final Category category;
-    /** Icon texture name under textures/gui/hub. */
+    /** The icon name it was made with; the Sol UI draws each module's own icon by its id (ModuleIcons). */
     public final String icon;
     final List<Setting<?>> settings = new ArrayList<>();
     /** Switches the module on and off; unbound until you bind it. */

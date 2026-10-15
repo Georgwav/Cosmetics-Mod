@@ -2,7 +2,7 @@ package io.github.georgwav.cosmetics.client.hud;
 
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.ui.Canvas;
-import io.github.georgwav.cosmetics.ui.hub.HubFont;
+import io.github.georgwav.cosmetics.ui.GeistFont;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
@@ -53,9 +53,9 @@ public abstract class TextHud extends HudModule {
     }
 
     /** Geist at the size the game's 9 pixel line has on screen now (GUI scale and this module's size). */
-    private HubFont geistFont(Minecraft mc) {
+    private GeistFont geistFont(Minecraft mc) {
         float screenPerUnit = (float) mc.getWindow().getGuiScale() * scale();
-        return HubFont.of(mc.font, 9.5f * screenPerUnit, true);
+        return GeistFont.of(mc.font, 9.5f * screenPerUnit, true);
     }
 
     private int lineWidth(Minecraft mc, String line) {
@@ -98,7 +98,7 @@ public abstract class TextHud extends HudModule {
         if (geist()) {
             // In screen pixels, so Geist lands on them one to one.
             float k = (float) mc.getWindow().getGuiScale() * scale();
-            HubFont f = geistFont(mc);
+            GeistFont f = geistFont(mc);
             g.push();
             g.scale(1f / k, 1f / k);
             float y = PAD;

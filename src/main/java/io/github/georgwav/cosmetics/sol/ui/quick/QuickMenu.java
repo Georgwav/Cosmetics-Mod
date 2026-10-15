@@ -43,6 +43,9 @@ import java.util.List;
  * its light keys, its springs.
  */
 public final class QuickMenu extends SolScreen {
+    /** Frames drawn (the in-game check). */
+    public static int framesRendered;
+
     static final float CX = 640f, CY = 318f, R1 = 118f, R2 = 182f, RT = 212f, RD = 56f;
 
     /** One place on a ring: its id, its icon and its angle on the dial (degrees, 0 = right, clockwise). */
@@ -240,6 +243,7 @@ public final class QuickMenu extends SolScreen {
 
     @Override
     protected void frame(Gfx g) {
+        framesRendered++;
         Tokens tk = ThemeState.tokens();
         openT += dt;
         ringT += dt;
@@ -736,7 +740,7 @@ public final class QuickMenu extends SolScreen {
                 Notifications.post(tr("sol.notify.emote", Emotes.name(e)));
             }));
         }
-        chips.add(Widgets.Chip.button(tr("sol.quick.edit_wheel"), () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.ui.EmoteWheelScreen(false))));
+        chips.add(Widgets.Chip.button(tr("sol.quick.edit_wheel"), () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(false))));
         rowOfChips(g, tk, chips, y);
     }
 

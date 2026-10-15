@@ -19,7 +19,7 @@ import java.util.Map;
  * emote's most telling pose ({@link EmotePose#bestTime}), turned a little towards you. Drawn on the CPU by
  * {@link SoftRaster} like the Wardrobe's tile pictures; one small texture per emote, made once. Render thread only.
  */
-final class EmotePictures {
+public final class EmotePictures {
     static final int SIZE = 96;
     /** Model pixels that fit across the picture. */
     private static final float VIEW = 46f;
@@ -31,10 +31,10 @@ final class EmotePictures {
     private static final String[] BOXES = {
             "[-4,-8,-4],\"to\":[4,0,4]", "[-4,0,-2],\"to\":[4,12,2]", "[-3,-2,-2],\"to\":[1,10,2]",
             "[-1,-2,-2],\"to\":[3,10,2]", "[-2,0,-2],\"to\":[2,12,2]", "[-2,0,-2],\"to\":[2,12,2]"};
-    private static final int[] COLORS = {0xFFEAD7C3, Theme.ACCENT, 0xFF8FA4FF, 0xFF8FA4FF, 0xFF414B7A, 0xFF414B7A};
+    private static final int[] COLORS = {0xFFEAD7C3, 0xFF6E8BFF, 0xFF8FA4FF, 0xFF8FA4FF, 0xFF414B7A, 0xFF414B7A};
 
     /** Pictures made since the game started (read by the in-game test). */
-    static int made;
+    public static int made;
 
     private static BakedMesh[] parts;
 
@@ -44,7 +44,7 @@ final class EmotePictures {
     private final float[] normal = new float[9];
 
     /** Draws the picture of {@code emote} into the square at ({@code x}, {@code y}) of {@code size} GUI pixels. */
-    void draw(Canvas g, Emote emote, int x, int y, int size) {
+    public void draw(Canvas g, Emote emote, int x, int y, int size) {
         PictureTexture picture = pictures.get(emote.id());
         if (picture == null) {
             picture = new PictureTexture("emote_picture/" + pictures.size(), SIZE);
@@ -56,7 +56,7 @@ final class EmotePictures {
     }
 
     /** Releases every picture's texture (when the screen closes). */
-    void close() {
+    public void close() {
         pictures.values().forEach(PictureTexture::release);
         pictures.clear();
     }
