@@ -46,6 +46,32 @@ public final class ModulesSelfTest {
 
     private static boolean rotated;
 
+    /** Projectile trails on, and a snowball in your hand to throw. */
+    public static void trailsOn(Minecraft mc) {
+        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").set("sparkle");
+        command(mc, "item replace entity @s weapon.mainhand with minecraft:snowball 4");
+    }
+
+    /** Throws the snowball (as a right click would) once it has reached your hand; true when thrown. */
+    public static boolean throwSnowball(Minecraft mc) {
+        if (mc.gameMode == null || mc.player == null || !mc.player.getMainHandItem().is(net.minecraft.world.item.Items.SNOWBALL)) {
+            return false;
+        }
+        mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+        return true;
+    }
+
+    /** Whether the snowball left a trail; then the trails go off and the snowballs go. */
+    public static java.util.List<String> trailsCheckAndOff(Minecraft mc) {
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        if (io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade <= 0) {
+            problems.add("the thrown snowball left no trail");
+        }
+        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").reset();
+        command(mc, "clear @s minecraft:snowball");
+        return problems;
+    }
+
     private static void command(Minecraft mc, String command) {
         var server = mc.getSingleplayerServer();
         if (server == null || mc.player == null) {
