@@ -38,6 +38,7 @@ import io.github.georgwav.cosmetics.client.modules.InventoryTweaks;
 import io.github.georgwav.cosmetics.client.modules.Servers;
 import io.github.georgwav.cosmetics.client.modules.Hypixel;
 import io.github.georgwav.cosmetics.client.modules.Social;
+import io.github.georgwav.cosmetics.client.modules.GlintModule;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -88,11 +89,12 @@ public final class Modules {
     public static final Servers SERVERS = new Servers();
     public static final Hypixel HYPIXEL = new Hypixel();
     public static final Social SOCIAL = new Social();
+    public static final GlintModule GLINT = new GlintModule();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
     private static final List<Module> ALL = List.of(ATMOSPHERE, ZOOM, CAMERA, PVP_TWEAKS, PVP_EFFECTS, HITBOXES, HELD_ITEMS,
-            NAMETAGS, SCREEN, PARTICLES, DROPPED_ITEMS, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
+            NAMETAGS, SCREEN, PARTICLES, DROPPED_ITEMS, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
             COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS, SOUNDS,
             SOCIAL, SERVERS, HYPIXEL, COSMETICS);
     private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);

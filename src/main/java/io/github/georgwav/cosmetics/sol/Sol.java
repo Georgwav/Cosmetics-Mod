@@ -51,6 +51,7 @@ public final class Sol {
             CosmeticsMod.LOGGER.error("[Sol] Couldn't load themes", e);
         }
         io.github.georgwav.cosmetics.sol.render.LightPass.reset();
+        io.github.georgwav.cosmetics.client.modules.GlintModule.reloaded();
     }
 
     private static void tick(Minecraft mc) {

@@ -493,6 +493,10 @@ public final class SolScenario {
                     hudShown.add(m);
                 }
             }
+            if (!io.github.georgwav.cosmetics.client.Modules.GLINT.enabled()) {
+                io.github.georgwav.cosmetics.client.Modules.GLINT.setEnabled(true);
+                hudShown.add(io.github.georgwav.cosmetics.client.Modules.GLINT);
+            }
             if (!io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.enabled()) {
                 io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.setEnabled(true);
                 hudShown.add(io.github.georgwav.cosmetics.client.Modules.SOL_CHAT);
@@ -537,6 +541,9 @@ public final class SolScenario {
                 problems.add(name + ": Sol UI's " + p.id + " didn't draw");
             }
         }
+        if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
+            problems.add(name + ": Glint didn't recolour any glint texture");
+        }
         if (name.equals("ui_hud_off")) {
             for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
                 if (drawn[p.ordinal()] > 0) {
@@ -578,12 +585,12 @@ public final class SolScenario {
             asPlayer(mc, List.of("gamerule announceAdvancements false", "gamerule show_advancement_messages false",
                     "difficulty easy", "gamemode survival @s", "clear @s", "effect clear @s",
                     "effect give @s minecraft:hunger 2 199 true",
-                    "item replace entity @s hotbar.0 with golden_apple 5", "item replace entity @s hotbar.1 with bow",
+                    "item replace entity @s hotbar.0 with golden_apple 5", "item replace entity @s hotbar.1 with bow[enchantment_glint_override=true]",
                     "item replace entity @s hotbar.2 with cobblestone 48", "item replace entity @s hotbar.3 with diamond_sword",
                     "item replace entity @s hotbar.4 with iron_pickaxe[damage=190]", "item replace entity @s hotbar.5 with torch 23",
                     "item replace entity @s hotbar.6 with cooked_beef 12", "item replace entity @s hotbar.7 with ender_pearl 3",
                     "item replace entity @s weapon.offhand with shield", "item replace entity @s armor.head with iron_helmet",
-                    "item replace entity @s armor.chest with iron_chestplate", "item replace entity @s armor.feet with iron_boots",
+                    "item replace entity @s armor.chest with iron_chestplate[enchantment_glint_override=true]", "item replace entity @s armor.feet with iron_boots",
                     "xp set @s 23 levels", "xp set @s 40 points", "damage @s 7 minecraft:generic",
                     "effect give @s minecraft:absorption 120 0 true",
                     // A boss bar, a scoreboard in the sidebar and in the tab list (which a lone player only sees
