@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 public final class ScreenOpener {
     private static boolean openRequested;
     private static boolean hubRequested;
+    private static java.util.function.Supplier<Screen> requested;
 
     private ScreenOpener() {
     }
@@ -42,8 +43,20 @@ public final class ScreenOpener {
         hubRequested = true;
     }
 
+    /** Opens a screen on the next client tick, if no other screen is open by then (a key press). */
+    public static void request(java.util.function.Supplier<Screen> screen) {
+        requested = screen;
+    }
+
     /** Called every client tick. */
     public static void tick() {
+        if (requested != null) {
+            java.util.function.Supplier<Screen> s = requested;
+            requested = null;
+            if (current() == null) {
+                open(s.get());
+            }
+        }
         if (openRequested) {
             openRequested = false;
             open(new CosmeticsScreen(null));

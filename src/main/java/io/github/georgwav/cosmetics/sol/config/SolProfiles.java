@@ -57,8 +57,21 @@ public final class SolProfiles {
         return MainFolder.clientFolder().resolve("profiles");
     }
 
+    /** The profiles: the four starting ones in their order first (as the prototype lists them), then the rest A–Z. */
     public static List<String> names() {
-        return Profiles.names();
+        List<String> all = Profiles.names();
+        List<String> out = new java.util.ArrayList<>();
+        for (String d : FirstLaunch.ORDER) {
+            if (all.contains(d)) {
+                out.add(d);
+            }
+        }
+        for (String n : all) {
+            if (!out.contains(n)) {
+                out.add(n);
+            }
+        }
+        return out;
     }
 
     public static String active() {
@@ -253,6 +266,49 @@ public final class SolProfiles {
     }
 
     // ------------------------------------------------------------------ pins and theme edits
+
+    /** What the profile popover shows of a saved profile: its theme, its own accent (or null) and modules on. */
+    public record Summary(String theme, String accent, int modulesOn) {
+    }
+
+    public static Summary summary(String name) {
+        JsonObject p = read(name);
+        String accent = null;
+        int on = 0;
+        if (p != null) {
+            try {
+                JsonObject theme = p.has("theme") && p.get("theme").isJsonObject() ? p.getAsJsonObject("theme") : null;
+                if (theme != null && theme.has("accent") && theme.get("accent").isJsonPrimitive()) {
+                    accent = theme.get("accent").getAsString();
+                }
+                JsonObject modules = p.has("modules") && p.get("modules").isJsonObject() ? p.getAsJsonObject("modules") : null;
+                if (modules != null) {
+                    for (var e : modules.entrySet()) {
+                        if (e.getValue().isJsonObject() && e.getValue().getAsJsonObject().has("enabled")
+                                && e.getValue().getAsJsonObject().get("enabled").getAsBoolean()) {
+                            on++;
+                        }
+                    }
+                }
+            } catch (RuntimeException e) {
+                // A hand-edited file with odd values: show what could be read.
+            }
+        }
+        return new Summary(themeOf(name), accent, on);
+    }
+
+    /** The theme a saved profile uses (its file's theme id), or the fallback theme. */
+    public static String themeOf(String name) {
+        JsonObject p = read(name);
+        if (p != null && p.has("theme") && p.get("theme").isJsonObject() && p.getAsJsonObject("theme").has("id")) {
+            try {
+                return p.getAsJsonObject("theme").get("id").getAsString();
+            } catch (RuntimeException e) {
+                return io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.FALLBACK;
+            }
+        }
+        return io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.FALLBACK;
+    }
 
     public static Set<String> pinned() {
         return pinned;

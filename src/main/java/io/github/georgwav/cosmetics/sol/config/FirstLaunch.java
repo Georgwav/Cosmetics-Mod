@@ -12,6 +12,9 @@ import java.nio.file.Files;
  * as "Deep Field", and Deep Field switched on with Atmosphere.
  */
 public final class FirstLaunch {
+    /** The starting profiles, in the order the menus list them. */
+    static final String[] ORDER = {"Deep Field", "Red PvP", "Survival", "Building"};
+
     private FirstLaunch() {
     }
 

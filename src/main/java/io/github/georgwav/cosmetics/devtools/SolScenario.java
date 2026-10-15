@@ -30,6 +30,13 @@ import java.util.List;
  */
 public final class SolScenario {
     private static final String MODE = System.getProperty("cosmeticsmod.solScenario", "");
+    /** Which shots: "world" (the themes), "ui" (the menus over Deep Field's night) or "all". */
+    private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
+    /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
+    private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
+            "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
+            "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_mods", "menu_settings",
+            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -99,6 +106,17 @@ public final class SolScenario {
                 shots.add(new Shot("sol_bench_" + q[i], "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK,
                         java.util.Map.of("quality", (float) i)));
             }
+            return;
+        }
+        if (!"world".equals(SHOTS)) {
+            // The menus over the game, as the prototype shows them: Deep Field's night, facing its galaxy.
+            ThemeRegistry.Entry deep = ThemeRegistry.find("deep_field");
+            float yaw = deep == null ? 180f : deep.base().show().azimuth();
+            for (String ui : UI_SHOTS) {
+                shots.add(new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
+            }
+        }
+        if ("ui".equals(SHOTS)) {
             return;
         }
         for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
@@ -243,6 +261,7 @@ public final class SolScenario {
                 return;
             }
             Shot s = shots.get(index);
+            stageUi(s.name());
             ThemeState.setTheme(s.theme(), false);
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
@@ -270,8 +289,39 @@ public final class SolScenario {
         }
     }
 
+    /** Opens the menu a "ui_" shot shows, in its state; any other shot closes it. */
+    private static void stageUi(String name) {
+        boolean ui = name.startsWith("ui_");
+        io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.pointerOff = ui;
+        // The toast is shown with the HUD, as in play; every other frame keeps the HUD hidden.
+        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast"));
+        if (!ui) {
+            if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
+                io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            }
+            return;
+        }
+        String what = name.substring(3);
+        if (what.equals("toast")) {
+            // A notification over the game, with a button, as Atmosphere's first start shows one.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            io.github.georgwav.cosmetics.sol.ui.kit.Notifications.post(
+                    net.minecraft.network.chat.Component.translatable("sol.notify.shaders_paused").getString(),
+                    net.minecraft.network.chat.Component.translatable("sol.notify.undo").getString(), () -> { });
+            return;
+        }
+        if (what.startsWith("quick_")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(
+                    new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null).stage(what.substring("quick_".length())));
+        } else {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(
+                    io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
+        }
+    }
+
     private void finish(Minecraft mc) {
         finished = true;
+        stageUi("");
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
         crosshairOnly = false;

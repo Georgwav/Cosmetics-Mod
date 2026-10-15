@@ -37,8 +37,10 @@ class ThemeParserTest {
         assertEquals(13, sources.size(), "13 bundled themes");
         ThemeRegistry.load(sources, (id, msg) -> warnings.add(id + ": " + msg));
         assertEquals(List.of(), warnings);
-        assertEquals("sakura_dusk", ThemeRegistry.all().get(0).id(), "built-in order");
-        assertEquals("empty", ThemeRegistry.all().get(12).id());
+        // The prototype's order: Empty first (the dashed card), then the twelve themes.
+        assertEquals("empty", ThemeRegistry.all().get(0).id(), "built-in order");
+        assertEquals("sakura_dusk", ThemeRegistry.all().get(1).id());
+        assertEquals("grace", ThemeRegistry.all().get(12).id());
         ThemeRegistry.Entry ember = ThemeRegistry.get("ember");
         assertEquals("ember_solstice", ember.id(), "prototype alias");
         assertEquals(0xFFFFB347, ember.base().ui().accent());

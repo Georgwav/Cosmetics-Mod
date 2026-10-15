@@ -86,9 +86,14 @@ final class VersionHooks {
         //?}
     }
 
-    /** "Open the hub" key: Right Shift, like other clients' menus. /cosmetics and Mod Menu open the settings. */
+    /** "Open Cosmetics": the Wardrobe, unbound by default (main's key and meaning). */
     static KeyMapping registerKeyMapping() {
-        return registerKeyMapping("key.cosmeticsmod.open", InputConstants.KEY_RSHIFT);
+        return registerKeyMapping("key.cosmeticsmod.open", InputConstants.UNKNOWN.getValue());
+    }
+
+    /** The Sol quick menu: Right Shift, like other clients' menus. */
+    static KeyMapping registerQuickMenuKeyMapping() {
+        return registerKeyMapping("key.cosmeticsmod.quick_menu", InputConstants.KEY_RSHIFT);
     }
 
     /** "Emote wheel" key, B by default like Lunar's (vanilla uses B only with Ctrl, for the narrator). */

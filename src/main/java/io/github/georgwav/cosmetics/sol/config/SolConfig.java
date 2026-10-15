@@ -50,6 +50,12 @@ public final class SolConfig {
         public int ciderPort = 10767;
         public String spotifyClientId = "";
         public boolean visualizers = true;
+        /** The UI takes the album cover's colours while a song plays. */
+        public boolean albumUi = true;
+        /** The world's sky takes the album's colours too (the Album theme). */
+        public boolean albumSky = false;
+        /** The current lyric line in the HUD. */
+        public boolean lyricsHud = true;
         /** Per-song lyric timing nudges in ms, by song key. */
         public Map<String, Integer> lyricsOffsetMs = new LinkedHashMap<>();
     }

@@ -19,7 +19,8 @@ import net.minecraft.client.gui.components.toasts.ToastComponent;
 
 /**
  * Sol's top layer: drawn right after the game's toasts, over the HUD and any screen, whether or not the HUD is
- * hidden (Sol's notifications, and the test scenario's lone crosshair).
+ * hidden (Sol's notifications, and the test scenario's lone crosshair). At every return: the game's toasts return
+ * early while the HUD is hidden (F1), and Sol's layer still has to draw then.
  */
 //? if >=1.21.2 {
 @Mixin(ToastManager.class)
@@ -28,12 +29,12 @@ import net.minecraft.client.gui.components.toasts.ToastComponent;
 *///?}
 abstract class SolOverlayMixin {
     //? if >=26.1 {
-    /*@Inject(method = "extractRenderState", at = @At("TAIL"))
+    /*@Inject(method = "extractRenderState", at = @At("RETURN"))
     private void cosmeticsmod$overlay(GuiGraphicsExtractor graphics, CallbackInfo ci) {
         SolOverlay.render(new Canvas(graphics));
     }
     *///?} else {
-    @Inject(method = "render", at = @At("TAIL"))
+    @Inject(method = "render", at = @At("RETURN"))
     private void cosmeticsmod$overlay(GuiGraphics graphics, CallbackInfo ci) {
         SolOverlay.render(new Canvas(graphics));
     }

@@ -13,8 +13,10 @@ import net.minecraft.client.input.KeyEvent;
  * options.
  */
 public final class KeyBinds {
-    /** Opens the hub. */
+    /** "Open Cosmetics": the Wardrobe (unbound by default, as on main). */
     public static KeyMapping open;
+    /** The Sol quick menu (Right Shift). */
+    public static KeyMapping quick;
     /** Opens the emote wheel (held: release to play). */
     public static KeyMapping emotes;
 
@@ -96,6 +98,36 @@ public final class KeyBinds {
             problems.add("the emote wheel key didn't go back to its default");
         }
         return problems;
+    }
+
+    public static KeyMapping quickMenu() {
+        return quick;
+    }
+
+    /** Whether a key code pressed in a screen is this mapping's key. */
+    public static boolean matches(KeyMapping mapping, int key) {
+        if (mapping == null || mapping.isUnbound()) {
+            return false;
+        }
+        //? if >=1.21.9 {
+        return mapping.matches(new KeyEvent(key, 0, 0));
+        //?} else {
+        /*return mapping.matches(key, 0);
+        *///?}
+    }
+
+    /**
+     * The client branch had the hub on Right Shift under "Open Cosmetics". Sol's quick menu has its own key on Right
+     * Shift and "Open Cosmetics" is unbound by default again: if the old key still sits on Right Shift, free it once,
+     * so Right Shift opens the quick menu.
+     */
+    public static void migrateQuickKey() {
+        if (open == null || quick == null) {
+            return;
+        }
+        if (open.same(quick) && !quick.isUnbound()) {
+            bind(open, InputConstants.UNKNOWN);
+        }
     }
 
     /** The key's name as the game shows it ("B", "Mouse Button 4", "Not Bound"). */

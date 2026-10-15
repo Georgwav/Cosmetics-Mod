@@ -100,6 +100,9 @@ public final class SolFont {
     }
 
     Component component(String text) {
+        if (text == null) {
+            text = "";
+        }
         Component c = components.get(text);
         if (c == null) {
             if (components.size() > CACHE) {

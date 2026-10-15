@@ -34,9 +34,11 @@ public final class CosmeticsMod implements ClientModInitializer {
         VersionHooks.registerCapeOverride();
         VersionHooks.registerCommand();
         KeyMapping openKey = VersionHooks.registerKeyMapping();
+        KeyMapping quickKey = VersionHooks.registerQuickMenuKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
         EmoteWheelScreen.key = emoteKey;
         KeyBinds.open = openKey;
+        KeyBinds.quick = quickKey;
         KeyBinds.emotes = emoteKey;
         Modules.init(VersionHooks::registerUnboundKey);
         Hud.register();
@@ -49,7 +51,10 @@ public final class CosmeticsMod implements ClientModInitializer {
         }
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKey.consumeClick()) {
-                ScreenOpener.requestOpenHub();
+                ScreenOpener.request(() -> io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "wardrobe", false));
+            }
+            while (quickKey.consumeClick()) {
+                ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null));
             }
             while (emoteKey.consumeClick()) {
                 EmoteWheelScreen.openIfAllowed(client);

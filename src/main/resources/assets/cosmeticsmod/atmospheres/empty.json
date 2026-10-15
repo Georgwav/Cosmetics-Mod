@@ -1,7 +1,7 @@
 {
   "name": "Empty",
   "line": "Vanilla sky, Atmosphere off, neutral colours. Set it up yourself.",
-  "order": 13,
+  "order": 0,
   "ui": {
     "accent": "#9aa3b5",
     "panel": "#101218",

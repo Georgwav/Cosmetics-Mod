@@ -172,7 +172,7 @@ theme("grace",12,"Grace","A gold rune of linked rings burns above a bank of lit 
   clouds={"tint":"#1e3e38","litBySun":False}, wind=[0.15,0.0,0.06],
   particles=em([["ember",56,["#ffcf6a","#ffb347","#fff0b8"],[1.1,2.3]],["dust",40,["#7fc4ab","#5a9a85"],[1,2]],["ash",10,["#1c2e28","#26392f"],[2,3.5]]]))
 
-theme("empty",13,"Empty","Vanilla sky, Atmosphere off, neutral colours. Set it up yourself.",
+theme("empty",0,"Empty","Vanilla sky, Atmosphere off, neutral colours. Set it up yourself.",
   ui("#9aa3b5","rgba(16,18,24,.62)","rgba(255,255,255,.4)"),
   sky("#5f8fe8","#78a7ff","#b9d1ff","#d4e3ff",0.3), fog("#c0d8ff",.2), {"tint":"#ffffff","strength":0.0},
   {"phase":"day","azimuth":0}, {},

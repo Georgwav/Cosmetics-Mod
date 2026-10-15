@@ -44,6 +44,22 @@ public final class ModuleIcons {
             Map.entry("hypixel", "star"),
             Map.entry("cosmetics", "cape"));
 
+    /**
+     * The modules that keep their own ids until they move into the ones above: each shows the icon of the module it
+     * becomes (toggle sprint is Movement, Coordinates, Armour & Items, Potion Effects), or one of its own where it
+     * becomes part of one (time and weather in Atmosphere, FPS, ping and clock as Stats lines).
+     */
+    public static final Map<String, String> EARLIER = Map.of(
+            "toggle_sprint", "run",
+            "coords", "compass",
+            "armor", "shield",
+            "effects", "potion",
+            "time", "moon",
+            "weather", "cloud",
+            "fps", "gauge",
+            "ping", "signal",
+            "clock", "clock");
+
     /** Kept mods shown among the modules -> icon. */
     public static final Map<String, String> KEPT = Map.of(
             "xaeros-minimap", "map",
@@ -65,6 +81,7 @@ public final class ModuleIcons {
 
     /** The icon for a module id (the cube for one the table doesn't know, e.g. a module added by an addon). */
     public static String module(String id) {
-        return MODULES.getOrDefault(id, "cube");
+        String icon = MODULES.get(id);
+        return icon != null ? icon : EARLIER.getOrDefault(id, "cube");
     }
 }

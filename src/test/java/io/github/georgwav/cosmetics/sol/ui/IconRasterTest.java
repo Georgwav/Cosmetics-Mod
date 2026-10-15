@@ -43,6 +43,9 @@ class IconRasterTest {
             String other = seen.put(e.getValue(), e.getKey());
             assertNull(other, e.getKey() + " and " + other + " share " + e.getValue());
         }
+        for (var e : ModuleIcons.EARLIER.entrySet()) {
+            assertTrue(icons.has(e.getValue()), e.getKey() + " -> " + e.getValue());
+        }
         for (String name : ModuleIcons.KEPT.values()) {
             assertTrue(icons.has(name), name);
         }

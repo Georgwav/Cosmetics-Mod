@@ -13,8 +13,8 @@ import java.util.List;
  * them is the render thread's.
  */
 public final class Notifications {
-    /** How long one stays up, in seconds. */
-    public static final float SECONDS = 4.5f;
+    /** How long a short one stays up, in seconds; longer ones stay a little longer to be read. */
+    public static final float SECONDS = 2.6f;
     private static final int INBOX = 30;
 
     /** One message. {@code action} is the button's label, or null. */
@@ -36,6 +36,11 @@ public final class Notifications {
 
         public float age() {
             return (System.nanoTime() - posted) / 1e9f;
+        }
+
+        /** Seconds it stays up: 2.6 for a short line, up to 6 for a long one, a little more with a button. */
+        public float life() {
+            return Math.min(6f, SECONDS + text.length() * 0.03f) + (action != null ? 2f : 0f);
         }
     }
 
@@ -70,7 +75,7 @@ public final class Notifications {
                 }
             }
         }
-        showing.removeIf(n -> n.dismissed || n.age() > SECONDS + 0.6f);
+        showing.removeIf(n -> n.dismissed || n.age() > n.life() + 0.6f);
         return showing;
     }
 

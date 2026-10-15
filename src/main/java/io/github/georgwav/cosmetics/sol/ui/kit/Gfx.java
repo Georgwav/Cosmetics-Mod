@@ -170,6 +170,12 @@ public final class Gfx {
         return solid;
     }
 
+    /** One flat colour as a paint, for the paths and fills that take one (reused: use it before asking again). */
+    public Paint flat(int argb) {
+        solid2.argb = argb;
+        return solid2;
+    }
+
     // ------------------------------------------------------------------ rectangles
 
     /** A flat rectangle, snapped to whole screen pixels. */
@@ -421,9 +427,74 @@ public final class Gfx {
         round(cx - r, cy - r, 2 * r, 2 * r, r, p);
     }
 
+    /** Ring radii (fractions of the radius) for {@link #disc}: dense toward the rim, where crescents and edges sit. */
+    private static final float[] DISC_RINGS = {0.3f, 0.5f, 0.64f, 0.74f, 0.82f, 0.875f, 0.915f, 0.945f, 0.968f, 0.985f, 1f};
+
+    /**
+     * A circle filled with a paint sampled on a polar grid, so a gradient that changes inside the circle (an
+     * off-centre radial with a stop at 72%, a thin lit crescent at the rim) comes out as drawn, not flattened to
+     * the centre's and the rim's colours as a fan would. The rim is anti-aliased like {@link #round}.
+     */
+    public void disc(float cx, float cy, float r, Paint p) {
+        box(cx - r, cy - r, 2 * r, 2 * r, r);
+        if (bx1 - bx0 < 1 || by1 - by0 < 1) {
+            return;
+        }
+        float scx = (bx0 + bx1) / 2f, scy = (by0 + by1) / 2f, sr = br - 0.5f;
+        int seg = 72;
+        solidBatch();
+        float prev = 0f;
+        for (float f : DISC_RINGS) {
+            float r0 = sr * prev, r1 = sr * f;
+            for (int k = 0; k < seg; k++) {
+                double a0 = k * Math.PI * 2 / seg, a1 = (k + 1) * Math.PI * 2 / seg;
+                float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+                float x00 = scx + c0 * r0, y00 = scy + s0 * r0, x01 = scx + c0 * r1, y01 = scy + s0 * r1;
+                float x11 = scx + c1 * r1, y11 = scy + s1 * r1, x10 = scx + c1 * r0, y10 = scy + s1 * r0;
+                v(x00, y00, p.at(x00, y00));
+                v(x01, y01, p.at(x01, y01));
+                v(x11, y11, p.at(x11, y11));
+                v(x10, y10, p.at(x10, y10));
+            }
+            prev = f;
+        }
+        band(bx0, by0, bx1, by1, br, -0.5f, 1f, 0.5f, 0f, p, segments(br));
+    }
+
     /** A circle outline {@code width} screen pixels wide. */
     public void ring(float cx, float cy, float r, float width, int argb) {
         stroke(cx - r, cy - r, 2 * r, 2 * r, r, width, argb);
+    }
+
+    /**
+     * A radial gradient like CSS's {@code radial-gradient(rx ry at cx cy, ...)}: an ellipse in design coordinates
+     * with {@code stops}' colours at its offsets (its own centre and radius are ignored). Drawn as rings with an edge
+     * at every stop, so the colour between two stops is exact; nothing is drawn past the last stop.
+     */
+    public void radial(float cx, float cy, float rx, float ry, Radial stops, int segments) {
+        if (stops.stops == 0) {
+            return;
+        }
+        float scx = d.sx(cx), scy = d.sy(cy), srx = rx * d.u, sry = ry * d.u;
+        solidBatch();
+        float prev = 0f;
+        int prevColor = stops.color[0];
+        for (int i = 0; i < stops.stops; i++) {
+            float r0 = prev, r1 = Math.max(prev, stops.at[i]);
+            int c0 = prevColor, c1 = stops.color[i];
+            if (r1 > r0 && (Colors.a(c0) > 0 || Colors.a(c1) > 0)) {
+                for (int k = 0; k < segments; k++) {
+                    double a0 = k * Math.PI * 2 / segments, a1 = (k + 1) * Math.PI * 2 / segments;
+                    float x0 = (float) Math.cos(a0), y0 = (float) Math.sin(a0), x1 = (float) Math.cos(a1), y1 = (float) Math.sin(a1);
+                    v(scx + x0 * srx * r0, scy + y0 * sry * r0, c0);
+                    v(scx + x0 * srx * r1, scy + y0 * sry * r1, c1);
+                    v(scx + x1 * srx * r1, scy + y1 * sry * r1, c1);
+                    v(scx + x1 * srx * r0, scy + y1 * sry * r0, c0);
+                }
+            }
+            prev = r1;
+            prevColor = c1;
+        }
     }
 
     // ------------------------------------------------------------------ lines and paths
@@ -740,6 +811,19 @@ public final class Gfx {
             clipDepth--;
             canvas.endClip();
         }
+    }
+
+    /** The current clip in design pixels into {@code out} (x0, y0, x1, y1); false when nothing is clipped. */
+    public boolean clipRect(float[] out) {
+        if (clipDepth == 0) {
+            return false;
+        }
+        int o = (clipDepth - 1) * 4;
+        out[0] = (clipStack[o] - d.ox) / d.u;
+        out[1] = (clipStack[o + 1] - d.oy) / d.u;
+        out[2] = (clipStack[o + 2] - d.ox) / d.u;
+        out[3] = (clipStack[o + 3] - d.oy) / d.u;
+        return true;
     }
 
     /** Whether a design point is inside the current clip. */
