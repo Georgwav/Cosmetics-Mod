@@ -9,8 +9,8 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Inventory: how many uses each tool and piece of armour has left, written small over its slot wherever the game
- * draws items (inventories, the hotbar), in white, amber when low and red when nearly broken; and shulker boxes'
- * contents in their tooltips.
+ * draws items (inventories, the hotbar), in white, amber when low and red when nearly broken; shulker boxes'
+ * contents in their tooltips; and a key that brings the inventory's rows down through the hotbar.
  */
 public final class InventoryTweaks extends Module {
     private final Setting.Toggle durability = add(new Setting.Toggle("durability", true));
@@ -19,6 +19,39 @@ public final class InventoryTweaks extends Module {
 
     public InventoryTweaks() {
         super("inventory", Category.INVENTORY, "chest");
+        addKey("hotbar_rows");
+    }
+
+    @Override
+    protected void tick(Minecraft mc) {
+        var key = key("hotbar_rows");
+        while (key != null && key.consumeClick()) {
+            rotateRows(mc);
+        }
+    }
+
+    /**
+     * Brings the inventory's top row down to the hotbar, each row up one and the hotbar to the bottom row, as the
+     * game's own slot swaps (the number keys over a slot), so it works on any server. Only with no container open:
+     * the server takes clicks on the inventory only while it's the open menu. Returns whether it swapped.
+     */
+    public static boolean rotateRows(Minecraft mc) {
+        var player = mc.player;
+        if (player == null || mc.gameMode == null || player.isSpectator() || player.containerMenu != player.inventoryMenu) {
+            return false;
+        }
+        int id = player.inventoryMenu.containerId;
+        // Hotbar with the bottom row, then the middle, then the top: H, R1, R2, R3 becomes R1, R2, R3, H.
+        for (int row = 2; row >= 0; row--) {
+            for (int col = 0; col < 9; col++) {
+                //? if >=26.1 {
+                /*mc.gameMode.handleContainerInput(id, 9 + row * 9 + col, col, net.minecraft.world.inventory.ContainerInput.SWAP, player);
+                *///?} else {
+                mc.gameMode.handleInventoryMouseClick(id, 9 + row * 9 + col, col, net.minecraft.world.inventory.ClickType.SWAP, player);
+                //?}
+            }
+        }
+        return true;
     }
 
     /** Whether shulker boxes show their contents in their tooltips. */

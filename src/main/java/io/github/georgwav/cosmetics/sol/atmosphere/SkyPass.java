@@ -10,6 +10,7 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.Ease;
+import io.github.georgwav.cosmetics.sol.render.SolTiming;
 
 /**
  * The Sol sky, drawn in the game's sky pass in place of its own: the dome (top, middle and horizon colours, warmer
@@ -60,7 +61,9 @@ public final class SkyPass {
         }
         // A theme holding its showpiece shows its own time (a night theme keeps its night sky by day).
         float shownAngle = SkyTime.angle(sunAngle);
+        long t0 = SolTiming.start();
         boolean ok = Guard.run(Feature.SKY, () -> draw(shownAngle, moonPhase, rainBrightness));
+        SolTiming.end(SolTiming.Part.SKY, t0);
         if (!ok) {
             KeyLight.none();
         }
@@ -108,7 +111,9 @@ public final class SkyPass {
         if (theme.eclipse() != null) {
             eclipse(theme, tk, rain);
         } else if (theme.sun() != null && Guard.on(Feature.SUN)) {
+            long t0 = SolTiming.start();
             Guard.run(Feature.SUN, () -> sun(theme, at, q, t, rain));
+            SolTiming.end(SolTiming.Part.SUN, t0);
         } else {
             sunVisible = 0f;
         }

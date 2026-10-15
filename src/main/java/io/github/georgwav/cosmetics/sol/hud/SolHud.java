@@ -134,6 +134,7 @@ public final class SolHud {
     /** Draws a part, guarded: a failure switches Sol UI off and the game's own HUD comes back. */
     public static void draw(Part part, Canvas c, float partialTick) {
         DRAWN[part.ordinal()]++;
+        long t0 = io.github.georgwav.cosmetics.sol.render.SolTiming.start();
         Guard.run(Feature.SOL_UI, () -> {
             Minecraft mc = Minecraft.getInstance();
             Player player = mc.getCameraEntity() instanceof Player p ? p : null;
@@ -155,6 +156,7 @@ public final class SolHud {
                 }
             }
         });
+        io.github.georgwav.cosmetics.sol.render.SolTiming.end(io.github.georgwav.cosmetics.sol.render.SolTiming.Part.SOL_UI, t0);
     }
 
     // ------------------------------------------------------------------ the kit in GUI pixels

@@ -382,20 +382,20 @@ public final class LightPass {
             *///?}
             var res = mc.getResourceManager().getResource(id);
             if (res.isEmpty()) {
-                LogOnce.warn("lut-missing-" + location, "[Sol] The theme's LUT {} isn't in any resource pack", location);
+                LogOnce.warn("lut-missing-" + location, "The theme's LUT {} isn't in any resource pack", location);
                 return false;
             }
             try (var in = res.get().open()) {
                 java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(in);
                 if (img == null || img.getWidth() != LUT_W || img.getHeight() != LUT_H) {
-                    LogOnce.warn("lut-size-" + location, "[Sol] The theme's LUT {} isn't a 1024x32 image", location);
+                    LogOnce.warn("lut-size-" + location, "The theme's LUT {} isn't a 1024x32 image", location);
                     return false;
                 }
                 img.getRGB(0, 0, LUT_W, LUT_H, out, 0, LUT_W);
                 return true;
             }
         } catch (Exception e) {
-            LogOnce.warn("lut-read-" + location, "[Sol] Couldn't read the theme's LUT {}: {}", location, e.toString());
+            LogOnce.warn("lut-read-" + location, "Couldn't read the theme's LUT {}: {}", location, e.toString());
             return false;
         }
     }

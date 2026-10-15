@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffects;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import io.github.georgwav.cosmetics.sol.render.SolTiming;
 
 /**
  * Where Sol's mixins call in. Each entry point is short and guarded: the game's own drawing never sees an exception
@@ -61,6 +62,7 @@ public final class SolHooks {
             FrameInfo.timeOfDay = io.github.georgwav.cosmetics.sol.atmosphere.SkyTime.shown;
             ThemeState.update(FrameInfo.inWorld ? FrameInfo.timeOfDay : Float.NaN);
             QualityGovernor.frame(FrameInfo.frameSeconds);
+            SolTiming.frame(FrameInfo.frameSeconds);
             io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
                     io.github.georgwav.cosmetics.sol.render.LightPass.nanos);
         } catch (RuntimeException | LinkageError e) {
@@ -73,15 +75,23 @@ public final class SolHooks {
      * the depth is still the world's), then the lens flare over it all.
      */
     public static void frameEnd() {
+        long t0 = SolTiming.start();
         ParticleField.render();
         io.github.georgwav.cosmetics.sol.atmosphere.GlitterPath.render();
+        SolTiming.end(SolTiming.Part.PARTICLES, t0);
+        t0 = SolTiming.start();
         io.github.georgwav.cosmetics.sol.render.LightPass.world();
+        SolTiming.end(SolTiming.Part.LIGHT, t0);
         io.github.georgwav.cosmetics.client.modules.WorldOverlays.render();
+        t0 = SolTiming.start();
         LensFlare.render();
+        SolTiming.end(SolTiming.Part.FLARE, t0);
     }
 
     /** After the hand: the light pass's bloom, grade and vignette over the finished frame. */
     public static void afterHand() {
+        long t0 = SolTiming.start();
         io.github.georgwav.cosmetics.sol.render.LightPass.grade();
+        SolTiming.end(SolTiming.Part.LIGHT, t0);
     }
 }

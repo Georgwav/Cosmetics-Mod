@@ -52,7 +52,9 @@ abstract class CameraTweaksMixin {
             return;
         }
         setRotation(CameraTweaks.yaw(), CameraTweaks.pitch());
-        if (detached) {
+        if (CameraTweaks.freecam()) {
+            setPosition(CameraTweaks.freecamPosition(partialTick));
+        } else if (detached) {
             setPosition(entity.getEyePosition(partialTick));
             float scale = entity instanceof LivingEntity living ? living.getScale() : 1f;
             move(-getMaxZoom(4f * scale), 0f, 0f);

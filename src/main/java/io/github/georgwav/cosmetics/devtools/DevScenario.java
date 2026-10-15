@@ -73,7 +73,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -134,6 +134,8 @@ public final class DevScenario {
     private double[] groundPosition;
     private int wheelFramesAtStart;
     private boolean finished;
+    private boolean cameraWasOn;
+    private net.minecraft.world.phys.Vec3 freecamFrom;
 
     private DevScenario(boolean smoke, boolean benchmark) {
         this.smoke = smoke;
@@ -220,6 +222,8 @@ public final class DevScenario {
                             CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat").swaps = new ArrayList<>(
                                     List.of(new CosmeticsConfig.ColorSwap(hatColours[0], 0x22CC44)));
                         }
+                        // Nametags' health after your own name tag, shown in the front view.
+                        nametagHealth(true);
                     }
                     enter(Phase.FRONT);
                 }
@@ -230,6 +234,14 @@ public final class DevScenario {
                     // Every cosmetic is worn, the top hat among them, so the name tag must go up.
                     float lift = NameTags.lift(client.player);
                     phases.getAsJsonObject("vanilla_front").addProperty("nameTagLift", lift);
+                    if (smoke) {
+                        phases.getAsJsonObject("vanilla_front").addProperty("nameTagHealth",
+                                io.github.georgwav.cosmetics.client.modules.Nametags.healthShown);
+                        if (io.github.georgwav.cosmetics.client.modules.Nametags.healthShown <= 0) {
+                            failures.add("Nametags never put the health after your name tag");
+                        }
+                        nametagHealth(false);
+                    }
                     phases.getAsJsonObject("vanilla_front").addProperty("recoloredTextures", RecoloredTextures.made());
                     if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.made() <= 0) {
                         failures.add("the recoloured hat's texture was never made");
@@ -305,6 +317,38 @@ public final class DevScenario {
             case BACK_OFF -> {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back_off");
+                    restoreLoad();
+                    // Sol's cost, with every cosmetic drawn once as on a normal server.
+                    normalLoad();
+                    SolBench.setUp(client);
+                    enter(Phase.SOL_WARMUP);
+                }
+            }
+            case SOL_WARMUP -> {
+                if (ticks >= 100) {
+                    SolBench.setUp(client);
+                    enter(Phase.SOL_ATMOS_OFF);
+                }
+            }
+            case SOL_ATMOS_OFF -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_atmos_off");
+                    SolBench.atmosphereOn();
+                    enter(Phase.SOL_ATMOS_ON);
+                }
+            }
+            case SOL_ATMOS_ON -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_atmos_on");
+                    SolBench.everythingOn();
+                    enter(Phase.SOL_ALL);
+                }
+            }
+            case SOL_ALL -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_all");
+                    SolBench.check(phases.getAsJsonObject("sol_all"), failures);
+                    SolBench.tearDown();
                     restoreLoad();
                     enter(Phase.DONE);
                 }
@@ -650,10 +694,41 @@ public final class DevScenario {
                 }
             }
             case WORLD_MODULES -> {
+                if (ticks == 20) {
+                    ModulesSelfTest.midway(client);
+                }
                 if (ticks >= UI_TAB_TICKS) {
                     List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
                     phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
                     failures.addAll(problems);
+                    // The freecam: forward held for three seconds flies the camera, not the player.
+                    cameraWasOn = io.github.georgwav.cosmetics.client.Modules.CAMERA.enabled();
+                    io.github.georgwav.cosmetics.client.Modules.CAMERA.setEnabled(true);
+                    freecamFrom = client.player.position();
+                    if (!io.github.georgwav.cosmetics.client.modules.CameraTweaks.setFreecam(client, true)) {
+                        failures.add("the freecam didn't start in singleplayer");
+                    }
+                    client.options.keyUp.setDown(true);
+                    enter(Phase.FREECAM);
+                }
+            }
+            case FREECAM -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    var camera = io.github.georgwav.cosmetics.client.modules.CameraTweaks.freecamPosition(1f);
+                    double flown = camera.distanceTo(client.player.getEyePosition(1f));
+                    double walked = client.player.position().distanceTo(freecamFrom);
+                    phases.getAsJsonObject("settings_ui").addProperty("freecam", String.format(java.util.Locale.ROOT,
+                            "flew %.1f, walked %.2f", flown, walked));
+                    if (flown < 5.0) {
+                        failures.add("the freecam didn't fly forward (" + String.format(java.util.Locale.ROOT, "%.1f", flown) + " blocks)");
+                    }
+                    if (walked > 0.3) {
+                        failures.add("the player walked while the freecam flew (" + String.format(java.util.Locale.ROOT, "%.2f", walked) + " blocks)");
+                    }
+                    // Stopping gives the held keys back to the player: forward is let go after that.
+                    io.github.georgwav.cosmetics.client.modules.CameraTweaks.setFreecam(client, false);
+                    client.options.keyUp.setDown(false);
+                    io.github.georgwav.cosmetics.client.Modules.CAMERA.setEnabled(cameraWasOn);
                     // The HUD modules, all on over the game, then in the HUD editor.
                     hudFramesAtStart = Hud.framesDrawn;
                     outlineFramesAtStart = OutlineHook.framesDrawn;
@@ -770,6 +845,29 @@ public final class DevScenario {
         }
         return RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture)
                 .distinct().toList());
+    }
+
+    /** Nametags on with players' health after their name (and back as it was). */
+    private static boolean nametagsTurnedOn;
+
+    private static void nametagHealth(boolean on) {
+        var nametags = io.github.georgwav.cosmetics.client.Modules.NAMETAGS;
+        if (on && !nametags.enabled()) {
+            nametags.setEnabled(true);
+            nametagsTurnedOn = true;
+        } else if (!on && nametagsTurnedOn) {
+            nametags.setEnabled(false);
+            nametagsTurnedOn = false;
+        }
+        for (var setting : nametags.settings()) {
+            if (setting.id.equals("health")) {
+                if (on) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
+                } else {
+                    setting.reset();
+                }
+            }
+        }
     }
 
     /** Benchmark: every cosmetic drawn once, as on a normal server, instead of the stress load. */
@@ -966,6 +1064,9 @@ public final class DevScenario {
         p.addProperty("cosmeticsOn", CosmeticsConfig.get().enabled);
         p.addProperty("copies", RenderStats.copies);
         p.addProperty("shaderPackInUse", Compat.IRIS && IrisCompat.isShaderPackInUse());
+        if (name.startsWith("sol_")) {
+            SolBench.record(p);
+        }
         phases.add(name, p);
         CosmeticsMod.LOGGER.info("Dev scenario {}: {}", name, p);
     }

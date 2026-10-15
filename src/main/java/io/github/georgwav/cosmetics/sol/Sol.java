@@ -35,6 +35,7 @@ public final class Sol {
         Guard.onFailure = feature -> Notifications.post(
                 Component.translatable("sol.notify.feature_off", Component.translatable("sol.feature." + feature.key)).getString());
         ClientTickEvents.END_CLIENT_TICK.register(Sol::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(io.github.georgwav.cosmetics.client.modules.CameraTweaks::beforeTick);
         io.github.georgwav.cosmetics.sol.render.SolShaders.register();
         // Cosmetics set to follow the theme take its accent or glow.
         io.github.georgwav.cosmetics.render.Tint.theme = which -> which == 1 ? ThemeState.tokens().glow : ThemeState.tokens().accent;

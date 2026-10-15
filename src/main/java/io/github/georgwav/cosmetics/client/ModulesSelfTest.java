@@ -31,6 +31,29 @@ public final class ModulesSelfTest {
         setting(Modules.ATMOSPHERE, "lock_time").set(true);
         setting(Modules.FULLBRIGHT, "night_vision").set("always");
         Modules.FULLBRIGHT.setEnabled(true);
+        // A diamond in the inventory's top row, for the hotbar rows key.
+        command(mc, "item replace entity @s inventory.0 with minecraft:diamond");
+    }
+
+    private static boolean inventoryWasOn;
+
+    /** Midway, once the diamond is there: the hotbar rows key, so the diamond comes down to the hotbar. */
+    public static void midway(Minecraft mc) {
+        inventoryWasOn = Modules.INVENTORY.enabled();
+        Modules.INVENTORY.setEnabled(true);
+        rotated = io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
+    }
+
+    private static boolean rotated;
+
+    private static void command(Minecraft mc, String command) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return;
+        }
+        String name = mc.player.getName().getString();
+        server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
+                command.replace("@s", name)));
     }
 
     /** What's wrong while they're on; then switches them off and adds what didn't go back. */
@@ -60,6 +83,18 @@ public final class ModulesSelfTest {
         if (!mc.player.hasEffect(MobEffects.NIGHT_VISION)) {
             problems.add("fullbright's night vision isn't on");
         }
+        if (!rotated) {
+            problems.add("the hotbar rows key didn't swap (no inventory to swap in)");
+        } else if (!mc.player.getInventory().getItem(0).is(net.minecraft.world.item.Items.DIAMOND)) {
+            problems.add("the hotbar rows key didn't bring the top row's diamond to the hotbar (it holds "
+                    + mc.player.getInventory().getItem(0) + ")");
+        }
+        // Three more turns put every row back; then the diamond goes.
+        for (int i = 0; i < 3 && rotated; i++) {
+            io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
+        }
+        command(mc, "item replace entity @s inventory.0 with minecraft:air");
+        Modules.INVENTORY.setEnabled(inventoryWasOn);
         Modules.FULLBRIGHT.setEnabled(false);
         setting(Modules.ATMOSPHERE, "lock_time").reset();
         setting(Modules.ATMOSPHERE, "lock_weather").reset();

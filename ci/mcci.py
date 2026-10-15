@@ -56,6 +56,14 @@ MIXIN_PROBLEM = re.compile(
 # Startup failures the game never recovers from (26.2+ tries OpenGL, then Vulkan).
 STARTUP_FATAL = re.compile(r"Failed to create backend \w+")
 OUR_ERROR = re.compile(r"(?:/ERROR|ERROR\]).*CosmeticsMod|CosmeticsMod.*(?:/ERROR|ERROR\])")
+# A line of logs/cosmeticsmod.log (ci/log4j2-ci.xml): time, thread, level, our logger, message.
+OUR_LINE = re.compile(r"^\[\d\d:\d\d:\d\d\] \[(?P<thread>[^\]]*)/(?P<level>[A-Z]+)\] \(CosmeticsMod\): (?P<msg>.*)$")
+# Warnings a CI run is expected to log, each at most once; any other warning or error of ours fails the run.
+EXPECTED_ONCE = [re.compile(p) for p in (
+    r"^Dev scenario without -D\S*equipAll=true",  # the Sol scenario wears only what it puts on
+)]
+# Identical lines of ours allowed per run: more means something logs every frame or tick.
+REPEAT_LIMIT = 2
 LOG = print
 
 
@@ -577,6 +585,8 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
 
     jvm = [
         "-Xmx3G", "-XX:+UseG1GC",
+        # The game's own logging plus logs/cosmeticsmod.log with only our logger, for the log gate.
+        "-Dlog4j.configurationFile=" + str(ROOT / "ci" / "log4j2-ci.xml"),
         "-Dmixin.debug.export=true", "-Dmixin.debug.verify=true",
         "-Dcosmeticsmod.equipAll=" + ("false" if mode == "sol" else "true"),
         "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else
@@ -732,6 +742,38 @@ def crash_summary(game_dir, max_lines=40):
     return out[:max_lines]
 
 
+def our_log_problems(game_dir):
+    """The log gate, on our own log file: unexpected warnings and errors, expected ones more than once, and any
+    identical line more than REPEAT_LIMIT times (per-frame or per-tick logging)."""
+    path = game_dir / "logs" / "cosmeticsmod.log"
+    if not path.exists():
+        return ["no logs/cosmeticsmod.log: the CI logging config (ci/log4j2-ci.xml) wasn't used"]
+    counts = {}
+    unexpected = []
+    for line in path.read_text(errors="replace").splitlines():
+        m = OUR_LINE.match(line)
+        if not m:
+            continue  # a stack trace line under the last message
+        msg = m.group("msg").strip()
+        counts[msg] = counts.get(msg, 0) + 1
+        if m.group("level") in ("WARN", "ERROR") and "SMOKE TEST FAILED" not in msg \
+                and not any(p.search(msg) for p in EXPECTED_ONCE):
+            unexpected.append(f"{m.group('level')} {msg[:200]}")
+    problems = []
+    if unexpected:
+        unique = list(dict.fromkeys(unexpected))
+        problems.append(f"{len(unique)} unexpected warning/error line(s) from this mod, e.g. {unique[0]}"
+                        + (f"; also {unique[1]}" if len(unique) > 1 else ""))
+    twice = [m for m, n in counts.items() if any(p.search(m) for p in EXPECTED_ONCE) and n > 1]
+    if twice:
+        problems.append(f"an expected-once warning came {counts[twice[0]]} times: {twice[0][:200]}")
+    repeated = sorted(((n, m) for m, n in counts.items() if n > REPEAT_LIMIT), reverse=True)
+    if repeated:
+        n, m = repeated[0]
+        problems.append(f"{len(repeated)} line(s) of ours repeated more than {REPEAT_LIMIT} times, e.g. {n}x {m[:200]}")
+    return problems
+
+
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
     problems = []
     results_path = game_dir / ("cosmeticsmod-sol-results.json" if mode == "sol" else "cosmeticsmod-results.json")
@@ -756,6 +798,7 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
                    if OUR_ERROR.search(line) and "SMOKE TEST FAILED" not in line})
     if ours:
         problems.append(f"{len(ours)} error line(s) from this mod, e.g. {ours[0]}")
+    problems.extend(our_log_problems(game_dir))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()
@@ -847,6 +890,8 @@ def cmd_compat(args):
         failures += not summary["passed"]
     if args.benchmark:
         run_stack(args, inst, jar, mc, "benchmark", sets["sodium-iris-complementary"], "benchmark")
+        # Sol's cost next to Voxy's far terrain (n/a where Voxy has no build for this version).
+        run_stack(args, inst, jar, mc, "benchmark-voxy", sets["voxy"], "benchmark")
     return 1 if failures else 0
 
 
@@ -1137,6 +1182,17 @@ def cmd_summarize(args):
                 lines.append(f"| {r['mc']} | {phase} | {p.get('fps', 0):.1f} | "
                              f"{p.get('cosmeticsMsPerFrame', 0):.3f} | {p.get('verticesPerFrame', 0):,.0f} | "
                              f"{p.get('shaderPackInUse')} |")
+        sol = [(r, phase, p) for r in bench for phase, p in r.get("phases", {}).items() if "solMsPerFrame" in p]
+        if sol:
+            parts = ["sky", "sun", "particles", "light", "flare", "sol_ui", "hud"]
+            lines += ["", "## Sol's cost (CPU ms per frame; budgets: Atmosphere 0.3, sun + flare 0.03, Sol UI 0.2)", "",
+                      "| Minecraft | Setup | Phase | FPS | Frame p50 / p99 ms | " + " | ".join(parts) + " |",
+                      "|---|---|---|---|---|" + "---|" * len(parts)]
+            for r, phase, p in sol:
+                ms = p["solMsPerFrame"]
+                lines.append(f"| {r['mc']} | {r['label']} | {phase} | {p.get('fps', 0):.1f} | "
+                             f"{p.get('frameMsP50', 0):.1f} / {p.get('frameMsP99', 0):.1f} | "
+                             + " | ".join(f"{ms.get(k, 0):.3f}" for k in parts) + " |")
     text = "\n".join(lines) + "\n"
     Path(args.output).write_text(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
