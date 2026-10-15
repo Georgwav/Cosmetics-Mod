@@ -66,6 +66,11 @@ public final class SolScenario {
             }
             String phase = s.show().phase();
             float yaw = s.show().azimuth();
+            if ("silver_night".equals(e.id())) {
+                // Facing the huge moon as it rises in the east, the sun 25° below the western horizon.
+                shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -25f, false, -90f, -Extras.SHOW_PITCH));
+                continue;
+            }
             switch (phase) {
                 case "night" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -60f, false, yaw, -Extras.SHOW_PITCH));
                 case "dusk" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), false, 90f,

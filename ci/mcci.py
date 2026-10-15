@@ -571,7 +571,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     jvm = [
         "-Xmx3G", "-XX:+UseG1GC",
         "-Dmixin.debug.export=true", "-Dmixin.debug.verify=true",
-        "-Dcosmeticsmod.equipAll=true",
+        "-Dcosmeticsmod.equipAll=" + ("false" if mode == "sol" else "true"),
         "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else
         ("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO if mode == "sol" else "-Dcosmeticsmod.smokeTest=true"),
     ]

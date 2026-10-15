@@ -32,7 +32,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
-*///?} elif >=1.21.5 {
+*///?} elif >=1.21.4 {
 /*import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -122,7 +122,7 @@ abstract class SolLevelRendererMixin {
     private void cosmeticsmod$end(CallbackInfo ci) {
         SolHooks.frameEnd();
     }
-    *///?} elif >=1.21.5 {
+    *///?} elif >=1.21.4 {
     /*@Inject(method = "renderLevel", at = @At("HEAD"))
     private void cosmeticsmod$start(GraphicsResourceAllocator allocator, DeltaTracker delta, boolean outline, Camera camera,
                                     GameRenderer gameRenderer, Matrix4f view, Matrix4f projection, CallbackInfo ci) {
