@@ -9,14 +9,22 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Inventory: how many uses each tool and piece of armour has left, written small over its slot wherever the game
- * draws items (inventories, the hotbar), in white, amber when low and red when nearly broken.
+ * draws items (inventories, the hotbar), in white, amber when low and red when nearly broken; and shulker boxes'
+ * contents in their tooltips.
  */
 public final class InventoryTweaks extends Module {
     private final Setting.Toggle durability = add(new Setting.Toggle("durability", true));
     private final Setting.Choice as = add(new Setting.Choice("as", "number", java.util.List.of("number", "percent")));
+    private final Setting.Toggle shulkers = add(new Setting.Toggle("shulker_previews", true));
 
     public InventoryTweaks() {
         super("inventory", Category.INVENTORY, "chest");
+    }
+
+    /** Whether shulker boxes show their contents in their tooltips. */
+    public static boolean shulkerPreviews() {
+        InventoryTweaks m = io.github.georgwav.cosmetics.client.Modules.INVENTORY;
+        return m.enabled() && m.shulkers.get();
     }
 
     /** After the game's decorations of an item at (x, y): its uses left, at half size in the top left. */

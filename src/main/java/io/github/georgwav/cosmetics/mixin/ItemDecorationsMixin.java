@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 
-/** Inventory's durability numbers, after the game's item decorations (renderItemDecorations; itemDecorations from 26.1). */
+/** Inventory's durability numbers and Glint's outline, after the game's item decorations (renderItemDecorations; itemDecorations from 26.1). */
 //? if >=26.1 {
 /*@Mixin(GuiGraphicsExtractor.class)
 *///?} else {
@@ -25,13 +25,17 @@ abstract class ItemDecorationsMixin {
     /*@Inject(method = "itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V",
             at = @At("TAIL"), require = 0)
     private void cosmeticsmod$uses(Font font, ItemStack stack, int x, int y, String count, CallbackInfo ci) {
-        InventoryTweaks.decorate(new Canvas((GuiGraphicsExtractor) (Object) this), stack, x, y);
+        Canvas c = new Canvas((GuiGraphicsExtractor) (Object) this);
+        InventoryTweaks.decorate(c, stack, x, y);
+        io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
     }
     *///?} else {
     @Inject(method = "renderItemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V",
             at = @At("TAIL"), require = 0)
     private void cosmeticsmod$uses(Font font, ItemStack stack, int x, int y, String count, CallbackInfo ci) {
-        InventoryTweaks.decorate(new Canvas((GuiGraphics) (Object) this), stack, x, y);
+        Canvas c = new Canvas((GuiGraphics) (Object) this);
+        InventoryTweaks.decorate(c, stack, x, y);
+        io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
     }
     //?}
 }

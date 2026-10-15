@@ -40,6 +40,32 @@ public final class StarText {
     private StarText() {
     }
 
+    /** Words into at most two rows of {@code width} letters (the rest cut with a dot). */
+    static java.util.List<String> wrap(String text, int width) {
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        StringBuilder row = new StringBuilder();
+        for (String word : text.trim().split("\\s+")) {
+            if (row.length() > 0 && row.length() + 1 + word.length() > width) {
+                rows.add(row.toString());
+                row.setLength(0);
+                if (rows.size() == 2) {
+                    break;
+                }
+            }
+            if (row.length() > 0) {
+                row.append(' ');
+            }
+            row.append(word.length() > width ? word.substring(0, width) : word);
+        }
+        if (rows.size() < 2 && row.length() > 0) {
+            rows.add(row.toString());
+        } else if (rows.size() == 2 && row.length() > 0) {
+            String last = rows.get(1);
+            rows.set(1, last.length() >= width ? last.substring(0, width - 1) + "." : last + ".");
+        }
+        return rows;
+    }
+
     /** Draws it (sky pass, additive batch begun by the caller is not assumed: begins its own). */
     static void render(Tokens tk, float sunAz, float t, float rain) {
         long now = System.nanoTime();
@@ -59,31 +85,36 @@ public final class StarText {
         if (shown.isEmpty() || alpha <= 0.01f || night <= 0.05f) {
             return;
         }
-        String text = shown.length() > 34 ? shown.substring(0, 33) + "." : shown;
-        float cell = 0.55f, gap = cell * 4f;
-        float width = text.length() * gap - cell;
-        float az0 = sunAz + 180f - width / 2f, alt0 = 34f;
+        // Up to two rows of 20 letters, centred opposite the sun.
+        java.util.List<String> rows = wrap(shown, 20);
+        float cell = 0.95f, gap = cell * 4f, rowGap = cell * 7f;
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
-        int color = Colors.mix(tk.accent, 0xFFFFFFFF, 0.55f);
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            int[] rows = c < 128 ? FONT[c] : null;
-            if (rows == null) {
-                continue;
-            }
-            for (int r = 0; r < 5; r++) {
-                for (int col = 0; col < 3; col++) {
-                    if ((rows[r] >> (2 - col) & 1) == 0) {
-                        continue;
+        int color = Colors.mix(tk.accent, 0xFFFFFFFF, 0.65f);
+        for (int row = 0; row < rows.size(); row++) {
+            String text = rows.get(row);
+            float width = text.length() * gap - cell;
+            // Azimuth grows to the left as you face it: the line starts at the larger angle so it reads left to right.
+            float az0 = sunAz + 180f + width / 2f, alt0 = 38f - row * rowGap + (rows.size() - 1) * rowGap / 2f;
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                int[] glyph = c < 128 ? FONT[c] : null;
+                if (glyph == null) {
+                    continue;
+                }
+                for (int r = 0; r < 5; r++) {
+                    for (int col = 0; col < 3; col++) {
+                        if ((glyph[r] >> (2 - col) & 1) == 0) {
+                            continue;
+                        }
+                        float az = az0 - i * gap - col * cell, alt = alt0 + (4 - r) * cell;
+                        float tw = 0.7f + 0.3f * (float) Math.sin(t * 2.3f + i * 1.7f + r * 2.1f + col * 0.9f + row);
+                        int c2 = Colors.withAlpha(color, Math.min(1f, tw * alpha * night));
+                        float s = 0.42f;
+                        SkyDraw.altAz(alt - s, az - s, 0f, 1f, c2);
+                        SkyDraw.altAz(alt + s, az - s, 0f, 0f, c2);
+                        SkyDraw.altAz(alt + s, az + s, 1f, 0f, c2);
+                        SkyDraw.altAz(alt - s, az + s, 1f, 1f, c2);
                     }
-                    float az = az0 + i * gap + col * cell, alt = alt0 + (4 - r) * cell;
-                    float tw = 0.65f + 0.35f * (float) Math.sin(t * 2.3f + i * 1.7f + r * 2.1f + col * 0.9f);
-                    int c2 = Colors.withAlpha(color, Math.min(1f, 0.85f * tw * alpha * night));
-                    float s = 0.16f;
-                    SkyDraw.altAz(alt - s, az - s, 0f, 1f, c2);
-                    SkyDraw.altAz(alt + s, az - s, 0f, 0f, c2);
-                    SkyDraw.altAz(alt + s, az + s, 1f, 0f, c2);
-                    SkyDraw.altAz(alt - s, az + s, 1f, 1f, c2);
                 }
             }
         }

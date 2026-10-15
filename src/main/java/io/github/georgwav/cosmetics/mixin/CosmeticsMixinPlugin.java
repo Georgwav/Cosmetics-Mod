@@ -34,6 +34,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TotemSizeMixin");
         all.add("WaterOverlayMixin");
         all.add("NametagLookMixin");
+        all.add("ShulkerTooltipMixin");
+        all.add("HitboxColorMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");

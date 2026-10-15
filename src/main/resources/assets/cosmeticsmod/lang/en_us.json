@@ -1064,5 +1064,18 @@
   "cosmeticsmod.module.nametags.backing.game": "As the game sets it",
   "cosmeticsmod.module.nametags.backing.none": "None",
   "cosmeticsmod.module.nametags.backing.light": "Light",
-  "cosmeticsmod.module.nametags.backing.dark": "Dark"
+  "cosmeticsmod.module.nametags.backing.dark": "Dark",
+  "cosmeticsmod.module.inventory.shulker_previews": "Shulker box previews",
+  "cosmeticsmod.module.hitboxes.color": "Colour",
+  "cosmeticsmod.module.hitboxes.color.white": "White (the game's)",
+  "cosmeticsmod.module.hitboxes.color.accent": "Theme accent",
+  "cosmeticsmod.module.hitboxes.color.red": "Red",
+  "cosmeticsmod.module.hitboxes.color.green": "Green",
+  "cosmeticsmod.module.hitboxes.color.cyan": "Cyan",
+  "cosmeticsmod.module.hitboxes.color.yellow": "Yellow",
+  "cosmeticsmod.module.hitboxes.color.pink": "Pink",
+  "cosmeticsmod.module.glint.gui": "In inventories",
+  "cosmeticsmod.module.glint.gui.none": "Glint only",
+  "cosmeticsmod.module.glint.gui.outline": "Outline",
+  "cosmeticsmod.module.glint.gui.glow": "Glow"
 }
