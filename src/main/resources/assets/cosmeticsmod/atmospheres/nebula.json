@@ -18,11 +18,18 @@
   },
   "fog": {
     "color": "#3a1747",
-    "density": 0.45
+    "density": 0.45,
+    "near": 8,
+    "far": 128,
+    "scatter": 0.25,
+    "haze": 0.25
   },
   "light": {
     "tint": "#d8b8ff",
-    "strength": 0.14
+    "strength": 0.3,
+    "boost": 1.0,
+    "sun": "#e4ccff",
+    "shadow": "#22133a"
   },
   "show": {
     "phase": "night",
@@ -61,7 +68,8 @@
   },
   "clouds": {
     "tint": "#2a1440",
-    "litBySun": true
+    "litBySun": true,
+    "visible": false
   },
   "wind": [
     0.1,
@@ -105,11 +113,14 @@
       },
       "fog": {
         "color": "#c8a8d0",
-        "density": 0.4
+        "density": 0.4,
+        "near": 16,
+        "far": 200
       },
       "light": {
         "tint": "#f4e8ff",
-        "strength": 0.06
+        "strength": 0.06,
+        "boost": 1.05
       },
       "clouds": {
         "tint": "#f4e4f4"
@@ -142,5 +153,15 @@
         "density": 0.45
       }
     }
+  },
+  "grade": {
+    "highlights": "#ffd8f4",
+    "shadows": "#100524",
+    "saturation": 1.14,
+    "contrast": 1.06,
+    "bloomTint": "#ff9ad8",
+    "bloom": 1.0,
+    "threshold": 0.52,
+    "vignette": 0.18
   }
 }

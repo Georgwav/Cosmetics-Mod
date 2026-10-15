@@ -182,6 +182,63 @@ theme("empty",13,"Empty","Vanilla sky, Atmosphere off, neutral colours. Set it u
   flags={"vanillaSun":True,"noRidges":True},
   particles=[])
 
+# The light pass and the fog distances (the look follow-up): fixed fog distances in blocks, how the fog scatters
+# toward the sun and hangs near the ground, how golden hour lights the blocks (boost, sun and shadow colours), and
+# each theme's colour grade, bloom and vignette. Keyframes get their own fog distances and light where they differ.
+LOOK = {
+  "sakura_dusk": dict(fog=dict(near=4, far=96, scatter=0.85, haze=0.3), light=dict(strength=0.4, boost=1.22, sun="#ffc9bc", shadow="#4e3e74"),
+    grade=dict(highlights="#ffd9e2", shadows="#24163a", saturation=1.1, contrast=1.05, bloomTint="#ffb2c8", bloom=0.75, threshold=0.64, vignette=0.14),
+    kf=dict(day=dict(fog=dict(near=12, far=180), light=dict(boost=1.05)), night=dict(fog=dict(near=6, far=110), light=dict(boost=1.0)))),
+  "frost_morning": dict(fog=dict(near=2, far=52, scatter=0.45, haze=0.5), light=dict(strength=0.3, boost=1.12, sun="#ffffff", shadow="#8fa6c6"),
+    grade=dict(highlights="#eef6ff", shadows="#2a3a52", saturation=0.95, contrast=1.02, bloomTint="#e8f4ff", bloom=0.45, threshold=0.8, vignette=0.1),
+    kf=dict(night=dict(fog=dict(near=2, far=56), light=dict(boost=1.0)))),
+  "ember_solstice": dict(fog=dict(near=2, far=34, scatter=1.0, haze=0.45), light=dict(tint="#ffe0b0", strength=0.7, boost=1.8, sun="#fff0cc", shadow="#6a3a48"),
+    grade=dict(highlights="#fff0d0", shadows="#46201a", saturation=0.97, contrast=1.0, bloomTint="#ffcc98", bloom=0.9, threshold=0.6, vignette=0.12),
+    kf=dict(day=dict(fog=dict(near=8, far=120, scatter=0.6), light=dict(boost=1.12)), dawn=dict(fog=dict(near=0, far=56), light=dict(boost=1.3)),
+            night=dict(fog=dict(near=4, far=70, scatter=0.3), light=dict(boost=1.0)))),
+  "aurora": dict(fog=dict(near=8, far=120, scatter=0.25, haze=0.3), light=dict(strength=0.3, boost=1.0, sun="#c4ffec", shadow="#16303e"),
+    grade=dict(highlights="#c6fff0", shadows="#03121a", saturation=1.12, contrast=1.06, bloomTint="#7affd0", bloom=1.0, threshold=0.52, vignette=0.18),
+    kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)))),
+  "nebula": dict(fog=dict(near=8, far=128, scatter=0.25, haze=0.25), light=dict(strength=0.3, boost=1.0, sun="#e4ccff", shadow="#22133a"),
+    grade=dict(highlights="#ffd8f4", shadows="#100524", saturation=1.14, contrast=1.06, bloomTint="#ff9ad8", bloom=1.0, threshold=0.52, vignette=0.18),
+    kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)))),
+  "firefly_meadow": dict(fog=dict(near=6, far=104, scatter=0.75, haze=0.45), light=dict(strength=0.35, boost=1.16, sun="#ffd88e", shadow="#283a3a"),
+    grade=dict(highlights="#fff0b6", shadows="#0c1812", saturation=1.1, contrast=1.05, bloomTint="#e9ff9a", bloom=0.9, threshold=0.58, vignette=0.14),
+    kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)), night=dict(fog=dict(near=6, far=90), light=dict(boost=1.0)))),
+  "monsoon": dict(fog=dict(near=2, far=64, scatter=0.2, haze=0.65), light=dict(strength=0.3, boost=0.96, sun="#c8d8e8", shadow="#38444f"),
+    grade=dict(highlights="#dce8f4", shadows="#10161c", saturation=0.86, contrast=1.06, bloomTint="#c8dcff", bloom=0.55, threshold=0.7, vignette=0.16),
+    kf=dict()),
+  "maple_afternoon": dict(fog=dict(near=6, far=110, scatter=0.85, haze=0.35), light=dict(strength=0.42, boost=1.24, sun="#ffd99a", shadow="#3c4a6c"),
+    grade=dict(highlights="#ffe2ae", shadows="#1a2034", saturation=1.12, contrast=1.06, bloomTint="#ffcf88", bloom=0.75, threshold=0.64, vignette=0.12),
+    kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.06)), night=dict(fog=dict(near=6, far=100), light=dict(boost=1.0)))),
+  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.6, haze=0.4), light=dict(strength=0.4, boost=0.85, sun="#ff9a72", shadow="#1a0606"),
+    grade=dict(highlights="#ffb894", shadows="#0a0204", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
+    kf=dict()),
+  "deep_field": dict(fog=dict(near=10, far=140, scatter=0.15, haze=0.2), light=dict(strength=0.1, boost=1.0, sun="#f4f4fa", shadow="#1a1a20"),
+    grade=dict(highlights="#ffffff", shadows="#050507", saturation=0.7, contrast=1.1, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
+    kf=dict(day=dict(fog=dict(near=16, far=200)))),
+  "silver_night": dict(fog=dict(near=8, far=120, scatter=0.35, haze=0.35), light=dict(strength=0.32, boost=1.0, sun="#dfe6ff", shadow="#1c2440"),
+    grade=dict(highlights="#e8eeff", shadows="#060a1a", saturation=0.94, contrast=1.06, bloomTint="#c8d4ff", bloom=0.9, threshold=0.55, vignette=0.18),
+    kf=dict(day=dict(fog=dict(near=16, far=200)))),
+  "grace": dict(fog=dict(near=2, far=58, scatter=0.5, haze=0.7), light=dict(strength=0.3, boost=1.0, sun="#ffe2a0", shadow="#0e2a26"),
+    grade=dict(highlights="#ffe6a8", shadows="#02100c", saturation=1.08, contrast=1.08, bloomTint="#ffc86a", bloom=1.1, threshold=0.5, vignette=0.2),
+    kf=dict(day=dict(fog=dict(near=4, far=80)))),
+  "empty": dict(fog=dict(scatter=0.0, haze=0.0), light=dict(boost=1.0),
+    grade=dict(highlights="#ffffff", shadows="#000000", saturation=1.0, contrast=1.0, bloomTint="#ffffff", bloom=0.0, threshold=0.8, vignette=0.0),
+    kf=dict()),
+}
+# Clear skies like the prototypes', except where clouds are the point (Monsoon's overcast) and in Empty, which is
+# the vanilla sky. The game's blocky clouds would cover Maple's and Frost's skies, which the prototypes keep clear.
+CLOUDY = {"monsoon", "empty"}
+for id,o in T:
+    o.setdefault("clouds", {})["visible"] = id in CLOUDY
+    lk = LOOK[id]
+    o["fog"].update(lk["fog"]); o["light"].update(lk["light"]); o["grade"] = lk["grade"]
+    for ph, extra in lk["kf"].items():
+        k = o["keyframes"].setdefault(ph, {})
+        for sec, vals in extra.items():
+            k.setdefault(sec, {}).update(vals)
+
 os.makedirs(OUT, exist_ok=True)
 for id,o in T:
     if o.get("sun", 1) is None: o["sun"] = None

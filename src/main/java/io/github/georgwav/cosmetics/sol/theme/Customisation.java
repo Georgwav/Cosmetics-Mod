@@ -112,10 +112,14 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
             float d = fog != null ? fog : fogSpec.density();
             float end = fog != null ? ThemeParser.defaultFogEnd(d) : fogSpec.end();
             float start = fog != null ? end * (0.05f + 0.25f * (1f - d)) : fogSpec.start();
+            // The fog slider moves fixed fog distances too: thicker fog comes closer.
+            float k = fog != null && fogSpec.density() > 0f ? (1.15f - 0.8f * d) / Math.max(0.1f, 1.15f - 0.8f * fogSpec.density()) : 1f;
             fogSpec = new ThemeSpec.Fog(shift ? f(fogSpec.color()) : fogSpec.color(), d, start, end, fogSpec.voxyThinning(),
-                    fogSpec.bands());
+                    fogSpec.bands(), fogSpec.near() * k, fogSpec.far() * k, fogSpec.scatter(), fogSpec.haze());
         }
-        ThemeSpec.Light light = shift ? new ThemeSpec.Light(f(s.light().tint()), s.light().strength()) : s.light();
+        ThemeSpec.Light l0 = s.light();
+        ThemeSpec.Light light = shift ? new ThemeSpec.Light(f(l0.tint()), l0.strength(), l0.boost(), f(l0.sun()),
+                l0.shadow() == 0 ? 0 : f(l0.shadow())) : l0;
         ThemeSpec.Sun sun = s.sun();
         if (sun != null && (shift || sunSize != 1f || rays != null)) {
             int r = rays != null ? rays : sun.rays();
@@ -162,7 +166,7 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         }
         ThemeSpec.Clouds clouds = s.clouds();
         if (shift && clouds.tint() != null) {
-            clouds = new ThemeSpec.Clouds(f(clouds.tint()), clouds.litBySun());
+            clouds = new ThemeSpec.Clouds(f(clouds.tint()), clouds.litBySun(), clouds.visible());
         }
         List<ThemeSpec.Emitter> emit = s.particles();
         if (shift || density != 1f || !particles.isEmpty()) {
@@ -182,7 +186,7 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         }
         return new ThemeSpec(s.id(), s.name(), s.line(), s.order(), ui, sky, fogSpec, light, sun, moon, st, pl, s.galaxy(), au,
                 nebula, eclipse, s.lightning(), s.sigil(), s.mist(), clouds, s.wind(), emit, s.show(), s.noRidges(),
-                s.vanillaSun());
+                s.vanillaSun(), s.grade());
     }
 
     private int f(int color) {

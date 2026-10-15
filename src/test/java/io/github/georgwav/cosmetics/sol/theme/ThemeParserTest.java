@@ -110,4 +110,41 @@ class ThemeParserTest {
         assertEquals(1.15f - 0.8f * 0.85f, thick.fog().end(), 1e-5);
         assertTrue(thick.fog().start() < thick.fog().end());
     }
+
+    @Test
+    void fixedFogDistancesLightAndGradeParse() {
+        List<String> warnings = new ArrayList<>();
+        ThemeSpec s = ThemeParser.parse("x", "{\"fog\":{\"near\":2,\"far\":34,\"scatter\":1.2,\"haze\":0.4},"
+                + "\"light\":{\"tint\":\"#ffe0b0\",\"boost\":1.8,\"shadow\":\"#6a3a48\"},"
+                + "\"grade\":{\"highlights\":\"#fff0d0\",\"saturation\":0.97,\"bloom\":1.05,\"lut\":\"x:lut/a.png\"},"
+                + "\"clouds\":{\"visible\":false}}", ThemeParser.DEFAULTS, warnings::add);
+        assertTrue(warnings.isEmpty(), warnings.toString());
+        assertEquals(2f, s.fog().near(), 1e-6);
+        assertEquals(34f, s.fog().far(), 1e-6);
+        assertEquals(1.2f, s.fog().scatter(), 1e-6);
+        assertEquals(1.8f, s.light().boost(), 1e-6);
+        assertEquals(0xFF6A3A48, s.light().shadow());
+        // A tint without a sun colour gives the sun a paler version of the tint.
+        assertNotEquals(ThemeParser.DEFAULTS.light().sun(), s.light().sun());
+        assertEquals(0.97f, s.grade().saturation(), 1e-6);
+        assertEquals("x:lut/a.png", s.grade().lut());
+        assertFalse(s.clouds().visible());
+    }
+
+    @Test
+    void nearPastFarWarnsAndRecovers() {
+        List<String> warnings = new ArrayList<>();
+        ThemeSpec s = ThemeParser.parse("x", "{\"fog\":{\"near\":50,\"far\":20}}", ThemeParser.DEFAULTS, warnings::add);
+        assertEquals(1, warnings.size());
+        assertTrue(s.fog().near() < s.fog().far());
+    }
+
+    @Test
+    void emberIsASilhouetteWorldAndKeepsItsClearSky() throws IOException {
+        ThemeRegistry.load(bundled(), (id, msg) -> fail(id + ": " + msg));
+        ThemeSpec ember = ThemeRegistry.get("ember_solstice").base();
+        assertTrue(ember.fog().far() > 0f && ember.fog().far() <= 40f, "the world melts into the glow within ~40 blocks");
+        assertFalse(ember.clouds().visible());
+        assertTrue(ThemeRegistry.get("monsoon").base().clouds().visible(), "Monsoon keeps its overcast");
+    }
 }

@@ -35,7 +35,8 @@ public record ThemeSpec(
         List<Emitter> particles,
         Show show,
         boolean noRidges,
-        boolean vanillaSun) {
+        boolean vanillaSun,
+        Grade grade) {
 
     /** UI colours: accent, the glass panel (with its alpha, how dark the glass is) and the rim light. */
     public record Ui(int accent, int panel, int rim) {
@@ -52,12 +53,28 @@ public record ThemeSpec(
     /**
      * Fog colour and density (the prototype's {@code fd}), the start and end as fractions of the render distance,
      * how much it thins with Voxy/Distant Horizons far land, and how many stepped bands the far land shows.
+     * {@code near} and {@code far} (blocks, 0 when unset) put the fog at fixed distances instead, whatever the
+     * render distance: Ember's world is a silhouette about 20 blocks out. {@code scatter} is how much brighter and
+     * warmer the fog gets toward the sun and {@code haze} how much thicker it is near the ground (the light pass).
      */
-    public record Fog(int color, float density, float start, float end, float voxyThinning, int bands) {
+    public record Fog(int color, float density, float start, float end, float voxyThinning, int bands, float near,
+                      float far, float scatter, float haze) {
     }
 
-    /** The light tint over every block. */
-    public record Light(int tint, float strength) {
+    /**
+     * The light over every block: the sky light pulled toward {@code tint} by {@code strength} and brightened by
+     * {@code boost} (golden hour lights the sand), and for the light pass the colour of faces toward the sun
+     * ({@code sun}) and away from it ({@code shadow}, 0 to take it from the sky).
+     */
+    public record Light(int tint, float strength, float boost, int sun, int shadow) {
+    }
+
+    /**
+     * The light pass's look: the colour grade (highlights and shadows tinted, saturation, contrast, or a LUT image
+     * the theme ships), the bloom (tint, strength, threshold) and the vignette.
+     */
+    public record Grade(int highlights, int shadows, float saturation, float contrast, int bloomTint, float bloom,
+                        float threshold, float vignette, String lut) {
     }
 
     /**
@@ -103,8 +120,11 @@ public record ThemeSpec(
     public record Mist(int color, Integer warm, int bands, float alpha) {
     }
 
-    /** Vanilla clouds' tint and whether a low sun lights them. */
-    public record Clouds(Integer tint, boolean litBySun) {
+    /**
+     * Vanilla clouds' tint, whether a low sun lights them, and whether the theme shows them at all (the prototypes'
+     * skies are clear; Monsoon is overcast).
+     */
+    public record Clouds(Integer tint, boolean litBySun, boolean visible) {
     }
 
     /**

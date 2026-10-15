@@ -18,11 +18,14 @@
   },
   "fog": {
     "color": "#c0d8ff",
-    "density": 0.2
+    "density": 0.2,
+    "scatter": 0.0,
+    "haze": 0.0
   },
   "light": {
     "tint": "#ffffff",
-    "strength": 0.0
+    "strength": 0.0,
+    "boost": 1.0
   },
   "show": {
     "phase": "day",
@@ -52,5 +55,18 @@
     "noRidges": true
   },
   "particles": [],
-  "keyframes": {}
+  "keyframes": {},
+  "clouds": {
+    "visible": true
+  },
+  "grade": {
+    "highlights": "#ffffff",
+    "shadows": "#000000",
+    "saturation": 1.0,
+    "contrast": 1.0,
+    "bloomTint": "#ffffff",
+    "bloom": 0.0,
+    "threshold": 0.8,
+    "vignette": 0.0
+  }
 }

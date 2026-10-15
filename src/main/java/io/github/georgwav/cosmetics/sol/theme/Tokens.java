@@ -54,6 +54,31 @@ public final class Tokens {
     /** Cloud tint, or 0 for the game's own. */
     public int cloudTint;
     public boolean cloudsLitBySun;
+    /** Whether the game's clouds show with this theme. */
+    public boolean cloudsVisible = true;
+
+    /** Fixed fog distances in blocks (0 when the theme uses fractions of the render distance). */
+    public float fogNear;
+    public float fogFar;
+    /** Light pass: in-scattering toward the sun and ground haze. */
+    public float scatter;
+    public float haze;
+    /** How much golden hour brightens the sky light (1 = the game's own). */
+    public float lightBoost = 1f;
+    /** Light pass: the colour of faces toward the sun and away from it. */
+    public int lightSun = 0xFFFFFFFF;
+    public int lightShadow = 0xFF404858;
+
+    // The light pass's grade, bloom and vignette (the theme's own; they don't follow the time of day).
+    public int gradeHighlights = 0xFFFFFFFF;
+    public int gradeShadows = 0xFF000000;
+    public float saturation = 1f;
+    public float contrast = 1f;
+    public int bloomTint = 0xFFFFFFFF;
+    public float bloom;
+    public float bloomThreshold = 0.75f;
+    public float vignette;
+    public String lut;
 
     /** Particle count multiplier for this time of day. */
     public float particleScale = 1f;
@@ -85,8 +110,25 @@ public final class Tokens {
         lightStrength = o.lightStrength;
         cloudTint = o.cloudTint;
         cloudsLitBySun = o.cloudsLitBySun;
+        cloudsVisible = o.cloudsVisible;
         particleScale = o.particleScale;
         night = o.night;
+        fogNear = o.fogNear;
+        fogFar = o.fogFar;
+        scatter = o.scatter;
+        haze = o.haze;
+        lightBoost = o.lightBoost;
+        lightSun = o.lightSun;
+        lightShadow = o.lightShadow;
+        gradeHighlights = o.gradeHighlights;
+        gradeShadows = o.gradeShadows;
+        saturation = o.saturation;
+        contrast = o.contrast;
+        bloomTint = o.bloomTint;
+        bloom = o.bloom;
+        bloomThreshold = o.bloomThreshold;
+        vignette = o.vignette;
+        lut = o.lut;
     }
 
     /** {@code a} blended toward {@code b} by {@code t}, into this. */
@@ -115,8 +157,38 @@ public final class Tokens {
         cloudTint = a.cloudTint == 0 || b.cloudTint == 0 ? (t < 0.5f ? a.cloudTint : b.cloudTint)
                 : Colors.mix(a.cloudTint, b.cloudTint, t);
         cloudsLitBySun = t < 0.5f ? a.cloudsLitBySun : b.cloudsLitBySun;
+        cloudsVisible = t < 0.5f ? a.cloudsVisible : b.cloudsVisible;
         particleScale = a.particleScale + (b.particleScale - a.particleScale) * t;
         night = a.night + (b.night - a.night) * t;
+        fogNear = lerpDistance(a.fogNear, b.fogNear, a.fogStart, b.fogStart, t);
+        fogFar = lerpDistance(a.fogFar, b.fogFar, a.fogEnd, b.fogEnd, t);
+        scatter = a.scatter + (b.scatter - a.scatter) * t;
+        haze = a.haze + (b.haze - a.haze) * t;
+        lightBoost = a.lightBoost + (b.lightBoost - a.lightBoost) * t;
+        lightSun = Colors.mix(a.lightSun, b.lightSun, t);
+        lightShadow = Colors.mix(a.lightShadow, b.lightShadow, t);
+        gradeHighlights = Colors.mix(a.gradeHighlights, b.gradeHighlights, t);
+        gradeShadows = Colors.mix(a.gradeShadows, b.gradeShadows, t);
+        saturation = a.saturation + (b.saturation - a.saturation) * t;
+        contrast = a.contrast + (b.contrast - a.contrast) * t;
+        bloomTint = Colors.mix(a.bloomTint, b.bloomTint, t);
+        bloom = a.bloom + (b.bloom - a.bloom) * t;
+        bloomThreshold = a.bloomThreshold + (b.bloomThreshold - a.bloomThreshold) * t;
+        vignette = a.vignette + (b.vignette - a.vignette) * t;
+        lut = t < 0.5f ? a.lut : b.lut;
+    }
+
+    /**
+     * Blends fixed fog distances; when only one side has them, the other side's fractions stand in at a typical
+     * 12-chunk render distance so the change still glides.
+     */
+    private static float lerpDistance(float a, float b, float fracA, float fracB, float t) {
+        if (a <= 0f && b <= 0f) {
+            return 0f;
+        }
+        float av = a > 0f ? a : fracA * 192f;
+        float bv = b > 0f ? b : fracB * 192f;
+        return av + (bv - av) * t;
     }
 
     /** Fills the UI fields from a theme version, with an optional accent override (a profile's, or the album's). */

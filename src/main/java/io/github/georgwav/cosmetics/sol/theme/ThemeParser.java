@@ -30,19 +30,20 @@ public final class ThemeParser {
     public static final ThemeSpec DEFAULTS = new ThemeSpec("default", "Theme", "", 1000,
             new ThemeSpec.Ui(0xFF9AA3B5, 0x9E10121A, 0x66FFFFFF),
             new ThemeSpec.Sky(0xFF5F8FE8, 0xFF78A7FF, 0xFFB9D1FF, 0xFFD4E3FF, 0.3f),
-            new ThemeSpec.Fog(0xFFC0D8FF, 0.2f, 0.25f, 1.0f, 0f, 0),
-            new ThemeSpec.Light(0xFFFFFFFF, 0f),
+            new ThemeSpec.Fog(0xFFC0D8FF, 0.2f, 0.25f, 1.0f, 0f, 0, 0f, 0f, 0.3f, 0.2f),
+            new ThemeSpec.Light(0xFFFFFFFF, 0f, 1f, 0xFFFFF4E0, 0),
             new ThemeSpec.Sun("cosmeticsmod:atmosphere/sun", 0.03f, 0xFFFFF3A8, 0xFFFFF2C0, 0.2f, 0.3f, 14, 9, 1f, true, true,
                     true, true, true, true, true, 0f, 0.74f, 0.24f),
             new ThemeSpec.Moon(0.02f, 0xFFE8F0FF, 0xFFC8D4FF, 0.12f, 0.25f, false, false, 0.2f, 0.25f),
             new ThemeSpec.Stars(0, 1f, "natural", null, 0.5f, true, false, 7, true, "clear"),
             new ThemeSpec.Planets(true, "natural", null, List.of("venus")),
             null, null, List.of(), null, false, null, null,
-            new ThemeSpec.Clouds(null, true),
+            new ThemeSpec.Clouds(null, true, true),
             new float[]{0.2f, 0f, 0.05f},
             List.of(),
             new ThemeSpec.Show("day", 0f),
-            false, false);
+            false, false,
+            new ThemeSpec.Grade(0xFFFFF4E6, 0xFF1E2230, 1f, 1f, 0xFFFFFFFF, 0.35f, 0.72f, 0.18f, null));
 
     private ThemeParser() {
     }
@@ -67,7 +68,7 @@ public final class ThemeParser {
     private static ThemeSpec withId(ThemeSpec s, String id) {
         return new ThemeSpec(id, s.name(), s.line(), s.order(), s.ui(), s.sky(), s.fog(), s.light(), s.sun(), s.moon(),
                 s.stars(), s.planets(), s.galaxy(), s.aurora(), s.nebula(), s.eclipse(), s.lightning(), s.sigil(),
-                s.mist(), s.clouds(), s.wind(), s.particles(), s.show(), s.noRidges(), s.vanillaSun());
+                s.mist(), s.clouds(), s.wind(), s.particles(), s.show(), s.noRidges(), s.vanillaSun(), s.grade());
     }
 
     public static ThemeSpec parse(String id, JsonObject json, ThemeSpec base, Consumer<String> warn) {
@@ -103,12 +104,30 @@ public final class ThemeParser {
             warn.accept("fog.start must be below fog.end");
             start = end * 0.5f;
         }
+        float near = fog.number("near", base.fog().near(), 0f, 4096f);
+        float far = fog.number("far", base.fog().far(), 0f, 4096f);
+        if (far > 0f && near >= far) {
+            warn.accept("fog.near must be below fog.far");
+            near = far * 0.25f;
+        }
         ThemeSpec.Fog fogOut = new ThemeSpec.Fog(fog.color("color", base.fog().color()), density, start, end,
-                fog.number("voxyThinning", base.fog().voxyThinning(), 0f, 1f), fog.integer("bands", base.fog().bands(), 0, 12));
+                fog.number("voxyThinning", base.fog().voxyThinning(), 0f, 1f), fog.integer("bands", base.fog().bands(), 0, 12),
+                near, far, fog.number("scatter", base.fog().scatter(), 0f, 2f), fog.number("haze", base.fog().haze(), 0f, 2f));
 
         Reader light = r.object("light");
-        ThemeSpec.Light lightOut = new ThemeSpec.Light(light.color("tint", base.light().tint()),
-                light.number("strength", base.light().strength(), 0f, 1f));
+        int tint = light.color("tint", base.light().tint());
+        ThemeSpec.Light lightOut = new ThemeSpec.Light(tint, light.number("strength", base.light().strength(), 0f, 1f),
+                light.number("boost", base.light().boost(), 0.25f, 3f),
+                light.color("sun", light.has("tint") && !light.has("sun") ? Colors.mix(0xFFFFFFFF, tint, 0.75f) : base.light().sun()),
+                light.has("shadow") ? light.color("shadow", 0) : base.light().shadow());
+
+        Reader gr = r.object("grade");
+        ThemeSpec.Grade gb = base.grade();
+        ThemeSpec.Grade gradeOut = new ThemeSpec.Grade(gr.color("highlights", gb.highlights()), gr.color("shadows", gb.shadows()),
+                gr.number("saturation", gb.saturation(), 0f, 2.5f), gr.number("contrast", gb.contrast(), 0.5f, 2f),
+                gr.color("bloomTint", gb.bloomTint()), gr.number("bloom", gb.bloom(), 0f, 3f),
+                gr.number("threshold", gb.threshold(), 0f, 1f), gr.number("vignette", gb.vignette(), 0f, 1f),
+                gr.string("lut", gb.lut()));
 
         ThemeSpec.Sun sunOut = base.sun();
         if (r.isNull("sun") || r.isFalse("sun")) {
@@ -229,7 +248,7 @@ public final class ThemeParser {
 
         Reader cl = r.object("clouds");
         ThemeSpec.Clouds cloudsOut = new ThemeSpec.Clouds(cl.optionalColor("tint", base.clouds().tint()),
-                cl.bool("litBySun", base.clouds().litBySun()));
+                cl.bool("litBySun", base.clouds().litBySun()), cl.bool("visible", base.clouds().visible()));
 
         float[] wind = r.has("wind") ? r.floats("wind", base.wind(), 3, -4f, 4f) : base.wind();
 
@@ -254,7 +273,7 @@ public final class ThemeParser {
         return new ThemeSpec(id, name, line, order, new ThemeSpec.Ui(accent, panel, rim), skyOut, fogOut, lightOut, sunOut,
                 moonOut, starsOut, planetsOut, galaxyOut, auroraOut, nebulaOut, eclipseOut,
                 r.bool("lightning", base.lightning()), sigilOut, mistOut, cloudsOut, wind, particles, showOut,
-                flags.bool("noRidges", base.noRidges()), flags.bool("vanillaSun", base.vanillaSun()));
+                flags.bool("noRidges", base.noRidges()), flags.bool("vanillaSun", base.vanillaSun()), gradeOut);
     }
 
     /** The fog's end (fraction of render distance) for a density: thicker fog ends closer. */
