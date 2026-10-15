@@ -417,6 +417,60 @@ public final class MusicService {
         }
     }
 
+    // ---------------------------------------------------------------- the library row (Cider)
+
+    private static final Map<String, List<CiderLibrary.Item>> library = new ConcurrentHashMap<>();
+    private static final Map<String, Long> libraryAt = new ConcurrentHashMap<>();
+    private static final java.util.Set<String> libraryLoading = ConcurrentHashMap.newKeySet();
+
+    private static String libraryKey(String tab, String query) {
+        return tab.equals("search") ? "search:" + (query == null ? "" : query.strip()) : tab;
+    }
+
+    /**
+     * The Music page's row for a tab ("queue", "recent", "playlists", "search"): the last snapshot, asked again in
+     * the background when it's over 10 s old. Empty without Cider.
+     */
+    public static List<CiderLibrary.Item> library(String tab, String query) {
+        if (!running || !(SOURCES.get("cider") instanceof CiderSource c) || !c.connected()) {
+            return List.of();
+        }
+        String key = libraryKey(tab, query);
+        Long at = libraryAt.get(key);
+        long t = System.currentTimeMillis();
+        if ((at == null || t - at > 10_000L) && libraryLoading.add(key)) {
+            libraryAt.put(key, t);
+            SolExecutors.IO.execute(() -> {
+                try {
+                    List<CiderLibrary.Item> items = c.library(tab, query);
+                    if (key.startsWith("search:")) {
+                        library.keySet().removeIf(k -> k.startsWith("search:") && !k.equals(key));
+                        libraryAt.keySet().removeIf(k -> k.startsWith("search:") && !k.equals(key));
+                    }
+                    library.put(key, items);
+                } finally {
+                    libraryLoading.remove(key);
+                }
+            });
+        }
+        List<CiderLibrary.Item> l = library.get(key);
+        return l == null ? List.of() : l;
+    }
+
+    /** Whether a tab's row is still on its way (none yet). */
+    public static boolean libraryPending(String tab, String query) {
+        String key = libraryKey(tab, query);
+        return libraryLoading.contains(key) && !library.containsKey(key);
+    }
+
+    /** Plays an item from the library row (Cider). */
+    public static void play(CiderLibrary.Item item) {
+        if (SOURCES.get("cider") instanceof CiderSource c) {
+            c.play(item);
+            libraryAt.remove("queue");
+        }
+    }
+
     /** For tests and the scenario: the sources by id. */
     static List<String> sourceIds() {
         return List.copyOf(SOURCES.keySet());

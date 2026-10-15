@@ -22,6 +22,7 @@ public final class CiderSource implements MusicSource {
     private volatile boolean socketUp, reachable, refusedOnce, heard;
     private long lastSocketTry, lastRest;
     private volatile NowPlaying last;
+    private volatile String storefront;
 
     @Override
     public String id() {
@@ -181,30 +182,94 @@ public final class CiderSource implements MusicSource {
         post("/playback/previous");
     }
 
+    /** Apple Music's API through Cider ({@code amapi/run-v3}): the reply, or null. */
+    private String runV3(String path) {
+        com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+        body.addProperty("path", path);
+        Http.Reply r = Http.post(base() + "/amapi/run-v3", body.toString(), auth());
+        return r.ok() ? r.body() : null;
+    }
+
+    /** The player's storefront (country), asked once: "us" until known. */
+    private String storefront() {
+        String sf = storefront;
+        if (sf != null) {
+            return sf;
+        }
+        String reply = runV3("/v1/me/storefront?limit=1");
+        sf = "us";
+        try {
+            if (reply != null) {
+                JsonObject o = JsonParser.parseString(reply).getAsJsonObject();
+                sf = o.getAsJsonObject("data").getAsJsonArray("data").get(0).getAsJsonObject().get("id").getAsString();
+                storefront = sf;
+            }
+        } catch (RuntimeException e) {
+            // Keep "us".
+        }
+        return sf;
+    }
+
+    /**
+     * The Music page's library row (IO thread): "queue" (up next), "recent", "playlists", or "search" for {@code query}.
+     */
+    java.util.List<CiderLibrary.Item> library(String tab, String query) {
+        NowPlaying n = last;
+        String currentId = n == null ? null : n.catalogId();
+        return switch (tab) {
+            case "queue" -> {
+                Http.Reply r = Http.get(base() + "/playback/queue", auth());
+                yield r.ok() ? CiderLibrary.queue(r.body(), currentId, 12) : java.util.List.of();
+            }
+            case "recent" -> data(runV3("/v1/me/recent/played?limit=10"));
+            case "playlists" -> data(runV3("/v1/me/library/playlists?limit=25"));
+            case "search" -> {
+                if (query == null || query.isBlank()) {
+                    yield java.util.List.of();
+                }
+                String reply = runV3("/v1/catalog/" + storefront() + "/search?term=" + java.net.URLEncoder.encode(query.strip(),
+                        java.nio.charset.StandardCharsets.UTF_8) + "&types=songs,albums,playlists&limit=8");
+                yield reply == null ? java.util.List.of() : CiderLibrary.search(reply, 12);
+            }
+            default -> java.util.List.of();
+        };
+    }
+
+    private static java.util.List<CiderLibrary.Item> data(String reply) {
+        return reply == null ? java.util.List.of() : CiderLibrary.data(reply, 12);
+    }
+
+    /** Plays an item from the library row: by Apple Music's path when it has one, else by kind and id. */
+    void play(CiderLibrary.Item item) {
+        com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+        String path;
+        if (item.href() != null) {
+            body.addProperty("href", item.href());
+            path = "/playback/play-item-href";
+        } else {
+            body.addProperty("type", item.kind());
+            body.addProperty("id", item.id());
+            path = "/playback/play-item";
+        }
+        Thread t = new Thread(() -> Http.post(base() + path, body.toString(), auth()), "Sol Cider control");
+        t.setDaemon(true);
+        t.start();
+    }
+
     /** Apple's lyrics through Cider's Apple Music passthrough: syllable lyrics first, then line lyrics. */
     @Override
     public String appleLyricsTtml(NowPlaying song) {
         if (song.catalogId() == null) {
             return null;
         }
-        String storefront = "us";
-        Http.Reply sf = Http.post(base() + "/amapi/run-v3", "{\"path\":\"/v1/me/storefront?limit=1\"}", auth());
-        try {
-            if (sf.ok()) {
-                JsonObject o = JsonParser.parseString(sf.body()).getAsJsonObject();
-                storefront = o.getAsJsonObject("data").getAsJsonArray("data").get(0).getAsJsonObject().get("id").getAsString();
-            }
-        } catch (RuntimeException e) {
-            // Keep "us".
-        }
+        String storefront = storefront();
         for (String kind : new String[]{"syllable-lyrics", "lyrics"}) {
-            String path = "/v1/catalog/" + storefront + "/songs/" + song.catalogId() + "/" + kind + "?l=en-US&platform=web";
-            Http.Reply r = Http.post(base() + "/amapi/run-v3", "{\"path\":\"" + path + "\"}", auth());
-            if (!r.ok()) {
+            String reply = runV3("/v1/catalog/" + storefront + "/songs/" + song.catalogId() + "/" + kind + "?l=en-US&platform=web");
+            if (reply == null) {
                 continue;
             }
             try {
-                JsonObject o = JsonParser.parseString(r.body()).getAsJsonObject();
+                JsonObject o = JsonParser.parseString(reply).getAsJsonObject();
                 String ttml = o.getAsJsonObject("data").getAsJsonArray("data").get(0).getAsJsonObject()
                         .getAsJsonObject("attributes").get("ttml").getAsString();
                 if (ttml != null && !ttml.isBlank()) {

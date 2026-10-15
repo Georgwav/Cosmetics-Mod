@@ -35,7 +35,7 @@ public final class SolScenario {
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_mods", "menu_settings",
+            "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
@@ -320,7 +320,7 @@ public final class SolScenario {
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
-            if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().equals("ui_menu_music"))) {
+            if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().startsWith("ui_menu_music"))) {
                 checkMusic(s.name());
             }
             if (phaseTick == SETTLE && s.name().equals("sol_music_viz")) {
@@ -413,7 +413,7 @@ public final class SolScenario {
         boolean hud = inPlay(what);
         if (MOCK_CIDER) {
             // The album's colours only in the music shots: every other shot shows its theme.
-            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.equals("menu_music") || what.equals("hud_sol");
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol");
         }
         java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);

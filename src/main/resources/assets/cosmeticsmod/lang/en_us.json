@@ -956,5 +956,17 @@
   "cosmeticsmod.module.music.viz_album_sun": "Visualizer: album sun",
   "cosmeticsmod.module.music.viz_notes": "Visualizer: music notes",
   "cosmeticsmod.module.music.viz_breathe": "Visualizer: sky breathing",
-  "sol.menu.music.viz_none": "Visualizers can't hear the computer here, so they sway calmly"
+  "sol.menu.music.viz_none": "Visualizers can't hear the computer here, so they sway calmly",
+  "sol.menu.music.player": "Player",
+  "sol.menu.music.full_lyrics": "Lyrics",
+  "sol.menu.music.tab.queue": "Up next",
+  "sol.menu.music.tab.recent": "Recent",
+  "sol.menu.music.tab.playlists": "Playlists",
+  "sol.menu.music.tab.search": "Search",
+  "sol.menu.music.search_hint": "Songs, albums, playlists",
+  "sol.menu.music.library_cider": "Connect Cider to see what's up next, your recent music and playlists",
+  "sol.menu.music.loading": "Loading…",
+  "sol.menu.music.search_empty": "Type to search Apple Music",
+  "sol.menu.music.library_empty": "Nothing here yet",
+  "sol.notify.music_playing": "Playing %s"
 }

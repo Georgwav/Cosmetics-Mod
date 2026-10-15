@@ -22,6 +22,10 @@ import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TITLE, ARTIST, ALBUM = "Sol Sunset", "The Pixel Suns", "Ember Solstice"
+# The library row: what's up next, recently played, playlists, search results (one cover for all).
+UP_NEXT = [("Night Drive", "The Pixel Suns"), ("Aurora Lines", "Frost Morning"), ("Maple Road", "Leaf & Lantern"),
+           ("Firefly Waltz", "Meadow Hours"), ("Monsoon Glass", "Slate Club"), ("Deep Field", "Telescope")]
+PLAYLISTS = ["Sunset Builds", "PvP Focus", "Late Night Mining", "Cozy Farm"]
 DURATION_MS = 200_000
 START_S = 62.0
 CATALOG_ID = "1789001234"
@@ -124,12 +128,23 @@ class Handler(BaseHTTPRequestHandler):
                 "currentPlaybackTime": position_s(), "playParams": {"id": "i.mock", "catalogId": CATALOG_ID},
                 "artwork": {"url": "http://127.0.0.1:%d/artwork/{w}x{h}.png" % port, "width": 300, "height": 300}}
 
+    @staticmethod
+    def _media(kind, ident, name, artist, port):
+        return {"id": ident, "type": kind, "href": "/v1/catalog/us/%s/%s" % (kind, ident),
+                "attributes": {"name": name, "artistName": artist,
+                               "artwork": {"url": "http://127.0.0.1:%d/artwork/{w}x{h}.png" % port},
+                               "playParams": {"id": ident, "kind": kind.rstrip("s")}}}
+
     def do_GET(self):
         path = self.path.split("?")[0]
         if path.startswith("/socket.io/") and "websocket" in (self.headers.get("Upgrade") or "").lower():
             return self._socket()
         if path == "/api/v1/playback/now-playing":
             return self._json({"status": "ok", "info": self._info()})
+        if path == "/api/v1/playback/queue":
+            port = self.server.server_address[1]
+            return self._json([self._media("songs", CATALOG_ID, TITLE, ARTIST, port)] + [
+                self._media("songs", str(1789001300 + i), t, a, port) for i, (t, a) in enumerate(UP_NEXT)])
         if path == "/api/v1/playback/is-playing":
             return self._json({"status": "ok", "is_playing": _playing})
         if path.startswith("/artwork/"):
@@ -155,6 +170,17 @@ class Handler(BaseHTTPRequestHandler):
             want = json.loads(body or b"{}").get("path", "")
             if "storefront" in want:
                 return self._json({"data": {"data": [{"id": "us", "type": "storefronts"}]}})
+            port = self.server.server_address[1]
+            if want.startswith("/v1/me/recent/played"):
+                return self._json({"data": {"data": [self._media("albums", "a%d" % i, t, a, port)
+                                                      for i, (t, a) in enumerate(reversed(UP_NEXT))]}})
+            if want.startswith("/v1/me/library/playlists"):
+                return self._json({"data": {"data": [self._media("library-playlists", "p.%d" % i, n, "", port)
+                                                      for i, n in enumerate(PLAYLISTS)]}})
+            if "/search?" in want:
+                return self._json({"data": {"results": {
+                    "songs": {"data": [self._media("songs", "s%d" % i, t, a, port) for i, (t, a) in enumerate(UP_NEXT[:3])]},
+                    "albums": {"data": [self._media("albums", "al0", ALBUM, ARTIST, port)]}}}})
             if "/syllable-lyrics" in want or "/lyrics" in want:
                 return self._json({"data": {"data": [{"id": CATALOG_ID, "attributes": {"ttml": TTML}}]}})
             return self._json({"data": {"data": []}})
@@ -164,7 +190,8 @@ class Handler(BaseHTTPRequestHandler):
             if _playing:
                 _started = time.time() - (pos - START_S)
             return self._json({"status": "ok"})
-        if path in ("/api/v1/playback/next", "/api/v1/playback/previous"):
+        if path in ("/api/v1/playback/next", "/api/v1/playback/previous", "/api/v1/playback/play-item-href",
+                    "/api/v1/playback/play-item"):
             return self._json({"status": "ok"})
         self._json({"error": "not found"}, 404)
 

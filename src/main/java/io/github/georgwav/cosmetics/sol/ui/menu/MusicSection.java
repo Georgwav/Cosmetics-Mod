@@ -34,6 +34,21 @@ final class MusicSection implements Section {
         SolConfig.save();
     });
 
+    /** The library row's tab: queue, recent, playlists, search. */
+    private String tab = "queue";
+    private int page;
+    private final TextField search = new TextField(80, t -> searchChanged = System.nanoTime());
+    private long searchChanged;
+    private String settledQuery = "";
+    /** The full lyrics view instead of the player. */
+    private boolean full;
+    private float scroll = Float.NaN;
+
+    /** Opens straight into a state (the scenario's shots): "lyrics" for the full lyrics view. */
+    void stage(String state) {
+        full = state.equals("lyrics");
+    }
+
     @Override
     public void opened() {
         token.set(Secrets.get("ciderToken"));
@@ -44,12 +59,12 @@ final class MusicSection implements Section {
 
     @Override
     public boolean typed(String text) {
-        return token.typed(text) || clientId.typed(text);
+        return token.typed(text) || clientId.typed(text) || search.typed(text);
     }
 
     @Override
     public boolean key(int key, boolean ctrl) {
-        return token.key(key, ctrl) || clientId.key(key, ctrl);
+        return token.key(key, ctrl) || clientId.key(key, ctrl) || search.key(key, ctrl);
     }
 
     @Override
@@ -63,13 +78,174 @@ final class MusicSection implements Section {
         String state = n == null ? SolMenu.tr("sol.menu.music.count")
                 : SolMenu.tr(n.playing() ? "sol.menu.music.playing" : "sol.menu.music.paused") + " · "
                 + SolMenu.tr("sol.menu.music.source." + n.source());
-        g.textMid(mono, state, x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
+        float sx = x + g.width(h2, title) + 14f;
+        g.textMid(mono, state, sx, headY, 0x8CFFFFFF);
+        if (n != null && !MusicService.lyrics().isEmpty()) {
+            ui.chip(tk, sx + g.width(mono, state) + 16f, headY, SolMenu.tr(full ? "sol.menu.music.player" : "sol.menu.music.full_lyrics"),
+                    full, () -> {
+                        full = !full;
+                        scroll = Float.NaN;
+                    });
+        } else {
+            full = false;
+        }
 
         float cy = y + 42f, cw = 400f, ch = Math.min(206f, h - 46f);
+        if (full) {
+            fullLyrics(menu, g, tk, n, x, cy, w, h - 46f);
+            return;
+        }
         card(g, tk, x, cy, cw, ch);
         nowPlaying(g, ui, tk, n, x, cy, cw);
         lyrics(g, tk, n, x, cy + 124f, cw, ch - 124f);
+        ui.area(x, cy + 124f, cw, ch - 124f, () -> {
+            if (!MusicService.lyrics().isEmpty()) {
+                full = true;
+                scroll = Float.NaN;
+            }
+        });
+        libraryRow(menu, g, ui, tk, x, cy + ch + 14f, cw, y + h - (cy + ch + 14f));
         sources(menu, g, ui, tk, cfg, x + cw + 22f, cy, w - cw - 22f);
+    }
+
+    // ---------------------------------------------------------------- the library row
+
+    private static final String[] TABS = {"queue", "recent", "playlists", "search"};
+    private static final int PER_PAGE = 5;
+
+    /** Up next, recently played, playlists and search (Cider): five covers at a time, a click plays one. */
+    private void libraryRow(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
+        float cx = x;
+        for (String t : TABS) {
+            cx += ui.chip(tk, cx, y + 11f, SolMenu.tr("sol.menu.music.tab." + t), t.equals(tab), () -> {
+                tab = t;
+                page = 0;
+                search.focus(t.equals("search"));
+            }) + 6f;
+        }
+        if (tab.equals("search")) {
+            search.draw(g, ui, tk, cx + 4f, y, x + w - cx - 4f - 58f, 22f, "search", SolMenu.tr("sol.menu.music.search_hint"), menu.dt());
+            String q = search.text().strip();
+            if (!q.equals(settledQuery) && System.nanoTime() - searchChanged > 400_000_000L) {
+                settledQuery = q;
+                page = 0;
+            }
+        }
+        java.util.List<io.github.georgwav.cosmetics.sol.music.CiderLibrary.Item> items = MusicService.library(tab, settledQuery);
+        int pages = Math.max(1, (items.size() + PER_PAGE - 1) / PER_PAGE);
+        page = Math.min(page, pages - 1);
+        if (pages > 1) {
+            float bx = x + w - 52f;
+            ui.tool(tk, bx, y - 2f, "prev", false, () -> page = Math.max(0, page - 1));
+            ui.tool(tk, bx + 28f, y - 2f, "next", false, () -> page = Math.min(pages - 1, page + 1));
+        }
+        float ty = y + 32f;
+        SolFont small = g.font(SolFont.Family.MEDIUM, 12f);
+        if (items.isEmpty()) {
+            String why = !MusicService.connected("cider") ? "sol.menu.music.library_cider"
+                    : MusicService.libraryPending(tab, settledQuery) ? "sol.menu.music.loading"
+                    : tab.equals("search") && settledQuery.isEmpty() ? "sol.menu.music.search_empty" : "sol.menu.music.library_empty";
+            g.text(small, g.fit(small, SolMenu.tr(why), w), x, ty + 18f, 0x66FFFFFF);
+            return;
+        }
+        float col = w / PER_PAGE, art = Math.min(60f, h - 32f - 30f);
+        SolFont name = g.font(SolFont.Family.SEMIBOLD, 12f), sub = g.font(SolFont.Family.MEDIUM, 11f);
+        for (int i = 0; i < PER_PAGE; i++) {
+            int at = page * PER_PAGE + i;
+            if (at >= items.size()) {
+                break;
+            }
+            var item = items.get(at);
+            float ix = x + i * col;
+            io.github.georgwav.cosmetics.sol.render.SolTexture t = io.github.georgwav.cosmetics.sol.music.Covers.thumb(item.artworkUrl());
+            if (t != null) {
+                g.image(t, ix, ty, art, art, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+            } else {
+                g.roundV(ix, ty, art, art, 6f, Colors.mix(tk.skyTop, 0xFF000000, 0.2f), tk.glow);
+                Icons.draw(g, "note", ix + art * 0.3f, ty + art * 0.3f, art * 0.4f, 0x99FFFFFF, Icons.FILL, 0);
+            }
+            ui.click(ix, ty, art, art, () -> {
+                MusicService.play(item);
+                menu.toast(SolMenu.tr("sol.notify.music_playing", item.title()));
+            });
+            if (ui.over(ix, ty, art, art)) {
+                g.round(ix, ty, art, art, 6f, 0x66000000);
+                Icons.draw(g, "play", ix + art / 2f - 10f, ty + art / 2f - 10f, 20f, 0xFFFFFFFF, Icons.FILL_ON, 0);
+            }
+            g.text(name, g.fit(name, item.title(), col - 8f), ix, ty + art + 14f, 0xFFFFFFFF);
+            if (!item.subtitle().isEmpty()) {
+                g.text(sub, g.fit(sub, item.subtitle(), col - 8f), ix, ty + art + 27f, 0x8CFFFFFF);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- the full lyrics view
+
+    /**
+     * Every line, scrolling with the song: the line being sung large with its word filling in the accent, sung lines
+     * white, the rest fading with distance; the duet's second voice from the right, background vocals small under
+     * their line.
+     */
+    private void fullLyrics(SolMenu menu, Gfx g, Tokens tk, NowPlaying n, float x, float y, float w, float h) {
+        card(g, tk, x, y, w, h);
+        if (n == null) {
+            return;
+        }
+        Lyrics l = MusicService.lyrics();
+        // The cover and the song at the left.
+        float ax = x + 22f, ay = y + 22f;
+        Covers.Cover cover = Covers.current();
+        if (cover != null && Covers.large() != null) {
+            g.glowSprite(ax + 70f, ay + 74f, 100f, 90f, Colors.withAlpha(cover.palette().glow(), 0.3f));
+            g.image(Covers.large(), ax, ay, 140f, 140f, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+        }
+        SolFont b = g.font(SolFont.Family.SEMIBOLD, 16f), s = g.font(SolFont.Family.MEDIUM, 12f), mono = g.font(SolFont.Family.MONO, 11f);
+        g.text(b, g.fit(b, n.title(), 160f), ax, ay + 166f, 0xFFFFFFFF);
+        g.text(s, g.fit(s, n.artist() == null ? "" : n.artist(), 160f), ax, ay + 184f, 0x99FFFFFF);
+        g.round(ax, ay + 196f, 140f, 3f, 1.5f, 0x24FFFFFF);
+        g.round(ax, ay + 196f, Math.max(3f, 140f * n.progress()), 3f, 1.5f, tk.accent);
+        g.textMid(mono, time(n.position()) + " / " + time(n.durationMs()), ax, ay + 210f, 0x99FFFFFF);
+
+        float lx = x + 210f, lw = w - 210f - 30f, mid = y + h * 0.45f;
+        long pos = n.position(), off = MusicService.offset(n);
+        int cur = Karaoke.line(l, pos, off);
+        // Where each line sits, top to bottom.
+        int count = l.lines().size();
+        float[] at = new float[count];
+        float acc = 0f;
+        for (int i = 0; i < count; i++) {
+            at[i] = acc;
+            acc += l.lines().get(i).background() ? 22f : 36f;
+        }
+        float target = cur >= 0 ? at[cur] : 0f;
+        scroll = Float.isNaN(scroll) ? target : scroll + (target - scroll) * Math.min(1f, menu.dt() * 7f);
+        SolFont big = g.font(SolFont.Family.SEMIBOLD, 22f), line = g.font(SolFont.Family.MEDIUM, 17f), bg = g.font(SolFont.Family.MEDIUM, 13f);
+        g.clip(lx - 6f, y + 8f, lx + lw + 6f, y + h - 8f);
+        for (int i = 0; i < count; i++) {
+            float ly = mid + at[i] - scroll;
+            if (ly < y - 40f || ly > y + h + 40f) {
+                continue;
+            }
+            Lyrics.Line ln = l.lines().get(i);
+            boolean right = "v2".equals(ln.agent());
+            float dist = Math.abs(ly - mid) / (h * 0.5f);
+            float fade = Math.max(0.12f, 1f - dist * 0.85f);
+            if (i == cur) {
+                float tw = g.width(big, ln.text());
+                float tx = right ? lx + lw - Math.min(tw, lw) : lx;
+                MusicSection.line(g, tk, l, i, pos, off, big, tx, ly, lw);
+            } else if (ln.background()) {
+                String t = g.fit(bg, ln.text(), lw);
+                float tx = right ? lx + lw - g.width(bg, t) : lx;
+                g.textMid(bg, t, tx, ly, Colors.withAlpha(0xFFFFFFFF, 0.45f * fade));
+            } else {
+                String t = g.fit(line, ln.text(), lw);
+                float tx = right ? lx + lw - g.width(line, t) : lx;
+                boolean sung = cur >= 0 && i < cur;
+                g.textMid(line, t, tx, ly, Colors.withAlpha(0xFFFFFFFF, (sung ? 0.7f : 0.5f) * fade));
+            }
+        }
+        g.endClip();
     }
 
     private static void card(Gfx g, Tokens tk, float x, float y, float w, float h) {

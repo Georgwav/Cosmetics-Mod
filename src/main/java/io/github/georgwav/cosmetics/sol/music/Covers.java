@@ -172,6 +172,84 @@ public final class Covers {
         return c;
     }
 
+    // ---------------------------------------------------------------- thumbnails (the library row)
+
+    public static final int THUMB = 64;
+    private static final int THUMBS = 16;
+
+    private static final class Thumb {
+        volatile int[] px;
+        int slot = -1;
+        long used;
+    }
+
+    private static final java.util.Map<String, Thumb> thumbs = new java.util.HashMap<>();
+    private static final SolTexture[] thumbSlots = new SolTexture[THUMBS];
+    private static final boolean[] slotTaken = new boolean[THUMBS];
+
+    /**
+     * A small cover for the library row (render thread): its texture once loaded, else null (and it starts loading).
+     * The last 16 are kept; the least recently drawn gives its texture to the next.
+     */
+    public static SolTexture thumb(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        Thumb t = thumbs.get(url);
+        if (t == null) {
+            if (thumbs.size() >= THUMBS) {
+                java.util.Map.Entry<String, Thumb> oldest = null;
+                for (java.util.Map.Entry<String, Thumb> e : thumbs.entrySet()) {
+                    if (oldest == null || e.getValue().used < oldest.getValue().used) {
+                        oldest = e;
+                    }
+                }
+                if (oldest.getValue().slot >= 0) {
+                    slotTaken[oldest.getValue().slot] = false;
+                }
+                thumbs.remove(oldest.getKey());
+            }
+            Thumb fresh = new Thumb();
+            t = fresh;
+            thumbs.put(url, t);
+            SolExecutors.IO.execute(() -> {
+                byte[] bytes = fetch(url);
+                if (bytes != null) {
+                    SolExecutors.cpu(Feature.MUSIC, () -> fresh.px = thumbPixels(bytes));
+                }
+            });
+        }
+        t.used = System.nanoTime();
+        if (t.px != null && t.slot < 0) {
+            for (int i = 0; i < THUMBS; i++) {
+                if (!slotTaken[i]) {
+                    slotTaken[i] = true;
+                    t.slot = i;
+                    if (thumbSlots[i] == null || thumbSlots[i].released()) {
+                        thumbSlots[i] = new SolTexture("music_thumb_" + i, THUMB, THUMB, true);
+                    }
+                    thumbSlots[i].upload(t.px);
+                    break;
+                }
+            }
+        }
+        return t.slot >= 0 ? thumbSlots[t.slot] : null;
+    }
+
+    private static int[] thumbPixels(byte[] bytes) {
+        try {
+            BufferedImage img = javax.imageio.ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img == null) {
+                return null;
+            }
+            int w = img.getWidth(), h = img.getHeight(), side = Math.min(w, h);
+            int[] src = img.getRGB(0, 0, w, h, null, 0, w);
+            return round(scale(src, w, (w - side) / 2, (h - side) / 2, side, THUMB), THUMB, THUMB * 6f / 60f);
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
     /** The cover's textures (after {@link #current()} returned non-null). */
     public static SolTexture large() {
         return large;

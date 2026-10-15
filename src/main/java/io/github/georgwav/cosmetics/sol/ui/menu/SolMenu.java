@@ -115,6 +115,10 @@ public final class SolMenu extends SolScreen {
         switch (state) {
             case "profiles" -> openPopover();
             case "cmdbar" -> openPalette("");
+            case "music_lyrics" -> {
+                go("music");
+                ((MusicSection) sections.get("music")).stage("lyrics");
+            }
             case "wardrobe_outfits" -> {
                 go("wardrobe");
                 ((WardrobeSection) sections.get("wardrobe")).tab("outfits");
