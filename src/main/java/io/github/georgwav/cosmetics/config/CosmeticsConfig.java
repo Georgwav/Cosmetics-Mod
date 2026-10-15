@@ -273,6 +273,11 @@ public final class CosmeticsConfig {
          * colour of its texture, a kept one to itself (see {@link io.github.georgwav.cosmetics.render.Recolor}).
          */
         public List<ColorSwap> swaps = null;
+        /**
+         * Sol Client: the colour follows the theme ("accent" or "glow") instead of {@link #color}, so a halo turns
+         * white in Deep Field and orange in Ember; null (the default, and never written) keeps its own colour.
+         */
+        public String themeColor = null;
 
         /** A copy, to keep in an outfit (or take out of one) without the two changing together. */
         public CosmeticOptions copy() {
@@ -292,7 +297,7 @@ public final class CosmeticsConfig {
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && elytra == d.elytra && particles == d.particles && particleAmount == d.particleAmount
                     && particleSize == d.particleSize && petPosition == null && turned == d.turned && upsideDown == d.upsideDown
-                    && colorStyle == null
+                    && colorStyle == null && themeColor == null
                     && !swapsAny();
         }
 
@@ -316,6 +321,9 @@ public final class CosmeticsConfig {
             animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
             particleAmount = clamp(particleAmount, 0f, 3f, 1f);
             particleSize = clamp(particleSize, 0.25f, 3f, 1f);
+            if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow")) {
+                themeColor = null;
+            }
             if (swaps != null) {
                 swaps.removeIf(java.util.Objects::isNull);
                 swaps.forEach(c -> {

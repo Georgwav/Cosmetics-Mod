@@ -20,7 +20,7 @@ import java.util.Random;
  * live in the world, so the preview simulates its own with the same spawn maths ({@link AuraSpawner}), as for a
  * player standing still, and draws them over the preview with the preview's turn and tilt.
  */
-final class PreviewParticles {
+public final class PreviewParticles {
     private static final int MAX = 400;
     private static final float TICKS_PER_SECOND = 20f;
 
@@ -47,7 +47,7 @@ final class PreviewParticles {
     }
 
     /** Moves the particles on and gives off new ones for {@code worn}, the body facing {@code bodyYaw} degrees. */
-    void update(BakedCosmetic[] worn, float bodyYaw) {
+    public void update(BakedCosmetic[] worn, float bodyYaw) {
         long now = System.nanoTime();
         float seconds = lastNanos == 0L ? 0f : Math.min(0.25f, (now - lastNanos) / 1.0e9f);
         lastNanos = now;
@@ -99,7 +99,7 @@ final class PreviewParticles {
      * Draws the particles as the preview shows the player: {@code scale} pixels a block around ({@code centerX},
      * {@code centerY}), the feet {@code feetY} blocks below it, turned by {@code pose}.
      */
-    void draw(Canvas g, float centerX, float centerY, float scale, float feetY, Quaternionf pose) {
+    public void draw(Canvas g, float centerX, float centerY, float scale, float feetY, Quaternionf pose) {
         Vector3f v = new Vector3f();
         for (Particle p : particles) {
             float t = Math.min(1f, p.age / Math.max(1, p.spawn.lifetime()));

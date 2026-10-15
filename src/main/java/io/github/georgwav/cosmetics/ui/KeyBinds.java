@@ -31,7 +31,7 @@ public final class KeyBinds {
     }
 
     /** Whether another key bind (the game's or any mod's) uses the same key. */
-    static boolean conflicts(KeyMapping mapping) {
+    public static boolean conflicts(KeyMapping mapping) {
         if (mapping.isUnbound()) {
             return false;
         }

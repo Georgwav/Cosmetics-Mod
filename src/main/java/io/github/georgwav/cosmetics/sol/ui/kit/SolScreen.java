@@ -95,6 +95,13 @@ public abstract class SolScreen extends Screen {
         return false;
     }
 
+    /**
+     * After the frame, in the game's GUI pixels and drawing tools: for what only the game draws (the 3D player
+     * preview). Drawn over the frame.
+     */
+    protected void game(Canvas canvas, int mouseX, int mouseY) {
+    }
+
     /** Called when the screen is closed or replaced; free textures here. */
     protected void closed() {
     }
@@ -136,6 +143,9 @@ public abstract class SolScreen extends Screen {
         boolean ok = Guard.on(feature) && Guard.run(feature, () -> frame(g));
         g.end();
         canvas.pop();
+        if (ok) {
+            ok = Guard.run(feature, () -> game(canvas, mouseX, mouseY));
+        }
         if (!ok) {
             // The screen's feature switched itself off: leave for the screen underneath rather than draw half a menu.
             minecraft.execute(this::onClose);

@@ -36,6 +36,8 @@ public final class Sol {
                 Component.translatable("sol.notify.feature_off", Component.translatable("sol.feature." + feature.key)).getString());
         ClientTickEvents.END_CLIENT_TICK.register(Sol::tick);
         io.github.georgwav.cosmetics.sol.render.SolShaders.register();
+        // Cosmetics set to follow the theme take its accent or glow.
+        io.github.georgwav.cosmetics.render.Tint.theme = which -> which == 1 ? ThemeState.tokens().glow : ThemeState.tokens().accent;
         SolScenario.init();
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }

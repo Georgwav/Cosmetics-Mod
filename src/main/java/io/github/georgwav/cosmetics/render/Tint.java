@@ -10,7 +10,28 @@ public final class Tint {
     /** Saturation of the rainbow at full strength. */
     static final float RAINBOW_SATURATION = 0.65f;
 
+    /**
+     * The theme's colours (RGB) for cosmetics set to follow the theme: 0 the accent, 1 the glow. Set by Sol
+     * Client; null (no theme) in the tests.
+     */
+    public static volatile java.util.function.IntUnaryOperator theme;
+
     private Tint() {
+    }
+
+    /**
+     * The colour the player gave the cosmetic (RGB), or null for its own: the theme's while it follows the theme,
+     * else the picked one, and nothing when the cosmetic doesn't take a tint.
+     */
+    public static Integer color(CosmeticsConfig.CosmeticOptions options, int allowed) {
+        if ((allowed & CosmeticOption.TINT.bit()) == 0) {
+            return null;
+        }
+        java.util.function.IntUnaryOperator t = theme;
+        if (options.themeColor != null && t != null) {
+            return t.applyAsInt("glow".equals(options.themeColor) ? 1 : 0) & 0xFFFFFF;
+        }
+        return options.color;
     }
 
     /** ARGB tint for a cosmetic that allows every option and has no default colour of its own. */
@@ -33,7 +54,8 @@ public final class Tint {
             double hue = seconds * options.rainbowSpeed / 10.0;
             return 0xFF000000 | hsvToRgb((float) (hue - Math.floor(hue)), RAINBOW_SATURATION * saturation, 1f);
         }
-        int rgb = options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0 ? options.color : defaultColor;
+        Integer picked = color(options, allowed);
+        int rgb = picked != null ? picked : defaultColor;
         if (saturation < 1f) {
             rgb = desaturate(rgb, saturation);
         }
@@ -54,7 +76,7 @@ public final class Tint {
 
     /** Whether the player picked a colour or the rainbow for the cosmetic (and it takes them). */
     public static boolean picked(CosmeticsConfig.CosmeticOptions options, int allowed) {
-        return rainbow(options, allowed) || (options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0);
+        return rainbow(options, allowed) || color(options, allowed) != null;
     }
 
     /** Whether the cosmetic turns through the rainbow. */
