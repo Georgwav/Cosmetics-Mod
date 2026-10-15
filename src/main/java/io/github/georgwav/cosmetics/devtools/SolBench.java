@@ -103,7 +103,11 @@ final class SolBench {
                 + SolTiming.msPerFrame(SolTiming.Part.FLARE);
     }
 
-    /** The budgets, on the phase with everything on. */
+    /**
+     * The budgets, on the phase with everything on. Not on a software renderer (CI's llvmpipe): there every draw
+     * call also does the graphics card's work on the processor, so the times are the renderer's, not Sol's; the
+     * numbers are still recorded.
+     */
     static void check(JsonObject phase, List<String> failures) {
         if (phase == null || !phase.has("solMsPerFrame")) {
             failures.add("the Sol benchmark phases didn't run");
@@ -111,6 +115,11 @@ final class SolBench {
         }
         if (!phase.get("atmosphereOn").getAsBoolean()) {
             failures.add("Atmosphere wasn't drawing in the sol_all phase");
+            return;
+        }
+        boolean software = "1".equals(System.getenv("LIBGL_ALWAYS_SOFTWARE"));
+        phase.addProperty("budgetsChecked", !software);
+        if (software) {
             return;
         }
         JsonObject parts = phase.getAsJsonObject("solMsPerFrame");

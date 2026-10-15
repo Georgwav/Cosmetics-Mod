@@ -1186,6 +1186,9 @@ def cmd_summarize(args):
         if sol:
             parts = ["sky", "sun", "particles", "light", "flare", "sol_ui", "hud"]
             lines += ["", "## Sol's cost (CPU ms per frame; budgets: Atmosphere 0.3, sun + flare 0.03, Sol UI 0.2)", "",
+                      "With software rendering (llvmpipe, as in CI) a draw call also does the graphics card's work, so "
+                      "these times are the renderer's as much as Sol's: compare runs, and check the budgets on a real "
+                      "graphics card.", "",
                       "| Minecraft | Setup | Phase | FPS | Frame p50 / p99 ms | " + " | ".join(parts) + " |",
                       "|---|---|---|---|---|" + "---|" * len(parts)]
             for r, phase, p in sol:
