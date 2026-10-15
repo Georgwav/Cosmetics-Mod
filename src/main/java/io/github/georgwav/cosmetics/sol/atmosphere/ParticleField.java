@@ -3,7 +3,6 @@ package io.github.georgwav.cosmetics.sol.atmosphere;
 import io.github.georgwav.cosmetics.sol.Feature;
 import io.github.georgwav.cosmetics.sol.Guard;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
-import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
@@ -11,7 +10,6 @@ import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.Ease;
 import io.github.georgwav.cosmetics.sol.util.Mulberry32;
-import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -23,8 +21,11 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * show under a roof: each column is checked against the height map a few times a second.
  */
 public final class ParticleField {
-    /** Box half-sizes around the camera, in blocks. */
-    private static final float HX = 22f, HY = 13f, HZ = 22f;
+    /**
+     * Box half-sizes around the camera, in blocks: close enough that a theme's count fills the view like the
+     * prototype's (whose counts are one screen's worth), deep enough to reach into the fog.
+     */
+    private static final float HX = 15f, HY = 9f, HZ = 15f;
     /** Prototype pixels (at a 560 px view) to blocks. */
     private static final float SIZE = 0.028f;
 
@@ -34,6 +35,8 @@ public final class ParticleField {
     private static int capacity;
     private static int count;
     private static float[] x, y, z, size, angle, flip, phase;
+    /** The top of the ground under each particle (world y), for fading where it meets blocks. */
+    private static float[] ground;
     private static int[] type, color;
     private static boolean[] hidden;
     private static String builtFor = "";
@@ -43,8 +46,6 @@ public final class ParticleField {
     private static boolean placed;
     private static float lastTime = -1f;
     private static int heightCursor;
-
-    private static SolTexture atlas;
 
     private ParticleField() {
     }
@@ -64,6 +65,8 @@ public final class ParticleField {
         Guard.run(Feature.PARTICLES, () -> draw(at));
     }
 
+    private static final float[] uv = new float[4];
+
     private static void draw(Atmosphere at) {
         ThemeSpec theme = ThemeState.entry().base();
         Tokens tk = ThemeState.tokens();
@@ -79,85 +82,192 @@ public final class ParticleField {
         step(theme, dt, t);
         checkRoofs();
 
+        // Screen pixels per block at one block away: what decides a sprite's size on screen.
+        pxPerBlock = FrameInfo.height / (2f * (float) Math.tan(Math.toRadians(Math.max(1f, FrameInfo.fovY)) / 2f));
         float light = 0.35f + 0.65f * (1f - tk.night);
+        float sunUp = Ease.smoothstep(-0.05f, 0.12f, SkyPass.sunY) * SkyPass.sunVisible;
+        int sunTint = Colors.mix(0xFFFFFFFF, tk.lightSun, 0.45f * sunUp);
+        int backColor = Colors.mix(tk.lightSun, 0xFFFFFFFF, 0.3f);
         float[] wind = theme.wind();
-        // Glowing types first (added), then the rest (blended).
-        WorldDraw.begin(WorldDraw.WORLD_ADD, SkyDraw.glow());
+
+        // 1. Light: the glowing types (a wide halo and a bright core, drawn added, brighter than white where they
+        // stack so the light pass blooms them), the big out-of-focus ones near the camera as soft discs, and the
+        // glow of shaped particles with the sun behind them.
+        WorldDraw.begin(WorldDraw.WORLD_ADD, ParticleSprites.glow());
+        for (int i = 0; i < count; i++) {
+            if (hidden[i]) {
+                continue;
+            }
+            int k = type[i];
+            float a = fade(i);
+            if (a <= 0.01f) {
+                continue;
+            }
+            float d = dist(i);
+            if (glowing(k)) {
+                float al = a * flicker(k, i, t, tk);
+                if (al <= 0.01f) {
+                    continue;
+                }
+                float r = size[i] * (k == DUST ? 2.2f : k == NOTE ? 1.6f : k == SPARKLE ? 1.8f : 3.2f);
+                // Close to the camera a light goes out of focus: bigger, fainter, a disc.
+                float blur = Ease.smoothstep(2.8f, 0.9f, d);
+                if (blur > 0.02f && k != NOTE) {
+                    float rb = r * (1f + 2.4f * blur);
+                    float ab = al * (0.85f / (1f + 2.2f * blur));
+                    ParticleSprites.glowUv(1, ParticleSprites.glowLevel(2f * rb * pxPerBlock / d), uv);
+                    billboard(i, rb, rb, 0f, 1f, uv[0], uv[1], uv[2], uv[3], Colors.withAlpha(color[i], Math.min(1f, ab * blur)));
+                    al *= 1f - blur;
+                }
+                ParticleSprites.glowUv(0, ParticleSprites.glowLevel(2f * r * pxPerBlock / d), uv);
+                billboard(i, r, r, 0f, 1f, uv[0], uv[1], uv[2], uv[3], Colors.withAlpha(color[i], Math.min(1f, al)));
+                // The core: smaller and whiter.
+                float rc = r * 0.42f;
+                ParticleSprites.glowUv(0, ParticleSprites.glowLevel(2f * rc * pxPerBlock / d), uv);
+                billboard(i, rc, rc, 0f, 1f, uv[0], uv[1], uv[2], uv[3],
+                        Colors.withAlpha(Colors.mix(color[i], 0xFFFFFFFF, 0.6f), Math.min(1f, al * 0.9f)));
+            } else if (k != RAIN && sunUp > 0f) {
+                float back = backlight(i, d) * sunUp;
+                if (back > 0.02f) {
+                    float r = size[i] * 1.7f;
+                    ParticleSprites.glowUv(0, ParticleSprites.glowLevel(2f * r * pxPerBlock / d), uv);
+                    billboard(i, r, r, 0f, 1f, uv[0], uv[1], uv[2], uv[3], Colors.withAlpha(backColor, Math.min(1f, 0.6f * back * a)));
+                }
+            }
+        }
+        WorldDraw.end();
+
+        // 2. Shapes: petals, blossoms, leaves, ash, snow and flakes, smooth-edged, lit by the theme's sun and glowing
+        // through when it's behind them.
+        WorldDraw.begin(WorldDraw.WORLD_ALPHA, ParticleSprites.shapes());
         for (int i = 0; i < count; i++) {
             int k = type[i];
-            if (hidden[i] || !(k == EMBER || k == DUST || k == FIREFLY || k == SPARKLE || k == NOTE)) {
+            if (hidden[i] || glowing(k) || k == RAIN) {
                 continue;
             }
             float a = fade(i);
             if (a <= 0.01f) {
                 continue;
             }
-            float al = a;
-            float ph = phase[i];
+            float d = dist(i);
+            float back = sunUp > 0f ? backlight(i, d) * sunUp : 0f;
+            int c = Colors.multiply(color[i], sunTint);
+            c = Colors.scale(c, light);
+            if (back > 0f) {
+                c = Colors.mix(c, backColor, 0.5f * back);
+            }
+            // Never a big blot in front of the camera: a shape stays within a few percent of the screen.
+            float s = Math.min(size[i], 0.03f * FrameInfo.height * d / pxPerBlock);
+            float sq = Math.max(0.18f, Math.abs((float) Math.cos(flip[i])));
+            int shape;
+            float w, h, rot = angle[i], squash = 1f;
             switch (k) {
-                case EMBER -> al *= 0.55f + 0.45f * (float) Math.sin(t * 6f + ph);
-                case DUST -> al *= 0.35f + 0.4f * (0.5f + 0.5f * (float) Math.sin(t * 1.7f + ph));
-                case FIREFLY -> {
-                    float s = Math.max(0f, (float) Math.sin(t * 0.9f + ph));
-                    al *= s * s * s * (0.3f + 0.7f * tk.night);
-                }
-                case SPARKLE -> {
-                    float s = 0.5f + 0.5f * (float) Math.sin(t * 1.3f + ph);
-                    al *= s * s * s * s;
-                }
-                case NOTE -> al *= 0.35f * (1f + MusicSky.beat * 0.8f);
-                default -> {
-                }
+                case PETAL -> { shape = ParticleSprites.PETAL; w = s * 0.62f; h = s; squash = sq; }
+                case ASH -> { shape = ParticleSprites.ASH; w = s; h = s; squash = sq; }
+                case BLOSSOM -> { shape = ParticleSprites.BLOSSOM; w = s; h = s; }
+                case LEAF -> { shape = ParticleSprites.LEAF; w = s * 0.7f; h = s; squash = Math.max(0.2f, sq); }
+                case SNOW -> { shape = ParticleSprites.SNOW; w = s * 0.6f; h = s * 0.6f; rot = 0f; }
+                default -> { shape = ParticleSprites.FLAKE; w = s; h = s; }
             }
-            if (al <= 0.01f) {
-                continue;
-            }
-            float r = size[i] * (k == DUST ? 2.2f : k == NOTE ? 1.6f : 3.2f);
-            billboard(i, r, r, 0f, 1f, 0f, 0f, 1f, 1f, Colors.withAlpha(color[i], Math.min(1f, al)));
+            ParticleSprites.shapeUv(shape, ParticleSprites.shapeLevel(2f * h * pxPerBlock / d), uv);
+            billboard(i, w, h, rot, squash, uv[0], uv[1], uv[2], uv[3], Colors.withAlpha(c, Math.min(1f, a * Colors.a(c) / 255f)));
         }
         WorldDraw.end();
-        WorldDraw.begin(WorldDraw.WORLD_ALPHA, atlas());
+
+        // 3. Light with a shape: sparkles' four points and the music notes, added.
+        WorldDraw.begin(WorldDraw.WORLD_ADD, ParticleSprites.shapes());
         for (int i = 0; i < count; i++) {
             int k = type[i];
-            if (hidden[i] || k == EMBER || k == DUST || k == FIREFLY) {
+            if (hidden[i] || (k != SPARKLE && k != NOTE)) {
                 continue;
             }
-            float a = fade(i);
+            float a = fade(i) * flicker(k, i, t, tk);
             if (a <= 0.01f) {
                 continue;
             }
-            int c = Colors.withAlpha(Colors.scale(color[i], light), Math.min(1f, a));
-            float s = size[i];
-            switch (k) {
-                case PETAL -> billboard(i, s, s * 0.58f, angle[i], Math.max(0.18f, Math.abs((float) Math.cos(flip[i]))), 0f, 0f, 0.125f, 1f, c);
-                case ASH -> billboard(i, s, s * 0.7f, angle[i], Math.max(0.18f, Math.abs((float) Math.cos(flip[i]))), 0.125f, 0f, 0.25f, 1f, c);
-                case BLOSSOM -> billboard(i, s, s, angle[i], 1f, 0.25f, 0f, 0.375f, 1f, c);
-                case LEAF -> billboard(i, s * 0.62f, s, angle[i], Math.max(0.2f, Math.abs((float) Math.cos(flip[i]))), 0.375f, 0f, 0.5f, 1f, c);
-                case SNOW -> billboard(i, s * 0.6f, s * 0.6f, 0f, 1f, 0.5f, 0f, 0.625f, 1f, c);
-                case FLAKE -> billboard(i, s, s, angle[i], 1f, 0.625f, 0f, 0.75f, 1f, c);
-                case RAIN -> {
-                    // A streak along the fall, slanted by the wind.
-                    float len = 0.55f;
-                    rainStreak(i, len, wind, Colors.withAlpha(color[i], 0.5f * a));
-                }
-                case NOTE -> billboard(i, s * 0.9f, s * 0.9f, 0f, 1f, 0.875f, 0f, 1f, 1f, Colors.withAlpha(color[i], 0.92f * a));
-                case SPARKLE -> billboard(i, s, s, 0f, 1f, 0.75f, 0f, 0.875f, 1f,
-                        Colors.withAlpha(color[i], a * (float) Math.pow(0.5f + 0.5f * (float) Math.sin(t * 1.3f + phase[i]), 4)));
-                default -> {
-                }
+            float d = dist(i);
+            // Up close a light is only its soft bokeh (pass 1): the points fade out as it goes out of focus, and
+            // never grow past a small sparkle on screen (a big hard-edged star in front of the camera was the
+            // "big four-point star").
+            a *= 1f - Ease.smoothstep(2.8f, 1.2f, d);
+            if (a <= 0.01f) {
+                continue;
             }
+            float s = Math.min(size[i] * (k == NOTE ? 0.9f : 1.1f), 0.016f * FrameInfo.height * d / pxPerBlock);
+            ParticleSprites.shapeUv(k == NOTE ? ParticleSprites.NOTE : ParticleSprites.STAR,
+                    ParticleSprites.shapeLevel(2f * s * pxPerBlock / d), uv);
+            billboard(i, s, s, 0f, 1f, uv[0], uv[1], uv[2], uv[3], Colors.withAlpha(Colors.mix(color[i], 0xFFFFFFFF, 0.35f), Math.min(1f, a)));
         }
         WorldDraw.end();
+
+        // 4. Rain: thin streaks along the fall.
+        boolean anyRain = false;
+        for (int i = 0; i < count && !anyRain; i++) {
+            anyRain = type[i] == RAIN;
+        }
+        if (anyRain) {
+            WorldDraw.begin(WorldDraw.WORLD_ALPHA, null);
+            for (int i = 0; i < count; i++) {
+                if (hidden[i] || type[i] != RAIN) {
+                    continue;
+                }
+                float a = fade(i);
+                if (a > 0.01f) {
+                    rainStreak(i, 0.55f, wind, Colors.withAlpha(Colors.scale(color[i], light), 0.45f * a));
+                }
+            }
+            WorldDraw.end();
+        }
     }
 
-    /** Fades a particle out near the camera and at the box's edge (so wrapping is never seen). */
+    private static float pxPerBlock = 700f;
+
+    private static boolean glowing(int k) {
+        return k == EMBER || k == DUST || k == FIREFLY || k == SPARKLE || k == NOTE;
+    }
+
+    /** The prototype's per-type twinkle for the glowing types. */
+    private static float flicker(int k, int i, float t, Tokens tk) {
+        float ph = phase[i];
+        return switch (k) {
+            case EMBER -> 0.55f + 0.45f * (float) Math.sin(t * 6f + ph);
+            case DUST -> 0.35f + 0.4f * (0.5f + 0.5f * (float) Math.sin(t * 1.7f + ph));
+            case FIREFLY -> {
+                float s = Math.max(0f, (float) Math.sin(t * 0.9f + ph));
+                yield s * s * s * (0.3f + 0.7f * tk.night);
+            }
+            case SPARKLE -> {
+                float s = 0.5f + 0.5f * (float) Math.sin(t * 1.3f + ph);
+                yield s * s * s * s;
+            }
+            case NOTE -> 0.35f * (1f + MusicSky.beat * 0.8f);
+            default -> 1f;
+        };
+    }
+
+    private static float dist(int i) {
+        return Math.max(0.3f, (float) Math.sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
+    }
+
+    /** How much the sun is behind a particle as you look at it (0 none, 1 right behind it). */
+    private static float backlight(int i, float d) {
+        float dot = (x[i] * SkyPass.sunX + y[i] * SkyPass.sunY + z[i] * SkyPass.sunZ) / d;
+        return Ease.smoothstep(0.8f, 0.985f, dot);
+    }
+
+    /**
+     * Fades a particle out near the camera, at the box's edge (so wrapping is never seen) and where it meets the
+     * ground, so nothing is ever cut off by a block.
+     */
     private static float fade(int i) {
-        float d2 = x[i] * x[i] + y[i] * y[i] + z[i] * z[i];
-        float d = (float) Math.sqrt(d2);
-        float near = Ease.smoothstep(0.7f, 1.8f, d);
+        float d = (float) Math.sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]);
+        // Lights go out of focus up close (drawn as bokeh); a petal or a leaf that close would just be a big blot.
+        float near = glowing(type[i]) ? Ease.smoothstep(0.35f, 0.9f, d) : Ease.smoothstep(1.2f, 3f, d);
         float edge = 1f - Ease.smoothstep(HX * 0.65f, HX * 0.98f, Math.max(Math.abs(x[i]), Math.abs(z[i])));
         float vert = 1f - Ease.smoothstep(HY * 0.7f, HY, Math.abs(y[i]));
-        return near * edge * vert;
+        float above = (float) (FrameInfo.camY + y[i] - ground[i]);
+        float soft = Ease.smoothstep(0f, Math.max(0.25f, size[i] * 3f), above);
+        return near * edge * vert * soft;
     }
 
     /** A camera-facing quad: half-width w, half-height h, turned by {@code rot}, squashed sideways by {@code squash}. */
@@ -197,10 +307,12 @@ public final class ParticleField {
             return;
         }
         float nx = -dy / l * w, ny = dx / l * w;
-        WorldDraw.vertex(ax - nx, ay - ny, az, 0.75f, 1f, c);
-        WorldDraw.vertex(bx - nx, by - ny, bz, 0.75f, 0f, c);
-        WorldDraw.vertex(bx + nx, by + ny, bz, 0.875f, 0f, Colors.withAlpha(c, 0f));
-        WorldDraw.vertex(ax + nx, ay + ny, az, 0.875f, 1f, c);
+        // Fades along its length, and across its width to nothing at both sides.
+        int tail = Colors.withAlpha(c, 0f);
+        WorldDraw.vertex(ax, ay, az, 0.5f, 0.5f, c);
+        WorldDraw.vertex(bx - nx, by - ny, bz, 0.5f, 0.5f, tail);
+        WorldDraw.vertex(bx + nx, by + ny, bz, 0.5f, 0.5f, tail);
+        WorldDraw.vertex(ax, ay, az, 0.5f, 0.5f, c);
     }
 
     // ------------------------------------------------------------------ motion
@@ -334,6 +446,7 @@ public final class ParticleField {
             int bx = (int) Math.floor(FrameInfo.camX + x[i]);
             int bz = (int) Math.floor(FrameInfo.camZ + z[i]);
             int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, bx, bz);
+            ground[i] = top;
             double wy = FrameInfo.camY + y[i];
             if (type[i] == FIREFLY) {
                 double want = top + 0.3 + (phase[i] / 6.283) * 2.2;
@@ -378,6 +491,7 @@ public final class ParticleField {
             type = new int[capacity];
             color = new int[capacity];
             hidden = new boolean[capacity];
+            ground = new float[capacity];
         }
         Mulberry32 r = new Mulberry32(theme.id().length() * 977 + theme.id().charAt(0));
         count = 0;
@@ -397,8 +511,13 @@ public final class ParticleField {
                 flip[i] = (float) (r.next() * 6.283);
                 color[i] = e.colors()[(int) (r.next() * e.colors().length) % e.colors().length];
                 size[i] = (e.minSize() + (e.maxSize() - e.minSize()) * (float) r.next()) * SIZE;
+                // A real spread of sizes: one light in eight is a big one.
+                if ((kind == EMBER || kind == DUST || kind == FIREFLY) && r.next() < 0.125) {
+                    size[i] *= 1.8f + 0.8f * (float) r.next();
+                }
                 type[i] = kind;
                 hidden[i] = false;
+                ground[i] = -1e9f;
             }
         }
         placed = false;
@@ -424,42 +543,5 @@ public final class ParticleField {
             // Lens petals are drawn on the screen with the flare.
             default -> -1;
         };
-    }
-
-    /** The particle shapes, white, 8 cells of 32x32: petal, ash, blossom, leaf, snow, flake, streak/sparkle, note. */
-    private static SolTexture atlas() {
-        if (atlas != null && !atlas.released()) {
-            return atlas;
-        }
-        PixelCanvas c = new PixelCanvas(256, 32);
-        int white = 0xFFFFFFFF;
-        c.fillEllipse(16, 16, 15, 9, PixelCanvas.solid(white));
-        c.fillEllipse(48, 16, 14, 10, PixelCanvas.solid(white));
-        for (int i = 0; i < 5; i++) {
-            double an = i * 1.2566;
-            c.fillEllipse(80 + (float) Math.cos(an) * 8.5f, 16 + (float) Math.sin(an) * 8.5f, 6.5f, 6.5f, PixelCanvas.solid(white));
-        }
-        c.fillEllipse(80, 16, 4.5f, 4.5f, PixelCanvas.solid(0xFFFFF1F6));
-        c.fillPolygon(new float[]{112, 122, 112, 102}, new float[]{1, 16, 31, 16}, PixelCanvas.solid(white));
-        c.line(112, 2, 112, 30, 1.2f, PixelCanvas.solid(0xFFB08070));
-        c.fillEllipse(144, 16, 14, 14, PixelCanvas.solid(white));
-        for (int i = 0; i < 3; i++) {
-            double an = i * 1.0472;
-            float dx = (float) Math.cos(an) * 14f, dy = (float) Math.sin(an) * 14f;
-            c.line(176 - dx, 16 - dy, 176 + dx, 16 + dy, 2.6f, PixelCanvas.solid(white));
-        }
-        // Cell 6: a sparkle cross (the rain streak uses its middle column).
-        c.fillRect(193, 15, 30, 2, PixelCanvas.solid(white));
-        c.fillRect(207, 1, 2, 30, PixelCanvas.solid(white));
-        String[] note = {"...##.", "...#.#", "...#..", "...#..", ".###..", "####..", ".##..."};
-        for (int r = 0; r < note.length; r++) {
-            for (int q = 0; q < note[r].length(); q++) {
-                if (note[r].charAt(q) == '#') {
-                    c.fillRect(224 + 4 + q * 4, 2 + r * 4, 4, 4, PixelCanvas.solid(white));
-                }
-            }
-        }
-        atlas = SolTexture.of("particles", 256, 32, true, c.toArgb(null));
-        return atlas;
     }
 }

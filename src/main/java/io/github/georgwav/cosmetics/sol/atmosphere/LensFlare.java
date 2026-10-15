@@ -40,6 +40,11 @@ public final class LensFlare {
     private LensFlare() {
     }
 
+    /** How much of the sun the terrain leaves showing (0..1, smoothed; from the 10 Hz ray toward it). */
+    public static float occlusion() {
+        return occlusion;
+    }
+
     public static void render() {
         if (!FrameInfo.inWorld || !Atmosphere.active() || !Guard.on(Feature.FLARE)) {
             return;

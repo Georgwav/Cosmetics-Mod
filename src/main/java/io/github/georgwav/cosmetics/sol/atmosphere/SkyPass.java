@@ -167,7 +167,8 @@ public final class SkyPass {
     /** The horizon glow: clear at +10°, the glow at .75 on the horizon, clear again at −4° (the prototype's band). */
     private static void band(Tokens tk, float sunAz, float q, float rain) {
         int glow = tk.skyGlow;
-        float peak = 0.75f * (1f - rain * 0.5f) + MusicSky.bandBoost();
+        // A little over the prototype's .75: in the game the band also has to read through the terrain's fog edge.
+        float peak = 0.84f * (1f - rain * 0.5f) + MusicSky.bandBoost();
         WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
         for (int i = 0; i < AZ; i++) {
             float z0 = i * 360f / AZ;
@@ -192,7 +193,7 @@ public final class SkyPass {
     /** The band is a little brighter toward a low sun. */
     private static float toward(float az, float sunAz, float q) {
         float cos = (float) Math.cos(Math.toRadians(az - sunAz));
-        return 1f + 0.25f * Math.max(0f, cos) * (1f - q) * Ease.smoothstep(-10f, 0f, sunAltitude);
+        return 1f + 0.3f * Math.max(0f, cos) * (1f - q) * Ease.smoothstep(-10f, 0f, sunAltitude);
     }
 
     // ------------------------------------------------------------------ moon
@@ -431,6 +432,18 @@ public final class SkyPass {
             SkyDraw.rect(-s + off, y0, s + off, y0 + px + px * 0.03f, 0f, j / 16f, 1f, (j + 1) / 16f, body);
         }
         WorldDraw.end();
+
+        // The body burns brighter than white, as the Sun lab's glare makes it: a warm wash on the disc and just round
+        // it (a white core, a yellow rim). Against a pale sky the sun already reads white and the wash would only
+        // blow the sky out, so it follows how dark the sky is. With the full-screen glare on, the glare does it.
+        boolean glareOn = spec.glare() && at != null && at.glare.get();
+        float dark = 1f - Colors.luma(ThemeState.tokens().skyMiddle);
+        float hot = 0.6f * dark * dark * vis;
+        if (!glareOn && hot > 0.01f) {
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
+            SkyDraw.glowAt(0f, 0f, s * 2.2f, s * 2.2f, Colors.withAlpha(halo, hot));
+            WorldDraw.end();
+        }
     }
 
     /** The prototype's pixel plasma, rewritten at most 20 times a second. */

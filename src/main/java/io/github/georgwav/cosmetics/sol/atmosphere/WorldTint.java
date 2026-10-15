@@ -41,27 +41,65 @@ public final class WorldTint {
         return (vanilla & 0xFF000000) | (c & 0x00FFFFFF);
     }
 
-    /** Tints the sky light's colour in place (x, y, z = red, green, blue, 0..1). */
+    /** Whether the game's clouds should be drawn now: hidden while a theme with a clear sky is on. */
+    public static boolean cloudsShown() {
+        Atmosphere at = Atmosphere.INSTANCE;
+        if (at == null || !at.clouds.get() || !Atmosphere.active() || !FogControl.activeSky()) {
+            return true;
+        }
+        return ThemeState.tokens().cloudsVisible;
+    }
+
+    /**
+     * The sky light's brightness from 1.21.11 (the game's sky light factor), raised by the theme's golden-hour boost
+     * so a low sun still lights the sand.
+     */
+    public static float lightFactor(float vanilla) {
+        Atmosphere at = Atmosphere.INSTANCE;
+        if (at == null || !on(at.light.get()) || !Guard.on(Feature.LIGHT)) {
+            return vanilla;
+        }
+        return Math.min(1f, vanilla * ThemeState.tokens().lightBoost);
+    }
+
+    /**
+     * Tints the sky light's colour in place (x, y, z = red, green, blue, 0..1) and brightens it by the theme's
+     * golden-hour boost, so a low sun lights the blocks warm instead of greying them (the game clamps it later).
+     */
     public static void light(Vector3f sky) {
+        light(sky, true);
+    }
+
+    /** The tint, and the boost too unless the version brightens through its sky light factor instead. */
+    public static void light(Vector3f sky, boolean withBoost) {
         Atmosphere at = Atmosphere.INSTANCE;
         if (at == null || !on(at.light.get()) || !Guard.on(Feature.LIGHT)) {
             return;
         }
         Tokens tk = ThemeState.tokens();
         float s = tk.lightStrength;
-        if (s <= 0f) {
+        float boost = withBoost ? tk.lightBoost : 1f;
+        if (s <= 0f && Math.abs(boost - 1f) < 1e-3f) {
             return;
         }
+        // The light keeps the game's brightness but takes the theme's hue (the game's own sunset light is pink;
+        // Ember's is gold), then golden hour brightens it.
         int t = tk.lightTint;
-        sky.x *= 1f - s + s * Colors.r(t) / 255f;
-        sky.y *= 1f - s + s * Colors.g(t) / 255f;
-        sky.z *= 1f - s + s * Colors.b(t) / 255f;
+        float tr = Colors.r(t) / 255f, tg = Colors.g(t) / 255f, tb = Colors.b(t) / 255f;
+        float tl = Math.max(0.05f, 0.2126f * tr + 0.7152f * tg + 0.0722f * tb);
+        float l = 0.2126f * sky.x + 0.7152f * sky.y + 0.0722f * sky.z;
+        sky.x = (sky.x + (l * tr / tl - sky.x) * s) * boost;
+        sky.y = (sky.y + (l * tg / tl - sky.y) * s) * boost;
+        sky.z = (sky.z + (l * tb / tl - sky.z) * s) * boost;
     }
+
+    private static final Vector3f scratch = new Vector3f();
 
     /** The tinted sky light colour as an RGB int (1.21.11's attributes). */
     public static int lightRgb(int rgb) {
-        Vector3f v = new Vector3f(Colors.r(rgb) / 255f, Colors.g(rgb) / 255f, Colors.b(rgb) / 255f);
-        light(v);
-        return (rgb & 0xFF000000) | Colors.rgb(Math.round(v.x * 255f), Math.round(v.y * 255f), Math.round(v.z * 255f)) & 0x00FFFFFF;
+        Vector3f v = scratch.set(Colors.r(rgb) / 255f, Colors.g(rgb) / 255f, Colors.b(rgb) / 255f);
+        light(v, false);
+        return (rgb & 0xFF000000) | Colors.rgb(Math.min(255, Math.round(v.x * 255f)), Math.min(255, Math.round(v.y * 255f)),
+                Math.min(255, Math.round(v.z * 255f))) & 0x00FFFFFF;
     }
 }

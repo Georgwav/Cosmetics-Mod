@@ -42,15 +42,20 @@ public final class FogControl {
         return c;
     }
 
-    /** Fog start in blocks, never further than the game's own. */
+    /**
+     * Fog start in blocks, never further than the game's own: the theme's fixed distance when it has one (Ember's
+     * world is a silhouette about 20 blocks out at any render distance), else a part of the render distance.
+     */
     public static float start(float vanilla) {
-        float ours = ThemeState.tokens().fogStart * FrameInfo.renderDistance;
+        Tokens tk = ThemeState.tokens();
+        float ours = tk.fogFar > 0f ? tk.fogNear : tk.fogStart * FrameInfo.renderDistance;
         return Math.min(vanilla, ours);
     }
 
     /** Fog end in blocks, never further than the game's own. */
     public static float end(float vanilla) {
-        float ours = ThemeState.tokens().fogEnd * FrameInfo.renderDistance;
+        Tokens tk = ThemeState.tokens();
+        float ours = tk.fogFar > 0f ? tk.fogFar : tk.fogEnd * FrameInfo.renderDistance;
         return Math.max(1f, Math.min(vanilla, ours));
     }
 

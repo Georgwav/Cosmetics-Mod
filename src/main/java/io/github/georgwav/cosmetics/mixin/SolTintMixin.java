@@ -42,8 +42,10 @@ abstract class SolTintMixin {
             }
         } else if (attribute == EnvironmentAttributes.SKY_LIGHT_COLOR && cir.getReturnValue() instanceof Vector3fc c) {
             Vector3f v = new Vector3f(c);
-            WorldTint.light(v);
+            WorldTint.light(v, false);
             cir.setReturnValue(v);
+        } else if (attribute == EnvironmentAttributes.SKY_LIGHT_FACTOR && cir.getReturnValue() instanceof Float f) {
+            cir.setReturnValue(WorldTint.lightFactor(f));
         }
         *///?} else {
         if (attribute == EnvironmentAttributes.CLOUD_COLOR && cir.getReturnValue() instanceof Integer c) {
@@ -56,6 +58,8 @@ abstract class SolTintMixin {
             if (out != c) {
                 cir.setReturnValue(out);
             }
+        } else if (attribute == EnvironmentAttributes.SKY_LIGHT_FACTOR && cir.getReturnValue() instanceof Float f) {
+            cir.setReturnValue(WorldTint.lightFactor(f));
         }
         //?}
     }

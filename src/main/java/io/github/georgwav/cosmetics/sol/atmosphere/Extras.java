@@ -21,8 +21,14 @@ public final class Extras {
 
     /** Monsoon's sky flash, 0..0.55, read by the HUD overlay. */
     public static float flash;
+    /** The scenario holds a flash (and its bolt) at this strength for the reference frame; NaN lets it run. */
+    public static float holdFlash = Float.NaN;
     private static float flashNext = 2.5f;
     private static float lastTime = -1f;
+    /** The bolt of the last flash: a jagged line of points (altitude, azimuth) from the cloud base down. */
+    private static final float[] boltAlt = new float[16];
+    private static final float[] boltAz = new float[16];
+    private static int boltN;
 
     private static SolTexture galaxy;
     private static SolTexture sigilImg, sigilGlow;
@@ -107,10 +113,13 @@ public final class Extras {
         updateLightning(theme, t);
     }
 
-    /** After the horizon band: the Grace rune. */
+    /** After the horizon band: the Grace rune and Monsoon's bolt (terrain then covers its foot). */
     static void renderFront(ThemeSpec theme, Tokens tk, float t, float rain) {
         if (theme.sigil() != null) {
             rune(theme, t, rain);
+        }
+        if (theme.lightning() && flash > 0.02f && boltN > 1) {
+            bolt(flash / 0.55f);
         }
     }
 
@@ -193,12 +202,55 @@ public final class Extras {
             flash = 0f;
             return;
         }
+        if (!Float.isNaN(holdFlash)) {
+            if (boltN == 0) {
+                newBolt(theme.show().azimuth(), new java.util.Random(7));
+            }
+            flash = holdFlash;
+            return;
+        }
         flashNext -= dt;
         if (flashNext <= 0f) {
             flash = 0.55f;
             flashNext = 4f + (float) Math.random() * 5f;
+            newBolt(theme.show().azimuth(), new java.util.Random());
         }
         flash = Math.max(0f, flash - dt * 1.6f);
+    }
+
+    /** A new bolt somewhere in the view: from about 30° up, down to the horizon in jagged steps. */
+    private static void newBolt(float az, java.util.Random r) {
+        float a = 28f + r.nextFloat() * 8f;
+        float z = az + (r.nextFloat() - 0.5f) * 50f;
+        boltN = 0;
+        while (boltN < boltAlt.length) {
+            boltAlt[boltN] = a;
+            boltAz[boltN] = z;
+            boltN++;
+            if (a <= -1f) {
+                break;
+            }
+            a -= 2.2f + r.nextFloat() * 2.8f;
+            z += (r.nextFloat() - 0.5f) * 3.2f;
+        }
+    }
+
+    /** The bolt: a pixel-wide white-blue core and a soft glow either side, fading with the flash. */
+    private static void bolt(float k) {
+        // One and a half screen pixels wide (a frame's H unit is 70° of sky).
+        float px = Math.max(0.05f, SkyDraw.pixel() * 70f * 1.5f);
+        WorldDraw.begin(WorldDraw.SKY_ADD, null);
+        for (int pass = 0; pass < 2; pass++) {
+            float w = pass == 0 ? px * 6f : px;
+            int c = pass == 0 ? Colors.withAlpha(0xFF9CB8FF, 0.22f * k) : Colors.withAlpha(0xFFEEF4FF, 0.95f * k);
+            for (int i = 0; i + 1 < boltN; i++) {
+                SkyDraw.altAz(boltAlt[i], boltAz[i] - w / 2f, 0f, 0f, c);
+                SkyDraw.altAz(boltAlt[i + 1], boltAz[i + 1] - w / 2f, 0f, 1f, c);
+                SkyDraw.altAz(boltAlt[i + 1], boltAz[i + 1] + w / 2f, 1f, 1f, c);
+                SkyDraw.altAz(boltAlt[i], boltAz[i] + w / 2f, 1f, 0f, c);
+            }
+        }
+        WorldDraw.end();
     }
 
     // ------------------------------------------------------------------ the Grace rune

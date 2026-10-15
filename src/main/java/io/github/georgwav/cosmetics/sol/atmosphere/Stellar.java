@@ -431,8 +431,9 @@ public final class Stellar {
         double days = FrameInfo.day + FrameInfo.timeOfDay;
         float px = SkyDraw.pixel();
         float sc = Math.max(1f, FrameInfo.height / 720f);
-        boolean zoomed = FrameInfo.fovY < 30f;
-        WorldDraw.begin(WorldDraw.SKY_ALPHA, planetAtlas(pl.style(), pl.tint()));
+        // Zoomed in (the Zoom module) the sharper sprites show; a field of view the game didn't report is never a zoom.
+        boolean zoomed = FrameInfo.fovY > 1f && FrameInfo.fovY < 30f;
+        SolTexture atlas = planetAtlas(pl.style(), pl.tint());
         for (int p = 0; p < 4; p++) {
             double a = sunAngle + planetOffset(p, days);
             // Slightly off the sun's path so they don't line up exactly.
@@ -454,9 +455,11 @@ public final class Stellar {
             }
             SkyDraw.billboard(x, y, z);
             int c = Colors.withAlpha(0xFFFFFFFF, Math.min(1f, vis));
-            // Fixed angular size: ~0.25° (at least 3 pixels); the zoomed sprite is sharper.
-            float cell = zoomed ? 24f : 12f;
-            float sizePx = Math.max(3f * sc, (0.25f / FrameInfo.fovY) * FrameInfo.height);
+            // Fixed angular size: ~0.25° (at least 3 pixels, never more than a planet ever looks); the zoomed
+            // sprite is sharper. Venus is a point of light: added, so by day it brightens the sky instead of greying it.
+            float sizePx = Math.min((zoomed ? 64f : 14f) * sc,
+                    Math.max(3f * sc, (0.25f / Math.max(1f, FrameInfo.fovY)) * FrameInfo.height));
+            WorldDraw.begin(p == VENUS ? WorldDraw.SKY_ADD : WorldDraw.SKY_ALPHA, atlas);
             float half = sizePx * px * (p == SATURN ? 1.6f : 1f) * (zoomed ? 2.2f : 1f) / 2f;
             float u0 = p * 0.25f, u1 = u0 + 0.25f;
             float v0 = zoomed ? 0.5f : 0f, v1 = v0 + 0.5f;
@@ -470,8 +473,8 @@ public final class Stellar {
                     SkyDraw.rect(ox - mp, -mp, ox + mp, mp, 0.9375f, 0.9375f, 1f, 1f, Colors.withAlpha(0xFFFFF4DC, vis * 0.9f));
                 }
             }
+            WorldDraw.end();
         }
-        WorldDraw.end();
     }
 
     private static String planetKey = "";
