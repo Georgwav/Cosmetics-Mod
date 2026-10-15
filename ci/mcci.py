@@ -777,7 +777,8 @@ def mod_jar_for(node, jars_dir):
     jars = [j for j in Path(jars_dir).glob(f"*+mc{node}.jar") if not j.name.endswith("-sources.jar")]
     if not jars:
         raise FileNotFoundError(f"no jar for build {node} in {jars_dir}")
-    return jars[0]
+    # The newest, should an older build's jar (another name) still be there.
+    return max(jars, key=lambda j: j.stat().st_mtime)
 
 
 def node_info(node):

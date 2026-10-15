@@ -1,47 +1,162 @@
-# Cosmetics Mod
+# Sol Client
 
-Client-side Fabric mod that draws player cosmetics (hats, halos, backpacks, capes, ...) as a normal part of the
-player model. It is built to coexist with any client mod: Sodium, Iris and shaderpacks, Voxy, Distant Horizons,
-ImmediatelyFast, Entity Culling, EMF/ETF, 3D Skin Layers, Figura and Essential. See [COMPAT.md](COMPAT.md).
+<img src="docs/solclient-icon.png" width="96" alt="Sol Client">
+
+A client-side Fabric mod built around the sky (mod id `cosmeticsmod`).
+- **Themes:** every Atmosphere theme lights the world with its own light.
+- **Menus:** the Sol quick menu and full menu.
+- **Wardrobe:** player cosmetics, drawn as a normal part of the player model.
+- **Client modules.**
+
+It is built to coexist with any client mod: Sodium, Iris and shaderpacks, Voxy, Distant Horizons, ImmediatelyFast,
+Entity Culling, EMF/ETF, 3D Skin Layers, Figura and Essential. See [COMPAT.md](COMPAT.md).
 
 One source tree builds a jar for every Minecraft release from **1.21 to 26.3**:
 
 | Jar (`build/libs/`) | Minecraft | Java |
 |---|---|---|
-| `cosmeticsmod-<v>+mc1.21.1.jar` | 1.21, 1.21.1 | 21 |
-| `cosmeticsmod-<v>+mc1.21.3.jar` | 1.21.2, 1.21.3 | 21 |
-| `cosmeticsmod-<v>+mc1.21.4.jar` | 1.21.4 | 21 |
-| `cosmeticsmod-<v>+mc1.21.5.jar` | 1.21.5 | 21 |
-| `cosmeticsmod-<v>+mc1.21.8.jar` | 1.21.6, 1.21.7, 1.21.8 | 21 |
-| `cosmeticsmod-<v>+mc1.21.10.jar` | 1.21.9, 1.21.10 | 21 |
-| `cosmeticsmod-<v>+mc1.21.11.jar` | 1.21.11 | 21 |
-| `cosmeticsmod-<v>+mc26.1.2.jar` | 26.1, 26.1.1, 26.1.2 | 25 |
-| `cosmeticsmod-<v>+mc26.2.jar` | 26.2 | 25 |
-| `cosmeticsmod-<v>+mc26.3.jar` | 26.3 | 25 |
+| `solclient-<v>+mc1.21.1.jar` | 1.21, 1.21.1 | 21 |
+| `solclient-<v>+mc1.21.3.jar` | 1.21.2, 1.21.3 | 21 |
+| `solclient-<v>+mc1.21.4.jar` | 1.21.4 | 21 |
+| `solclient-<v>+mc1.21.5.jar` | 1.21.5 | 21 |
+| `solclient-<v>+mc1.21.8.jar` | 1.21.6, 1.21.7, 1.21.8 | 21 |
+| `solclient-<v>+mc1.21.10.jar` | 1.21.9, 1.21.10 | 21 |
+| `solclient-<v>+mc1.21.11.jar` | 1.21.11 | 21 |
+| `solclient-<v>+mc26.1.2.jar` | 26.1, 26.1.1, 26.1.2 | 25 |
+| `solclient-<v>+mc26.2.jar` | 26.2 | 25 |
+| `solclient-<v>+mc26.3.jar` | 26.3 | 25 |
 
 The only required dependency is Fabric API.
 
 ## Using it
 
-### The hub (Right Shift)
+### Atmosphere
 
-Right Shift opens the hub: a sphere of orbs with you in the middle. Drag to turn it, scroll or use the arrow keys
-to step through the orbs, and type anywhere to search. The island at the top shows the orb in the middle and its
-button.
+Atmosphere replaces the sky with a theme, chosen in the menu's World section, the quick menu's presets or Ctrl+K.
+- **Themes:** Empty (the vanilla sky), Sakura Dusk, Frost Morning, Ember Solstice, Aurora, Nebula, Firefly Meadow,
+  Monsoon, Maple Afternoon, Eclipse, Deep Field, Silver Night and Grace.
+- **Each theme's light:** it lights the world the way Ember's low sun lights the sand. Its colour falls on the
+  faces turned toward it and the theme's shadow colour on the faces turned away. It adds rims, bloom, light shafts,
+  scattering in the fog, lit particles and the theme's colour grade.
+- **The lights:**
+  - Grace: the rune.
+  - Eclipse: the burning ring.
+  - Aurora: the curtains' moving green and violet light.
+  - Nebula: pink and violet light from above.
+  - Deep Field: cold silver.
+  - Silver Night: the moon, with a glitter path on water.
+  - Monsoon: each lightning flash.
+  - The others: their sun, and the moon at night.
+- **Night themes keep their night** at any time of day. This is visual only: the game's time is not changed.
+- **Atmosphere intensity** (100% by default) tones the look down.
+- **Quality:** Low, Medium, High or Auto. **Light style:** Pixel light (the default) or Smooth.
+- **Theme packs:** resource packs can add themes; see [docs/ATMOSPHERE_FORMAT.md](docs/ATMOSPHERE_FORMAT.md).
 
-| Orb | Opens |
-|---|---|
-| You | The Wardrobe: your figure (drag to turn) and every cosmetic as a tile, by kind and source. Point at one to try it on. |
-| Skins | The skins saved in the Threadrinth/Modrinth app. Apply uploads one to your Minecraft account and shows it on you right away. The launcher's database is only read, never written. |
-| Settings | Every setting from the settings screen, as rows. |
-| Emotes | Play an emote, and put it on the emote wheel or the elytra wheel. |
-| HUD | The HUD editor. |
-| Mods | A sphere of the client's modules, plus the mods it works with when they're installed (Zoomify, Freelook, Mouse Tweaks, AppleSkin, Xaero's Minimap, Simple Voice Chat, ...). |
+### The quick menu (Right Shift)
 
-**Modules** (the Mods page lists them all):
-- Every module is off by default, and none has a key until you bind one.
-- Each module has its own settings.
-- Profiles save every module's settings, so you can switch whole setups.
+A sundial: the sun circles the dial and lights the screen.
+- **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there.
+- **Your own ring:** pointing at yourself starts the eclipse and opens your ring: Presets, Emotes and Wardrobe.
+- **The tray:** your pinned modules, presets with live sky thumbnails, profiles, and emotes.
+- **Search:** type anywhere.
+
+### The full menu
+
+- **Sections:** seven stops on the sun's arc: Modules, HUD, World, Wardrobe, Music, Mods and Settings.
+- **Ctrl+K:** finds and runs any module, setting, preset, section, profile or action.
+- **Profiles:** the popover at the top right switches whole setups.
+- **Modules:** cards with a switch, a star (pin) and a settings drawer.
+- **Main folder:** Settings › Main folder.
+
+### Wardrobe
+
+**Where it opens:**
+- the "Open Cosmetics" key (unbound by default, so it can't clash with another mod);
+- `/cosmetics`;
+- the menu's Wardrobe section;
+- Settings › Cosmetics.
+
+**Layout:** the views down the left (with counts and the source they come from), glass tiles in the middle, and
+you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts one on you).
+
+**Tiles:**
+- Each tile has its own picture of the cosmetic alone, turned three quarters towards you.
+- The one you point at turns, and shows on you in the preview.
+- Click a tile to put it on or take it off.
+- Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack), unless
+  "Wear several of one kind" is on.
+
+**A cosmetic's page** (the gear on its tile). A cosmetic can leave some of these out:
+- **Tint colour** or **rainbow**, with its speed.
+- **Colouring:** how a picked colour or rainbow goes in.
+  - Automatic: white cosmetics colour all over, coloured ones change colour.
+  - Whole cosmetic.
+  - Coloured parts.
+  - Classic tint.
+- **Follow theme colour:** off, the theme's accent, or its glow.
+- **Saturation, hue and brightness.**
+- **Its colours:** change one of its own colours and its shades; the others stay.
+- **Size, Turn around, Upside down,** and move it sideways, up and forward.
+- **Glow, animation** and its speed, and **style**.
+- **Cloth cloak** (flat capes).
+- **Show on elytra** (capes), and **Preview with an elytra**.
+- **Particles:** on or off, amount and size.
+- **Where a pet sits.**
+- **Reset.**
+
+**Outfits:**
+- Save what you wear, with each cosmetic's settings.
+- Point at an outfit to see it on you; click it to wear it.
+- Its page renames it, updates it to what you wear now, or deletes it.
+
+**Emotes:** play an emote, and put it on the emote wheel or the elytra wheel.
+
+**Skins:**
+- The skins saved in the Threadrinth/Modrinth app, when the main folder is its app folder. The launcher's database
+  is only read, never written.
+- Wear one: it is uploaded to your Minecraft account and shown on you at once.
+- Your Mojang capes: click one to wear it, or No cape.
+
+**Settings:**
+- Display, Performance, Compatibility and Maintenance, with a search.
+- **Keys:** the same key binds as in Controls (change either, both change).
+- Per-slot visibility and per-slot priority, Iris and Figura handling, and Reload cosmetics.
+- Other players' cosmetics by UUID, on your screen only.
+
+**Notices at the top:**
+- cosmetics in a resource pack that couldn't load (a broken file, or a model over `maxMeshTriangles`), with how many
+  and why;
+- a pack made by an older importer;
+- your cosmetics being hidden.
+
+Players' names move up above their hats, halos and other head cosmetics, so they never overlap.
+
+Changes apply immediately and are saved when the Wardrobe closes. Reset settings restores the defaults but keeps
+what you wear, your outfits and how each cosmetic looks; each cosmetic's page has its own reset.
+
+### HUD editor
+
+Open it from the menu's HUD section (Edit layout) or Ctrl+K. It works over the game as it is.
+- **Moving:** drag the HUD modules and the game's own HUD parts (hotbar, health, armor, hunger, air, held item name,
+  action bar, effects, boss bar, scoreboard).
+- **Snapping:**
+  - Boxes snap to the screen's edges and middle.
+  - They line up with the other boxes and sit next to them with a small gap.
+  - A line in the accent shows what they snapped to.
+  - Hold Shift to move one freely.
+- **Nudging:** the arrow keys move the box you last clicked by one pixel (ten with Shift).
+- **Resizing:** scroll over a module.
+- **Right-click:** a module opens its settings; a game part goes back where it was.
+- **Modules** in the island switches HUD modules on and off.
+
+### Quick wheel
+
+Hold its key (unbound by default): your pinned modules sit in a ring round the crosshair. Let go on one to switch it
+on or off.
+
+### Modules
+
+Every module is off by default, and none has a key until you bind one. Profiles save every module's settings.
 
 | Module | What it does |
 |---|---|
@@ -52,58 +167,18 @@ button.
 | Block outline | The outline around the block you look at, in your colour and opacity. Off with a Fabric API that has no block outline event (older 1.21.9 builds). |
 | Keystrokes, FPS, Ping, Clock, Coordinates, Armor, Effect timers | HUD modules. Each has a size and a dark backing; the text ones also have a text shadow, a font (Minecraft or Geist) and a colour. |
 
-**HUD editor:**
-- Drag the modules and the game's own HUD parts (hotbar, health, armor, hunger, air, held item name, action
-  bar, effects, boss bar, scoreboard).
-- They snap to the screen's edges and middle, line up with the other boxes' edges and middles, and sit next to
-  them with a small gap; a guide line shows what they snapped to. Hold Shift to move one freely.
-- The arrow keys nudge the box you last clicked by one pixel (ten with Shift).
-- Scroll over a module to resize it.
-- Right-click a module to open its settings, or a game part to put it back.
-- **Modules** in the island opens the list that switches them on and off.
+### Main folder
 
-**Main folder:**
-- By default the client uses the game's own `.minecraft` folder (`%APPDATA%\.minecraft` on Windows) and creates
-  what it needs there: `client/` with its settings (`modules.json`) and profiles.
-- You can choose another folder in Settings → Main folder or on the Skins page. Threadrinth's app folder (or the
-  Modrinth App's) has the same layout plus the launcher's database (`app.db`), so with it chosen the Skins page shows
-  the skins saved in Threadrinth. When the client finds Threadrinth on the computer, it offers "Use Threadrinth".
-- Every instance using the same main folder shares the client's settings. Switching to a folder that already has
-  them takes them over.
+- **Default:** the client uses the game's own `.minecraft` folder (`%APPDATA%\.minecraft` on Windows). It creates
+  `client/` there, with its settings (`modules.json`) and profiles.
+- **Another folder:** choose one in Settings › Main folder or in Wardrobe › Skins.
+- **Threadrinth:** its app folder (or the Modrinth App's) has the same layout plus the launcher's database
+  (`app.db`). With it chosen, the Skins view shows the skins saved in Threadrinth. When the client finds Threadrinth
+  on the computer, it offers "Use Threadrinth".
+- **Sharing:** every instance using the same main folder shares the client's settings. Switching to a folder that
+  already has them takes them over.
 
-The hub's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/geist-ofl.txt`, Geist Mono included).
-
-### Settings screen
-
-There are three ways to open it:
-- **Mod Menu**: the "Configure" button, when Mod Menu is installed.
-- **Chat**: type `/cosmetics`.
-- **Key**: the "Open Cosmetics" key. It is unbound by default so it can't clash with another mod; bind it
-  in Options → Controls, or in the mod's own settings (Display → Keys). Both are the same key bind, so changing
-  it in one place changes it in the other; the same goes for the "Emote wheel" key.
-
-When a resource pack has cosmetics that couldn't load (a broken file, or a model over `maxMeshTriangles`), the
-Wardrobe says how many and why at the top; when an imported pack is from an older importer than the mod's fixes
-need, it says to import it again.
-
-It is a flat, minimal screen with a live preview of your player (drag it to turn and tilt it; your head looks
-at the mouse) and four tabs. The settings tabs have a search field at the top: type "cape" or "elytra" and only
-those settings show (a section's name finds all of it):
-
-| Tab | What's there |
-|---|---|
-| Wardrobe | Every loaded cosmetic as a tile with its own picture of the cosmetic alone (no player), centred and turned three quarters towards you; the one you point at turns, and shows on you in the preview. Click a tile to put it on or take it off (what you wear is outlined). The gear in a tile's corner opens that cosmetic's own page: tint colour or rainbow (with speed), "Colouring" (how a picked colour or rainbow goes in: Automatic, the default, colours white cosmetics all over and changes the colour of coloured ones; Whole cosmetic: white becomes the colour, grey a darker shade, black stays black; Coloured parts: coloured parts take the colour with their shading, white, grey and black stay; Classic tint: the colour multiplies, as the game tints, so dark parts and opposite colours turn black), saturation (of the tint, or of the texture itself when it has no tint: 0% is black and white), hue (turns the texture's own colours around the colour wheel: red wings blue) and brightness, "Its colours" (the cosmetic's own colours as swatches: click one and pick its new colour to change just that one and its shades, the red of a red and gold cape purple and its gold kept), size, "Turn around" and "Upside down" (for one made the wrong way round or up), move sideways / up / forward, glow on or off, animation on or off and its speed, its style (for cosmetics with several), "Cloth cloak" for flat capes (it bends and ripples like cloth instead of swinging like a board), "Show on elytra" for capes (your elytra wears the cape's design, as the game's capes do, in the elytra's own wing shape, whatever the cape's shape; "Preview with an elytra", or the Elytra button on the preview, puts one on you in the preview to see it), particles (on or off, amount, size) for auras and other cosmetics with particles, where a pet sits (left or right shoulder, on your head, or floating beside you), and a reset. Putting one on takes off the one of its kind you wore (new wings replace your wings, not your backpack) unless "Wear several of one kind" is on in Display. A cosmetic can leave some of these out. **Outfits** (in the side bar): save what you wear, with each cosmetic's colours and other settings, so the same cosmetics can make a purple outfit and a green one. Outfits show as tiles with pictures of their cosmetics; point at one to see it on you, click it to wear it (its settings come with it), and the gear opens its page to rename it, update it to what you wear now, or delete it. |
-| Display | Master switch; show your own and other players' cosmetics; key binds (Open Cosmetics, Emote wheel: the same ones as in Controls, click and press a key, Escape for none, the arrow for the default); per-slot visibility; glowing parts; see-through parts; hide hats under helmets; hide capes with elytra; elytra close to your back; cape physics and cape swing strength; particles; emotes (on or off, where the camera goes while you emote, whether moving stops an emote). |
-| Performance | Render distance; shadows with shaders (Iris) on or off; shadow distance. |
-| Compatibility | Per-slot priority (Defer or Override) for slots another mod uses; defer to Figura avatars; detected mods; render-error counter; reload cosmetics. |
-
-The Wardrobe's **Emotes** list plays each emote (you see it in the preview) and picks which ones are on the
-emote wheel.
-
-Players' names move up above their hats, halos and other head cosmetics, so they never overlap.
-
-Changes apply immediately and are saved when the screen closes. "Reset settings" restores defaults but
-keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its own reset.
+The client's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/geist-ofl.txt`, Geist Mono included).
 
 ### Cosmetics
 
@@ -133,7 +208,7 @@ keeps your wardrobe and how each cosmetic looks; each cosmetic's page has its ow
 
 ### Emotes
 
-Hold **B** (the "Emote wheel" key; change it in Controls or in Display → Keys, they're the same), point at an emote on the wheel and let go, or tap B and click
+Hold **B** (the "Emote wheel" key; change it in Controls or in Wardrobe › Settings › Display, they're the same), point at an emote on the wheel and let go, or tap B and click
 one: your player plays it and the camera moves in front of you. The wheel has eight square slots, each with a
 picture of its emote's best pose. It starts empty: click a **+** to pick an emote for that slot, the gear on
 a slot to change it, and the **×** under the gear to empty it. **+ Page** adds another page of eight (scroll to turn pages); an empty page can be
@@ -141,11 +216,11 @@ removed. Walking, jumping, sneaking or getting hurt stops it, as do
 attacking, using an item (a rocket while gliding, too) and Stop in the middle of the wheel. Only you see your emotes: nothing is sent to the server.
 
 **Elytra emotes**: press B while gliding with an elytra and the **elytra wheel** opens instead, with its own
-emotes. One plays until you land; moving doesn't stop it, nor does firing rockets (right-click) to fly on (Display →
+emotes. One plays until you land; moving doesn't stop it, nor does firing rockets (right-click) to fly on (Wardrobe › Settings › Display →
 "Rockets keep elytra emotes going", on by default), and the camera stays where it is. While it plays you
 are drawn upright to the ground instead of lying along your flight, so you can surf through the sky on a cloud;
 your elytra isn't drawn meanwhile and your cape shows instead. During other emotes an elytra stays on your posed
-body, as armour does, and it lies on your back like a cape until you spread it to glide (Display → "Elytra close
+body, as armour does, and it lies on your back like a cape until you spread it to glide (Wardrobe › Settings › Display → "Elytra close
 to your back").
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
@@ -161,7 +236,7 @@ emote in the first empty slot). In the picker the elytra wheel lists the emotes 
 
 ### Config file (`config/cosmeticsmod.json`)
 
-Everything on the settings screen is stored here. The file can also be edited by hand; bad values are
+Everything in the Wardrobe's settings, and what you wear, is stored here. The file can also be edited by hand; bad values are
 repaired on load.
 
 | Key | Default | Meaning |

@@ -20,7 +20,7 @@ apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-l
 
 version = "${prop('mod.version')}+mc${mcVersion}"
 group = prop('mod.group')
-base.archivesName.set(prop('mod.id'))
+base.archivesName.set(prop('mod.jar'))
 
 repositories {
     mavenCentral()
