@@ -29,20 +29,27 @@ final class MusicSection implements Section {
         MusicService.tokenChanged();
     }).secret();
 
+    private final TextField clientId = new TextField(64, t -> {
+        SolConfig.get().music.spotifyClientId = t.strip();
+        SolConfig.save();
+    });
+
     @Override
     public void opened() {
         token.set(Secrets.get("ciderToken"));
         token.focus(false);
+        clientId.set(SolConfig.get().music.spotifyClientId);
+        clientId.focus(false);
     }
 
     @Override
     public boolean typed(String text) {
-        return token.typed(text);
+        return token.typed(text) || clientId.typed(text);
     }
 
     @Override
     public boolean key(int key, boolean ctrl) {
-        return token.key(key, ctrl);
+        return token.key(key, ctrl) || clientId.key(key, ctrl);
     }
 
     @Override
@@ -209,14 +216,40 @@ final class MusicSection implements Section {
                 case 3 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.albumSky, () -> set(() -> cfg.albumSky = !cfg.albumSky));
                 case 4 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.lyricsHud, () -> set(() -> cfg.lyricsHud = !cfg.lyricsHud));
                 case 5 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.visualizers, () -> set(() -> cfg.visualizers = !cfg.visualizers));
-                default -> ui.button(tk, right, ry, SolMenu.tr("sol.menu.music.sign_in"), false,
-                        () -> menu.toast(SolMenu.tr("sol.notify.spotify_setup")));
+                default -> {
+                    if (io.github.georgwav.cosmetics.sol.music.SpotifyAuth.signedIn()) {
+                        float bw = ui.button(tk, right, ry, SolMenu.tr("sol.menu.music.sign_out"), false,
+                                io.github.georgwav.cosmetics.sol.music.SpotifyAuth::signOut);
+                        status(ui, tk, right - bw - 8f, ry, MusicService.connected("spotify"));
+                    } else {
+                        ui.button(tk, right, ry, SolMenu.tr("sol.menu.music.sign_in"), !cfg.spotifyClientId.isBlank(),
+                                () -> {
+                                    if (cfg.spotifyClientId.isBlank()) {
+                                        menu.toast(SolMenu.tr("sol.notify.spotify_client_id"));
+                                    } else {
+                                        menu.toast(SolMenu.tr("sol.notify.spotify_browser_opened"));
+                                        MusicService.signInSpotify();
+                                    }
+                                });
+                    }
+                }
             }
         }
-        // Cider's app token (Cider asks for one unless "require token" is off).
+        // Cider's app token (Cider asks for one unless "require token" is off), and the Client ID of the player's own
+        // Spotify app (Spotify gives none to share).
         float ty = cy + 13f + 4 * 34f + 4f;
         g.textMid(f, SolMenu.tr("sol.menu.music.token"), lx, ty, 0xFFFFFFFF);
-        token.draw(g, ui, tk, lx, ty + 12f, lw, 32f, "key", SolMenu.tr("sol.menu.music.token_hint"), menu.dt());
+        token.draw(g, ui, tk, lx, ty + 12f, colW, 32f, "key", SolMenu.tr("sol.menu.music.token_hint"), menu.dt());
+        float sx = lx + colW + 24f;
+        g.textMid(f, SolMenu.tr("sol.menu.music.client_id"), sx, ty, 0xFFFFFFFF);
+        clientId.draw(g, ui, tk, sx, ty + 12f, colW, 32f, "key", SolMenu.tr("sol.menu.music.client_id_hint"), menu.dt());
+        SolFont small = g.font(SolFont.Family.MEDIUM, 11f);
+        g.text(small, g.fit(small, SolMenu.tr("sol.menu.music.cider_steps"), colW), lx, ty + 60f, 0x73FFFFFF);
+        g.text(small, g.fit(small, SolMenu.tr("sol.menu.music.spotify_steps", io.github.georgwav.cosmetics.sol.music.SpotifyAuth.REDIRECT),
+                colW), sx, ty + 60f, 0x73FFFFFF);
+        if ("none".equals(io.github.georgwav.cosmetics.sol.music.AudioCapture.state()) && cfg.visualizers) {
+            g.text(small, g.fit(small, SolMenu.tr("sol.menu.music.viz_none"), lw), lx, ty + 78f, Colors.withAlpha(Tokens.AMBER, 0.85f));
+        }
     }
 
     private static void status(Ui ui, Tokens tk, float right, float cy, boolean on) {

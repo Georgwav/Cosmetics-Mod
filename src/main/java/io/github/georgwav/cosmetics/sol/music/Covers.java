@@ -21,7 +21,8 @@ public final class Covers {
     public static final int LARGE = 128, SMALL = 32, SAMPLE = 48;
 
     /** A decoded cover. {@code key} is its address. */
-    public record Cover(String key, int[] large, int[] small, AlbumTheme.Palette palette) {
+    /** {@code sun}: the 16 x 16 album sun the sky draws in place of the plasma (a visualizer). */
+    public record Cover(String key, int[] large, int[] small, int[] sun, AlbumTheme.Palette palette) {
     }
 
     private static volatile String wanted;
@@ -95,7 +96,7 @@ public final class Covers {
         int[] sample = scale(src, w, ox, oy, side, SAMPLE);
         int[] big = round(scale(src, w, ox, oy, side, LARGE), LARGE, LARGE * 10f / 96f);
         int[] little = round(scale(src, w, ox, oy, side, SMALL), SMALL, SMALL * 4f / 26f);
-        return new Cover(key, big, little, AlbumTheme.palette(sample));
+        return new Cover(key, big, little, sun(scale(src, w, ox, oy, side, 16)), AlbumTheme.palette(sample));
     }
 
     /** The square (ox, oy, side) of a picture, averaged down (or up, nearest) to n x n, opaque. */
@@ -121,6 +122,19 @@ public final class Covers {
             }
         }
         return out;
+    }
+
+    /** The album sun: the cover at 16 x 16, lifted toward white (screened by a quarter) so it still reads as a sun. */
+    static int[] sun(int[] px) {
+        for (int i = 0; i < px.length; i++) {
+            int c = px[i];
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            r = 255 - (255 - r) * 3 / 4;
+            g = 255 - (255 - g) * 3 / 4;
+            b = 255 - (255 - b) * 3 / 4;
+            px[i] = 0xFF000000 | r << 16 | g << 8 | b;
+        }
+        return px;
     }
 
     /** Rounds the corners (radius r pixels, smooth edge) by alpha. */

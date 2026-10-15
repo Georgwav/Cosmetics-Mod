@@ -15,6 +15,12 @@ public final class MusicSky {
     public static boolean breathe;
     public static boolean sunBeat;
     public static int[] album;
+    /** Music notes join the theme's particles. */
+    public static boolean notes;
+    /** The horizon EQ's columns (0..1 each), or null when it's off. */
+    public static float[] eq;
+    /** How far the latest beat ring has spread from the sun, 0..1 (more: none showing). */
+    public static float ringPhase = 2f;
 
     private MusicSky() {
     }
@@ -40,6 +46,11 @@ public final class MusicSky {
     /** The sun grows 6% on a beat. */
     public static float sunPulse() {
         return sunBeat ? 1f + beat * 0.06f : 1f;
+    }
+
+    /** The beat ring's phase 0..1, or -1 when none shows. */
+    public static float ring() {
+        return ringPhase < 1f ? ringPhase : -1f;
     }
 
     /** The 16x16 album sun, or null for the plasma. */

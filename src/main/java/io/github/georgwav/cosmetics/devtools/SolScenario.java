@@ -156,6 +156,13 @@ public final class SolScenario {
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
         }
+        if (MOCK_CIDER && !"sheet".equals(SHOTS) && !"bench".equals(MODE)) {
+            java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
+            if (only.get(0).isBlank() || only.contains("music_viz")) {
+                // The music in the sky: Ember at sunset with every visualizer (the made-up song's beat).
+                shots.add(new Shot("sol_music_viz", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+            }
+        }
         if ("ui".equals(SHOTS)) {
             return;
         }
@@ -315,6 +322,17 @@ public final class SolScenario {
             }
             if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().equals("ui_menu_music"))) {
                 checkMusic(s.name());
+            }
+            if (phaseTick == SETTLE && s.name().equals("sol_music_viz")) {
+                if (!"listening".equals(io.github.georgwav.cosmetics.sol.music.AudioCapture.state())) {
+                    problems.add(s.name() + ": the visualizers aren't listening (" + io.github.georgwav.cosmetics.sol.music.AudioCapture.state() + ")");
+                }
+                if (io.github.georgwav.cosmetics.sol.music.Visualizers.beats() == 0) {
+                    problems.add(s.name() + ": no beat was heard in the made-up song");
+                }
+                if (io.github.georgwav.cosmetics.sol.atmosphere.MusicSky.eq == null) {
+                    problems.add(s.name() + ": the horizon EQ isn't on");
+                }
             }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.

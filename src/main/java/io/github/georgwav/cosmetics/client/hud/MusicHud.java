@@ -30,9 +30,18 @@ import java.util.Locale;
  */
 public final class MusicHud extends TextHud {
     private final Setting.Toggle cider = add(new Setting.Toggle("cider", true));
+    private final Setting.Toggle spotify = add(new Setting.Toggle("spotify", true));
     private final Setting.Toggle systemPlayer = add(new Setting.Toggle("system_player", true));
     private final Setting.Toggle cover = add(new Setting.Toggle("cover", true));
     private final Setting.Toggle progress = add(new Setting.Toggle("progress", true));
+    /** The visualizers, one switch each (Settings › Music turns them all off). */
+    private final java.util.Map<String, Setting.Toggle> viz = new java.util.LinkedHashMap<>();
+
+    {
+        for (String v : new String[]{"stars", "eq", "aurora", "rings", "album_sun", "notes", "breathe"}) {
+            viz.put(v, add(new Setting.Toggle("viz_" + v, true)));
+        }
+    }
 
     private static final NowPlaying SAMPLE = new NowPlaying("sample", "sample", "Golden Hour", "JVKE", "this is what ____ feels like",
             209_000L, 74_000L, 0L, false, null, null);
@@ -47,9 +56,16 @@ public final class MusicHud extends TextHud {
         super("music", "note", 0f, 0f, 4f, 80f);
     }
 
+    /** Whether visualizer {@code id} (stars, eq, aurora, rings, album_sun, notes, breathe) is on. */
+    public boolean viz(String id) {
+        Setting.Toggle t = viz.get(id);
+        return t != null && t.get();
+    }
+
     public boolean sourceOn(String id) {
         return switch (id) {
             case "cider" -> cider.get();
+            case "spotify" -> spotify.get();
             case "mpris" -> systemPlayer.get();
             default -> true;
         };

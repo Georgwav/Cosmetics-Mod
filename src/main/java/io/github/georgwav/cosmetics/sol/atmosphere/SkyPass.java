@@ -72,6 +72,7 @@ public final class SkyPass {
     }
 
     private static void draw(float sunAngle, int moonPhase, float rainBrightness) {
+        io.github.georgwav.cosmetics.sol.music.Visualizers.frame();
         Tokens tk = ThemeState.tokens();
         ThemeSpec theme = ThemeState.entry().base();
         Atmosphere at = Atmosphere.INSTANCE;
@@ -111,6 +112,7 @@ public final class SkyPass {
             sunVisible = 0f;
         }
         band(tk, sunAz, q, rain);
+        eq(tk, sunAz, rain);
         Extras.renderFront(theme, tk, t, rain);
         Extras.renderMist(theme, tk, t, rain);
         KeyLight.update(theme, tk, t, rain);
@@ -194,6 +196,34 @@ public final class SkyPass {
             SkyDraw.altAz(-4f, z0, 0f, 1f, top0);
             SkyDraw.altAz(-4f, z1, 1f, 1f, top0);
             SkyDraw.altAz(0f, z1, 1f, 0f, mid1);
+        }
+        WorldDraw.end();
+    }
+
+    /**
+     * The music's horizon EQ (a visualizer): 40 columns of block-sized steps standing on the horizon either side of the
+     * sun's bearing, the low notes in the middle, in the accent fading to the glow as they climb; terrain in front cuts them, as it does the band.
+     */
+    private static void eq(Tokens tk, float sunAz, float rain) {
+        float[] v = MusicSky.eq;
+        if (v == null) {
+            return;
+        }
+        // 40 columns across 120° of horizon centred on the sun: about the view's width, narrow enough to read as bars.
+        int n = v.length;
+        float span = 120f / n, gap = span * 0.28f, step = 0.8f, fill = 0.75f;
+        WorldDraw.begin(WorldDraw.SKY_ADD, null);
+        for (int i = 0; i < n; i++) {
+            float z0 = sunAz + (i - n / 2f) * span + gap / 2f, z1 = z0 + span - gap;
+            int blocks = Math.round(Math.max(0f, Math.min(1f, v[i])) * 8f);
+            for (int b = 0; b < blocks; b++) {
+                float a0 = b * step, a1 = a0 + step * fill;
+                int c = Colors.withAlpha(Colors.mix(tk.accent, tk.skyGlow, b / 8f), 0.55f * (1f - b / 11f) * (1f - rain * 0.6f));
+                SkyDraw.altAz(a0, z0, 0f, 1f, c);
+                SkyDraw.altAz(a1, z0, 0f, 0f, c);
+                SkyDraw.altAz(a1, z1, 1f, 0f, c);
+                SkyDraw.altAz(a0, z1, 1f, 1f, c);
+            }
         }
         WorldDraw.end();
     }
@@ -435,6 +465,13 @@ public final class SkyPass {
                 SkyDraw.hollowSquare(0f, 0f, h, lw, Colors.withAlpha(core, (1f - ph) * (1f - ph) * 0.24f * vis));
             }
         }
+        // Music: a square ring of the accent spreading from the sun on each beat (a visualizer).
+        float beatRing = MusicSky.ring();
+        if (beatRing >= 0f) {
+            float h = Math.round(s * (1.2f + beatRing * 3.4f) / px) * px;
+            SkyDraw.hollowSquare(0f, 0f, h, Math.max(pix, px * 0.8f),
+                    Colors.withAlpha(ThemeState.tokens().accent, (1f - beatRing) * (1f - beatRing) * 0.5f * vis));
+        }
         WorldDraw.end();
 
         // The body: 16 rows of the plasma texture, shifted by the heat shimmer near the horizon.
@@ -462,6 +499,8 @@ public final class SkyPass {
         }
     }
 
+    private static int[] albumShown;
+
     /** The prototype's pixel plasma, rewritten at most 20 times a second. */
     private static void updatePlasma(boolean plasmaOn, int core, int halo, float t) {
         if (plasma == null || plasma.released()) {
@@ -470,9 +509,10 @@ public final class SkyPass {
         }
         int[] album = MusicSky.albumSun();
         if (album != null) {
-            if (plasmaTime != -2f) {
+            if (plasmaTime != -2f || album != albumShown) {
                 plasma.upload(album);
                 plasmaTime = -2f;
+                albumShown = album;
             }
             return;
         }

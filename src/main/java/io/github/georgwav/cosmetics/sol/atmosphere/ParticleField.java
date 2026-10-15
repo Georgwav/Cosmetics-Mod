@@ -466,8 +466,9 @@ public final class ParticleField {
         int gen = io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.generation();
         float scale = tk.particleScale;
         String key = theme.id();
+        boolean notes = MusicSky.notes;
         if (key.equals(builtFor) && budget == builtBudget && gen == builtGeneration && Math.abs(scale - lastScale) < 0.05f
-                && theme.particles() == lastEmitters) {
+                && theme.particles() == lastEmitters && notes == lastNotes) {
             return;
         }
         builtFor = key;
@@ -475,8 +476,15 @@ public final class ParticleField {
         builtGeneration = gen;
         lastScale = scale;
         lastEmitters = theme.particles();
+        lastNotes = notes;
+        java.util.List<ThemeSpec.Emitter> emitters = theme.particles();
+        if (notes) {
+            // The note particles visualizer: music notes in the accent and the glow among the theme's own.
+            emitters = new java.util.ArrayList<>(emitters);
+            emitters.add(new ThemeSpec.Emitter("note", 26, new int[]{tk.accent, tk.skyGlow, 0xFFFFFFFF}, 1.6f, 2.8f, null, 1f, 1f));
+        }
         int want = 0;
-        for (ThemeSpec.Emitter e : theme.particles()) {
+        for (ThemeSpec.Emitter e : emitters) {
             want += e.count();
         }
         // The prototype's counts fill one view; the box around the camera takes about five views' worth.
@@ -497,7 +505,7 @@ public final class ParticleField {
         }
         Mulberry32 r = new Mulberry32(theme.id().length() * 977 + theme.id().charAt(0));
         count = 0;
-        for (ThemeSpec.Emitter e : theme.particles()) {
+        for (ThemeSpec.Emitter e : emitters) {
             int n = Math.min(capacity - count, Math.round(e.count() * k));
             int kind = kindOf(e.type());
             if (kind < 0) {
@@ -527,6 +535,7 @@ public final class ParticleField {
 
     private static float lastScale = -1f;
     private static java.util.List<ThemeSpec.Emitter> lastEmitters;
+    private static boolean lastNotes;
 
     private static int kindOf(String name) {
         return switch (name) {

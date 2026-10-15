@@ -597,7 +597,8 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         import mock_cider
         try:
             mock = mock_cider.start(10767)
-            jvm += ["-Dcosmeticsmod.mockCider=true", "-Dcosmeticsmod.lrclib=http://127.0.0.1:10767"]
+            jvm += ["-Dcosmeticsmod.mockCider=true", "-Dcosmeticsmod.lrclib=http://127.0.0.1:10767",
+                    "-Dcosmeticsmod.fakeSpectrum=true"]
         except OSError as e:
             LOG(f"[{inst.mc}/{label}] mock Cider not started: {e}")
     if shaderpack:

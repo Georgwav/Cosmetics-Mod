@@ -40,6 +40,7 @@ public final class MusicService {
 
     static {
         add(new CiderSource());
+        add(new SpotifySource());
         add(new MprisSource());
     }
 
@@ -140,6 +141,17 @@ public final class MusicService {
     /** Whether Cider's live events (Socket.IO) have come in. */
     public static boolean ciderEvents() {
         return SOURCES.get("cider") instanceof CiderSource c && c.heardEvents();
+    }
+
+    /**
+     * Signs in to Spotify (IO thread; the browser opens): says how it went, and starts listening when it worked.
+     */
+    public static void signInSpotify() {
+        SolExecutors.IO.execute(() -> {
+            String problemKey = SpotifyAuth.signIn(SolConfig.get().music.spotifyClientId);
+            Notifications.post(net.minecraft.network.chat.Component.translatable(problemKey == null ? "sol.notify.spotify_signed_in"
+                    : problemKey).getString());
+        });
     }
 
     /** Whether a source is connected to its player. */
