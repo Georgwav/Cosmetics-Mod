@@ -602,6 +602,7 @@
   "sol.feature.flare": "Lens flare",
   "sol.feature.particles": "Theme particles",
   "sol.feature.fog": "Theme fog",
+  "sol.feature.light_pass": "The light pass (bloom, colour grade, sunlight)",
   "sol.feature.light": "Light tint",
   "sol.feature.clouds": "Cloud tint",
   "sol.feature.sol_ui": "Sol UI",

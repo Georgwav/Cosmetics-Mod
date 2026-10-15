@@ -46,6 +46,7 @@ public final class Sol {
         } catch (RuntimeException | LinkageError e) {
             CosmeticsMod.LOGGER.error("[Sol] Couldn't load themes", e);
         }
+        io.github.georgwav.cosmetics.sol.render.LightPass.reset();
     }
 
     private static void tick(Minecraft mc) {

@@ -9,6 +9,7 @@ public enum Feature {
     FOG("fog"),
     LIGHT("light"),
     CLOUDS("clouds"),
+    LIGHT_PASS("light_pass"),
     SOL_UI("sol_ui"),
     HUD("hud"),
     CHAT("chat"),

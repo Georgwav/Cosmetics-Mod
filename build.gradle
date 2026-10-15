@@ -78,6 +78,15 @@ tasks.named('test') {
 // Which commit the jar was built from, shown in the Wardrobe so it's clear which build is running.
 def buildId = (System.getenv('GITHUB_SHA') ?: 'local').take(7)
 
+// Resources that differ by render era (the Sol light pass's post-effect chains and shaders, written by
+// tools/sol-assets/make_light_pass.py): each era's folder is added to this version's resources.
+def era = stonecutter.eval(mcVersion, '>=26.3') ? 'e6'
+        : stonecutter.eval(mcVersion, '>=1.21.9') ? 'e5'
+        : stonecutter.eval(mcVersion, '>=1.21.6') ? 'e4'
+        : stonecutter.eval(mcVersion, '>=1.21.5') ? 'e3'
+        : stonecutter.eval(mcVersion, '>=1.21.2') ? 'e2' : 'e1'
+sourceSets.main.resources.srcDir(rootProject.file("src/era/${era}/resources"))
+
 processResources {
     def props = [
             version  : project.version.toString(),

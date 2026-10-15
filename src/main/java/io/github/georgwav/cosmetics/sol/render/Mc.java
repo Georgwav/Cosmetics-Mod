@@ -28,6 +28,15 @@ public final class Mc {
         //?}
     }
 
+    /** The game's main framebuffer: what the world is drawn into. */
+    public static com.mojang.blaze3d.pipeline.RenderTarget mainTarget() {
+        //? if >=26.2 {
+        /*return Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        *///?} else {
+        return Minecraft.getInstance().getMainRenderTarget();
+        //?}
+    }
+
     public static boolean hudHidden() {
         Minecraft mc = Minecraft.getInstance();
         //? if >=26.2 {

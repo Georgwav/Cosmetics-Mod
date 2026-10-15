@@ -18,6 +18,9 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public List<String> getMixins() {
         List<String> all = new java.util.ArrayList<>(base());
+        all.add("SolOverlayMixin");
+        all.add("SolCloudsMixin");
+        all.add("SolGameRendererMixin");
         //? if <1.21.11 {
         /*all.add("SolLightMixin");
         *///?}

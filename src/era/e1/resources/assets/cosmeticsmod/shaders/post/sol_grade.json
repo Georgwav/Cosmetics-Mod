@@ -1,0 +1,199 @@
+{
+  "targets": [
+    "swap",
+    {
+      "name": "b0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "name": "u0",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "name": "b1",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "name": "u1",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "name": "b2",
+      "width": 240,
+      "height": 135
+    },
+    {
+      "name": "u2",
+      "width": 240,
+      "height": 135
+    },
+    {
+      "name": "b3",
+      "width": 120,
+      "height": 68
+    },
+    {
+      "name": "u3",
+      "width": 120,
+      "height": 68
+    },
+    {
+      "name": "b4",
+      "width": 60,
+      "height": 34
+    },
+    {
+      "name": "u4",
+      "width": 60,
+      "height": 34
+    },
+    {
+      "name": "b5",
+      "width": 30,
+      "height": 17
+    }
+  ],
+  "passes": [
+    {
+      "name": "sol_bright",
+      "intarget": "minecraft:main",
+      "outtarget": "b0",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_down",
+      "intarget": "b0",
+      "outtarget": "b1",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_down",
+      "intarget": "b1",
+      "outtarget": "b2",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_down",
+      "intarget": "b2",
+      "outtarget": "b3",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_down",
+      "intarget": "b3",
+      "outtarget": "b4",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_down",
+      "intarget": "b4",
+      "outtarget": "b5",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_up",
+      "intarget": "b5",
+      "outtarget": "u4",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "b4"
+        }
+      ]
+    },
+    {
+      "name": "sol_up",
+      "intarget": "u4",
+      "outtarget": "u3",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "b3"
+        }
+      ]
+    },
+    {
+      "name": "sol_up",
+      "intarget": "u3",
+      "outtarget": "u2",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "b2"
+        }
+      ]
+    },
+    {
+      "name": "sol_up",
+      "intarget": "u2",
+      "outtarget": "u1",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "b1"
+        }
+      ]
+    },
+    {
+      "name": "sol_up",
+      "intarget": "u1",
+      "outtarget": "u0",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "b0"
+        }
+      ]
+    },
+    {
+      "name": "sol_grade",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "BloomSampler",
+          "id": "u0"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        },
+        {
+          "name": "LutSampler",
+          "id": "sol_lut",
+          "width": 1024,
+          "height": 32,
+          "bilinear": true
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

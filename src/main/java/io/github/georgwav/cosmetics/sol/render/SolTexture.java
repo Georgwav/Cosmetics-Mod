@@ -39,13 +39,21 @@ public final class SolTexture {
 
     /** Registers {@code cosmeticsmod:sol/<path>} as an empty {@code width} x {@code height} texture. */
     public SolTexture(String path, int width, int height, boolean linear) {
+        this(CosmeticsMod.MOD_ID, "sol/" + path, width, height, linear);
+    }
+
+    /**
+     * Registers an empty texture under exactly {@code namespace:path} (the light pass's textures sit where the
+     * game's post-effect chains look for theirs, {@code textures/effect/<name>.png}).
+     */
+    public SolTexture(String namespace, String path, int width, int height, boolean linear) {
         this.width = width;
         this.height = height;
         this.linear = linear;
         //? if >=1.21.11 {
-        id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "sol/" + path);
+        id = Identifier.fromNamespaceAndPath(namespace, path);
         //?} else {
-        /*id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "sol/" + path);
+        /*id = ResourceLocation.fromNamespaceAndPath(namespace, path);
         *///?}
         //? if >=1.21.5 {
         texture = new DynamicTexture("cosmeticsmod sol " + path, width, height, true);

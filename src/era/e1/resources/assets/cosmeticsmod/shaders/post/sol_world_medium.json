@@ -1,0 +1,39 @@
+{
+  "targets": [
+    "swap"
+  ],
+  "passes": [
+    {
+      "name": "sol_world",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        },
+        {
+          "name": "ShaftsSampler",
+          "id": "sol_black",
+          "width": 1,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

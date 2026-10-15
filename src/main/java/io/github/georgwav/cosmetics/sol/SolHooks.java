@@ -27,9 +27,12 @@ public final class SolHooks {
             FrameInfo.camZ = z;
             FrameInfo.setRotation(rotation);
             FrameInfo.projection.set(projection);
+            // The vertical field of view from the projection; a matrix that isn't a perspective one (a version
+            // passing something else) keeps the last good value instead of making the sky huge or tiny.
             float m11 = FrameInfo.projection.m11();
-            if (m11 > 0.01f) {
-                FrameInfo.fovY = (float) Math.toDegrees(2.0 * Math.atan(1.0 / m11));
+            float fov = m11 > 0.01f ? (float) Math.toDegrees(2.0 * Math.atan(1.0 / m11)) : -1f;
+            if (fov >= 2f && fov <= 170f && Math.abs(FrameInfo.projection.m23() + 1f) < 0.01f) {
+                FrameInfo.fovY = fov;
             }
             Minecraft mc = Minecraft.getInstance();
             FrameInfo.width = mc.getWindow().getWidth();
@@ -54,14 +57,25 @@ public final class SolHooks {
             FrameInfo.timeOfDay -= (float) Math.floor(FrameInfo.timeOfDay);
             ThemeState.update(FrameInfo.inWorld ? FrameInfo.timeOfDay : Float.NaN);
             QualityGovernor.frame(FrameInfo.frameSeconds);
+            io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
+                    io.github.georgwav.cosmetics.sol.render.LightPass.nanos);
         } catch (RuntimeException | LinkageError e) {
             Guard.fail(Feature.SKY, e);
         }
     }
 
-    /** End of the level render: particles and screen-space light over the finished world. */
+    /**
+     * End of the level render: the particles, then the light pass's world half (sunlight, scattering, shafts, while
+     * the depth is still the world's), then the lens flare over it all.
+     */
     public static void frameEnd() {
         ParticleField.render();
+        io.github.georgwav.cosmetics.sol.render.LightPass.world();
         LensFlare.render();
+    }
+
+    /** After the hand: the light pass's bloom, grade and vignette over the finished frame. */
+    public static void afterHand() {
+        io.github.georgwav.cosmetics.sol.render.LightPass.grade();
     }
 }
