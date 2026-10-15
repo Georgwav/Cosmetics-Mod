@@ -25,6 +25,11 @@ public final class FogControl {
                 && io.github.georgwav.cosmetics.sol.render.Mc.camera().getFluidInCamera() == FogType.NONE;
     }
 
+    /** Whether the Sol sky is the open-air sky now (drawn in the last frames). */
+    public static boolean activeSky() {
+        return io.github.georgwav.cosmetics.sol.render.FrameInfo.frame - SkyPass.lastDrawFrame <= 3;
+    }
+
     /** The fog colour (ARGB): the theme's, greyed by rain like the dome. */
     public static int color() {
         Tokens tk = ThemeState.tokens();

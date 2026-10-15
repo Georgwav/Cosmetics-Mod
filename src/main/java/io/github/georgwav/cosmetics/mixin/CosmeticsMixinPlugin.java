@@ -17,27 +17,38 @@ import java.util.Set;
 public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public List<String> getMixins() {
+        List<String> all = new java.util.ArrayList<>(base());
+        //? if <1.21.11 {
+        /*all.add("SolLightMixin");
+        *///?}
+        //? if <26.1 {
+        all.add("ClientLevelDataMixin");
+        //?}
+        return all;
+    }
+
+    private static List<String> base() {
         //? if >=26.3 {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "ClockInstanceMixin", "LevelRendererOutlineMixin");
         *///?} elif >=26.1 {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "ClockManagerMixin", "LevelRendererOutlineMixin");
         *///?} elif >=1.21.6 {
-        return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin");
         //?} elif >=1.21.4 {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "GuiMixin", "BossOverlayMixin");
         *///?} elif >=1.21.2 {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "GuiMixin", "BossOverlayMixin");
         *///?} else {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "GuiMixin", "BossOverlayMixin");
         *///?}
