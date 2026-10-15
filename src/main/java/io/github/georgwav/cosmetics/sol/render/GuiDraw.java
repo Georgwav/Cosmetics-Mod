@@ -130,6 +130,31 @@ public final class GuiDraw {
         }
         data[i + 4] = Float.intBitsToFloat(argb);
         vertices++;
+        if ((vertices & 3) == 0) {
+            faceTheViewer(i - 3 * FLOATS);
+        }
+    }
+
+    /**
+     * The game culls GUI triangles that face away, so a quad given in the other turning direction (a ring segment
+     * traced outwards then round, a fan in a mirrored order) would vanish. Every quad is turned to face the viewer:
+     * with y pointing down, a quad facing the viewer has a negative shoelace sum; one with a positive sum gets its
+     * second and fourth corners swapped, which flips both of its triangles and keeps its shape.
+     */
+    private static void faceTheViewer(int q) {
+        float sum = 0f;
+        for (int k = 0; k < 4; k++) {
+            int a = q + k * FLOATS, b = q + ((k + 1) & 3) * FLOATS;
+            sum += data[a] * data[b + 1] - data[b] * data[a + 1];
+        }
+        if (sum > 0f) {
+            int one = q + FLOATS, three = q + 3 * FLOATS;
+            for (int f = 0; f < FLOATS; f++) {
+                float t = data[one + f];
+                data[one + f] = data[three + f];
+                data[three + f] = t;
+            }
+        }
     }
 
     /** A quad with four corners and colours, texture corners (0,0)-(1,1). */
@@ -284,7 +309,7 @@ public final class GuiDraw {
     }
     //?} elif >=1.21.5 {
     /*private static RenderType additiveType(SolTexture tex) {
-        Object cached = tex.renderTypes[WorldDraw.KINDS];
+        Object cached = tex.renderTypes[WorldDraw.KINDS * 2];
         if (cached == null) {
             RenderPipeline p = RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
                     .withLocation(ResourceLocation.fromNamespaceAndPath("cosmeticsmod", "pipeline/sol_gui_add"))
@@ -295,7 +320,7 @@ public final class GuiDraw {
             cached = RenderType.create("cosmeticsmod_sol_gui_add", 256, false, false, p,
                     RenderType.CompositeState.builder().setTextureState(new RenderStateShard.TextureStateShard(tex.id,
                             net.minecraft.util.TriState.DEFAULT, false)).createCompositeState(false));
-            tex.renderTypes[WorldDraw.KINDS] = cached;
+            tex.renderTypes[WorldDraw.KINDS * 2] = cached;
         }
         return (RenderType) cached;
     }
@@ -336,7 +361,7 @@ public final class GuiDraw {
         //? if >=1.21.2 {
         RenderSystem.setShader(CoreShaders.POSITION_TEX_COLOR);
         //?} else {
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        RenderSystem.setShader(SolShaders::texColor);
         //?}
         RenderSystem.setShaderTexture(0, tex.id);
         RenderSystem.enableBlend();

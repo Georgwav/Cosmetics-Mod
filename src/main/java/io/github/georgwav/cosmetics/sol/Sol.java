@@ -35,6 +35,7 @@ public final class Sol {
         Guard.onFailure = feature -> Notifications.post(
                 Component.translatable("sol.notify.feature_off", Component.translatable("sol.feature." + feature.key)).getString());
         ClientTickEvents.END_CLIENT_TICK.register(Sol::tick);
+        io.github.georgwav.cosmetics.sol.render.SolShaders.register();
         SolScenario.init();
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }
@@ -59,6 +60,7 @@ public final class Sol {
                 SkyModGuard.restore();
             }
             if (firstLaunch) {
+                io.github.georgwav.cosmetics.ui.KeyBinds.migrateQuickKey();
                 io.github.georgwav.cosmetics.sol.config.FirstLaunch.run(mc);
                 cfg.firstLaunchDone = true;
                 SolConfig.save();

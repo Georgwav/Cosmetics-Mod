@@ -69,6 +69,7 @@ public final class SkyPass {
         Tokens tk = ThemeState.tokens();
         ThemeSpec theme = ThemeState.entry().base();
         Atmosphere at = Atmosphere.INSTANCE;
+        WorldDraw.pixel = at == null || !"smooth".equals(at.lightStyle.get());
         float t = FrameInfo.time;
         float rain = Ease.clamp01(1f - rainBrightness);
 

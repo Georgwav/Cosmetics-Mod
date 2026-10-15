@@ -17,6 +17,8 @@ public abstract class Setting<T> {
     /** Called after the value changes. */
     Runnable onChange = () -> {
     };
+    /** Shown under "Advanced settings" in the Sol drawer, folded by default. */
+    public boolean advanced;
 
     protected Setting(String id, T def) {
         this.id = id;
@@ -26,6 +28,13 @@ public abstract class Setting<T> {
 
     public T get() {
         return value;
+    }
+
+    /** Marks this setting as advanced (folded away in the drawer). */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S advanced() {
+        advanced = true;
+        return (S) this;
     }
 
     public void set(T v) {

@@ -17,29 +17,34 @@ public final class Atmosphere extends Module {
     public static Atmosphere INSTANCE;
 
     // Sun layers (the Sun lab's switches).
-    public final Setting.Toggle plasma = add(new Setting.Toggle("plasma", true));
-    public final Setting.Toggle corona = add(new Setting.Toggle("corona", true));
-    public final Setting.Toggle rays = add(new Setting.Toggle("rays", true));
-    public final Setting.Toggle dogs = add(new Setting.Toggle("dogs", true));
-    public final Setting.Toggle pillar = add(new Setting.Toggle("pillar", true));
-    public final Setting.Toggle shimmer = add(new Setting.Toggle("shimmer", true));
-    public final Setting.Toggle flare = add(new Setting.Toggle("flare", true));
-    public final Setting.Toggle glare = add(new Setting.Toggle("glare", false));
-    public final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false));
+    public final Setting.Toggle plasma = add(new Setting.Toggle("plasma", true).advanced());
+    public final Setting.Toggle corona = add(new Setting.Toggle("corona", true).advanced());
+    public final Setting.Toggle rays = add(new Setting.Toggle("rays", true).advanced());
+    public final Setting.Toggle dogs = add(new Setting.Toggle("dogs", true).advanced());
+    public final Setting.Toggle pillar = add(new Setting.Toggle("pillar", true).advanced());
+    public final Setting.Toggle shimmer = add(new Setting.Toggle("shimmer", true).advanced());
+    public final Setting.Toggle flare = add(new Setting.Toggle("flare", true).advanced());
+    public final Setting.Toggle glare = add(new Setting.Toggle("glare", false).advanced());
+    public final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false).advanced());
+    /**
+     * How Sol's light looks: Pixel (the default) draws every glow pixel-sharp with crisp edges and the bloom in
+     * visible steps, the look of a block game; Smooth draws them soft.
+     */
+    public final Setting.Choice lightStyle = add(new Setting.Choice("light_style", "pixel", List.of("pixel", "smooth")));
     // World.
-    public final Setting.Toggle particles = add(new Setting.Toggle("particles", true));
+    public final Setting.Toggle particles = add(new Setting.Toggle("particles", true).advanced());
     public final Setting.Choice quality = add(new Setting.Choice("quality", "auto", List.of("auto", "low", "medium", "high")));
-    public final Setting.Toggle fog = add(new Setting.Toggle("fog", true));
-    public final Setting.Toggle light = add(new Setting.Toggle("light", true));
-    public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true));
-    public final Setting.Toggle stars = add(new Setting.Toggle("stars", true));
-    public final Setting.Toggle planets = add(new Setting.Toggle("planets", true));
-    public final Setting.Toggle ambience = add(new Setting.Toggle("ambience", false));
+    public final Setting.Toggle fog = add(new Setting.Toggle("fog", true).advanced());
+    public final Setting.Toggle light = add(new Setting.Toggle("light", true).advanced());
+    public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
+    public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
+    public final Setting.Toggle planets = add(new Setting.Toggle("planets", true).advanced());
+    public final Setting.Toggle ambience = add(new Setting.Toggle("ambience", false).advanced());
     // Advanced: time and weather, as the Time and Weather modules had them.
-    public final Setting.Toggle lockTime = add(new Setting.Toggle("lock_time", false));
-    public final Setting.Slider time = add(new Setting.Slider("time", 6000, 0, 23750, 250, Atmosphere::clock));
-    public final Setting.Toggle lockWeather = add(new Setting.Toggle("lock_weather", false));
-    public final Setting.Choice weather = add(new Setting.Choice("weather", "clear", List.of("clear", "rain", "thunder")));
+    public final Setting.Toggle lockTime = add(new Setting.Toggle("lock_time", false).advanced());
+    public final Setting.Slider time = add(new Setting.Slider("time", 6000, 0, 23750, 250, Atmosphere::clock).advanced());
+    public final Setting.Toggle lockWeather = add(new Setting.Toggle("lock_weather", false).advanced());
+    public final Setting.Choice weather = add(new Setting.Choice("weather", "clear", List.of("clear", "rain", "thunder")).advanced());
 
     public Atmosphere() {
         super("atmosphere", Category.WORLD, "sun");

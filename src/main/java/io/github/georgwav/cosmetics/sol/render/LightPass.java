@@ -300,6 +300,7 @@ public final class LightPass {
         v[27] = rain;
         v[28] = FrameInfo.width / Math.max(1f, FrameInfo.height);
         v[29] = tk.night;
+        v[30] = WorldDraw.pixel ? 1f : 0f;
         rgb(v, 32, tk.lightSun);
         rgb(v, 35, tk.lightShadow);
         rgb(v, 38, FogControl.color());
