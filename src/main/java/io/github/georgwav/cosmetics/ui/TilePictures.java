@@ -207,7 +207,7 @@ public final class TilePictures {
                 Math.max(radius, 1.0e-3f)};
     }
 
-    private static BakedMesh[] meshes(BakedCosmetic.Layer layer, int clip, float clipTime) {
+    static BakedMesh[] meshes(BakedCosmetic.Layer layer, int clip, float clipTime) {
         if (layer.skin() != null) {
             return new BakedMesh[]{layer.skin().update(clip, clipTime)};
         }
@@ -233,7 +233,7 @@ public final class TilePictures {
         return textures.computeIfAbsent(id, TilePictures::read);
     }
 
-    private static SoftRaster.Texture read(String id) {
+    static SoftRaster.Texture read(String id) {
         try {
             //? if >=1.21.11 {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(id));

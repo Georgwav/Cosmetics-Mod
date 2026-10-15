@@ -37,7 +37,7 @@ public final class SolScenario {
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "keys", "gallery", "crash", "mods_browse", "quickplay", "wardrobe_grid", "wardrobe_drawer",
-            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
+            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab"};
@@ -511,6 +511,14 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.HudEditor(null));
             return;
         }
+        // Before a world: you as the mannequin, in the Wardrobe's preview.
+        io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.forceMannequin = what.equals("wardrobe_mannequin");
+        if (what.equals("wardrobe_mannequin")) {
+            var w = new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null);
+            w.stage("all");
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
+            return;
+        }
         if (wardrobe) {
             var w = new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null);
             if (what.startsWith("cosmetics_settings")) {
@@ -897,6 +905,11 @@ public final class SolScenario {
             if (expected && hook.count() == 0) {
                 problems.add("the " + hook.name().toLowerCase(java.util.Locale.ROOT) + " hook was never reached");
             }
+        }
+        // The title shot and the Wardrobe's mannequin shot draw you without the world's own renderer.
+        if (shots.stream().anyMatch(x -> x.name().equals("ui_title") || x.name().equals("ui_wardrobe_mannequin"))
+                && io.github.georgwav.cosmetics.ui.Mannequin.framesPainted == 0) {
+            problems.add("the mannequin (you without a world) was never drawn");
         }
         if (chatShown) {
             // The chat's search: text no message has leaves every message out, then all come back.

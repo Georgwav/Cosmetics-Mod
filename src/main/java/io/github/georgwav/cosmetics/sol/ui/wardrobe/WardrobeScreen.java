@@ -737,19 +737,32 @@ public final class WardrobeScreen extends SolScreen {
         String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
         SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
         g.textCentre(f, g.fit(f, caption, w - 24f), x + w / 2f, y + h - 18f, shown != null ? tk.accent : 0x80FFFFFF);
-        if (minecraft.player == null) {
-            g.textCentre(f, tr("sol.wardrobe.no_player"), x + w / 2f, y + h / 2f, 0x80FFFFFF);
-        }
     }
+
+    /** You without a world (the Wardrobe opened from the title screen), with what you wear. */
+    private io.github.georgwav.cosmetics.ui.Mannequin mannequin;
+    /** For the in-game test: the mannequin even in a world. */
+    public static boolean forceMannequin;
 
     @Override
     protected void game(Canvas c, int mouseX, int mouseY) {
-        if (minecraft.player == null) {
-            return;
-        }
         double gs = minecraft.getWindow().getGuiScale();
         int x1 = (int) Math.round(d.sx(PREVIEW_X) / gs), x2 = (int) Math.round(d.sx(PREVIEW_X + PREVIEW_W) / gs);
         int y1 = (int) Math.round(d.sy(TOP + 40f) / gs), y2 = (int) Math.round(d.sy(BOTTOM - 44f) / gs);
+        if (minecraft.player == null || forceMannequin) {
+            if (mannequin == null) {
+                mannequin = new io.github.georgwav.cosmetics.ui.Mannequin("wardrobe", 256);
+            }
+            BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
+            boolean back = shown != null ? shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK || shown.wings() != null
+                    : previewElytra;
+            float target = previewSpin + (back ? 180f : 0f);
+            shownSpin += (target - shownSpin) * 0.2f;
+            shownPitch += (previewPitch - shownPitch) * 0.3f;
+            int side = Math.min(x2 - x1, y2 - y1);
+            mannequin.draw(c, (x1 + x2 - side) / 2, (y1 + y2 - side) / 2, side, -shownSpin, 8f + shownPitch, false);
+            return;
+        }
         // The player about two thirds of the panel's height, with room above for halos and below for the feet.
         int scale = Math.max(20, (int) ((y2 - y1) / 3.4f));
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
@@ -900,6 +913,10 @@ public final class WardrobeScreen extends SolScreen {
     protected void closed() {
         pictures.close();
         skinsView.release();
+        if (mannequin != null) {
+            mannequin.release();
+            mannequin = null;
+        }
         EquippedCosmetics.preview(null);
     }
 

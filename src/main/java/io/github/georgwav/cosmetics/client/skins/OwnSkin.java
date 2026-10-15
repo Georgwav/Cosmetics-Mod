@@ -17,6 +17,7 @@ public final class OwnSkin {
     private static PictureTexture texture;
     private static boolean slim;
     private static boolean active;
+    private static int[] pixels;
 
     private OwnSkin() {
     }
@@ -32,8 +33,19 @@ public final class OwnSkin {
         opaque(pixels, 0, 16, 64, 32);
         opaque(pixels, 16, 48, 48, 64);
         texture.upload(pixels);
+        OwnSkin.pixels = pixels;
         slim = slimArms;
         active = true;
+    }
+
+    /** The applied skin's 64 x 64 ARGB pixels (the mannequin's), or null when none was applied. */
+    public static int[] pixels() {
+        return active ? pixels : null;
+    }
+
+    /** Whether the applied skin has slim arms. */
+    public static boolean slim() {
+        return slim;
     }
 
     private static void opaque(int[] argb, int x0, int y0, int x1, int y1) {

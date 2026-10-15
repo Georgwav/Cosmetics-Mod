@@ -38,6 +38,8 @@ public final class SolTitleScreen extends SolScreen {
     private long lastStart;
     private SolTexture sky;
     private boolean skyShown;
+    /** You on a little island beside the buttons, turning slowly, with what you wear. */
+    private final io.github.georgwav.cosmetics.ui.Mannequin figure = new io.github.georgwav.cosmetics.ui.Mannequin("title", 256);
 
     public SolTitleScreen() {
         super(Component.translatable("narrator.screen.title"), null, Feature.TITLE);
@@ -76,6 +78,7 @@ public final class SolTitleScreen extends SolScreen {
     @Override
     protected void closed() {
         logo.release();
+        figure.release();
         if (sky != null) {
             sky.release();
             sky = null;
@@ -102,6 +105,17 @@ public final class SolTitleScreen extends SolScreen {
             return ui.activate();
         }
         return false;
+    }
+
+    @Override
+    protected void game(io.github.georgwav.cosmetics.ui.Canvas c, int mouseX, int mouseY) {
+        // Right of the buttons, standing in the landscape.
+        double gs = minecraft.getWindow().getGuiScale();
+        float size = 360f;
+        int side = (int) Math.round((d.sy(360f + size / 2f) - d.sy(360f - size / 2f)) / gs);
+        int x = (int) Math.round(d.sx(1015f) / gs) - side / 2, y = (int) Math.round(d.sy(395f) / gs) - side / 2;
+        float yaw = calm() ? 25f : 25f + (float) Math.sin(time * 0.35f) * 35f;
+        figure.draw(c, x, y, side, yaw, 14f, true);
     }
 
     /** The landscape: the next frame starts on the CPU thread once the last one is in, at most 20 a second. */
