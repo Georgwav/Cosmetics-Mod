@@ -17,13 +17,18 @@ import java.util.Random;
 
 /**
  * World Overlays: the game's chunk borders kept on, the spots where mobs can spawn marked on the ground around you
- * (red where they can now, amber where only at night), and slime chunks tinted green in singleplayer (from the
- * world's seed, which only your own world tells).
+ * (red where they can now, amber where only at night), slime chunks tinted green in singleplayer (from the
+ * world's seed, which only your own world tells), and how far nearby beacons reach (a band at your height along
+ * the edge of each one's effect).
  */
 public final class WorldOverlays extends Module {
     private final Setting.Toggle chunks = add(new Setting.Toggle("chunk_borders", true));
     private final Setting.Toggle spawns = add(new Setting.Toggle("spawnable", true));
     private final Setting.Toggle slime = add(new Setting.Toggle("slime_chunks", false));
+    private final Setting.Toggle beacons = add(new Setting.Toggle("beacon_range", false));
+    /** Nearby beacons: centre x, z and their reach in blocks. */
+    private final int[] bx = new int[16], bz = new int[16], reach = new int[16];
+    private int beaconCount;
 
     private static final int RADIUS = 12, MAX = 2048;
     private final int[] sx = new int[MAX], sy = new int[MAX], sz = new int[MAX];
@@ -96,6 +101,11 @@ public final class WorldOverlays extends Module {
         if (slime.get() && seed == Long.MIN_VALUE && mc.getSingleplayerServer() != null) {
             seed = mc.getSingleplayerServer().overworld().getSeed();
         }
+        if (beacons.get() && mc.level.getGameTime() % 20 == 0) {
+            findBeacons(mc);
+        } else if (!beacons.get()) {
+            beaconCount = 0;
+        }
         if (!spawns.get() || mc.level.getGameTime() % 10 != 0) {
             if (!spawns.get()) {
                 count = 0;
@@ -130,10 +140,37 @@ public final class WorldOverlays extends Module {
         count = n;
     }
 
+    /** The beacons in the chunks around you that light a beam (their pyramid's levels known on the client). */
+    private void findBeacons(Minecraft mc) {
+        int n = 0;
+        int pcx = mc.player.blockPosition().getX() >> 4, pcz = mc.player.blockPosition().getZ() >> 4;
+        for (int dx = -4; dx <= 4 && n < bx.length; dx++) {
+            for (int dz = -4; dz <= 4 && n < bx.length; dz++) {
+                var chunk = mc.level.getChunkSource().getChunk(pcx + dx, pcz + dz, false);
+                if (chunk == null) {
+                    continue;
+                }
+                for (var be : chunk.getBlockEntities().values()) {
+                    if (be instanceof net.minecraft.world.level.block.entity.BeaconBlockEntity
+                            && be instanceof io.github.georgwav.cosmetics.mixin.BeaconLevelsAccess beacon && n < bx.length) {
+                        int levels = beacon.cosmeticsmod$levels();
+                        if (levels > 0) {
+                            bx[n] = be.getBlockPos().getX();
+                            bz[n] = be.getBlockPos().getZ();
+                            reach[n] = levels * 10 + 10;
+                            n++;
+                        }
+                    }
+                }
+            }
+        }
+        beaconCount = n;
+    }
+
     /** Draws the marks (end of the level render, with the world's depth). */
     public static void render() {
         WorldOverlays w = Modules.WORLD_OVERLAYS;
-        if (!w.enabled() || !FrameInfo.inWorld || (w.count == 0 && !(w.slime.get() && w.seed != Long.MIN_VALUE))) {
+        if (!w.enabled() || !FrameInfo.inWorld || (w.count == 0 && w.beaconCount == 0 && !(w.slime.get() && w.seed != Long.MIN_VALUE))) {
             return;
         }
         Guard.run(Feature.MODULES, w::draw);
@@ -169,7 +206,28 @@ public final class WorldOverlays extends Module {
                 }
             }
         }
+        Minecraft mc = Minecraft.getInstance();
+        if (beaconCount > 0 && mc.player != null) {
+            float y0 = (float) (mc.player.getY() - FrameInfo.camY) - 0.5f, y1 = y0 + 2.5f;
+            int c = 0x2E66D9FF;
+            for (int i = 0; i < beaconCount; i++) {
+                // The effect reaches a square round the beacon's block: reach blocks out from its edges.
+                float x0 = (float) (bx[i] - reach[i] - FrameInfo.camX), x1 = (float) (bx[i] + 1 + reach[i] - FrameInfo.camX);
+                float z0 = (float) (bz[i] - reach[i] - FrameInfo.camZ), z1 = (float) (bz[i] + 1 + reach[i] - FrameInfo.camZ);
+                wall(view, x0, z0, x1, z0, y0, y1, c);
+                wall(view, x1, z0, x1, z1, y0, y1, c);
+                wall(view, x1, z1, x0, z1, y0, y1, c);
+                wall(view, x0, z1, x0, z0, y0, y1, c);
+            }
+        }
         WorldDraw.end();
+    }
+
+    private static void wall(org.joml.Matrix4f view, float xa, float za, float xb, float zb, float y0, float y1, int c) {
+        corner(view, xa, y0, za, c);
+        corner(view, xb, y0, zb, c);
+        corner(view, xb, y1, zb, c);
+        corner(view, xa, y1, za, c);
     }
 
     /** The game's slime chunk rule (its seed, the chunk's place and its fixed salt, one in ten). */

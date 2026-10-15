@@ -37,6 +37,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("NametagHealthMixin");
         all.add("GlintPlacesMixin");
         all.add("GlintArmourMixin");
+        all.add("BeaconLevelsAccess");
         all.add("ShulkerTooltipMixin");
         all.add("HitboxColorMixin");
         all.add("FoodDataMixin");
