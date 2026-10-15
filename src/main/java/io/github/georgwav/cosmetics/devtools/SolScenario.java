@@ -109,12 +109,14 @@ public final class SolScenario {
     private static final boolean MOCK_CIDER = Boolean.getBoolean("cosmeticsmod.mockCider");
     private static boolean musicWasOn = true;
     private static boolean albumUiWas = true;
+    private static boolean albumSkyWas;
 
     private void plan() {
         if (MOCK_CIDER) {
             // On from the start, so the song, its lyrics and its cover are there by the music shots.
             musicWasOn = io.github.georgwav.cosmetics.client.Modules.MUSIC.enabled();
             albumUiWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi;
+            albumSkyWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky;
             io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(true);
         }
         planAll();
@@ -158,9 +160,11 @@ public final class SolScenario {
         }
         if (MOCK_CIDER && !"sheet".equals(SHOTS) && !"bench".equals(MODE)) {
             java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
-            if (only.get(0).isBlank() || only.contains("music_viz")) {
+            if (only.get(0).isBlank() || only.contains("music_viz") || only.contains("music_stars")) {
                 // The music in the sky: Ember at sunset with every visualizer (the made-up song's beat).
                 shots.add(new Shot("sol_music_viz", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+                // The album sky at night with the line being sung written in stars, facing away from the set sun.
+                shots.add(new Shot("sol_music_stars", "ember_solstice", -40f, false, -90f, -26f));
             }
         }
         if ("ui".equals(SHOTS)) {
@@ -427,7 +431,9 @@ public final class SolScenario {
         boolean hud = inPlay(what);
         if (MOCK_CIDER) {
             // The album's colours only in the music shots: every other shot shows its theme.
-            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol");
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
+                    || name.equals("sol_music_stars");
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = name.equals("sol_music_stars");
         }
         java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
@@ -834,6 +840,7 @@ public final class SolScenario {
         stageUi("");
         if (MOCK_CIDER) {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = albumUiWas;
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = albumSkyWas;
             if (!musicWasOn) {
                 io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(false);
             }

@@ -394,7 +394,7 @@ final class MusicSection implements Section {
             g.textMid(f, g.fit(f, labels[i], colW - 110f), rx, ry, 0xFFFFFFFF);
             switch (i) {
                 case 0 -> status(ui, tk, right, ry, MusicService.connected("cider"));
-                case 1 -> status(ui, tk, right, ry, MusicService.connected("mpris"));
+                case 1 -> status(ui, tk, right, ry, MusicService.connected("mpris") || MusicService.connected("smtc"));
                 case 2 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.albumUi, () -> set(() -> cfg.albumUi = !cfg.albumUi));
                 case 3 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.albumSky, () -> set(() -> cfg.albumSky = !cfg.albumSky));
                 case 4 -> ui.smallSwitch(tk, right - 30f, ry - 9f, cfg.lyricsHud, () -> set(() -> cfg.lyricsHud = !cfg.lyricsHud));

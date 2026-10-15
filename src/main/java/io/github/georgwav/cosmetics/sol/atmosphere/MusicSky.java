@@ -48,6 +48,11 @@ public final class MusicSky {
         return sunBeat ? 1f + beat * 0.06f : 1f;
     }
 
+    /** The lyric line written in stars (null: none). */
+    public static void starLine(String line) {
+        StarText.line = line;
+    }
+
     /** The beat ring's phase 0..1, or -1 when none shows. */
     public static float ring() {
         return ringPhase < 1f ? ringPhase : -1f;

@@ -41,8 +41,13 @@ abstract class CameraTweaksMixin {
     }
 
     @Unique
-    private void cosmeticsmod$freelook(float partialTick) {
+    private void cosmeticsmod$freelook(float partialTick, boolean mirrored) {
         io.github.georgwav.cosmetics.sol.Hooks.CAMERA_SETUP.hit();
+        // Over the shoulder in third person: the camera moved to one side.
+        float shoulder = CameraTweaks.shoulder();
+        if (detached && shoulder != 0f && entity != null && !CameraTweaks.freelooking()) {
+            move(0f, 0f, mirrored ? shoulder : -shoulder);
+        }
         if (!CameraTweaks.freelooking() || entity == null) {
             return;
         }
@@ -57,19 +62,19 @@ abstract class CameraTweaksMixin {
     //? if >=26.1 {
     /*@Inject(method = "alignWithEntity(F)V", at = @At("TAIL"), require = 0)
     private void cosmeticsmod$align(float partialTick, CallbackInfo ci) {
-        cosmeticsmod$freelook(partialTick);
+        cosmeticsmod$freelook(partialTick, false);
     }
     *///?} elif >=1.21.11 {
     @Inject(method = "setup(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"), require = 0)
     private void cosmeticsmod$setup(net.minecraft.world.level.Level level, Entity e, boolean detached, boolean mirrored,
                                     float partialTick, CallbackInfo ci) {
-        cosmeticsmod$freelook(partialTick);
+        cosmeticsmod$freelook(partialTick, mirrored);
     }
     //?} else {
     /*@Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"), require = 0)
     private void cosmeticsmod$setup(net.minecraft.world.level.BlockGetter level, Entity e, boolean detached, boolean mirrored,
                                     float partialTick, CallbackInfo ci) {
-        cosmeticsmod$freelook(partialTick);
+        cosmeticsmod$freelook(partialTick, mirrored);
     }
     *///?}
 

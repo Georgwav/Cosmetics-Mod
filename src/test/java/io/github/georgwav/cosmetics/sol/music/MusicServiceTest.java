@@ -81,4 +81,17 @@ class MusicServiceTest {
         assertEquals(0xFF2E88, sky.sky().glow() & 0xFFFFFF);
         assertNotEquals(base.fog().color(), sky.fog().color());
     }
+
+    @Test
+    void windowsMediaSessionLines() {
+        NowPlaying n = SmtcSource.parse("{\"app\":\"Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic\",\"title\":\"Song\","
+                + "\"artist\":\"Band\",\"album\":\"LP\",\"pos\":61000,\"dur\":200000,\"playing\":true}");
+        assertNotNull(n);
+        assertEquals("smtc", n.source());
+        assertEquals(61_000L, n.positionMs());
+        assertTrue(n.playing());
+        assertNull(SmtcSource.parse("{}"), "no session");
+        assertNull(SmtcSource.parse("{\"app\":\"Spotify.exe\",\"title\":\"x\"}"), "Spotify has its own source");
+        assertNull(SmtcSource.parse("garbage"));
+    }
 }

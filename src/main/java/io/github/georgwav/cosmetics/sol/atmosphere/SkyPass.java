@@ -102,6 +102,7 @@ public final class SkyPass {
 
         dome(tk, sunAz, q, rain);
         Stellar.render(theme, tk, at, sunAngle, t, rain);
+        StarText.render(tk, sunAz, t, rain);
         Extras.renderBehind(theme, tk, t, rain);
         moon(theme, tk, sunAngle, moonPhase, rain);
         if (theme.eclipse() != null) {

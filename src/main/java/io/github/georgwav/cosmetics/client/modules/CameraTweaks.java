@@ -22,6 +22,9 @@ public final class CameraTweaks extends Module {
     private final Setting.Slider distance = add(new Setting.Slider("distance", 4.0, 1.0, 16.0, 0.5,
             v -> String.format(Locale.ROOT, "%.1f", v)));
     private final Setting.Toggle clip = add(new Setting.Toggle("clip", true));
+    /** Third person over a shoulder: the camera this far to the right (left when negative), in blocks. */
+    private final Setting.Slider shoulder = add(new Setting.Slider("shoulder", 0.0, -1.5, 1.5, 0.05,
+            v -> v == 0 ? "\u2014" : String.format(java.util.Locale.ROOT, "%+.2f", v)));
     private final Setting.Toggle worldBob = add(new Setting.Toggle("world_bob", true));
 
     private boolean freelooking, snapping;
@@ -103,6 +106,12 @@ public final class CameraTweaks extends Module {
     }
 
     /** Whether the camera turns on its own now. */
+    /** The shoulder offset now (0 with the module off). */
+    public static float shoulder() {
+        CameraTweaks c = io.github.georgwav.cosmetics.client.Modules.CAMERA;
+        return c.enabled() ? c.shoulder.get().floatValue() : 0f;
+    }
+
     public static boolean freelooking() {
         CameraTweaks c = Modules.CAMERA;
         return c.enabled() && c.freelooking;

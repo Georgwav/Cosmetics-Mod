@@ -6,7 +6,7 @@ import io.github.georgwav.cosmetics.client.Setting;
 
 /**
  * Screen: the overlays that cover the view, each one you can switch off: the pumpkin's mask, the powder snow frost,
- * the dark vignette at the screen's edges, the nether portal's swirl and nausea's wobble.
+ * the dark vignette at the screen's edges, the nether portal's swirl, nausea's wobble and the underwater overlay.
  */
 public final class ScreenTweaks extends Module {
     private final Setting.Toggle pumpkin = add(new Setting.Toggle("pumpkin", false));
@@ -14,6 +14,7 @@ public final class ScreenTweaks extends Module {
     private final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false));
     private final Setting.Toggle portal = add(new Setting.Toggle("portal", true));
     private final Setting.Toggle nausea = add(new Setting.Toggle("nausea", true));
+    private final Setting.Toggle water = add(new Setting.Toggle("water", true));
 
     public ScreenTweaks() {
         super("screen", Category.VIEW, "screen");
@@ -35,6 +36,10 @@ public final class ScreenTweaks extends Module {
 
     public static boolean hidesPortal() {
         return hides(Modules.SCREEN.portal);
+    }
+
+    public static boolean hidesWater() {
+        return hides(io.github.georgwav.cosmetics.client.Modules.SCREEN.water);
     }
 
     public static boolean hidesNausea() {
