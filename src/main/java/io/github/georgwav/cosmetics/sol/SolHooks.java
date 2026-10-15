@@ -45,6 +45,7 @@ public final class SolHooks {
                 FrameInfo.rainBrightness = 1f - FrameInfo.rain;
                 *///?}
                 FrameInfo.renderDistance = mc.options.getEffectiveRenderDistance() * 16f;
+                FrameInfo.day = Math.floorDiv(level.getGameTime(), 24000L);
                 var player = mc.player;
                 FrameInfo.skyHidden = player != null && (player.hasEffect(MobEffects.BLINDNESS)
                         || player.hasEffect(MobEffects.DARKNESS));

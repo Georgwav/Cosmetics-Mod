@@ -10,7 +10,6 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.Ease;
-import io.github.georgwav.cosmetics.sol.util.Mulberry32;
 
 /**
  * The Sol sky, drawn in the game's sky pass in place of its own: the dome (top, middle and horizon colours, warmer
@@ -45,12 +44,6 @@ public final class SkyPass {
     private static final int[] plasmaPixels = new int[256];
     private static float plasmaTime = -1f;
 
-    // Stars: unit directions, sizes, twinkle phase and speed.
-    private static float[] starX = new float[0], starY = new float[0], starZ = new float[0];
-    private static float[] starS = new float[0], starPh = new float[0], starSp = new float[0];
-    private static String starsTheme = "";
-    private static int starsCount = -1;
-    private static float starsDensity = -1f;
 
     private SkyPass() {
     }
@@ -100,7 +93,7 @@ public final class SkyPass {
         float sunAz = (float) Math.toDegrees(Math.atan2(-sx, sz));
 
         dome(tk, sunAz, q, rain);
-        stars(theme, tk, at, sunAngle, t, rain);
+        Stellar.render(theme, tk, at, sunAngle, t, rain);
         Extras.renderBehind(theme, tk, t, rain);
         moon(theme, tk, sunAngle, moonPhase, rain);
         if (theme.eclipse() != null) {
@@ -200,80 +193,6 @@ public final class SkyPass {
     private static float toward(float az, float sunAz, float q) {
         float cos = (float) Math.cos(Math.toRadians(az - sunAz));
         return 1f + 0.25f * Math.max(0f, cos) * (1f - q) * Ease.smoothstep(-10f, 0f, sunAltitude);
-    }
-
-    // ------------------------------------------------------------------ stars
-
-    private static void stars(ThemeSpec theme, Tokens tk, Atmosphere at, float sunAngle, float t, float rain) {
-        float alpha = tk.night * (1f - rain);
-        if (at != null && !at.stars.get()) {
-            return;
-        }
-        ensureStars(theme);
-        if (alpha <= 0.01f || starX.length == 0) {
-            return;
-        }
-        float px = SkyDraw.pixel();
-        float sc = Math.max(1f, FrameInfo.height / 560f);
-        float cos = (float) Math.cos(sunAngle);
-        float sin = (float) Math.sin(sunAngle);
-        int tint = theme.stars().tint() != null ? theme.stars().tint() : 0xFFFFFFFF;
-        float fogDim = "fog".equals(theme.stars().through()) ? 0.4f : 1f;
-        WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
-        for (int i = 0; i < starX.length; i++) {
-            // The sky turns with the sun, around the north–south axis.
-            float x0 = starX[i], y0 = starY[i];
-            float x = x0 * cos - y0 * sin;
-            float y = x0 * sin + y0 * cos;
-            float z = starZ[i];
-            if (y < -0.05f) {
-                continue;
-            }
-            float a = 0.35f + 0.65f * (0.5f + 0.5f * (float) Math.sin(t * starSp[i] + starPh[i]));
-            // Low stars twinkle more and fade into the horizon haze.
-            float low = Ease.smoothstep(-0.02f, 0.25f, y);
-            a = Math.min(1f, a * (0.4f + 0.6f * low)) * alpha * fogDim * MusicSky.starBoost(starS[i]);
-            if (a <= 0.01f) {
-                continue;
-            }
-            float h = starS[i] * sc * px * 0.5f;
-            SkyDraw.billboard(x, y, z);
-            SkyDraw.rect(-h, -h, h, h, Colors.withAlpha(tint, a));
-        }
-        WorldDraw.end();
-    }
-
-    private static void ensureStars(ThemeSpec theme) {
-        if (theme.id().equals(starsTheme) && theme.stars().count() == starsCount && theme.stars().density() == starsDensity) {
-            return;
-        }
-        starsTheme = theme.id();
-        starsCount = theme.stars().count();
-        starsDensity = theme.stars().density();
-        // The theme's bright stars plus a field of faint ones for a real night sky (the full field is StarBake's).
-        int bright = theme.stars().count();
-        int faint = Math.round(220 * theme.stars().density());
-        int n = bright + faint;
-        Mulberry32 r = new Mulberry32(theme.id().length() * 977 + theme.id().charAt(0));
-        starX = new float[n];
-        starY = new float[n];
-        starZ = new float[n];
-        starS = new float[n];
-        starPh = new float[n];
-        starSp = new float[n];
-        for (int i = 0; i < n; i++) {
-            // Uniform on the sphere.
-            float z = (float) (r.next() * 2.0 - 1.0);
-            float a = (float) (r.next() * Math.PI * 2.0);
-            float h = (float) Math.sqrt(1f - z * z);
-            starX[i] = h * (float) Math.cos(a);
-            starY[i] = h * (float) Math.sin(a);
-            starZ[i] = z;
-            boolean big = i < bright ? r.next() < 0.3 : r.next() < 0.06;
-            starS[i] = big ? 2f : 1f;
-            starPh[i] = (float) (r.next() * Math.PI * 2.0);
-            starSp[i] = (float) (0.5 + r.next() * 2.0);
-        }
     }
 
     // ------------------------------------------------------------------ moon
