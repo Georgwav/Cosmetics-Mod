@@ -49,7 +49,9 @@ import java.util.Random;
 public final class SolHud {
     /** The parts Sol draws in place of the game's. */
     public enum Part {
-        HOTBAR("hotbar"), HEALTH("health"), ARMOR("armor"), FOOD("food"), AIR("air"), MOUNT("mount"), XP("xp"), LEVEL("level");
+        HOTBAR("hotbar"), HEALTH("health"), ARMOR("armor"), FOOD("food"), AIR("air"), MOUNT("mount"), XP("xp"), LEVEL("level"),
+        // Restyled rather than redrawn (SolHudCards): the game still lays them out and writes their text.
+        BOSS("boss"), SIDEBAR("sidebar"), TAB("tab"), ACTION_BAR("action_bar");
 
         public final String id;
 
@@ -57,6 +59,9 @@ public final class SolHud {
             this.id = id;
         }
     }
+
+    /** How many times Sol drew each part (the test scenario checks every hook drew). */
+    public static final int[] DRAWN = new int[Part.values().length];
 
     private static final Design D = new Design();
     private static final Gfx G = new Gfx(D);
@@ -124,6 +129,7 @@ public final class SolHud {
 
     /** Draws a part, guarded: a failure switches Sol UI off and the game's own HUD comes back. */
     public static void draw(Part part, Canvas c, float partialTick) {
+        DRAWN[part.ordinal()]++;
         Guard.run(Feature.SOL_UI, () -> {
             Minecraft mc = Minecraft.getInstance();
             Player player = mc.getCameraEntity() instanceof Player p ? p : null;
@@ -141,6 +147,8 @@ public final class SolHud {
                 case MOUNT -> mount(c, player, tk, w, h);
                 case XP -> experience(c, player, tk, w, h);
                 case LEVEL -> level(c, mc, player, tk, w, h);
+                default -> {
+                }
             }
         });
     }
@@ -148,7 +156,7 @@ public final class SolHud {
     // ------------------------------------------------------------------ the kit in GUI pixels
 
     /** The kit with design units = the game's GUI units, so Sol's glass lines up with the game's HUD. */
-    private static Gfx begin(Canvas c) {
+    static Gfx begin(Canvas c) {
         Minecraft mc = Minecraft.getInstance();
         D.gui(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), mc.getWindow().getGuiScale());
         c.push();
@@ -157,13 +165,13 @@ public final class SolHud {
         return G;
     }
 
-    private static void end(Canvas c) {
+    static void end(Canvas c) {
         G.end();
         c.pop();
     }
 
     /** Text with a soft dark shadow, so it reads on any sky. */
-    private static void shadowed(Gfx g, SolFont f, String s, float x, float cy, int argb, int align) {
+    static void shadowed(Gfx g, SolFont f, String s, float x, float cy, int argb, int align) {
         float px = 1f / g.d.u * Math.max(1f, g.d.gs * 0.5f);
         draw(g, f, s, x + px, cy + px, 0xB0000000, align);
         draw(g, f, s, x, cy, argb, align);
@@ -256,7 +264,7 @@ public final class SolHud {
         c.pop();
     }
 
-    private static void glass(Gfx g, Tokens tk, float x, float y, float w, float h, float r) {
+    static void glass(Gfx g, Tokens tk, float x, float y, float w, float h, float r) {
         // A touch darker than the menus' glass: the HUD sits over bright sand and snow too.
         g.round(x, y, w, h, r, Colors.withAlpha(tk.panel, Math.max(0.62f, tk.glass)));
         g.stroke(x, y, w, h, r, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.5f));

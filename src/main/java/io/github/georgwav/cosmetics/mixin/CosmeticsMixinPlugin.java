@@ -22,6 +22,9 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SolCloudsMixin");
         all.add("SolGameRendererMixin");
         all.add("FoodDataMixin");
+        all.add("SolBossBarMixin");
+        all.add("SolTabListMixin");
+        all.add("SolHudLookMixin");
         //? if <1.21.11 {
         /*all.add("SolLightMixin");
         *///?}

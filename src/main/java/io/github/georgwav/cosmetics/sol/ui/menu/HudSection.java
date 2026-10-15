@@ -81,10 +81,17 @@ final class HudSection implements Section {
             cfg.solUi = !cfg.solUi;
             SolConfig.save();
         });
-        float cxp = x;
+        // The parts' chips, wrapping across the section's width.
+        float cxp = x, cyp = sy + 32f;
+        SolFont chipFont = g.font(SolFont.Family.MEDIUM, 12f);
         for (SolHud.Part part : SOL_PARTS) {
+            String label = SolMenu.tr("sol.menu.hud.part." + part.id);
+            if (cxp > x && cxp + g.width(chipFont, label) + 22f > x + w) {
+                cxp = x;
+                cyp += 30f;
+            }
             boolean on = cfg.solUi && !cfg.solUiOff.contains(part.id);
-            cxp += ui.chip(tk, cxp, sy + 32f, SolMenu.tr("sol.menu.hud.part." + part.id), on, () -> toggle(cfg, part)) + 6f;
+            cxp += ui.chip(tk, cxp, cyp, label, on, () -> toggle(cfg, part)) + 6f;
         }
 
         // The HUD modules' switches in two columns.
@@ -111,7 +118,8 @@ final class HudSection implements Section {
 
     /** The parts with a chip; the level goes with the experience bar. */
     private static final SolHud.Part[] SOL_PARTS = {SolHud.Part.HOTBAR, SolHud.Part.HEALTH, SolHud.Part.ARMOR, SolHud.Part.FOOD,
-            SolHud.Part.AIR, SolHud.Part.MOUNT, SolHud.Part.XP};
+            SolHud.Part.AIR, SolHud.Part.MOUNT, SolHud.Part.XP, SolHud.Part.BOSS, SolHud.Part.SIDEBAR, SolHud.Part.TAB,
+            SolHud.Part.ACTION_BAR};
 
     /** Hands a part back to the game, or gives it to Sol (turning Sol UI on if it was off). */
     private static void toggle(SolConfig cfg, SolHud.Part part) {

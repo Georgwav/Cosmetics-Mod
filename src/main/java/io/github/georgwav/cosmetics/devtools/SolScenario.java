@@ -40,7 +40,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off"};
+            "hud_sol", "hud_off", "tab"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -134,7 +134,7 @@ public final class SolScenario {
                     continue;
                 }
                 // The HUD in play: Ember Solstice by day, facing west.
-                shots.add(ui.startsWith("hud_") && !ui.equals("hud_editor")
+                shots.add(inPlay(ui)
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
@@ -283,9 +283,18 @@ public final class SolScenario {
             mc.player.setXRot(s.pitch());
             mc.player.yRotO = s.yaw();
             mc.player.xRotO = s.pitch();
-            if (phaseTick == SETTLE - 2 && s.name().startsWith("ui_hud_") && !s.name().equals("ui_hud_editor")) {
+            boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
+            if (play && phaseTick == SETTLE - 10) {
+                asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
+            }
+            if (play && phaseTick == SETTLE - 2) {
                 // The toasts from the items given for the HUD shots.
                 io.github.georgwav.cosmetics.sol.render.Mc.clearToasts();
+            }
+            // The tab list shot holds the player list key.
+            mc.options.keyPlayerList.setDown(s.name().equals("ui_tab"));
+            if (phaseTick == SETTLE && play) {
+                checkHud(s.name());
             }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.
@@ -361,7 +370,8 @@ public final class SolScenario {
         // The toast, the HUD editor and the HUD shots are shown with the HUD, as in play; every other frame keeps the
         // HUD hidden.
         String what = ui ? name.substring(3) : "";
-        boolean hud = what.equals("hud_sol") || what.equals("hud_off");
+        boolean hud = inPlay(what);
+        java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
         hudInPlay(hud, what.equals("hud_off"));
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
@@ -480,6 +490,39 @@ public final class SolScenario {
         }
     }
 
+    /**
+     * Every Sol UI hook drew in the HUD shots (a hook this version lacks would leave the game's look), and none in
+     * the shot with Sol UI off.
+     */
+    private void checkHud(String name) {
+        int[] drawn = io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN;
+        java.util.List<io.github.georgwav.cosmetics.sol.hud.SolHud.Part> want = switch (name) {
+            case "ui_hud_sol" -> java.util.List.of(io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()).stream()
+                    .filter(p -> p != io.github.georgwav.cosmetics.sol.hud.SolHud.Part.AIR
+                            && p != io.github.georgwav.cosmetics.sol.hud.SolHud.Part.MOUNT
+                            && p != io.github.georgwav.cosmetics.sol.hud.SolHud.Part.TAB).toList();
+            case "ui_tab" -> java.util.List.of(io.github.georgwav.cosmetics.sol.hud.SolHud.Part.TAB);
+            default -> java.util.List.of();
+        };
+        for (var p : want) {
+            if (drawn[p.ordinal()] == 0) {
+                problems.add(name + ": Sol UI's " + p.id + " didn't draw");
+            }
+        }
+        if (name.equals("ui_hud_off")) {
+            for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
+                if (drawn[p.ordinal()] > 0) {
+                    problems.add(name + ": Sol UI's " + p.id + " drew with Sol UI off");
+                }
+            }
+        }
+    }
+
+    /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
+    private static boolean inPlay(String what) {
+        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab");
+    }
+
     /** The game mode before the HUD shots (null while they aren't on). */
     private static net.minecraft.world.level.GameType modeBefore;
     private static boolean solUiBefore;
@@ -511,13 +554,23 @@ public final class SolScenario {
                     "item replace entity @s weapon.offhand with shield", "item replace entity @s armor.head with iron_helmet",
                     "item replace entity @s armor.chest with iron_chestplate", "item replace entity @s armor.feet with iron_boots",
                     "xp set @s 23 levels", "xp set @s 40 points", "damage @s 7 minecraft:generic",
-                    "effect give @s minecraft:absorption 120 0 true"));
+                    "effect give @s minecraft:absorption 120 0 true",
+                    // A boss bar, a scoreboard in the sidebar and in the tab list (which a lone player only sees
+                    // with one).
+                    "bossbar add cosmeticsmod:show {\"text\":\"Ender Dragon\"}", "bossbar set cosmeticsmod:show players @s",
+                    "bossbar set cosmeticsmod:show value 62", "bossbar set cosmeticsmod:show color purple",
+                    "bossbar set cosmeticsmod:show style notched_10",
+                    "scoreboard objectives add solshow dummy {\"text\":\"Sol Client\",\"color\":\"gold\"}",
+                    "scoreboard objectives setdisplay sidebar solshow", "scoreboard objectives setdisplay list solshow",
+                    "scoreboard players set @s solshow 23", "scoreboard players set Kills solshow 12",
+                    "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450"));
         }
         if (on) {
             cfg.solUi = !vanilla;
         } else if (modeBefore != null) {
             cfg.solUi = solUiBefore;
             asPlayer(mc, List.of("clear @s", "effect clear @s", "xp set @s 0 levels", "xp set @s 0 points",
+                    "bossbar remove cosmeticsmod:show", "scoreboard objectives remove solshow",
                     "gamerule announceAdvancements true", "gamerule show_advancement_messages true",
                     "difficulty " + difficultyBefore,
                     "effect give @s minecraft:instant_health 1 10 true", "gamemode " + modeBefore.getName() + " @s"));
