@@ -178,7 +178,10 @@ public final class ModuleDrawer {
             float v = (float) ((sl.get() - sl.min) / Math.max(1e-9, sl.max - sl.min));
             ui.slider(tk, right, cy, v, sl.text(), k -> sl.set(sl.min + k * (sl.max - sl.min)));
         } else if (st instanceof Setting.Text t) {
-            var field = fields.computeIfAbsent(t, k -> new io.github.georgwav.cosmetics.sol.ui.kit.TextField(k.max, k::set));
+            var field = fields.computeIfAbsent(t, k -> {
+                var made = new io.github.georgwav.cosmetics.sol.ui.kit.TextField(k.max, k::set);
+                return k instanceof Setting.Secret ? made.secret() : made;
+            });
             if (!field.focused()) {
                 field.set(t.get());
             }

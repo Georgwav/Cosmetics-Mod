@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.Setting;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
@@ -12,11 +13,15 @@ import java.util.Locale;
 /**
  * Hypixel: Auto GG (your line, said once when a game ends: Hypixel's end-of-game summary lines are what it listens
  * for, and with Hypixel's Mod API only while you're in a game); Quickplay (its key opens every game and mode, a click
- * joins the queue); and Play again (its key queues the mode you played last). Only while you're on Hypixel.
+ * joins the queue); Play again (its key queues the mode you played last); and Level head (players' network
+ * level after their name, from Hypixel's API with your own key). Only while you're on Hypixel.
  */
 public final class Hypixel extends Module {
     private final Setting.Toggle autoGg = add(new Setting.Toggle("auto_gg", true));
     private final Setting.Text ggText = add(new Setting.Text("gg_text", "gg", 60));
+    /** Players' network level after their name, from Hypixel's API with your key (kept in the secrets file). */
+    private final Setting.Toggle levelHead = add(new Setting.Toggle("level_head", false));
+    private final Setting.Secret apiKey = add(new Setting.Secret("api_key", "hypixel_api_key", 64).advanced());
     private static final List<String> ENDS = List.of("1st killer", "winner:", "winners:", "winner -", "reward summary",
             "your overall winstreak", "1st place");
     private long lastGg;
@@ -47,6 +52,25 @@ public final class Hypixel extends Module {
     static boolean onHypixel() {
         var server = Minecraft.getInstance().getCurrentServer();
         return server != null && server.ip.toLowerCase(Locale.ROOT).contains("hypixel.net");
+    }
+
+    /** A player's name tag with their Hypixel network level after it, when Level head is on. */
+    public static Component withLevel(net.minecraft.world.entity.Entity entity, Component name) {
+        Hypixel h = Modules.HYPIXEL;
+        if (name == null || !h.enabled() || !h.levelHead.get() || !(entity instanceof net.minecraft.world.entity.player.Player)
+                || !onHypixelNow()) {
+            return name;
+        }
+        int level = io.github.georgwav.cosmetics.sol.client.HypixelLevels.of(entity.getUUID(), h.apiKey.get());
+        if (level < 0) {
+            return name;
+        }
+        return name.copy().append(Component.literal(" Lv " + level).withStyle(net.minecraft.ChatFormatting.AQUA));
+    }
+
+    @Override
+    protected void onSettingsChanged(Minecraft mc) {
+        io.github.georgwav.cosmetics.sol.client.HypixelLevels.keyChanged();
     }
 
     /** Whether you're on Hypixel now (the server's address, or Hypixel's Mod API said hello). */

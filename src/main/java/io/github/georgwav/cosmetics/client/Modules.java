@@ -250,7 +250,10 @@ public final class Modules {
             saved.addProperty("enabled", m.enabled());
             JsonObject values = new JsonObject();
             for (Setting<?> s : m.settings) {
-                values.add(s.id, s.save());
+                JsonElement value = s.save();
+                if (value != null) {
+                    values.add(s.id, value);
+                }
             }
             saved.add("settings", values);
             JsonObject state = new JsonObject();

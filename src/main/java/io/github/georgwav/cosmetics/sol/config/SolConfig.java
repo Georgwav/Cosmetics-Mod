@@ -37,7 +37,6 @@ public final class SolConfig {
     public Map<String, String> overlaps = new LinkedHashMap<>();
     public Updates updates = new Updates();
     public String discordAppId = "";
-    public String hypixelApiKey = "";
     /** Set while Atmosphere has paused the shader pack, so it is put back even after a crash. */
     public boolean irisPausedByAtmosphere;
     /** The parts of the game's HUD switched back from Sol UI's look to the game's own, by id (SolHud.Part). */
@@ -127,7 +126,6 @@ public final class SolConfig {
         if (updates == null) updates = new Updates();
         if (updates.repo == null || updates.repo.isBlank()) updates.repo = "georgwav/cosmetics-mod";
         if (discordAppId == null) discordAppId = "";
-        if (hypixelApiKey == null) hypixelApiKey = "";
         if (solUiOff == null) solUiOff = new java.util.ArrayList<>();
         if (mutedNotifications == null) mutedNotifications = new java.util.ArrayList<>();
         return this;

@@ -35,6 +35,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("WaterOverlayMixin");
         all.add("NametagLookMixin");
         all.add("NametagHealthMixin");
+        all.add("GlintPlacesMixin");
+        all.add("GlintArmourMixin");
         all.add("ShulkerTooltipMixin");
         all.add("HitboxColorMixin");
         all.add("FoodDataMixin");
@@ -76,6 +78,9 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         *///?}
         //? if <26.1 {
         all.add("ClientLevelDataMixin");
+        //?}
+        //? if >=1.21.4 {
+        all.add("ItemLayersAccess");
         //?}
         return all;
     }
