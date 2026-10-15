@@ -177,4 +177,13 @@ public final class SpotifySource implements MusicSource {
     public void previous() {
         control("POST", "/me/player/previous");
     }
+
+    /** Saves the track to Liked Songs. */
+    @Override
+    public void like() {
+        NowPlaying n = MusicService.now();
+        if (n != null && n.key().startsWith("spotify:") && !n.key().contains("|")) {
+            control("PUT", "/me/tracks?ids=" + n.key().substring("spotify:".length()));
+        }
+    }
 }

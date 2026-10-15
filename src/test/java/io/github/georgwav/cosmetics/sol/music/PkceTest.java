@@ -31,7 +31,7 @@ class PkceTest {
         assertTrue(url.contains("code_challenge=CH"));
         assertTrue(url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A43117%2Fcallback"));
         assertTrue(url.contains("state=st"));
-        assertTrue(url.contains("scope=user-read-playback-state+user-read-currently-playing+user-modify-playback-state"));
+        assertTrue(url.contains("scope=user-read-playback-state+user-read-currently-playing+user-modify-playback-state+user-library-modify"));
     }
 
     @Test

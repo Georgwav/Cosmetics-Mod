@@ -182,6 +182,16 @@ public final class CiderSource implements MusicSource {
         post("/playback/previous");
     }
 
+    @Override
+    public void like() {
+        Thread t = new Thread(() -> {
+            Http.post(base() + "/playback/set-rating", "{\"rating\":1}", auth());
+            Http.post(base() + "/playback/add-to-library", "{}", auth());
+        }, "Sol Cider control");
+        t.setDaemon(true);
+        t.start();
+    }
+
     /** Apple Music's API through Cider ({@code amapi/run-v3}): the reply, or null. */
     private String runV3(String path) {
         com.google.gson.JsonObject body = new com.google.gson.JsonObject();

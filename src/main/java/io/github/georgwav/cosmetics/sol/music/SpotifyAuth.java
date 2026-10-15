@@ -20,7 +20,7 @@ import java.util.Map;
 public final class SpotifyAuth {
     public static final int PORT = 43117;
     public static final String REDIRECT = "http://127.0.0.1:" + PORT + "/callback";
-    static final String SCOPES = "user-read-playback-state user-read-currently-playing user-modify-playback-state";
+    static final String SCOPES = "user-read-playback-state user-read-currently-playing user-modify-playback-state user-library-modify";
     static final String ACCOUNTS = System.getProperty("cosmeticsmod.spotifyAccounts", "https://accounts.spotify.com");
     private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     private static final SecureRandom RANDOM = new SecureRandom();

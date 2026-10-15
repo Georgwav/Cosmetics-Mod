@@ -7,13 +7,15 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * The system's player on Linux (MPRIS, through {@code playerctl}): follows its song and state, and asks for the
- * position every two seconds. Idle without playerctl.
+ * position every two seconds while it plays (a seek shows up). Idle without playerctl.
  */
 public final class MprisSource implements MusicSource {
     private static final String FORMAT = "{{status}}\t{{xesam:title}}\t{{xesam:artist}}\t{{xesam:album}}\t{{mpris:length}}\t{{position}}\t{{mpris:artUrl}}";
     private volatile Process follow;
     private volatile boolean up;
+    private volatile NowPlaying last;
     private Thread reader;
+    private volatile Thread poller;
 
     @Override
     public String id() {
@@ -28,6 +30,35 @@ public final class MprisSource implements MusicSource {
         reader = new Thread(this::run, "Sol MPRIS");
         reader.setDaemon(true);
         reader.start();
+        poller = new Thread(this::poll, "Sol MPRIS position");
+        poller.setDaemon(true);
+        poller.start();
+    }
+
+    private void poll() {
+        while (poller == Thread.currentThread()) {
+            try {
+                Thread.sleep(2000L);
+            } catch (InterruptedException e) {
+                return;
+            }
+            NowPlaying n = last;
+            if (!up || n == null || !n.playing()) {
+                continue;
+            }
+            try {
+                Process p = new ProcessBuilder("playerctl", "position").redirectErrorStream(true).start();
+                String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+                if (p.waitFor() == 0 && !out.isEmpty() && last == n) {
+                    last = n.withPosition(Math.round(Double.parseDouble(out) * 1000.0), true);
+                    MusicService.report(this, last);
+                }
+            } catch (IOException | NumberFormatException e) {
+                // Keep counting on.
+            } catch (InterruptedException e) {
+                return;
+            }
+        }
     }
 
     private void run() {
@@ -37,7 +68,8 @@ public final class MprisSource implements MusicSource {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(follow.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = in.readLine()) != null) {
-                    MusicService.report(this, parse(line));
+                    last = parse(line);
+                    MusicService.report(this, last);
                 }
             }
         } catch (IOException e) {
@@ -74,6 +106,11 @@ public final class MprisSource implements MusicSource {
             follow = null;
         }
         reader = null;
+        if (poller != null) {
+            poller.interrupt();
+            poller = null;
+        }
+        last = null;
         up = false;
     }
 

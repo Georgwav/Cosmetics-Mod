@@ -54,6 +54,11 @@ public final class MusicHud extends TextHud {
 
     public MusicHud() {
         super("music", "note", 0f, 0f, 4f, 80f);
+        // Media keys reach Cider or Spotify through the system already; these are the game's own (unbound).
+        addKey("play_pause");
+        addKey("next_track");
+        addKey("previous_track");
+        addKey("like");
     }
 
     /** Whether visualizer {@code id} (stars, eq, aurora, rings, album_sun, notes, breathe) is on. */
@@ -90,6 +95,27 @@ public final class MusicHud extends TextHud {
     @Override
     protected void tick(Minecraft mc) {
         albumColours();
+        if (pressed("play_pause")) {
+            MusicService.playPause();
+        }
+        if (pressed("next_track")) {
+            MusicService.next();
+        }
+        if (pressed("previous_track")) {
+            MusicService.previous();
+        }
+        if (pressed("like")) {
+            MusicService.like();
+        }
+    }
+
+    private boolean pressed(String name) {
+        var k = key(name);
+        boolean any = false;
+        while (k != null && k.consumeClick()) {
+            any = true;
+        }
+        return any;
     }
 
     /** Lays the cover's colours over the theme while a song with a cover is there (and the player wants it). */

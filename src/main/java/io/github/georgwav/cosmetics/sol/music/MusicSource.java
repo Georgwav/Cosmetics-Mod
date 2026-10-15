@@ -21,6 +21,10 @@ public interface MusicSource {
     default void previous() {
     }
 
+    /** Loves the song playing (Cider: Apple Music's rating, and into the library). */
+    default void like() {
+    }
+
     /** Lyrics only this source can give (Apple's, through Cider), or null. */
     default String appleLyricsTtml(NowPlaying song) {
         return null;

@@ -241,6 +241,30 @@ public final class MusicService {
         }
     }
 
+    public static void like() {
+        NowPlaying n = now;
+        if (n != null) {
+            source(n).like();
+            Notifications.post(net.minecraft.network.chat.Component.translatable("sol.notify.music_liked", n.title()).getString());
+        }
+    }
+
+    /** Nudges the song's lyric timing by {@code ms} (kept per song in Sol's settings). */
+    public static void nudgeLyrics(long ms) {
+        NowPlaying n = now;
+        if (n == null) {
+            return;
+        }
+        var offsets = SolConfig.get().music.lyricsOffsetMs;
+        long v = Math.max(-5000L, Math.min(5000L, offset(n) + ms));
+        if (v == 0L) {
+            offsets.remove(n.key());
+        } else {
+            offsets.put(n.key(), (int) v);
+        }
+        SolConfig.save();
+    }
+
     // ---------------------------------------------------------------- per song
 
     private static void songChanged(NowPlaying song) {

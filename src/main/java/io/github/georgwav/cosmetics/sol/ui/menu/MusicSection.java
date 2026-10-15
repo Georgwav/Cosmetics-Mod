@@ -92,7 +92,7 @@ final class MusicSection implements Section {
 
         float cy = y + 42f, cw = 400f, ch = Math.min(206f, h - 46f);
         if (full) {
-            fullLyrics(menu, g, tk, n, x, cy, w, h - 46f);
+            fullLyrics(menu, g, ui, tk, n, x, cy, w, h - 46f);
             return;
         }
         card(g, tk, x, cy, cw, ch);
@@ -186,7 +186,7 @@ final class MusicSection implements Section {
      * white, the rest fading with distance; the duet's second voice from the right, background vocals small under
      * their line.
      */
-    private void fullLyrics(SolMenu menu, Gfx g, Tokens tk, NowPlaying n, float x, float y, float w, float h) {
+    private void fullLyrics(SolMenu menu, Gfx g, Ui ui, Tokens tk, NowPlaying n, float x, float y, float w, float h) {
         card(g, tk, x, y, w, h);
         if (n == null) {
             return;
@@ -205,6 +205,13 @@ final class MusicSection implements Section {
         g.round(ax, ay + 196f, 140f, 3f, 1.5f, 0x24FFFFFF);
         g.round(ax, ay + 196f, Math.max(3f, 140f * n.progress()), 3f, 1.5f, tk.accent);
         g.textMid(mono, time(n.position()) + " / " + time(n.durationMs()), ax, ay + 210f, 0x99FFFFFF);
+        // The lyric timing nudge for this song (some lyrics run a little early or late).
+        long nudge = MusicService.offset(n);
+        float nx = ax;
+        nx += ui.chip(tk, nx, ay + 236f, "\u2212 0.1 s", false, () -> MusicService.nudgeLyrics(-100L)) + 6f;
+        nx += ui.chip(tk, nx, ay + 236f, "+ 0.1 s", false, () -> MusicService.nudgeLyrics(100L)) + 8f;
+        g.textMid(mono, nudge == 0L ? SolMenu.tr("sol.menu.music.in_time") : String.format(java.util.Locale.ROOT, "%+.1f s", nudge / 1000f),
+                nx, ay + 236f, 0x99FFFFFF);
 
         float lx = x + 210f, lw = w - 210f - 30f, mid = y + h * 0.45f;
         long pos = n.position(), off = MusicService.offset(n);

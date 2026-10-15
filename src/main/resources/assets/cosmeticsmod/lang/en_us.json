@@ -968,5 +968,12 @@
   "sol.menu.music.loading": "Loading…",
   "sol.menu.music.search_empty": "Type to search Apple Music",
   "sol.menu.music.library_empty": "Nothing here yet",
-  "sol.notify.music_playing": "Playing %s"
+  "sol.notify.music_playing": "Playing %s",
+  "key.cosmeticsmod.module.music": "Music on/off",
+  "key.cosmeticsmod.module.music.play_pause": "Music: play or pause",
+  "key.cosmeticsmod.module.music.next_track": "Music: next song",
+  "key.cosmeticsmod.module.music.previous_track": "Music: previous song",
+  "key.cosmeticsmod.module.music.like": "Music: love this song",
+  "sol.notify.music_liked": "Loved %s",
+  "sol.menu.music.in_time": "In time"
 }

@@ -191,7 +191,8 @@ class Handler(BaseHTTPRequestHandler):
                 _started = time.time() - (pos - START_S)
             return self._json({"status": "ok"})
         if path in ("/api/v1/playback/next", "/api/v1/playback/previous", "/api/v1/playback/play-item-href",
-                    "/api/v1/playback/play-item"):
+                    "/api/v1/playback/play-item", "/api/v1/playback/set-rating",
+                    "/api/v1/playback/add-to-library"):
             return self._json({"status": "ok"})
         self._json({"error": "not found"}, 404)
 
