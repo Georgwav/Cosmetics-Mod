@@ -1,0 +1,173 @@
+{
+  "name": "Grace",
+  "line": "A gold rune of linked rings burns above a bank of lit cloud, deep in dark green fog.",
+  "order": 12,
+  "ui": {
+    "accent": "#e8c26a",
+    "panel": "#081411",
+    "panelAlpha": 0.62,
+    "rim": "#f0cd78",
+    "rimAlpha": 0.5
+  },
+  "sky": {
+    "top": "#040d0b",
+    "middle": "#0b2a28",
+    "horizon": "#14403d",
+    "glow": "#215049",
+    "sunWarmth": 0.1
+  },
+  "fog": {
+    "color": "#10302d",
+    "density": 0.78,
+    "near": 3,
+    "far": 58,
+    "scatter": 0.95,
+    "haze": 0.7
+  },
+  "light": {
+    "tint": "#b8e0c8",
+    "strength": 0.8,
+    "boost": 1.0,
+    "sun": "#ffe2a0",
+    "shadow": "#062420"
+  },
+  "show": {
+    "phase": "night",
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
+  },
+  "stars": {
+    "count": 12,
+    "palette": "gold",
+    "tint": "#ffe0a0",
+    "milkyWay": 0.0,
+    "deepSky": false,
+    "through": "fog"
+  },
+  "planets": {
+    "enabled": false
+  },
+  "sigil": {
+    "x": 0.56,
+    "y": 0.305,
+    "r": 0.104,
+    "color": "#ffd27a",
+    "halo": "#e47a26"
+  },
+  "mist": {
+    "color": "#285c56",
+    "warm": "#e6a256",
+    "bands": 7,
+    "alpha": 1.2
+  },
+  "clouds": {
+    "tint": "#1e3e38",
+    "litBySun": false,
+    "visible": false
+  },
+  "wind": [
+    0.15,
+    0.0,
+    0.06
+  ],
+  "particles": [
+    {
+      "type": "ember",
+      "count": 56,
+      "colors": [
+        "#ffcf6a",
+        "#ffb347",
+        "#fff0b8"
+      ],
+      "size": [
+        1.1,
+        2.3
+      ]
+    },
+    {
+      "type": "dust",
+      "count": 40,
+      "colors": [
+        "#7fc4ab",
+        "#5a9a85"
+      ],
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "ash",
+      "count": 10,
+      "colors": [
+        "#1c2e28",
+        "#26392f"
+      ],
+      "size": [
+        2,
+        3.5
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#2c5a54",
+        "middle": "#4a7a70",
+        "horizon": "#86aa98",
+        "glow": "#a8c8b4",
+        "sunWarmth": 0.15
+      },
+      "fog": {
+        "color": "#4a7068",
+        "density": 0.72,
+        "near": 4,
+        "far": 80
+      },
+      "light": {
+        "tint": "#e8f8ee",
+        "strength": 0.06
+      },
+      "clouds": {
+        "tint": "#a8c4b8"
+      }
+    },
+    "dawn": {
+      "sky": {
+        "top": "#0c2420",
+        "middle": "#1e443e",
+        "horizon": "#4a6e5c",
+        "glow": "#c09060",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#244a44",
+        "density": 0.76
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#081c18",
+        "middle": "#183c36",
+        "horizon": "#3e6050",
+        "glow": "#b07e50",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#1c403a",
+        "density": 0.76
+      }
+    }
+  },
+  "grade": {
+    "highlights": "#ffe6a8",
+    "shadows": "#02100c",
+    "saturation": 1.08,
+    "contrast": 1.08,
+    "bloomTint": "#ffc86a",
+    "bloom": 1.1,
+    "threshold": 0.5,
+    "vignette": 0.2
+  }
+}

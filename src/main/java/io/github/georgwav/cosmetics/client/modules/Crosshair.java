@@ -1,0 +1,127 @@
+package io.github.georgwav.cosmetics.client.modules;
+
+import io.github.georgwav.cosmetics.client.Module;
+import io.github.georgwav.cosmetics.client.Setting;
+import io.github.georgwav.cosmetics.ui.Canvas;
+import net.minecraft.client.Minecraft;
+
+import java.util.List;
+
+/**
+ * Your own crosshair in place of the game's: a cross, a T, a circle or a dot, with its arm length, gap, thickness,
+ * colour and opacity, a centre dot and a dark outline. It is drawn in screen pixels, so it is as sharp and as large
+ * at any GUI scale. The game's attack indicator isn't drawn while it is on.
+ */
+public final class Crosshair extends Module {
+    private static final List<String> COLORS = List.of("white", "green", "red", "cyan", "yellow", "pink");
+    private static final int[] RGB = {0xFFFFFF, 0x4CFF4C, 0xFF4040, 0x40E8FF, 0xFFE040, 0xFF60D0};
+
+    private final Setting.Choice style = add(new Setting.Choice("style", "cross", List.of("cross", "t", "circle", "dot")));
+    private final Setting.Slider length = add(new Setting.Slider("length", 7, 1, 24, 1, Crosshair::px));
+    private final Setting.Slider gap = add(new Setting.Slider("gap", 3, 0, 16, 1, Crosshair::px));
+    private final Setting.Slider thickness = add(new Setting.Slider("thickness", 2, 1, 6, 1, Crosshair::px));
+    private final Setting.Toggle dot = add(new Setting.Toggle("dot", false));
+    private final Setting.Choice color = add(new Setting.Choice("color", "white", COLORS));
+    private final Setting.Slider opacity = add(new Setting.Slider("opacity", 1.0, 0.2, 1.0, 0.05,
+            v -> Math.round(v * 100) + "%"));
+    private final Setting.Toggle outline = add(new Setting.Toggle("outline", true));
+
+    public Crosshair() {
+        super("crosshair", Category.VIEW, "target");
+    }
+
+    private static String px(double v) {
+        return Math.round(v) + " px";
+    }
+
+    @Override
+    public float previewHeight() {
+        return 120f;
+    }
+
+    /** Enlarged, as large as fits, so each of its pixels shows. */
+    @Override
+    public void drawPreview(Canvas g, int x0, int y0, int x1, int y1) {
+        int extent = (int) Math.round(gap.get() + length.get() + thickness.get()) + 2;
+        int pixel = Math.max(1, Math.min(4, ((y1 - y0) / 2 - 4) / extent));
+        draw(g, (x0 + x1) / 2, (y0 + y1) / 2, pixel);
+    }
+
+    /** Draws it in the middle of the HUD (the game's GUI transform), as the game's crosshair would be. */
+    public void drawOnHud(Canvas g, Minecraft mc) {
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson()) {
+            return;
+        }
+        float gs = (float) mc.getWindow().getGuiScale();
+        int w = mc.getWindow().getGuiScaledWidth();
+        int h = mc.getWindow().getGuiScaledHeight();
+        g.push();
+        g.scale(1f / gs, 1f / gs);
+        draw(g, Math.round(w * gs) / 2, Math.round(h * gs) / 2, 1);
+        g.pop();
+    }
+
+    /**
+     * Draws it centred on (cx, cy) in the current transform's pixels, each of its pixels {@code pixel} of them (the
+     * Mods page shows it enlarged).
+     */
+    public void draw(Canvas g, int cx, int cy, int pixel) {
+        int argb = Math.round(opacity.get().floatValue() * 255) << 24 | RGB[Math.max(0, COLORS.indexOf(color.get()))];
+        int shadow = Math.round(opacity.get().floatValue() * 200) << 24;
+        if (outline.get()) {
+            shapes(g, cx, cy, pixel, 1, shadow);
+        }
+        shapes(g, cx, cy, pixel, 0, argb);
+    }
+
+    /** The crosshair's pieces, each grown by {@code grow} pixels on every side (the outline). */
+    private void shapes(Canvas g, int cx, int cy, int p, int grow, int argb) {
+        int t = (int) Math.round(thickness.get());
+        int len = (int) Math.round(length.get());
+        int gp = (int) Math.round(gap.get());
+        // The middle bar's span: t pixels, centred (odd thicknesses sit exactly on the middle pixel).
+        int a0 = -t / 2;
+        int a1 = a0 + t;
+        String s = style.get();
+        if (s.equals("cross") || s.equals("t")) {
+            rect(g, cx, cy, p, grow, a0 - gp - len, a0, a0 - gp, a1, argb);
+            rect(g, cx, cy, p, grow, a1 + gp, a0, a1 + gp + len, a1, argb);
+            if (s.equals("cross")) {
+                rect(g, cx, cy, p, grow, a0, a0 - gp - len, a1, a0 - gp, argb);
+            }
+            rect(g, cx, cy, p, grow, a0, a1 + gp, a1, a1 + gp + len, argb);
+        } else if (s.equals("circle")) {
+            ring(g, cx, cy, p, grow, gp + len / 2f + t, t, argb);
+        }
+        if (dot.get() || s.equals("dot")) {
+            rect(g, cx, cy, p, grow, a0, a0, a1, a1, argb);
+        }
+    }
+
+    /** A rectangle from (x0, y0) to (x1, y1) in crosshair pixels from the middle. */
+    private static void rect(Canvas g, int cx, int cy, int p, int grow, int x0, int y0, int x1, int y1, int argb) {
+        g.fill(cx + (x0 - grow) * p, cy + (y0 - grow) * p, cx + (x1 + grow) * p, cy + (y1 + grow) * p, argb);
+    }
+
+    /** A ring of outer radius {@code r} and {@code t} thick, in whole pixels row by row (crisp, like the rest). */
+    private static void ring(Canvas g, int cx, int cy, int p, int grow, float r, int t, int argb) {
+        float outer = r + grow;
+        float inner = Math.max(0f, r - t - grow);
+        int rows = (int) Math.ceil(outer);
+        for (int dy = -rows; dy < rows; dy++) {
+            float y = dy + 0.5f;
+            if (Math.abs(y) >= outer) {
+                continue;
+            }
+            int xo = Math.round((float) Math.sqrt(outer * outer - y * y));
+            int xi = Math.abs(y) < inner ? Math.round((float) Math.sqrt(inner * inner - y * y)) : 0;
+            int top = cy + dy * p;
+            if (xi <= 0) {
+                g.fill(cx - xo * p, top, cx + xo * p, top + p, argb);
+            } else if (xo > xi) {
+                g.fill(cx - xo * p, top, cx - xi * p, top + p, argb);
+                g.fill(cx + xi * p, top, cx + xo * p, top + p, argb);
+            }
+        }
+    }
+}

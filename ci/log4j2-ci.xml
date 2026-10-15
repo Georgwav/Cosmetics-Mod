@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The game's own logging (same console and latest.log as Mojang's log4j2.xml), plus logs/cosmeticsmod.log with
+     only this mod's logger and its name, so mcci.py's log gate knows exactly which lines are ours. CI only. -->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="SysOut" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg{nolookups}%n" />
+        </Console>
+        <RollingRandomAccessFile name="File" fileName="logs/latest.log" filePattern="logs/%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg{nolookups}%n" />
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <OnStartupTriggeringPolicy />
+            </Policies>
+        </RollingRandomAccessFile>
+        <File name="Ours" fileName="logs/cosmeticsmod.log" append="false">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] (%logger): %msg{nolookups}%n" />
+        </File>
+    </Appenders>
+    <Loggers>
+        <Logger name="CosmeticsMod" level="info">
+            <AppenderRef ref="Ours"/>
+        </Logger>
+        <Root level="info">
+            <filters>
+                <MarkerFilter marker="NETWORK_PACKETS" onMatch="DENY" onMismatch="NEUTRAL" />
+            </filters>
+            <AppenderRef ref="SysOut"/>
+            <AppenderRef ref="File"/>
+        </Root>
+    </Loggers>
+</Configuration>

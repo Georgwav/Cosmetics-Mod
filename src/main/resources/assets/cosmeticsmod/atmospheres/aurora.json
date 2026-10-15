@@ -1,0 +1,155 @@
+{
+  "name": "Aurora",
+  "line": "Deep teal night, green and violet ribbons, slow snow.",
+  "order": 4,
+  "ui": {
+    "accent": "#5effc1",
+    "panel": "#081e24",
+    "panelAlpha": 0.52,
+    "rim": "#78ffd2",
+    "rimAlpha": 0.5
+  },
+  "sky": {
+    "top": "#04070f",
+    "middle": "#08182a",
+    "horizon": "#0f3342",
+    "glow": "#1f6a6a",
+    "sunWarmth": 0.1
+  },
+  "fog": {
+    "color": "#0e2b36",
+    "density": 0.5,
+    "near": 8,
+    "far": 110,
+    "scatter": 0.6,
+    "haze": 0.35
+  },
+  "light": {
+    "tint": "#9fffe0",
+    "strength": 0.7,
+    "boost": 1.0,
+    "sun": "#c4ffec",
+    "shadow": "#0a1e2c"
+  },
+  "show": {
+    "phase": "night",
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
+  },
+  "moon": {
+    "size": 0.02,
+    "color": "#e8f0ff",
+    "halo": "#9fd9ff",
+    "haloRadius": 0.12,
+    "haloAlpha": 0.3,
+    "ring": true,
+    "x": 0.17,
+    "y": 0.2
+  },
+  "stars": {
+    "count": 150,
+    "palette": "teal",
+    "milkyWay": 0.55
+  },
+  "aurora": [
+    "#4dffb0",
+    "#7a6bff"
+  ],
+  "clouds": {
+    "tint": "#16303a",
+    "litBySun": true,
+    "visible": false
+  },
+  "wind": [
+    0.12,
+    0.0,
+    0.04
+  ],
+  "particles": [
+    {
+      "type": "snow",
+      "count": 50,
+      "colors": [
+        "#dff6ff"
+      ],
+      "size": [
+        1.1,
+        2.4
+      ]
+    },
+    {
+      "type": "dust",
+      "count": 20,
+      "colors": [
+        "#7affd0"
+      ],
+      "size": [
+        1,
+        2
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#5a8ca8",
+        "middle": "#86b4c4",
+        "horizon": "#cfe6e8",
+        "glow": "#e6f6f2",
+        "sunWarmth": 0.2
+      },
+      "fog": {
+        "color": "#b8d4d8",
+        "density": 0.45,
+        "near": 16,
+        "far": 200
+      },
+      "light": {
+        "tint": "#eafff8",
+        "strength": 0.06,
+        "boost": 1.05
+      },
+      "clouds": {
+        "tint": "#eef8f8"
+      },
+      "particleScale": 0.5
+    },
+    "dawn": {
+      "sky": {
+        "top": "#1e3450",
+        "middle": "#3a5a74",
+        "horizon": "#8ab4b8",
+        "glow": "#c8e4d8",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#4a6a74",
+        "density": 0.5
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#142238",
+        "middle": "#2a4a60",
+        "horizon": "#6a9aa0",
+        "glow": "#a8d8c8",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#3a5a64",
+        "density": 0.5
+      }
+    }
+  },
+  "grade": {
+    "highlights": "#c6fff0",
+    "shadows": "#03121a",
+    "saturation": 1.12,
+    "contrast": 1.06,
+    "bloomTint": "#7affd0",
+    "bloom": 1.0,
+    "threshold": 0.52,
+    "vignette": 0.18
+  }
+}

@@ -47,3 +47,4 @@ tools/badlion-import/out/
 .venv/
 *.egg-info/
 .pytest_cache/
+versions/*/logs/

@@ -56,6 +56,14 @@ MIXIN_PROBLEM = re.compile(
 # Startup failures the game never recovers from (26.2+ tries OpenGL, then Vulkan).
 STARTUP_FATAL = re.compile(r"Failed to create backend \w+")
 OUR_ERROR = re.compile(r"(?:/ERROR|ERROR\]).*CosmeticsMod|CosmeticsMod.*(?:/ERROR|ERROR\])")
+# A line of logs/cosmeticsmod.log (ci/log4j2-ci.xml): time, thread, level, our logger, message.
+OUR_LINE = re.compile(r"^\[\d\d:\d\d:\d\d\] \[(?P<thread>[^\]]*)/(?P<level>[A-Z]+)\] \(CosmeticsMod\): (?P<msg>.*)$")
+# Warnings a CI run is expected to log, each at most once; any other warning or error of ours fails the run.
+EXPECTED_ONCE = [re.compile(p) for p in (
+    r"^Dev scenario without -D\S*equipAll=true",  # the Sol scenario wears only what it puts on
+)]
+# Identical lines of ours allowed per run: more means something logs every frame or tick.
+REPEAT_LIMIT = 2
 LOG = print
 
 
@@ -548,6 +556,12 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     if extra_mods_dir:
         for jar in Path(extra_mods_dir).glob("*.jar"):
             shutil.copy(jar, game_dir / "mods")
+    # A launcher folder with saved skins (the unit tests' database), chosen as the client's main folder: the
+    # Skins page reads it.
+    launcher = game_dir / "launcher"
+    launcher.mkdir()
+    shutil.copy(ROOT / "src" / "test" / "resources" / "skins" / "app.db", launcher / "app.db")
+    (game_dir / "config" / "cosmeticsmod-client.json").write_text(json.dumps({"mainFolder": str(launcher.resolve())}))
     if shaderpack:
         (game_dir / "shaderpacks").mkdir()
         shutil.copy(shaderpack, game_dir / "shaderpacks")
@@ -557,19 +571,46 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     # The benchmark compares frame rates, so nothing may cap them: no frame limit (260 = unlimited), and no
     # "inactivity" limit, which drops the game to 30 FPS after a minute without input (from 1.21.2).
     fps = ["maxFps:260", 'inactivityFpsLimit:"minimized"'] if mode == "benchmark" else ["maxFps:60"]
+    # MCCI_GRAPHICS=fast|fancy|fabulous: the Sol light pass has to work under each (Fabulous composites the world
+    # through its own post chain first). 1.21.x stores it as a number; 26.x as a name.
+    graphics = os.environ.get("MCCI_GRAPHICS", "")
+    extra = []
+    if graphics:
+        extra.append("graphicsMode:" + ({"fast": "0", "fancy": "1", "fabulous": "2"}[graphics]
+                                        if not inst.mc.startswith("26.") else '"' + graphics + '"'))
     (game_dir / "options.txt").write_text("\n".join([
         "onboardAccessibility:false", "skipMultiplayerWarning:true", "tutorialStep:none", "joinedFirstServer:true",
         "pauseOnLostFocus:false", "renderDistance:4", "simulationDistance:5", *fps, "enableVsync:false",
-        "fullscreen:false", "narrator:0", "soundCategory_master:0.0", "guiScale:2", ""]))
+        "fullscreen:false", "narrator:0", "soundCategory_master:0.0", "guiScale:2", *extra, ""]))
 
     jvm = [
         "-Xmx3G", "-XX:+UseG1GC",
+        # The game's own logging plus logs/cosmeticsmod.log with only our logger, for the log gate.
+        "-Dlog4j.configurationFile=" + str(ROOT / "ci" / "log4j2-ci.xml"),
         "-Dmixin.debug.export=true", "-Dmixin.debug.verify=true",
-        "-Dcosmeticsmod.equipAll=true",
-        "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else "-Dcosmeticsmod.smokeTest=true",
+        "-Dcosmeticsmod.equipAll=" + ("false" if mode == "sol" else "true"),
+        "-Dcosmeticsmod.benchmark=true" if mode == "benchmark" else
+        ("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO if mode == "sol" else "-Dcosmeticsmod.smokeTest=true"),
     ]
+    if mode != "sol" and SOL_SCENARIO_IN_SMOKE:
+        jvm.append("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO_IN_SMOKE)
+    if mode == "sol":
+        # Local look runs: compare light-pass strengths in one run, or judge at another quality.
+        for env, prop in (("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes"), ("MCCI_SOL_UI", "solUi")):
+            if os.environ.get(env):
+                jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
+    # The Sol scenario's music shots: a mock Cider (REST, Socket.IO, Apple lyrics, a cover) and LRCLIB on Cider's port.
+    mock = None
+    if mode == "sol":
+        import mock_cider
+        try:
+            mock = mock_cider.start(10767)
+            jvm += ["-Dcosmeticsmod.mockCider=true", "-Dcosmeticsmod.lrclib=http://127.0.0.1:10767",
+                    "-Dcosmeticsmod.fakeSpectrum=true"]
+        except OSError as e:
+            LOG(f"[{inst.mc}/{label}] mock Cider not started: {e}")
     if shaderpack:
         jvm.append("-Dcosmeticsmod.expectShaders=true")
     for arg in inst.fabric.get("arguments", {}).get("jvm", []):
@@ -627,14 +668,17 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 break
             for marker in game_dir.glob("cosmeticsmod-phase-*"):
                 phase = marker.name[len("cosmeticsmod-phase-"):]
-                if phase not in seen_markers and (phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_cape", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
+                if phase not in seen_markers and (phase.startswith("sol_") or phase in ("front", "back", "shield_on", "shield_off", "shield_cosmetic", "emote", "emote_elytra", "elytra_stand_on", "elytra_angle_on", "elytra_stand_off", "elytra_angle_off", "elytra_cape", "elytra_emote", "shaders_on") or phase.startswith("ui_")):
                     seen_markers.add(phase)
-                    time.sleep(1 if phase.startswith("ui_") else 4)  # let the phase settle
+                    time.sleep(1 if phase.startswith(("ui_", "sol_")) else 4)  # let the phase settle (Sol phases settle in-game first)
                     png = game_dir / f"screenshot-{phase}.png"
                     if display.screenshot(png):
                         shots.append(png.name)
             time.sleep(1)
         proc.wait()
+    if mock:
+        mock.shutdown()
+        mock.server_close()
 
     if mode == "control":
         crash = crash_summary(game_dir)
@@ -674,6 +718,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
 
 
 CONTROL_SURVIVE_SECONDS = 40
+# The Sol scenario: "full" or "reduced" for a run of its own (mode "sol"); set through --sol.
+SOL_SCENARIO = "full"
+SOL_SCENARIO_IN_SMOKE = ""
 
 
 def crash_summary(game_dir, max_lines=40):
@@ -695,10 +742,44 @@ def crash_summary(game_dir, max_lines=40):
     return out[:max_lines]
 
 
+def our_log_problems(game_dir):
+    """The log gate, on our own log file: unexpected warnings and errors, expected ones more than once, and any
+    identical line more than REPEAT_LIMIT times (per-frame or per-tick logging)."""
+    path = game_dir / "logs" / "cosmeticsmod.log"
+    if not path.exists():
+        return ["no logs/cosmeticsmod.log: the CI logging config (ci/log4j2-ci.xml) wasn't used"]
+    counts = {}
+    unexpected = []
+    for line in path.read_text(errors="replace").splitlines():
+        m = OUR_LINE.match(line)
+        if not m:
+            continue  # a stack trace line under the last message
+        msg = m.group("msg").strip()
+        counts[msg] = counts.get(msg, 0) + 1
+        if m.group("level") in ("WARN", "ERROR") and "SMOKE TEST FAILED" not in msg \
+                and not any(p.search(msg) for p in EXPECTED_ONCE):
+            unexpected.append(f"{m.group('level')} {msg[:200]}")
+    problems = []
+    if unexpected:
+        unique = list(dict.fromkeys(unexpected))
+        problems.append(f"{len(unique)} unexpected warning/error line(s) from this mod, e.g. {unique[0]}"
+                        + (f"; also {unique[1]}" if len(unique) > 1 else ""))
+    twice = [m for m, n in counts.items() if any(p.search(m) for p in EXPECTED_ONCE) and n > 1]
+    if twice:
+        problems.append(f"an expected-once warning came {counts[twice[0]]} times: {twice[0][:200]}")
+    repeated = sorted(((n, m) for m, n in counts.items() if n > REPEAT_LIMIT), reverse=True)
+    if repeated:
+        n, m = repeated[0]
+        problems.append(f"{len(repeated)} line(s) of ours repeated more than {REPEAT_LIMIT} times, e.g. {n}x {m[:200]}")
+    return problems
+
+
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
     problems = []
-    results_path = game_dir / "cosmeticsmod-results.json"
+    results_path = game_dir / ("cosmeticsmod-sol-results.json" if mode == "sol" else "cosmeticsmod-results.json")
     results = json.loads(results_path.read_text()) if results_path.exists() else None
+    if results is not None and mode == "sol":
+        results["failures"] = results.get("problems", [])
     if timed_out:
         problems.append("timed out")
     if results is None:
@@ -717,6 +798,7 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
                    if OUR_ERROR.search(line) and "SMOKE TEST FAILED" not in line})
     if ours:
         problems.append(f"{len(ours)} error line(s) from this mod, e.g. {ours[0]}")
+    problems.extend(our_log_problems(game_dir))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()
@@ -751,7 +833,8 @@ def mod_jar_for(node, jars_dir):
     jars = [j for j in Path(jars_dir).glob(f"*+mc{node}.jar") if not j.name.endswith("-sources.jar")]
     if not jars:
         raise FileNotFoundError(f"no jar for build {node} in {jars_dir}")
-    return jars[0]
+    # The newest, should an older build's jar (another name) still be there.
+    return max(jars, key=lambda j: j.stat().st_mtime)
 
 
 def node_info(node):
@@ -777,6 +860,18 @@ def cmd_runtime(args):
     return 1 if failures else 0
 
 
+def cmd_look(args):
+    """One release with the Sol scenario only, screenshots of every theme; for looking at the sky locally."""
+    global SOL_SCENARIO
+    SOL_SCENARIO = args.sol
+    info = node_info(args.node)
+    mc = args.release or info["test"][-1]
+    jar = mod_jar_for(args.node, args.jars)
+    inst = Instance(mc, java_for(info["java"]), args.cache)
+    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout)
+    return 0 if summary["passed"] else 1
+
+
 def cmd_compat(args):
     info = node_info(args.node)
     mc = info["test"][-1]
@@ -795,6 +890,8 @@ def cmd_compat(args):
         failures += not summary["passed"]
     if args.benchmark:
         run_stack(args, inst, jar, mc, "benchmark", sets["sodium-iris-complementary"], "benchmark")
+        # Sol's cost next to Voxy's far terrain (n/a where Voxy has no build for this version).
+        run_stack(args, inst, jar, mc, "benchmark-voxy", sets["voxy"], "benchmark")
     return 1 if failures else 0
 
 
@@ -1085,6 +1182,20 @@ def cmd_summarize(args):
                 lines.append(f"| {r['mc']} | {phase} | {p.get('fps', 0):.1f} | "
                              f"{p.get('cosmeticsMsPerFrame', 0):.3f} | {p.get('verticesPerFrame', 0):,.0f} | "
                              f"{p.get('shaderPackInUse')} |")
+        sol = [(r, phase, p) for r in bench for phase, p in r.get("phases", {}).items() if "solMsPerFrame" in p]
+        if sol:
+            parts = ["sky", "sun", "particles", "light", "flare", "sol_ui", "hud"]
+            lines += ["", "## Sol's cost (CPU ms per frame; budgets: Atmosphere 0.3, sun + flare 0.03, Sol UI 0.2)", "",
+                      "With software rendering (llvmpipe, as in CI) a draw call also does the graphics card's work, so "
+                      "these times are the renderer's as much as Sol's: compare runs, and check the budgets on a real "
+                      "graphics card.", "",
+                      "| Minecraft | Setup | Phase | FPS | Frame p50 / p99 ms | " + " | ".join(parts) + " |",
+                      "|---|---|---|---|---|" + "---|" * len(parts)]
+            for r, phase, p in sol:
+                ms = p["solMsPerFrame"]
+                lines.append(f"| {r['mc']} | {r['label']} | {phase} | {p.get('fps', 0):.1f} | "
+                             f"{p.get('frameMsP50', 0):.1f} / {p.get('frameMsP99', 0):.1f} | "
+                             + " | ".join(f"{ms.get(k, 0):.3f}" for k in parts) + " |")
     text = "\n".join(lines) + "\n"
     Path(args.output).write_text(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -1106,6 +1217,14 @@ def main():
         if name == "compat":
             p.add_argument("--sets", default="", help="comma-separated stacks from compat-sets.json (default: all)")
             p.add_argument("--benchmark", action="store_true", help="also run the benchmark (shaders off/on)")
+    p = sub.add_parser("look")
+    p.add_argument("--node", required=True, help="build (Stonecutter version), e.g. 1.21.11")
+    p.add_argument("--release", default="", help="Minecraft release to run (default: the build's newest)")
+    p.add_argument("--sol", default="full", help="Sol scenario: full, reduced or look")
+    p.add_argument("--timeout", type=int, default=1500)
+    p.add_argument("--jars", default=str(ROOT / "build" / "libs"))
+    p.add_argument("--cache", default=str(ROOT / "ci" / "work" / "cache"))
+    p.add_argument("--out", default=str(ROOT / "ci" / "work" / "runs"))
     p = sub.add_parser("bench-ab")
     p.add_argument("--node", required=True, help="build (Stonecutter version) both jars are for, e.g. 1.21.11")
     p.add_argument("--base", required=True, help="jar to compare against, e.g. built from main")
@@ -1117,7 +1236,7 @@ def main():
     p.add_argument("--runs", default=str(ROOT / "ci" / "work" / "runs"))
     p.add_argument("--output", default=str(ROOT / "ci" / "work" / "compat-matrix.md"))
     args = parser.parse_args()
-    return {"runtime": cmd_runtime, "compat": cmd_compat, "bench-ab": cmd_bench_ab,
+    return {"runtime": cmd_runtime, "compat": cmd_compat, "look": cmd_look, "bench-ab": cmd_bench_ab,
             "summarize": cmd_summarize}[args.command](args)
 
 

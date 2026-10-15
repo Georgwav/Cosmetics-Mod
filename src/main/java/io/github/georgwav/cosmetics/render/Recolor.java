@@ -88,7 +88,8 @@ public record Recolor(int hue, float saturation, float brightness, Paint paint, 
             return null;
         }
         boolean rainbow = options.rainbow && (allowed & CosmeticOption.RAINBOW.bit()) != 0;
-        int tint = options.color != null && (allowed & CosmeticOption.TINT.bit()) != 0 ? options.color : defaultColor;
+        Integer picked = Tint.color(options, allowed);
+        int tint = picked != null ? picked : defaultColor;
         boolean tinted = rainbow || (tint & 0xFFFFFF) != 0xFFFFFF;
         // Rounded so dragging a slider makes few distinct textures.
         int hue = Math.round(options.hue);

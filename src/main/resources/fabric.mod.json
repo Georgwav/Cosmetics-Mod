@@ -2,8 +2,9 @@
   "schemaVersion": 1,
   "id": "cosmeticsmod",
   "version": "${version}",
-  "name": "Cosmetics Mod",
-  "description": "Player cosmetics drawn through Minecraft's own entity render pipeline, built to coexist with Sodium, Iris and shaderpacks, LoD mods and other model mods.",
+  "name": "Sol Client",
+  "description": "A client built around the sky: themed atmospheres with their own light, the Sol menus, a Wardrobe of player cosmetics drawn through Minecraft's own render pipeline, and client modules. Built to coexist with Sodium, Iris and shaderpacks, LoD mods and other model mods.",
+  "icon": "assets/cosmeticsmod/icon.png",
   "authors": ["Georgwav"],
   "contact": {
     "sources": "https://github.com/Georgwav/Cosmetics-Mod",
@@ -23,5 +24,23 @@
     "fabric-api": "*",
     "minecraft": "${minecraft}",
     "java": ">=${java}"
+  },
+  "suggests": {
+    "zoomify": "*",
+    "freelook": "*",
+    "mousetweaks": "*",
+    "appleskin": "*",
+    "shulkerboxtooltip": "*",
+    "inventoryprofilesnext": "*",
+    "chatpatches": "*",
+    "chat_heads": "*",
+    "nochatreports": "*",
+    "jade": "*",
+    "screenshot_viewer": "*",
+    "controlling": "*",
+    "betterf3": "*",
+    "xaerominimap": "*",
+    "voicechat": "*",
+    "modmenu": "*"
   }
 }

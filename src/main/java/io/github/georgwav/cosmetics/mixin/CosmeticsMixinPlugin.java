@@ -17,15 +17,99 @@ import java.util.Set;
 public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public List<String> getMixins() {
-        //? if >=1.21.4 {
-        return List.of("ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
-        //?} elif >=1.21.2 {
-        /*return List.of("ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
+        List<String> all = new java.util.ArrayList<>(base());
+        all.add("SolOverlayMixin");
+        all.add("SolCloudsMixin");
+        all.add("SolGameRendererMixin");
+        all.add("TitleSwapMixin");
+        all.add("LoadingLookMixin");
+        all.add("ButtonLookMixin");
+        all.add("TooltipLookMixin");
+        all.add("PauseLookMixin");
+        all.add("DeathLookMixin");
+        all.add("FastQuitMixin");
+        all.add("FastQuitGateMixin");
+        all.add("ListLookMixin");
+        all.add("PackFoldersMixin");
+        all.add("TotemSizeMixin");
+        all.add("WaterOverlayMixin");
+        all.add("NametagLookMixin");
+        all.add("NametagHealthMixin");
+        all.add("GlintPlacesMixin");
+        all.add("GlintArmourMixin");
+        all.add("BeaconLevelsAccess");
+        all.add("ShulkerTooltipMixin");
+        all.add("HitboxColorMixin");
+        all.add("FoodDataMixin");
+        all.add("SolBossBarMixin");
+        all.add("SolTabListMixin");
+        all.add("SolHudLookMixin");
+        all.add("TotemPopMixin");
+        all.add("SolChatMixin");
+        all.add("ChatSendMixin");
+        all.add("ZoomMouseMixin");
+        all.add("CameraTweaksMixin");
+        all.add("FreelookTurnMixin");
+        all.add("ViewBobMixin");
+        all.add("LowFireMixin");
+        all.add("OverlayTextureAccessor");
+        all.add("HeldItemsMixin");
+        all.add("SwingMixin");
+        all.add("ScreenOverlayMixin");
+        all.add("NametagMixin");
+        all.add("BackgroundFpsMixin");
+        all.add("ParticleTweaksMixin");
+        all.add("SoundMixerMixin");
+        all.add("DroppedItemsMixin");
+        all.add("ScreenshotMixin");
+        all.add("ItemDecorationsMixin");
+        all.add("DisconnectedScreenMixin");
+        //? if >=26.1 {
+        /*all.add("ZoomCameraMixin");
         *///?} else {
-        /*return List.of("ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
-                "ElytraModelMixin", "WingsLayerMixin");
+        all.add("ZoomFovMixin");
+        //?}
+        //? if >=1.21.11 {
+        all.add("SolChatDrawMixin");
+        //?} else {
+        /*all.add("SolChatLookMixin");
+        *///?}
+        //? if <1.21.11 {
+        /*all.add("SolLightMixin");
+        *///?}
+        //? if <26.1 {
+        all.add("ClientLevelDataMixin");
+        //?}
+        //? if >=1.21.4 {
+        all.add("ItemLayersAccess");
+        //?}
+        return all;
+    }
+
+    private static List<String> base() {
+        //? if >=26.3 {
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "ClockInstanceMixin", "LevelRendererOutlineMixin");
+        *///?} elif >=26.1 {
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "ClockManagerMixin", "LevelRendererOutlineMixin");
+        *///?} elif >=1.21.6 {
+        return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin");
+        //?} elif >=1.21.4 {
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemModelResolverMixin", "ShieldSpecialRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin", "BossOverlayMixin");
+        *///?} elif >=1.21.2 {
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin", "BossOverlayMixin");
+        *///?} else {
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+                "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
+                "GuiMixin", "GuiAirMixin", "BossOverlayMixin");
         *///?}
     }
 

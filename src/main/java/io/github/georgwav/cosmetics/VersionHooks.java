@@ -86,17 +86,29 @@ final class VersionHooks {
         //?}
     }
 
-    /**
-     * "Open Cosmetics" key. Unbound by default so it can never clash with another mod's key; players
-     * bind it in Controls, or use /cosmetics or Mod Menu.
-     */
+    /** "Open Cosmetics": the Wardrobe, unbound by default (main's key and meaning). */
     static KeyMapping registerKeyMapping() {
         return registerKeyMapping("key.cosmeticsmod.open", InputConstants.UNKNOWN.getValue());
+    }
+
+    /** The Sol quick menu: Right Shift, like other clients' menus. */
+    static KeyMapping registerQuickMenuKeyMapping() {
+        return registerKeyMapping("key.cosmeticsmod.quick_menu", InputConstants.KEY_RSHIFT);
     }
 
     /** "Emote wheel" key, B by default like Lunar's (vanilla uses B only with Ctrl, for the narrator). */
     static KeyMapping registerEmoteKeyMapping() {
         return registerKeyMapping("key.cosmeticsmod.emotes", InputConstants.KEY_B);
+    }
+
+    /** A key bind for a client module: unbound until the player binds it (here or in Controls). */
+    static KeyMapping registerUnboundKey(String name) {
+        return registerKeyMapping(name, InputConstants.UNKNOWN.getValue());
+    }
+
+    /** A module's key with a default (Zoom on C, freelook on Left Alt); -1 for unbound. */
+    static KeyMapping registerModuleKey(String name, int defaultKey) {
+        return registerKeyMapping(name, defaultKey < 0 ? InputConstants.UNKNOWN.getValue() : defaultKey);
     }
 
     private static KeyMapping registerKeyMapping(String name, int defaultKey) {
@@ -140,6 +152,7 @@ final class VersionHooks {
             @Override
             public void onResourceManagerReload(ResourceManager manager) {
                 CosmeticLoader.reload(manager);
+                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
             }
         });
         *///?} elif <1.21.11 {
@@ -160,6 +173,7 @@ final class VersionHooks {
             @Override
             public void onResourceManagerReload(ResourceManager manager) {
                 CosmeticLoader.reload(manager);
+                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
             }
         };
     }

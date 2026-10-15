@@ -1,0 +1,93 @@
+{
+  "targets": {
+    "swap": {},
+    "mask": {
+      "width": 480,
+      "height": 270
+    },
+    "shafts": {
+      "width": 480,
+      "height": 270
+    }
+  },
+  "passes": [
+    {
+      "program": "cosmeticsmod:post/sol_mask",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "mask"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_rays",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "mask",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "shafts"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_world",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        },
+        {
+          "sampler_name": "Shafts",
+          "target": "shafts",
+          "bilinear": true
+        }
+      ],
+      "output": "swap"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "output": "minecraft:main"
+    }
+  ]
+}

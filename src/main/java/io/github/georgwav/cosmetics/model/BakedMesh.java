@@ -29,6 +29,11 @@ public final class BakedMesh {
         this.quadCount = data.length / FLOATS_PER_QUAD;
     }
 
+    /** A mesh from raw data in the layout above (the mannequin's body, read from the game's own player model). */
+    public static BakedMesh of(float[] data) {
+        return new BakedMesh(data);
+    }
+
     /** Raw vertex data. Must not be modified. */
     public float[] data() {
         return data;

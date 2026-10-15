@@ -1,0 +1,1017 @@
+package io.github.georgwav.cosmetics.sol.ui.wardrobe;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.emote.Emote;
+import io.github.georgwav.cosmetics.emote.EmotePlayer;
+import io.github.georgwav.cosmetics.emote.Emotes;
+import io.github.georgwav.cosmetics.model.BakedCosmetic;
+import io.github.georgwav.cosmetics.model.CosmeticLoader;
+import io.github.georgwav.cosmetics.model.CosmeticRegistry;
+import io.github.georgwav.cosmetics.model.CosmeticSlot;
+import io.github.georgwav.cosmetics.render.CapeElytra;
+import io.github.georgwav.cosmetics.sol.Feature;
+import io.github.georgwav.cosmetics.sol.theme.ThemeState;
+import io.github.georgwav.cosmetics.sol.theme.Tokens;
+import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
+import io.github.georgwav.cosmetics.sol.ui.kit.Notifications;
+import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
+import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
+import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
+import io.github.georgwav.cosmetics.sol.ui.kit.TextField;
+import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
+import io.github.georgwav.cosmetics.sol.util.Colors;
+import io.github.georgwav.cosmetics.source.EquippedCosmetics;
+import io.github.georgwav.cosmetics.ui.Canvas;
+import io.github.georgwav.cosmetics.ui.KeyBinds;
+import io.github.georgwav.cosmetics.ui.PreviewParticles;
+import io.github.georgwav.cosmetics.ui.ScreenOpener;
+import io.github.georgwav.cosmetics.ui.TilePictures;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * The Wardrobe: every cosmetic, outfit, emote and skin, and every cosmetics setting the Cosmetics screen had, in the
+ * Sol style. The views down the left (with how many each holds, and the source above them), the glass tiles in the
+ * middle (click to wear, the gear for the cosmetic's page; pointing at one tries it on), and you on the right,
+ * turning as you drag. A cosmetic's page, an outfit's page and the settings open in the middle; Esc steps back.
+ * Changes apply at once and are saved when the Wardrobe closes.
+ */
+public final class WardrobeScreen extends SolScreen {
+    /** The rail's views, in the Cosmetics screen's order, then outfits, emotes, skins and the settings. */
+    enum View {
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, OUTFITS, EMOTES, SKINS, SETTINGS;
+
+        boolean includes(BakedCosmetic c, List<String> wearing) {
+            return switch (this) {
+                case WEARING -> wearing.contains(c.id());
+                case ALL -> true;
+                case CAPES -> c.slot() == CosmeticSlot.CAPE;
+                case WINGS -> isWings(c);
+                case HATS -> c.slot() == CosmeticSlot.HEAD;
+                case FACE -> c.slot() == CosmeticSlot.FACE;
+                case BODY -> c.slot() == CosmeticSlot.BODY;
+                case BACK -> c.slot() == CosmeticSlot.BACK && !isWings(c);
+                case SHIELDS -> c.slot() == CosmeticSlot.SHIELD;
+                case AURAS -> c.slot() == CosmeticSlot.AURA;
+                case PETS -> c.slot() == CosmeticSlot.PET;
+                case LIMBS -> c.slot() == CosmeticSlot.ARM || c.slot() == CosmeticSlot.FEET;
+                default -> false;
+            };
+        }
+
+        boolean lists() {
+            return ordinal() <= LIMBS.ordinal();
+        }
+
+        String icon() {
+            return switch (this) {
+                case WEARING -> "check";
+                case ALL -> "grid4";
+                case CAPES -> "cape";
+                case WINGS -> "wings";
+                case HATS -> "crown";
+                case FACE -> "eye";
+                case BODY -> "shirt";
+                case BACK -> "box";
+                case SHIELDS -> "shield";
+                case AURAS -> "flame";
+                case PETS -> "heart";
+                case LIMBS -> "run";
+                case OUTFITS -> "ring";
+                case EMOTES -> "people";
+                case SKINS -> "shirt";
+                case SETTINGS -> "gear";
+            };
+        }
+
+        String label() {
+            return switch (this) {
+                case SKINS -> Component.translatable("sol.wardrobe.view.skins").getString();
+                case SETTINGS -> Component.translatable("sol.wardrobe.view.settings").getString();
+                default -> t("view." + name().toLowerCase(Locale.ROOT));
+            };
+        }
+
+        static boolean isWings(BakedCosmetic c) {
+            return c.wings() != null || "wings".equals(c.kind());
+        }
+    }
+
+    /** Where cosmetics came from, by their pack's namespace: the Wardrobe shows one source at a time, or all. */
+    enum Source {
+        ALL(null), BADLION("blc_import"), LUNAR("lunar_import"), NORISK("norisk_import"), BUILT_IN("cosmeticsmod"), OTHER(null);
+
+        private final String namespace;
+
+        Source(String namespace) {
+            this.namespace = namespace;
+        }
+
+        static Source of(BakedCosmetic c) {
+            String ns = c.id().substring(0, c.id().indexOf(':'));
+            for (Source s : values()) {
+                if (ns.equals(s.namespace)) {
+                    return s;
+                }
+            }
+            return OTHER;
+        }
+
+        boolean includes(BakedCosmetic c) {
+            return this == ALL || of(c) == this;
+        }
+    }
+
+    // Kept while the game runs, as the Cosmetics screen kept them.
+    private static View lastView = View.ALL;
+    private static Source source = Source.ALL;
+    private static String lastQuery = "";
+    static float previewSpin, previewPitch;
+    static boolean previewElytra;
+    private static final float MAX_PITCH = 80f;
+    /** Most tiles one view shows at once (only so a broken pack can't build thousands); the rest are a search away. */
+    private static final int TILE_CAP = 300;
+    /** Frames drawn, for the in-game test. */
+    public static int framesRendered;
+
+    // The layout, in design pixels.
+    static final float RAIL_X = 40f, RAIL_W = 176f, MAIN_X = 234f, TOP = 92f, BOTTOM = 676f;
+    static final float PREVIEW_W = 330f, PREVIEW_X = 1240f - PREVIEW_W;
+    static final float MAIN_W = PREVIEW_X - 20f - MAIN_X;
+
+    View view = lastView;
+    final Ui ui = new Ui();
+    final TilePictures pictures = new TilePictures();
+    private final PreviewParticles particles = new PreviewParticles();
+    private final Scroll scroll = new Scroll();
+    private final TextField search = new TextField(64, q -> {
+        lastQuery = q;
+        scroll.reset();
+    });
+    /** A cosmetic's page (its id), an outfit's page, or neither (the view's list). */
+    String detailId;
+    CosmeticsConfig.Outfit outfitPage;
+    CosmeticPage cosmeticPage;
+    private OutfitPage outfitPageView;
+    private final SettingsView settingsView = new SettingsView(this);
+    private final SkinsView skinsView = new SkinsView(this);
+    /** The key bind waiting for a key, or null. */
+    KeyMapping listeningFor;
+    private int copiedFailures = -1;
+    private String tryingOn;
+    private float shownSpin = previewSpin, shownPitch = previewPitch;
+    private float dragX = Float.NaN, dragY;
+
+    public WardrobeScreen(Screen parent) {
+        super(Component.translatable("sol.wardrobe.title"), parent, Feature.MENU);
+        search.set(lastQuery);
+    }
+
+    /** Opens on a view ("outfits", "emotes", "skins", "settings", or a cosmetic's page with "cosmetic:<id>"). */
+    public static WardrobeScreen on(Screen parent, String what) {
+        WardrobeScreen s = new WardrobeScreen(parent);
+        if (what != null) {
+            if (what.startsWith("cosmetic:")) {
+                s.openCosmetic(what.substring("cosmetic:".length()));
+            } else {
+                for (View v : View.values()) {
+                    if (v.name().equalsIgnoreCase(what)) {
+                        s.view = v;
+                    }
+                }
+            }
+        }
+        return s;
+    }
+
+    static String t(String key, Object... args) {
+        return Component.translatable("cosmeticsmod.screen." + key, args).getString();
+    }
+
+    static String tr(String key, Object... args) {
+        return Component.translatable(key, args).getString();
+    }
+
+    float dt() {
+        return dt;
+    }
+
+    float time() {
+        return time;
+    }
+
+    void toast(String text) {
+        Notifications.post(text);
+    }
+
+    // The game's own draws inside a frame (pictures, skins) take screen pixels: the kit's canvas is scaled to them.
+    static int screenX(Gfx g, float x) {
+        return Math.round(g.d.sx(x));
+    }
+
+    static int screenY(Gfx g, float y) {
+        return Math.round(g.d.sy(y));
+    }
+
+    static int screenSize(Gfx g, float size) {
+        return Math.max(1, Math.round(size * g.d.u));
+    }
+
+    // ------------------------------------------------------------------ what the Wardrobe lists
+
+    /** The cosmetics the Wardrobe lists: all but emote props (they come with their emotes), from the source shown. */
+    static List<BakedCosmetic> wardrobe() {
+        if (source != Source.ALL && !sources().contains(source)) {
+            source = Source.ALL; // that pack is gone
+        }
+        return CosmeticRegistry.all().stream().filter(c -> !c.definition().prop() && source.includes(c)).toList();
+    }
+
+    /** ALL, then each source some loaded cosmetic comes from. */
+    static List<Source> sources() {
+        EnumSet<Source> present = EnumSet.noneOf(Source.class);
+        for (BakedCosmetic c : CosmeticRegistry.all()) {
+            if (!c.definition().prop()) {
+                present.add(Source.of(c));
+            }
+        }
+        List<Source> out = new ArrayList<>();
+        out.add(Source.ALL);
+        out.addAll(present);
+        return out;
+    }
+
+    static void setEquipped(String id, boolean on) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        CosmeticsConfig.wear(config.localEquipped(), id, on, other -> {
+            BakedCosmetic c = CosmeticRegistry.get(other);
+            return c != null ? c.kind() : null;
+        }, config.severalOfAKind);
+        EquippedCosmetics.invalidate();
+    }
+
+    void openCosmetic(String id) {
+        detailId = id;
+        outfitPage = null;
+        BakedCosmetic c = id == null ? null : CosmeticRegistry.get(id);
+        cosmeticPage = c == null ? null : new CosmeticPage(this, c);
+        if (c == null) {
+            detailId = null;
+        }
+    }
+
+    void openOutfit(CosmeticsConfig.Outfit outfit) {
+        outfitPage = outfit;
+        detailId = null;
+        cosmeticPage = null;
+        outfitPageView = outfit == null ? null : new OutfitPage(this, outfit);
+    }
+
+    void go(View v) {
+        view = v;
+        lastView = v;
+        scroll.reset();
+        openCosmetic(null);
+        openOutfit(null);
+        search.focus(false);
+    }
+
+    // ------------------------------------------------------------------ the frame
+
+    @Override
+    protected void frame(Gfx g) {
+        framesRendered++;
+        Tokens tk = ThemeState.tokens();
+        ui.begin(g, mx, my);
+        pictures.beginFrame();
+        if (outfitPage != null && !CosmeticsConfig.get().savedOutfits.contains(outfitPage)) {
+            openOutfit(null); // deleted, or the settings were reset
+        }
+        // The veil: the world stays visible, darker behind the panels.
+        g.rectScreen(g.d.left(), g.d.top(), g.d.right(), g.d.bottom(), 0x9904050A, 0xD604050A);
+        header(g, tk);
+        rail(g, tk);
+        String pointed = null;
+        CosmeticsConfig.Outfit pointedOutfit = null;
+        float mainTop = TOP, mainH = BOTTOM - TOP;
+        if (cosmeticPage != null) {
+            cosmeticPage.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
+            pointed = detailId;
+        } else if (outfitPageView != null) {
+            outfitPageView.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
+            pointedOutfit = outfitPage;
+        } else {
+            switch (view) {
+                case OUTFITS -> pointedOutfit = outfits(g, tk, mainTop, mainH);
+                case EMOTES -> emotes(g, tk, mainTop, mainH);
+                case SKINS -> skinsView.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
+                case SETTINGS -> settingsView.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
+                default -> pointed = grid(g, tk, mainTop, mainH);
+            }
+        }
+        // Trying on: the outfit or cosmetic pointed at (or whose page is open) shows on you, not worn.
+        if (pointedOutfit != null) {
+            tryingOn = null;
+            EquippedCosmetics.previewOutfit(pointedOutfit);
+        } else {
+            tryingOn = pointed != null && !CosmeticsConfig.get().localEquipped().contains(pointed) ? pointed : null;
+            EquippedCosmetics.preview(tryingOn);
+        }
+        previewPanel(g, tk);
+        footer(g, tk);
+    }
+
+    private void header(Gfx g, Tokens tk) {
+        ui.tool(tk, RAIL_X, 36f, "close", false, this::onClose);
+        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        String title = tr("sol.wardrobe.title");
+        g.textMid(h2, title, RAIL_X + 40f, 49f, 0xFFFFFFFF);
+        String count = tr("sol.wardrobe.count", CosmeticsConfig.get().localEquipped().size(), wardrobe().size());
+        g.textMid(mono, count, RAIL_X + 40f + g.width(h2, title) + 14f, 49f, 0x8CFFFFFF);
+        if (view.lists() && cosmeticPage == null && outfitPageView == null && !wardrobe().isEmpty()) {
+            // On the right of the column, clear of the title and its count.
+            float sw = Math.min(320f, MAIN_W * 0.5f);
+            search.draw(g, ui, tk, MAIN_X + MAIN_W - sw, 32f, sw, 34f, "search", t("wardrobe.search"), dt);
+        }
+    }
+
+    private void footer(Gfx g, Tokens tk) {
+        SolFont mono = g.font(SolFont.Family.MONO, 11f);
+        g.text(mono, t("hint"), RAIL_X, 700f, 0x73FFFFFF);
+        g.textRight(mono, SettingsView.buildLabel(), 1240f, 700f, 0x59FFFFFF);
+    }
+
+    // ------------------------------------------------------------------ the rail
+
+    private void rail(Gfx g, Tokens tk) {
+        float y = TOP;
+        List<Source> sources = sources();
+        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.MONO, 11f);
+        if (sources.size() > 2) {
+            String label = t("source." + source.name().toLowerCase(Locale.ROOT));
+            ui.chip(tk, RAIL_X, y + 12f, label, source != Source.ALL, () -> {
+                source = sources.get((sources.indexOf(source) + 1) % sources.size());
+                scroll.reset();
+            });
+            y += 34f;
+        }
+        List<String> wearing = CosmeticsConfig.get().localEquipped();
+        List<BakedCosmetic> all = wardrobe();
+        for (View v : View.values()) {
+            if (v == View.OUTFITS || v == View.SETTINGS) {
+                y += 10f;
+                g.rect(RAIL_X + 4f, y - 5f, RAIL_W - 8f, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
+            }
+            int count = switch (v) {
+                case OUTFITS -> CosmeticsConfig.get().savedOutfits.size();
+                case EMOTES -> Emotes.all().size();
+                case SKINS, SETTINGS -> -1;
+                case WEARING -> wearing.size();
+                default -> (int) all.stream().filter(c -> v.includes(c, wearing)).count();
+            };
+            boolean on = v == view && cosmeticPage == null && outfitPageView == null || v == view;
+            float h = 26f;
+            boolean hover = ui.over(RAIL_X, y, RAIL_W, h);
+            int fi = ui.click(RAIL_X, y, RAIL_W, h, () -> go(v));
+            if (v == view) {
+                g.round(RAIL_X, y, RAIL_W, h, 8f, 0x1AFFFFFF);
+                g.round(RAIL_X, y + 6f, 3f, h - 12f, 1.5f, tk.accent);
+            } else if (hover) {
+                g.round(RAIL_X, y, RAIL_W, h, 8f, 0x0DFFFFFF);
+            }
+            Icons.draw(g, v.icon(), RAIL_X + 10f, y + 6f, 14f, v == view ? tk.accent : 0x99FFFFFF,
+                    v == view ? Icons.FILL_ON : Icons.FILL, 0);
+            g.textMid(f, g.fit(f, v.label(), RAIL_W - 70f), RAIL_X + 32f, y + h / 2f, on ? 0xFFFFFFFF : 0xB3FFFFFF);
+            if (count >= 0) {
+                g.textRight(mono, String.valueOf(count), RAIL_X + RAIL_W - 10f, y + h / 2f, 0x73FFFFFF);
+            }
+            if (ui.focused(fi)) {
+                g.stroke(RAIL_X - 2f, y - 2f, RAIL_W + 4f, h + 4f, 10f, 2f * g.d.u, tk.accent);
+            }
+            y += h + 2f;
+        }
+    }
+
+    // ------------------------------------------------------------------ the grid
+
+    /** The view's cosmetics as tiles with the notices above them; returns the cosmetic pointed at. */
+    private String grid(Gfx g, Tokens tk, float top, float h) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        List<BakedCosmetic> all = new ArrayList<>(wardrobe());
+        List<String> wearing = config.localEquipped();
+        g.clip(MAIN_X - 4f, top - 4f, MAIN_X + MAIN_W + 6f, top + h);
+        float y = top - scroll.value();
+        y = notices(g, tk, y);
+        String pointed = null;
+        if (all.isEmpty()) {
+            g.text(g.font(SolFont.Family.MEDIUM, 13f), t("wardrobe.empty"), MAIN_X, y + 18f, 0x99FFFFFF);
+            y += 30f;
+        } else {
+            // What you wear first, then by name; a search matches names and ids.
+            all.sort(Comparator.comparing((BakedCosmetic c) -> !wearing.contains(c.id()))
+                    .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
+            String needle = search.text().trim().toLowerCase(Locale.ROOT);
+            List<BakedCosmetic> shown = all.stream().filter(c -> view.includes(c, wearing) && matches(c, needle)).toList();
+            if (shown.isEmpty()) {
+                g.text(g.font(SolFont.Family.MEDIUM, 13f), needle.isEmpty() ? t("wardrobe.empty_view")
+                        : t("wardrobe.no_match", search.text().trim()), MAIN_X, y + 18f, 0x99FFFFFF);
+                y += 30f;
+            } else {
+                int capped = Math.min(shown.size(), TILE_CAP);
+                List<BakedCosmetic> list = shown.subList(0, capped);
+                if (view == View.ALL || view == View.WEARING) {
+                    // Everything: grouped by slot, as on the Cosmetics screen.
+                    for (CosmeticSlot slot : CosmeticSlot.values()) {
+                        List<BakedCosmetic> inSlot = list.stream().filter(c -> c.slot() == slot).toList();
+                        if (inSlot.isEmpty()) {
+                            continue;
+                        }
+                        SolFont head = g.font(SolFont.Family.MONO, 11f);
+                        g.textSpaced(head, t("slot." + slot.id()).toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, 0x80FFFFFF);
+                        y += 22f;
+                        float[] out = tiles(g, tk, inSlot, y, top, h);
+                        y = out[0];
+                        if (out[1] >= 0) {
+                            pointed = inSlot.get((int) out[1]).id();
+                        }
+                    }
+                } else {
+                    float[] out = tiles(g, tk, list, y, top, h);
+                    y = out[0];
+                    if (out[1] >= 0) {
+                        pointed = list.get((int) out[1]).id();
+                    }
+                }
+                if (shown.size() > capped) {
+                    g.text(g.font(SolFont.Family.MEDIUM, 12f), t("wardrobe.more", shown.size() - capped), MAIN_X, y + 14f, 0x99FFFFFF);
+                    y += 24f;
+                }
+            }
+        }
+        g.endClip();
+        scroll.setMax(y + scroll.value() - top - h + 12f);
+        scroll.step(dt);
+        scroll.bar(g, MAIN_X + MAIN_W + 4f, top, h);
+        return pointed;
+    }
+
+    private static boolean matches(BakedCosmetic c, String needle) {
+        return needle.isEmpty() || c.name().toLowerCase(Locale.ROOT).contains(needle) || c.id().contains(needle);
+    }
+
+    /**
+     * Above the tiles: an imported pack from an older importer, cosmetics that couldn't load (Copy all, and the first
+     * three reasons), and a warning while your cosmetics are hidden.
+     */
+    private float notices(Gfx g, Tokens tk, float y) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        List<String> lines = new ArrayList<>();
+        for (String ns : CosmeticLoader.outdatedImports()) {
+            lines.add(t("wardrobe.reimport", importName(ns)));
+        }
+        if (!config.showOwnCosmetics || !config.enabled) {
+            lines.add(t("wardrobe.hidden"));
+        }
+        SolFont f = g.font(SolFont.Family.MEDIUM, 12.5f);
+        for (String l : lines) {
+            y = notice(g, tk, f, l, y, null, null);
+        }
+        List<String> failed = CosmeticLoader.failures();
+        if (!failed.isEmpty()) {
+            String head = t("wardrobe.failed", failed.size());
+            String button = copiedFailures == failed.size() ? t("wardrobe.failed_copied") : t("wardrobe.failed_copy");
+            y = notice(g, tk, f, head, y, button, () -> {
+                minecraft.keyboardHandler.setClipboard(String.join("\n", failed));
+                copiedFailures = failed.size();
+            });
+            SolFont s = g.font(SolFont.Family.MONO, 11f);
+            for (String why : failed.subList(0, Math.min(3, failed.size()))) {
+                g.text(s, g.fit(s, why, MAIN_W - 16f), MAIN_X + 12f, y + 2f, 0x99FFFFFF);
+                y += 16f;
+            }
+            y += 8f;
+        }
+        return y;
+    }
+
+    private float notice(Gfx g, Tokens tk, SolFont f, String text, float y, String button, Runnable action) {
+        float h = 34f;
+        g.round(MAIN_X, y, MAIN_W, h, 10f, Colors.withAlpha(Tokens.AMBER, 0.1f));
+        g.stroke(MAIN_X, y, MAIN_W, h, 10f, Math.max(1f, g.d.u), Colors.withAlpha(Tokens.AMBER, 0.4f));
+        Icons.draw(g, "bolt", MAIN_X + 10f, y + 10f, 14f, Tokens.AMBER, Icons.FILL, 0);
+        float room = MAIN_W - 40f - (button != null ? g.width(f, button) + 40f : 0f);
+        g.textMid(f, g.fit(f, text, room), MAIN_X + 32f, y + h / 2f, 0xFFFFFFFF);
+        if (button != null) {
+            ui.button(tk, MAIN_X + MAIN_W - 6f, y + h / 2f, button, false, action);
+        }
+        return y + h + 8f;
+    }
+
+    private static String importName(String namespace) {
+        return switch (namespace) {
+            case "blc_import" -> "Badlion";
+            case "lunar_import" -> "Lunar";
+            case "norisk_import" -> "NoRisk";
+            default -> namespace;
+        };
+    }
+
+    /** Tiles as many to a row as fit; returns {the y below them, the index pointed at or -1}. */
+    private float[] tiles(Gfx g, Tokens tk, List<BakedCosmetic> list, float y, float top, float h) {
+        int cols = Math.max(1, (int) ((MAIN_W + 10f) / (138f + 10f)));
+        float gap = 10f, tw = (MAIN_W - gap * (cols - 1)) / cols, th = 146f;
+        List<String> wearing = CosmeticsConfig.get().localEquipped();
+        int pointed = -1;
+        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 12.5f);
+        for (int i = 0; i < list.size(); i++) {
+            BakedCosmetic c = list.get(i);
+            float tx = MAIN_X + (i % cols) * (tw + gap), ty = y + (i / cols) * (th + gap);
+            if (ty + th < top - 8f || ty > top + h + 8f) {
+                continue;
+            }
+            boolean worn = wearing.contains(c.id());
+            boolean hover = ui.over(tx, ty, tw, th);
+            if (hover) {
+                pointed = i;
+            }
+            // The gear (shown on hover, focus or worn) first, so a click on it isn't a click on the tile.
+            boolean gear = hover || worn;
+            if (gear) {
+                ui.tool(tk, tx + tw - 32f, ty + 6f, "gear", false, () -> openCosmetic(c.id()));
+            }
+            int fi = ui.click(tx, ty, tw, th, () -> setEquipped(c.id(), !worn));
+            if (worn) {
+                g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
+            }
+            g.round(tx, ty, tw, th, 12f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
+            g.stroke(tx, ty, tw, th, 12f, Math.max(1f, g.d.u), worn ? tk.rim : hover ? 0x38FFFFFF : 0x1AFFFFFF);
+            g.highlight(tx, ty, tw, th, 12f, 0x24FFFFFF);
+            float ax = tx + 10f, ay = ty + 10f, aw = tw - 20f, ah = 96f;
+            g.radialB.set(g.d.sx(ax + aw / 2f), g.d.sy(ay + ah * 0.6f), aw * 0.7f * g.d.u).stop(0f, 0x1AFFFFFF).stop(1f, 0);
+            g.round(ax, ay, aw, ah, 9f, g.radialB);
+            float size = Math.min(aw, ah);
+            int s = screenSize(g, size);
+            int px = screenX(g, ax + aw / 2f) - s / 2, py = screenY(g, ay + ah / 2f) - s / 2;
+            if (!pictures.draw(g.game(), c, px, py, s, hover)) {
+                // Nothing to picture (only particles) or not made yet: a few sparkles.
+                for (int k = 0; k < 6; k++) {
+                    double a = k * Math.PI / 3 + time * (hover ? 1.5 : 0.0);
+                    g.rect(ax + aw / 2f + (float) Math.cos(a) * size * 0.28f - 1f, ay + ah / 2f + (float) Math.sin(a) * size * 0.28f - 1f,
+                            2f, 2f, Colors.withAlpha(tk.accent, 0.7f));
+                }
+            }
+            g.layer();
+            g.text(nf, g.fit(nf, c.name(), tw - 20f - (worn ? 16f : 0f)), tx + 10f, ty + th - 16f, worn ? 0xFFFFFFFF : 0xD9FFFFFF);
+            if (worn) {
+                // The worn dot.
+                g.glowSprite(tx + tw - 15f, ty + th - 20f, 6f, 6f, Colors.withAlpha(tk.accent, 0.8f));
+                g.circle(tx + tw - 15f, ty + th - 20f, 3.5f, tk.accent);
+            }
+            if (gear) {
+                // Drawn over the art (the hit was registered first).
+                g.round(tx + tw - 32f, ty + 6f, 26f, 26f, 7f, 0xB30A0A0E);
+                Icons.draw(g, "gear", tx + tw - 25f, ty + 13f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+            }
+            if (ui.focused(fi)) {
+                g.stroke(tx - 2f, ty - 2f, tw + 4f, th + 4f, 14f, 2f * g.d.u, tk.accent);
+            }
+        }
+        int rows = (list.size() + cols - 1) / cols;
+        return new float[]{y + rows * (th + gap), pointed};
+    }
+
+    // ------------------------------------------------------------------ outfits
+
+    /** Saved outfits as tiles (point to try on, click to wear, the gear for its page); returns the one pointed at. */
+    private CosmeticsConfig.Outfit outfits(Gfx g, Tokens tk, float top, float h) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        g.clip(MAIN_X - 4f, top - 4f, MAIN_X + MAIN_W + 6f, top + h);
+        float y = top - scroll.value();
+        ui.button(tk, MAIN_X + MAIN_W, y + 15f, t("outfits.save"), true, () -> {
+            CosmeticsConfig.Outfit o = config.saveOutfit(t("outfits.name"));
+            CosmeticsConfig.save();
+            openOutfit(o);
+        });
+        SolFont s = g.font(SolFont.Family.MEDIUM, 12.5f);
+        g.textMid(s, g.fit(s, config.savedOutfits.isEmpty() ? t("outfits.empty") : t("outfits.hint"), MAIN_W - 300f), MAIN_X,
+                y + 15f, 0x99FFFFFF);
+        y += 42f;
+        CosmeticsConfig.Outfit pointed = null;
+        int cols = Math.max(1, (int) ((MAIN_W + 10f) / (138f + 10f)));
+        float gap = 10f, tw = (MAIN_W - gap * (cols - 1)) / cols, th = 156f;
+        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 12.5f), cf = g.font(SolFont.Family.MEDIUM, 11f);
+        List<CosmeticsConfig.Outfit> list = List.copyOf(config.savedOutfits);
+        for (int i = 0; i < list.size(); i++) {
+            CosmeticsConfig.Outfit o = list.get(i);
+            float tx = MAIN_X + (i % cols) * (tw + gap), ty = y + (i / cols) * (th + gap);
+            boolean worn = config.wearsOutfit(o);
+            boolean hover = ui.over(tx, ty, tw, th);
+            if (hover) {
+                pointed = o;
+            }
+            if (hover || worn) {
+                ui.tool(tk, tx + tw - 32f, ty + 6f, "gear", false, () -> openOutfit(o));
+            }
+            ui.click(tx, ty, tw, th, () -> {
+                config.wearOutfit(o);
+                EquippedCosmetics.invalidate();
+            });
+            if (worn) {
+                g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
+            }
+            g.round(tx, ty, tw, th, 12f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
+            g.stroke(tx, ty, tw, th, 12f, Math.max(1f, g.d.u), worn ? tk.rim : hover ? 0x38FFFFFF : 0x1AFFFFFF);
+            // Its first four cosmetics, two by two.
+            float cell = Math.min((tw - 20f) / 2f, 48f), ax = tx + (tw - 2f * cell) / 2f, ay = ty + 10f;
+            int shown = 0;
+            for (String id : o.cosmetics) {
+                BakedCosmetic c = CosmeticRegistry.get(id);
+                if (c == null) {
+                    continue;
+                }
+                float cx = ax + (shown % 2) * cell, cy = ay + (shown / 2) * cell;
+                int sz = screenSize(g, cell - 4f);
+                if (!pictures.draw(g.game(), c, screenX(g, cx + 2f), screenY(g, cy + 2f), sz, false)) {
+                    g.rect(cx + cell / 2f - 1f, cy + cell / 2f - 1f, 2f, 2f, 0x80FFFFFF);
+                }
+                if (++shown == 4) {
+                    break;
+                }
+            }
+            g.layer();
+            int more = o.cosmetics.size() - shown;
+            if (shown == 4 && more > 0) {
+                g.textRight(cf, "+" + more, tx + tw - 10f, ay + 2f * cell - 6f, 0x99FFFFFF);
+            }
+            g.text(nf, g.fit(nf, o.name, tw - 20f), tx + 10f, ty + th - 30f, 0xFFFFFFFF);
+            g.text(cf, g.fit(cf, t("outfits.count", o.cosmetics.size()), tw - 20f), tx + 10f, ty + th - 13f, 0x8CFFFFFF);
+            if (hover || worn) {
+                g.round(tx + tw - 32f, ty + 6f, 26f, 26f, 7f, 0xB30A0A0E);
+                Icons.draw(g, "gear", tx + tw - 25f, ty + 13f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+            }
+        }
+        int rows = (list.size() + cols - 1) / cols;
+        y += rows * (th + gap);
+        g.endClip();
+        scroll.setMax(y + scroll.value() - top - h + 12f);
+        scroll.step(dt);
+        scroll.bar(g, MAIN_X + MAIN_W + 4f, top, h);
+        return pointed;
+    }
+
+    // ------------------------------------------------------------------ emotes
+
+    /** Every emote: play it (it shows on you), put it on the emote wheel or the elytra wheel, or take it off. */
+    private void emotes(Gfx g, Tokens tk, float top, float h) {
+        g.clip(MAIN_X - 4f, top - 4f, MAIN_X + MAIN_W + 6f, top + h);
+        PageRows rows = new PageRows(g, ui, tk, MAIN_X, top - scroll.value(), MAIN_W, null);
+        rows.text(t("emotes.hint", KeyBinds.name(KeyBinds.emotes)), 0x99FFFFFF);
+        if (Emotes.all().isEmpty()) {
+            rows.text(t("emotes.empty"), 0x99FFFFFF);
+        } else {
+            if (!CosmeticsConfig.get().emotes) {
+                rows.text(t("emotes.off"), Colors.withAlpha(Tokens.AMBER, 0.95f));
+            }
+            for (Emote e : Emotes.all()) {
+                String id = e.id();
+                boolean onWheel = Emotes.onWheel(id, false), onElytra = Emotes.onWheel(id, true);
+                String status = EmotePlayer.playing() == e ? t("emotes.playing")
+                        : onWheel && onElytra ? t("emotes.on_both") : onWheel ? t("emotes.on_wheel")
+                        : onElytra ? t("emotes.on_elytra") : "";
+                float cy = rows.row(Emotes.name(e), status);
+                if (Float.isNaN(cy)) {
+                    continue;
+                }
+                float r = rows.right();
+                r -= ui.button(tk, r, cy, t(onElytra ? "emotes.elytra_remove" : "emotes.elytra_add"), false,
+                        () -> Emotes.setOnWheel(id, true, !onElytra)) + 6f;
+                r -= ui.button(tk, r, cy, t(onWheel ? "emotes.wheel_remove" : "emotes.wheel_add"), false,
+                        () -> Emotes.setOnWheel(id, false, !onWheel)) + 6f;
+                ui.button(tk, r, cy, t("emotes.play"), true, () -> EmotePlayer.play(e));
+            }
+        }
+        float end = rows.y;
+        g.endClip();
+        scroll.setMax(end + scroll.value() - top - h + 12f);
+        scroll.step(dt);
+        scroll.bar(g, MAIN_X + MAIN_W + 4f, top, h);
+    }
+
+    // ------------------------------------------------------------------ you, on the right
+
+    private void previewPanel(Gfx g, Tokens tk) {
+        float x = PREVIEW_X, y = TOP, w = PREVIEW_W, h = BOTTOM - TOP;
+        g.glow(x, y, w, h, 18f, 30f, Colors.withAlpha(tk.glow, 0.14f));
+        g.round(x, y, w, h, 18f, Colors.withAlpha(tk.panel, 0.6f));
+        g.radialB.set(g.d.sx(x + w / 2f), g.d.sy(y + h * 0.62f), w * 0.8f * g.d.u).stop(0f, Colors.withAlpha(tk.glow, 0.16f)).stop(1f, 0);
+        g.round(x, y, w, h, 18f, g.radialB);
+        g.stroke(x, y, w, h, 18f, Math.max(1f, g.d.u), tk.rim);
+        // The floor you stand on.
+        g.radial(x + w / 2f, y + h - 62f, 96f, 16f, g.radialB.set(0, 0, 1).stop(0f, 0x33000000).stop(1f, 0), 32);
+        // Drag to turn and tilt (the Elytra chip first, so a click on it isn't a drag).
+        // (Not on the mannequin: it has no elytra to show.)
+        if (!mannequinShown()) {
+            String elytra = t("preview.elytra");
+            SolFont cf = g.font(SolFont.Family.MEDIUM, 12f);
+            float chipW = g.width(cf, elytra) + 22f;
+            ui.chip(tk, x + w - 12f - chipW, y + 24f, elytra, previewElytra, () -> previewElytra = !previewElytra);
+        }
+        ui.drag(x, y, w, h - 40f, (px, py) -> {
+            if (Float.isNaN(dragX)) {
+                dragX = px;
+                dragY = py;
+                return;
+            }
+            previewSpin += (px - dragX) * 1.6f;
+            previewPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, previewPitch - (py - dragY) * 1.2f));
+            dragX = px;
+            dragY = py;
+        });
+        BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
+        String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
+        SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
+        g.textCentre(f, g.fit(f, caption, w - 24f), x + w / 2f, y + h - 18f, shown != null ? tk.accent : 0x80FFFFFF);
+    }
+
+    /** You without a world (the Wardrobe opened from the title screen), with what you wear. */
+    private io.github.georgwav.cosmetics.ui.Mannequin mannequin;
+    /** For the in-game test: the mannequin even in a world. */
+    public static boolean forceMannequin;
+
+    /** Whether the preview is the mannequin: no world yet (or the in-game test asks for it). */
+    private boolean mannequinShown() {
+        return minecraft.player == null || forceMannequin;
+    }
+
+    @Override
+    protected void game(Canvas c, int mouseX, int mouseY) {
+        double gs = minecraft.getWindow().getGuiScale();
+        int x1 = (int) Math.round(d.sx(PREVIEW_X) / gs), x2 = (int) Math.round(d.sx(PREVIEW_X + PREVIEW_W) / gs);
+        int y1 = (int) Math.round(d.sy(TOP + 40f) / gs), y2 = (int) Math.round(d.sy(BOTTOM - 44f) / gs);
+        boolean onMannequin = mannequinShown();
+        BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
+        // Capes, wings and backpacks are worn on the back: turn round to show them, and the elytra when it shows.
+        boolean back = shown != null ? shown.slot() == CosmeticSlot.CAPE || shown.slot() == CosmeticSlot.BACK || shown.wings() != null
+                : previewElytra && !onMannequin;
+        float target = previewSpin + (back ? 180f : 0f);
+        shownSpin += (target - shownSpin) * 0.2f;
+        if (Math.abs(target - shownSpin) < 0.5f) {
+            shownSpin = target;
+        }
+        shownPitch += (previewPitch - shownPitch) * 0.3f;
+        if (onMannequin) {
+            if (mannequin == null) {
+                mannequin = new io.github.georgwav.cosmetics.ui.Mannequin("wardrobe", 256);
+            }
+            int side = Math.min(x2 - x1, y2 - y1);
+            mannequin.draw(c, (x1 + x2 - side) / 2, (y1 + y2 - side) / 2, side, -shownSpin, 8f + shownPitch, false);
+            return;
+        }
+        // The player about two thirds of the panel's height, with room above for halos and below for the feet.
+        int scale = Math.max(20, (int) ((y2 - y1) / 3.4f));
+        if (previewElytra) {
+            CapeElytra.wearingElytra(minecraft.player, () -> c.entityTurned(x1, y1, x2, y2, scale, 0.0625f, mouseX, mouseY,
+                    minecraft.player, shownSpin, shownPitch));
+        } else {
+            c.entityTurned(x1, y1, x2, y2, scale, 0.0625f, mouseX, mouseY, minecraft.player, shownSpin, shownPitch);
+        }
+        // The auras' particles, turned the way the preview turns you.
+        particles.update(EquippedCosmetics.forPlayer(minecraft.player.getUUID(), true), 180f + shownSpin);
+        float entityScale = minecraft.player.getScale();
+        float feetY = minecraft.player.getBbHeight() / entityScale / 2f + 0.0625f;
+        org.joml.Quaternionf pose = new org.joml.Quaternionf().rotateZ((float) Math.PI).rotateX((float) Math.toRadians(shownPitch));
+        c.clip(x1, y1, x2, y2);
+        particles.draw(c, (x1 + x2) / 2f, (y1 + y2) / 2f, scale, feetY, pose);
+        c.endClip();
+    }
+
+    // ------------------------------------------------------------------ input
+
+    @Override
+    protected boolean press(float x, float y, int button) {
+        if (listeningFor != null) {
+            if (button != 0) {
+                KeyBinds.bind(listeningFor, KeyBinds.mouse(button));
+            }
+            listeningFor = null;
+            return true;
+        }
+        dragX = Float.NaN;
+        boolean onField = search.focused();
+        search.focus(false);
+        if (cosmeticPage != null) {
+            cosmeticPage.unfocus();
+        }
+        if (outfitPageView != null) {
+            outfitPageView.unfocus();
+        }
+        settingsView.unfocus();
+        boolean took = ui.press(x, y);
+        return took || onField;
+    }
+
+    @Override
+    protected boolean drag(float x, float y, int button) {
+        return ui.dragTo(x, y);
+    }
+
+    @Override
+    protected boolean release(float x, float y, int button) {
+        dragX = Float.NaN;
+        return ui.release();
+    }
+
+    @Override
+    protected boolean scroll(float x, float y, float amount) {
+        if (x >= MAIN_X && x <= MAIN_X + MAIN_W + 8f && y >= TOP && y <= BOTTOM) {
+            if (cosmeticPage != null) {
+                return cosmeticPage.scroll(amount);
+            }
+            if (outfitPageView != null) {
+                return outfitPageView.scroll(amount);
+            }
+            if (view == View.SETTINGS) {
+                return settingsView.scroll(amount);
+            }
+            if (view == View.SKINS) {
+                return skinsView.scroll(amount);
+            }
+            return scroll.wheel(amount);
+        }
+        return false;
+    }
+
+    @Override
+    protected boolean key(int key, boolean ctrl, boolean shift) {
+        if (listeningFor != null) {
+            KeyBinds.bind(listeningFor, key == InputConstants.KEY_ESCAPE ? InputConstants.UNKNOWN : KeyBinds.keyboard(key, 0));
+            listeningFor = null;
+            minecraft.options.save();
+            return true;
+        }
+        if (search.key(key, ctrl) || (cosmeticPage != null && cosmeticPage.key(key, ctrl))
+                || (outfitPageView != null && outfitPageView.key(key, ctrl)) || (view == View.SETTINGS && settingsView.key(key, ctrl))) {
+            return true;
+        }
+        switch (key) {
+            case InputConstants.KEY_TAB -> {
+                ui.tab(shift);
+                return true;
+            }
+            case InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER, InputConstants.KEY_SPACE -> {
+                return ui.activate();
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    @Override
+    protected boolean typed(String text) {
+        if (search.typed(text) || (cosmeticPage != null && cosmeticPage.typed(text))
+                || (outfitPageView != null && outfitPageView.typed(text)) || (view == View.SETTINGS && settingsView.typed(text))) {
+            return true;
+        }
+        // Typing in a cosmetics view searches it.
+        if (view.lists() && cosmeticPage == null && outfitPageView == null && !text.isBlank()) {
+            search.focus(true);
+            return search.typed(text);
+        }
+        return false;
+    }
+
+    /** Esc: out of a page back to its list, else out of the Wardrobe. */
+    @Override
+    protected boolean back() {
+        if (cosmeticPage != null) {
+            openCosmetic(null);
+            return true;
+        }
+        if (outfitPageView != null) {
+            openOutfit(null);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void onClose() {
+        EquippedCosmetics.preview(null);
+        CosmeticsConfig.save();
+        EquippedCosmetics.invalidate();
+        ScreenOpener.open(parent);
+    }
+
+    @Override
+    protected void closed() {
+        pictures.close();
+        skinsView.release();
+        if (mannequin != null) {
+            mannequin.release();
+            mannequin = null;
+        }
+        EquippedCosmetics.preview(null);
+    }
+
+    /**
+     * The pages the in-game smoke test opens, in order:
+     * - the grid, a cosmetic's page, the outfits and the emotes;
+     * - a cape's page with the preview wearing an elytra;
+     * - every settings page.
+     */
+    public static final String[] TEST_PAGES = {"all", "drawer", "outfits", "emotes", "drawer_cape", "settings_display",
+            "settings_performance", "settings_compatibility", "settings_maintenance"};
+
+    public static WardrobeScreen testPage(int page) {
+        WardrobeScreen s = new WardrobeScreen(null);
+        String state = TEST_PAGES[page];
+        if (state.startsWith("settings_")) {
+            s.stage("settings");
+        }
+        return s.stage(state);
+    }
+
+    /** How many launcher skins the last Skins view shows, and whether their read finished (the in-game test). */
+    public static int skinsShown() {
+        return SkinsView.shown;
+    }
+
+    public static boolean skinsRead() {
+        return SkinsView.read;
+    }
+
+    /** Tile pictures made since the game started (for the in-game test). */
+    public static int tilePicturesMade() {
+        return TilePictures.made;
+    }
+
+    /** Whether the preview of you is drawn (with a player to show; for the in-game test). */
+    public boolean showsPreview() {
+        return minecraft != null && minecraft.player != null;
+    }
+
+    /** Whether the page shown starts at the top of its list (for the in-game test: nothing scrolled it). */
+    public boolean listAtTop() {
+        return scroll.value() == 0f && (cosmeticPage == null || cosmeticPage.atTop())
+                && (outfitPageView == null || outfitPageView.atTop()) && settingsView.atTop();
+    }
+
+    /** For the scenario: a state the reference shots show. */
+    public WardrobeScreen stage(String state) {
+        previewElytra = false;
+        switch (state) {
+            case "drawer" -> {
+                BakedCosmetic pick = null;
+                for (BakedCosmetic c : wardrobe()) {
+                    if (pick == null || (c.hasAnimation() && c.hasEmissive())) {
+                        pick = c;
+                    }
+                }
+                if (pick != null) {
+                    openCosmetic(pick.id());
+                }
+            }
+            case "drawer_cape", "drawer_pet" -> {
+                CosmeticSlot slot = state.endsWith("cape") ? CosmeticSlot.CAPE : CosmeticSlot.PET;
+                BakedCosmetic pick = null;
+                for (BakedCosmetic c : wardrobe()) {
+                    if (c.slot() == slot && (pick == null || c.hasEmissive())) {
+                        pick = c;
+                    }
+                }
+                if (pick != null) {
+                    openCosmetic(pick.id());
+                    if (slot == CosmeticSlot.CAPE) {
+                        previewElytra = true;
+                    }
+                }
+            }
+            case "outfit_page" -> {
+                CosmeticsConfig config = CosmeticsConfig.get();
+                if (config.savedOutfits.isEmpty()) {
+                    config.saveOutfit(t("outfits.name"));
+                }
+                openOutfit(config.savedOutfits.get(0));
+            }
+            default -> {
+                for (View v : View.values()) {
+                    if (v.name().equalsIgnoreCase(state)) {
+                        go(v);
+                    }
+                }
+                settingsView.stage(state);
+            }
+        }
+        return this;
+    }
+}

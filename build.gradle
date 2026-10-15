@@ -20,7 +20,7 @@ apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-l
 
 version = "${prop('mod.version')}+mc${mcVersion}"
 group = prop('mod.group')
-base.archivesName.set(prop('mod.id'))
+base.archivesName.set(prop('mod.jar'))
 
 repositories {
     mavenCentral()
@@ -77,6 +77,15 @@ tasks.named('test') {
 
 // Which commit the jar was built from, shown in the Wardrobe so it's clear which build is running.
 def buildId = (System.getenv('GITHUB_SHA') ?: 'local').take(7)
+
+// Resources that differ by render era (the Sol light pass's post-effect chains and shaders, written by
+// tools/sol-assets/make_light_pass.py): each era's folder is added to this version's resources.
+def era = stonecutter.eval(mcVersion, '>=26.3') ? 'e6'
+        : stonecutter.eval(mcVersion, '>=1.21.9') ? 'e5'
+        : stonecutter.eval(mcVersion, '>=1.21.6') ? 'e4'
+        : stonecutter.eval(mcVersion, '>=1.21.5') ? 'e3'
+        : stonecutter.eval(mcVersion, '>=1.21.2') ? 'e2' : 'e1'
+sourceSets.main.resources.srcDir(rootProject.file("src/era/${era}/resources"))
 
 processResources {
     def props = [
@@ -138,8 +147,9 @@ tasks.named('build') {
 // Debug aid for porting: ./gradlew :1.21.4:dumpApi -PdumpClasses=net.minecraft.client.Minecraft,...
 // prints the public and protected API of those classes exactly as this version's Minecraft has it.
 // An entry ending in .* (e.g. net.fabricmc.fabric.api.client.command.v2.*) lists that package's classes; one
-// starting with ! also prints private members and bytecode (to see what a method calls); ?text lists the
-// resource files whose path contains the text.
+// starting with ! also prints private members and bytecode (to see what a method calls), and !Class#text only the
+// members whose line contains the text, with their bytecode; ~Class prints every member, private ones too, without
+// bytecode; ?text lists the resource files whose path contains the text.
 tasks.register('dumpApi') {
     group = 'help'
     def classes = providers.gradleProperty('dumpClasses').orElse('')
@@ -167,8 +177,30 @@ tasks.register('dumpApi') {
                                 .each { println "${it[0..-7].replace('/', '.')}    (${file.name})" }
                     }
                 }
+            } else if (name.startsWith('!') && name.contains('#')) {
+                // Only the members (two-space indented lines in javap's output) whose line holds the text.
+                def (cls, text) = name.substring(1).split('#', 2)
+                def out = new StringWriter()
+                def writer = new PrintWriter(out)
+                javap.run(writer, new PrintWriter(System.err, true), '-p', '-c', '-cp', classpath.asPath, cls)
+                writer.flush()
+                boolean printing = false
+                out.toString().eachLine { line ->
+                    if (line ==~ /^  \S.*/) {
+                        printing = line.contains(text)
+                    } else if (!line.startsWith(' ')) {
+                        printing = false
+                        println line
+                        return
+                    }
+                    if (printing) {
+                        println line
+                    }
+                }
             } else if (name.startsWith('!')) {
                 javap.run(System.out, System.err, '-p', '-c', '-cp', classpath.asPath, name.substring(1))
+            } else if (name.startsWith('~')) {
+                javap.run(System.out, System.err, '-p', '-cp', classpath.asPath, name.substring(1))
             } else {
                 javap.run(System.out, System.err, '-protected', '-cp', classpath.asPath, name)
             }

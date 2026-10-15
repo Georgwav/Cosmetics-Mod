@@ -15,17 +15,17 @@ import net.minecraft.resources.Identifier;
  * A small square texture the screens paint pictures into on the CPU (the Wardrobe tiles, the emote wheel), shown
  * with {@link Canvas#blit}. Holds the version-specific texture plumbing. Render thread only.
  */
-final class PictureTexture {
+public final class PictureTexture {
     //? if >=1.21.11 {
-    final Identifier id;
+    public final Identifier id;
     //?} else {
-    /*final ResourceLocation id;
+    /*public final ResourceLocation id;
     *///?}
-    final int size;
+    public final int size;
     private final DynamicTexture texture;
 
     /** Registers {@code cosmeticsmod:<path>} as a {@code size} x {@code size} texture. */
-    PictureTexture(String path, int size) {
+    public PictureTexture(String path, int size) {
         this.size = size;
         //? if >=1.21.11 {
         id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, path);
@@ -41,7 +41,7 @@ final class PictureTexture {
     }
 
     /** Copies an ARGB picture (row by row from the top, {@code size} x {@code size}) in and uploads it. */
-    void upload(int[] argb) {
+    public void upload(int[] argb) {
         NativeImage pixels = texture.getPixels();
         for (int py = 0; py < size; py++) {
             for (int px = 0; px < size; px++) {
@@ -56,11 +56,11 @@ final class PictureTexture {
         texture.upload();
     }
 
-    void draw(Canvas g, int x, int y, int drawSize) {
+    public void draw(Canvas g, int x, int y, int drawSize) {
         g.blit(id, x, y, drawSize, drawSize, size);
     }
 
-    void release() {
+    public void release() {
         Minecraft.getInstance().getTextureManager().release(id);
     }
 

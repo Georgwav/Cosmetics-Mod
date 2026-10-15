@@ -20,6 +20,8 @@ import java.util.UUID;
 public final class Compat {
     public static final boolean IRIS = loaded("iris");
     public static final boolean FIGURA = loaded("figura");
+    public static final boolean VOXY = loaded("voxy");
+    public static final boolean MOD_MENU = loaded("modmenu");
 
     private Compat() {
     }
@@ -36,6 +38,11 @@ public final class Compat {
     /** True if Iris is installed and a shaderpack is currently active. */
     public static boolean isShaderPackActive() {
         return IRIS && IrisCompat.isShaderPackInUse();
+    }
+
+    /** Switches the shaderpack on or off as Iris' own button does; false if Iris or its API isn't there. */
+    public static boolean setShadersEnabled(boolean enabled) {
+        return IRIS && IrisCompat.setShadersEnabled(enabled);
     }
 
     /** True if a Figura avatar is active for this player (it may hide or replace the vanilla model). */

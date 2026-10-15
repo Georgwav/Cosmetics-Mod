@@ -3,8 +3,13 @@ package io.github.georgwav.cosmetics.ui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 //? if >=1.21.9 {
@@ -27,6 +32,9 @@ import net.minecraft.resources.Identifier;
 *///?} else {
 /*import com.mojang.blaze3d.systems.RenderSystem;
 *///?}
+//? if >=1.21.6 {
+import net.minecraft.client.renderer.RenderPipelines;
+//?}
 
 /**
  * The few drawing calls the settings screen uses. 26.1 renamed {@code GuiGraphics} and its methods, so
@@ -83,8 +91,171 @@ public final class Canvas {
     }
     *///?}
 
+    /**
+     * A {@code regionWidth} x {@code regionHeight} part of a texture, from ({@code u}, {@code v}) in a
+     * {@code textureWidth} x {@code textureHeight} texture, drawn into a width x height rectangle (a skin's face).
+     */
+    //? if >=1.21.11 {
+    public void blitRegion(Identifier texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(texture, x, y, x + width, y + height, u / textureWidth, (u + regionWidth) / textureWidth,
+                v / textureHeight, (v + regionHeight) / textureHeight);
+    }
+    //?} elif >=1.21.6 {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(texture, x, y, x + width, y + height, u / textureWidth, (u + regionWidth) / textureWidth,
+                v / textureHeight, (v + regionHeight) / textureHeight);
+    }
+    *///?} elif >=1.21.2 {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        raw.blit(RenderType::guiTextured, texture, x, y, u, v, width, height, regionWidth, regionHeight,
+                textureWidth, textureHeight);
+    }
+    *///?} else {
+    /*public void blitRegion(ResourceLocation texture, int x, int y, int width, int height, float u, float v,
+                           int regionWidth, int regionHeight, int textureWidth, int textureHeight) {
+        RenderSystem.enableBlend();
+        raw.blit(texture, x, y, width, height, u, v, regionWidth, regionHeight, textureWidth, textureHeight);
+        RenderSystem.disableBlend();
+    }
+    *///?}
+
+    // The hub draws in screen pixels and scales its text: the transform is saved, scaled and moved here.
+    // 1.21.6 made the GUI transform two-dimensional.
+
+    /** Saves the current transform until {@link #pop()}. */
+    public void push() {
+        //? if >=1.21.6 {
+        raw.pose().pushMatrix();
+        //?} else {
+        /*raw.pose().pushPose();
+        *///?}
+    }
+
+    public void pop() {
+        //? if >=1.21.6 {
+        raw.pose().popMatrix();
+        //?} else {
+        /*raw.pose().popPose();
+        *///?}
+    }
+
+    public void translate(float x, float y) {
+        //? if >=1.21.6 {
+        raw.pose().translate(x, y);
+        //?} else {
+        /*raw.pose().translate(x, y, 0f);
+        *///?}
+    }
+
+    public void scale(float x, float y) {
+        //? if >=1.21.6 {
+        raw.pose().scale(x, y);
+        //?} else {
+        /*raw.pose().scale(x, y, 1f);
+        *///?}
+    }
+
+    /**
+     * Raises what is drawn next by {@code z} before 1.21.6, where the GUI has depth and the game draws items raised
+     * (by up to 150); from 1.21.6 drawing order alone decides, and this does nothing.
+     */
+    public void lift(float z) {
+        //? if <1.21.6 {
+        /*raw.pose().translate(0f, 0f, z);
+        *///?}
+    }
+
+    /**
+     * What is drawn after this goes over what was drawn before, text included. From 1.21.6 the game draws text
+     * after the shapes it was drawn among, so without this a later shape can't cover earlier text.
+     */
+    public void nextLayer() {
+        //? if >=1.21.6 {
+        raw.nextStratum();
+        //?}
+    }
+
     /** Text without shadow; colour is ARGB. */
     public void text(Font font, String text, int x, int y, int color) {
+        //? if >=26.1 {
+        /*raw.text(font, text, x, y, color, false);
+        *///?} else {
+        raw.drawString(font, text, x, y, color, false);
+        //?}
+    }
+
+    /** Text, with the game's drop shadow when {@code shadow}; colour is ARGB. */
+    public void text(Font font, String text, int x, int y, int color, boolean shadow) {
+        //? if >=26.1 {
+        /*raw.text(font, text, x, y, color, shadow);
+        *///?} else {
+        raw.drawString(font, text, x, y, color, shadow);
+        //?}
+    }
+
+    /** An item as the inventory shows it, 16 x 16 with its top left at (x, y). */
+    public void item(ItemStack stack, int x, int y) {
+        //? if >=26.1 {
+        /*raw.item(stack, x, y);
+        *///?} else {
+        raw.renderItem(stack, x, y);
+        //?}
+    }
+
+    /** An item's durability bar and count, over {@link #item}. */
+    public void itemDecorations(Font font, ItemStack stack, int x, int y) {
+        //? if >=26.1 {
+        /*raw.itemDecorations(font, stack, x, y);
+        *///?} else {
+        raw.renderItemDecorations(font, stack, x, y);
+        //?}
+    }
+
+    /**
+     * A mob effect's icon, the one the inventory shows, size x size with its top left at (x, y). Up to 1.21.5 the
+     * icons have an atlas of their own; from 1.21.6 they are GUI sprites named mob_effect/&lt;effect&gt;.
+     */
+    public void mobEffect(Holder<MobEffect> effect, int x, int y, int size) {
+        //? if >=1.21.6 {
+        var sprite = mobEffectSprite(effect);
+        if (sprite != null) {
+            raw.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, size, size);
+        }
+        //?} elif >=1.21.2 {
+        /*raw.blitSprite(RenderType::guiTextured, Minecraft.getInstance().getMobEffectTextures().get(effect), x, y, size, size);
+        *///?} else {
+        /*var sprite = Minecraft.getInstance().getMobEffectTextures().get(effect);
+        RenderSystem.enableBlend();
+        raw.blit(x, y, 0, size, size, sprite);
+        RenderSystem.disableBlend();
+        *///?}
+    }
+
+    //? if >=1.21.11 {
+    private static Identifier mobEffectSprite(Holder<MobEffect> effect) {
+        Identifier key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+        return key == null ? null : key.withPrefix("mob_effect/");
+    }
+    //?} elif >=1.21.6 {
+    /*private static ResourceLocation mobEffectSprite(Holder<MobEffect> effect) {
+        ResourceLocation key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
+        return key == null ? null : key.withPrefix("mob_effect/");
+    }
+    *///?}
+
+    /** A one pixel frame just inside (x1, y1) to (x2, y2). */
+    public void outline(int x1, int y1, int x2, int y2, int color) {
+        fill(x1, y1, x2, y1 + 1, color);
+        fill(x1, y2 - 1, x2, y2, color);
+        fill(x1, y1 + 1, x1 + 1, y2 - 1, color);
+        fill(x2 - 1, y1 + 1, x2, y2 - 1, color);
+    }
+
+    /** Styled text (its own font) without shadow; colour is ARGB. */
+    public void text(Font font, Component text, int x, int y, int color) {
         //? if >=26.1 {
         /*raw.text(font, text, x, y, color, false);
         *///?} else {
@@ -103,6 +274,19 @@ public final class Canvas {
 
     public void endClip() {
         raw.disableScissor();
+    }
+
+    /**
+     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub). From 1.21.4 the clip
+     * goes through the transform; before, it is in GUI units.
+     */
+    public void clipScreen(float x0, float y0, float x1, float y1, float guiScale) {
+        //? if >=1.21.4 {
+        raw.enableScissor((int) Math.floor(x0), (int) Math.floor(y0), (int) Math.ceil(x1), (int) Math.ceil(y1));
+        //?} else {
+        /*raw.enableScissor((int) Math.floor(x0 / guiScale), (int) Math.floor(y0 / guiScale),
+                (int) Math.ceil(x1 / guiScale), (int) Math.ceil(y1 / guiScale));
+        *///?}
     }
 
     /**

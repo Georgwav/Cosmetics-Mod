@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.Screen;
 /** Opens screens; the one place to adapt if a Minecraft version moves screen handling. */
 public final class ScreenOpener {
     private static boolean openRequested;
+    private static java.util.function.Supplier<Screen> requested;
 
     private ScreenOpener() {
     }
@@ -28,18 +29,30 @@ public final class ScreenOpener {
     }
 
     /**
-     * Opens the settings screen on the next client tick. Needed when triggered from chat: the chat
+     * Opens the Wardrobe on the next client tick ({@code /cosmetics}). Needed when triggered from chat: the chat
      * screen closes right after a command runs and would close ours with it.
      */
     public static void requestOpen() {
         openRequested = true;
     }
 
+    /** Opens a screen on the next client tick, if no other screen is open by then (a key press). */
+    public static void request(java.util.function.Supplier<Screen> screen) {
+        requested = screen;
+    }
+
     /** Called every client tick. */
     public static void tick() {
+        if (requested != null) {
+            java.util.function.Supplier<Screen> s = requested;
+            requested = null;
+            if (current() == null) {
+                open(s.get());
+            }
+        }
         if (openRequested) {
             openRequested = false;
-            open(new CosmeticsScreen(null));
+            open(new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null));
         }
     }
 }

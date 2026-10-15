@@ -1,0 +1,251 @@
+{
+  "targets": {
+    "swap": {},
+    "b0": {
+      "width": 960,
+      "height": 540
+    },
+    "u0": {
+      "width": 960,
+      "height": 540
+    },
+    "b1": {
+      "width": 480,
+      "height": 270
+    },
+    "u1": {
+      "width": 480,
+      "height": 270
+    },
+    "b2": {
+      "width": 240,
+      "height": 135
+    },
+    "u2": {
+      "width": 240,
+      "height": 135
+    },
+    "b3": {
+      "width": 120,
+      "height": 68
+    },
+    "u3": {
+      "width": 120,
+      "height": 68
+    },
+    "b4": {
+      "width": 60,
+      "height": 34
+    },
+    "u4": {
+      "width": 60,
+      "height": 34
+    },
+    "b5": {
+      "width": 30,
+      "height": 17
+    }
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_bright",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "b0"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "b0",
+          "bilinear": true
+        }
+      ],
+      "output": "b1"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "b1",
+          "bilinear": true
+        }
+      ],
+      "output": "b2"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "b2",
+          "bilinear": true
+        }
+      ],
+      "output": "b3"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "b3",
+          "bilinear": true
+        }
+      ],
+      "output": "b4"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "b4",
+          "bilinear": true
+        }
+      ],
+      "output": "b5"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "b5",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "b4"
+        }
+      ],
+      "output": "u4"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "u4",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "b3"
+        }
+      ],
+      "output": "u3"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "u3",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "b2"
+        }
+      ],
+      "output": "u2"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "u2",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "b1"
+        }
+      ],
+      "output": "u1"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "u1",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "b0"
+        }
+      ],
+      "output": "u0"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_grade",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Bloom",
+          "target": "u0",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        },
+        {
+          "sampler_name": "Lut",
+          "location": "cosmeticsmod:sol_lut",
+          "width": 1024,
+          "height": 32,
+          "bilinear": true
+        }
+      ],
+      "output": "swap"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "output": "minecraft:main"
+    }
+  ]
+}

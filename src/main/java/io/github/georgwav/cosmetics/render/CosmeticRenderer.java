@@ -64,6 +64,7 @@ public final class CosmeticRenderer {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || info.uuid == null || info.invisible
                 || (info.local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
+                || (!info.local && io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(info.uuid))
                 || beyond(info.distanceSq, config.maxRenderDistance)) {
             return;
         }
@@ -210,6 +211,7 @@ public final class CosmeticRenderer {
         CosmeticsConfig config = CosmeticsConfig.get();
         return config.enabled && !RenderGuard.isLayerDisabled()
                 && (local ? config.showOwnCosmetics : config.showOtherPlayersCosmetics)
+                && (local || !io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(player))
                 && EquippedCosmetics.forPlayer(player, local).length > 0;
     }
 

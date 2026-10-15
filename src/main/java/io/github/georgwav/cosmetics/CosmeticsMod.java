@@ -1,11 +1,13 @@
 package io.github.georgwav.cosmetics;
 
 import io.github.georgwav.cosmetics.aura.AuraParticles;
+import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.client.OutlineHook;
+import io.github.georgwav.cosmetics.client.hud.Hud;
 import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.devtools.DevScenario;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
-import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.api.ClientModInitializer;
@@ -31,18 +33,42 @@ public final class CosmeticsMod implements ClientModInitializer {
         VersionHooks.registerCapeOverride();
         VersionHooks.registerCommand();
         KeyMapping openKey = VersionHooks.registerKeyMapping();
+        KeyMapping quickKey = VersionHooks.registerQuickMenuKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
-        EmoteWheelScreen.key = emoteKey;
+        KeyMapping wheelKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.quick_wheel");
+        io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.key = wheelKey;
+        io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.key = emoteKey;
         KeyBinds.open = openKey;
+        KeyBinds.quick = quickKey;
         KeyBinds.emotes = emoteKey;
+        Modules.init(VersionHooks::registerModuleKey);
+        Hud.register();
+        io.github.georgwav.cosmetics.sol.Sol.init();
+        try {
+            OutlineHook.register();
+        } catch (LinkageError e) {
+            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: the outline stays the game's
+            // and Block Outline shows as unsupported. Expected there, so info rather than a warning.
+            LOGGER.info("No block outline event in this Fabric API, the outline colour is off: {}", e.toString());
+        }
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
+                client -> io.github.georgwav.cosmetics.client.Modules.flush());
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            io.github.georgwav.cosmetics.client.Modules.flushIfDue();
             while (openKey.consumeClick()) {
-                ScreenOpener.requestOpen();
+                ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null));
+            }
+            while (quickKey.consumeClick()) {
+                ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null));
+            }
+            while (wheelKey.consumeClick()) {
+                io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.openIfAllowed(client);
             }
             while (emoteKey.consumeClick()) {
-                EmoteWheelScreen.openIfAllowed(client);
+                io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.openIfAllowed(client);
             }
             ScreenOpener.tick();
+            Modules.tick(client);
             AuraParticles.tick(client);
             EmotePlayer.tick(client);
         });

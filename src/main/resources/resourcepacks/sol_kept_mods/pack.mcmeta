@@ -1,0 +1,9 @@
+{
+  "pack": {
+    "description": "Sol Client's look for Jade and Simple Voice Chat",
+    "pack_format": 34,
+    "supported_formats": [34, 999],
+    "min_format": 34,
+    "max_format": 999
+  }
+}

@@ -13,8 +13,10 @@ import net.minecraft.client.input.KeyEvent;
  * options.
  */
 public final class KeyBinds {
-    /** Opens the settings screen. */
+    /** "Open Cosmetics": the Wardrobe (unbound by default, as on main). */
     public static KeyMapping open;
+    /** The Sol quick menu (Right Shift). */
+    public static KeyMapping quick;
     /** Opens the emote wheel (held: release to play). */
     public static KeyMapping emotes;
 
@@ -22,54 +24,63 @@ public final class KeyBinds {
     }
 
     /** Binds {@code mapping} to {@code key} ({@link InputConstants#UNKNOWN} for none), as the Controls screen does. */
-    static void bind(KeyMapping mapping, InputConstants.Key key) {
+    public static void bind(KeyMapping mapping, InputConstants.Key key) {
         mapping.setKey(key);
         KeyMapping.resetMapping();
         Minecraft.getInstance().options.save();
     }
 
     /** Whether another key bind (the game's or any mod's) uses the same key. */
-    static boolean conflicts(KeyMapping mapping) {
+    public static boolean conflicts(KeyMapping mapping) {
         if (mapping.isUnbound()) {
             return false;
         }
+        if (debugCombo(mapping)) {
+            return false;
+        }
         for (KeyMapping other : Minecraft.getInstance().options.keyMappings) {
-            if (other != mapping && mapping.same(other)) {
+            if (other != mapping && mapping.same(other) && !debugCombo(other)) {
                 return true;
             }
         }
         return false;
     }
 
+    /** The debug keys from 1.21.9 that only work with F3 held (F3+A, F3+D...): they share keys by design. */
+    private static boolean debugCombo(KeyMapping m) {
+        String n = m.getName();
+        return n.startsWith("key.debug.") && !n.equals("key.debug.overlay") && !n.equals("key.debug.modifier");
+    }
+
     // A keyboard key pressed: by its key code, or by its scan code when it has none (as the game reads it).
     // 26.3 keeps only key codes (one KEYBOARD type) and reads a pressed key itself.
     //? if >=26.3 {
-    /*static InputConstants.Key keyboard(KeyEvent event) {
+    /*public static InputConstants.Key keyboard(KeyEvent event) {
         return InputConstants.getKey(event);
     }
 
-    static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return InputConstants.Type.KEYBOARD.getOrCreate(keyCode);
     }
     *///?} elif >=1.21.9 {
-    static InputConstants.Key keyboard(KeyEvent event) {
+    public static InputConstants.Key keyboard(KeyEvent event) {
         return keyboard(event.key(), event.scancode());
     }
 
-    static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return keyCode == InputConstants.UNKNOWN.getValue()
                 ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
                 : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
     }
     //?} else {
-    /*static InputConstants.Key keyboard(int keyCode, int scanCode) {
+    /*public static InputConstants.Key keyboard(int keyCode, int scanCode) {
         return keyCode == InputConstants.UNKNOWN.getValue()
                 ? InputConstants.Type.SCANCODE.getOrCreate(scanCode)
                 : InputConstants.Type.KEYSYM.getOrCreate(keyCode);
     }
     *///?}
 
-    static InputConstants.Key mouse(int button) {
+    public static InputConstants.Key mouse(int button) {
         return InputConstants.Type.MOUSE.getOrCreate(button);
     }
 
@@ -98,8 +109,47 @@ public final class KeyBinds {
         return problems;
     }
 
+    public static KeyMapping quickMenu() {
+        return quick;
+    }
+
+    /** Whether a key code pressed in a screen is this mapping's key. */
+    public static boolean matches(KeyMapping mapping, int key) {
+        if (mapping == null || mapping.isUnbound()) {
+            return false;
+        }
+        //? if >=1.21.9 {
+        return mapping.matches(new KeyEvent(key, 0, 0));
+        //?} else {
+        /*return mapping.matches(key, 0);
+        *///?}
+    }
+
+    /**
+     * The client branch had the hub on Right Shift under "Open Cosmetics". Sol's quick menu has its own key on Right
+     * Shift and "Open Cosmetics" is unbound by default again: if the old key still sits on Right Shift, free it once,
+     * so Right Shift opens the quick menu.
+     */
+    public static void migrateQuickKey() {
+        if (open == null || quick == null) {
+            return;
+        }
+        if (open.same(quick) && !quick.isUnbound()) {
+            bind(open, InputConstants.UNKNOWN);
+        }
+    }
+
     /** The key's name as the game shows it ("B", "Mouse Button 4", "Not Bound"). */
     public static String name(KeyMapping mapping) {
         return mapping == null ? "" : mapping.getTranslatedKeyMessage().getString();
+    }
+
+    /** The key bind's group as the Controls screen names it ("Movement", "Multiplayer", a mod's own). */
+    public static String category(KeyMapping mapping) {
+        //? if >=1.21.9 {
+        return mapping.getCategory().label().getString();
+        //?} else {
+        /*return net.minecraft.network.chat.Component.translatable(mapping.getCategory()).getString();
+        *///?}
     }
 }

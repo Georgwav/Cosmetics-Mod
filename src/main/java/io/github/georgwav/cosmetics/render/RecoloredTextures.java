@@ -207,7 +207,7 @@ public final class RecoloredTextures {
     }
 
     /** {@code {{width, height}, argb pixels}} of a texture in the resource packs, or null when it isn't there. */
-    static int[][] read(String texture) throws Exception {
+    public static int[][] read(String texture) throws Exception {
         //? if >=1.21.11 {
         Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(texture));
         //?} else {

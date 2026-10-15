@@ -1,0 +1,80 @@
+{
+  "targets": [
+    "swap",
+    {
+      "name": "mask",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "name": "shafts",
+      "width": 480,
+      "height": 270
+    }
+  ],
+  "passes": [
+    {
+      "name": "sol_mask",
+      "intarget": "minecraft:main",
+      "outtarget": "mask",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_rays",
+      "intarget": "mask",
+      "outtarget": "shafts",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_world",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 64,
+          "height": 1,
+          "bilinear": false
+        },
+        {
+          "name": "ShaftsSampler",
+          "id": "shafts"
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

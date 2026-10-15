@@ -1,0 +1,169 @@
+{
+  "name": "Nebula",
+  "line": "Violet space close enough to touch, star dust and shooting stars.",
+  "order": 5,
+  "ui": {
+    "accent": "#c78bff",
+    "panel": "#1e0e34",
+    "panelAlpha": 0.52,
+    "rim": "#d2aaff",
+    "rimAlpha": 0.55
+  },
+  "sky": {
+    "top": "#07031a",
+    "middle": "#1d0b3d",
+    "horizon": "#55245e",
+    "glow": "#ff7ab8",
+    "sunWarmth": 0.1
+  },
+  "fog": {
+    "color": "#3a1747",
+    "density": 0.45,
+    "near": 8,
+    "far": 118,
+    "scatter": 0.55,
+    "haze": 0.3
+  },
+  "light": {
+    "tint": "#d8b8ff",
+    "strength": 0.68,
+    "boost": 1.0,
+    "sun": "#e4ccff",
+    "shadow": "#1c0e36"
+  },
+  "show": {
+    "phase": "night",
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
+  },
+  "stars": {
+    "count": 210,
+    "palette": "nebula",
+    "milkyWay": 0.7,
+    "shooting": true,
+    "meteorNights": 5
+  },
+  "nebula": [
+    {
+      "x": 0.28,
+      "y": 0.22,
+      "r": 0.36,
+      "color": "#7b2cff"
+    },
+    {
+      "x": 0.72,
+      "y": 0.32,
+      "r": 0.3,
+      "color": "#ff4fa3"
+    },
+    {
+      "x": 0.55,
+      "y": 0.12,
+      "r": 0.24,
+      "color": "#3b7bff"
+    }
+  ],
+  "planets": {
+    "enabled": true,
+    "style": "nebula"
+  },
+  "clouds": {
+    "tint": "#2a1440",
+    "litBySun": true,
+    "visible": false
+  },
+  "wind": [
+    0.1,
+    0.0,
+    0.05
+  ],
+  "particles": [
+    {
+      "type": "dust",
+      "count": 70,
+      "colors": [
+        "#ffd6f5",
+        "#c9b6ff",
+        "#ffffff"
+      ],
+      "size": [
+        1,
+        2.4
+      ]
+    },
+    {
+      "type": "sparkle",
+      "count": 12,
+      "colors": [
+        "#ffffff"
+      ],
+      "size": [
+        3,
+        6
+      ]
+    }
+  ],
+  "keyframes": {
+    "day": {
+      "sky": {
+        "top": "#6a5aa8",
+        "middle": "#9a84c4",
+        "horizon": "#e2b4d4",
+        "glow": "#ffcce0",
+        "sunWarmth": 0.2
+      },
+      "fog": {
+        "color": "#c8a8d0",
+        "density": 0.4,
+        "near": 16,
+        "far": 200
+      },
+      "light": {
+        "tint": "#f4e8ff",
+        "strength": 0.06,
+        "boost": 1.05
+      },
+      "clouds": {
+        "tint": "#f4e4f4"
+      },
+      "particleScale": 0.5
+    },
+    "dawn": {
+      "sky": {
+        "top": "#2a1a5a",
+        "middle": "#5a3a7c",
+        "horizon": "#c87aa0",
+        "glow": "#ffa0c0",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#6a3a6a",
+        "density": 0.45
+      }
+    },
+    "dusk": {
+      "sky": {
+        "top": "#1a0e40",
+        "middle": "#4a2468",
+        "horizon": "#b05a90",
+        "glow": "#ff8ab8",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#5a2a5c",
+        "density": 0.45
+      }
+    }
+  },
+  "grade": {
+    "highlights": "#ffd8f4",
+    "shadows": "#100524",
+    "saturation": 1.14,
+    "contrast": 1.06,
+    "bloomTint": "#ff9ad8",
+    "bloom": 1.0,
+    "threshold": 0.52,
+    "vignette": 0.18
+  }
+}

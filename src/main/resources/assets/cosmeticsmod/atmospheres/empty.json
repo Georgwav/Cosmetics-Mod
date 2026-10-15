@@ -1,0 +1,72 @@
+{
+  "name": "Empty",
+  "line": "Vanilla sky, Atmosphere off, neutral colours. Set it up yourself.",
+  "order": 0,
+  "ui": {
+    "accent": "#9aa3b5",
+    "panel": "#101218",
+    "panelAlpha": 0.62,
+    "rim": "#ffffff",
+    "rimAlpha": 0.4
+  },
+  "sky": {
+    "top": "#5f8fe8",
+    "middle": "#78a7ff",
+    "horizon": "#b9d1ff",
+    "glow": "#d4e3ff",
+    "sunWarmth": 0.3
+  },
+  "fog": {
+    "color": "#c0d8ff",
+    "density": 0.2,
+    "scatter": 0.0,
+    "haze": 0.0
+  },
+  "light": {
+    "tint": "#ffffff",
+    "strength": 0.0,
+    "boost": 1.0
+  },
+  "show": {
+    "phase": "day",
+    "azimuth": 0
+  },
+  "sun": {
+    "size": 0.03,
+    "core": "#fff3a8",
+    "halo": "#fff2c0",
+    "haloRadius": 0.2,
+    "haloAlpha": 0.3,
+    "x": 0.74,
+    "y": 0.24
+  },
+  "stars": {
+    "count": 0,
+    "milkyWay": 0.0,
+    "deepSky": false,
+    "shooting": false,
+    "comets": false
+  },
+  "planets": {
+    "enabled": false
+  },
+  "flags": {
+    "vanillaSun": true,
+    "noRidges": true
+  },
+  "particles": [],
+  "keyframes": {},
+  "clouds": {
+    "visible": true
+  },
+  "grade": {
+    "highlights": "#ffffff",
+    "shadows": "#000000",
+    "saturation": 1.0,
+    "contrast": 1.0,
+    "bloomTint": "#ffffff",
+    "bloom": 0.0,
+    "threshold": 0.8,
+    "vignette": 0.0
+  }
+}

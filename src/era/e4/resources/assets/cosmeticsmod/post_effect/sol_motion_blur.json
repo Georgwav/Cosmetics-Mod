@@ -1,0 +1,54 @@
+{
+  "targets": {
+    "swap": {},
+    "prev": {
+      "persistent": true
+    }
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_blur_mix",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Prev",
+          "target": "prev"
+        },
+        {
+          "sampler_name": "Amount",
+          "location": "cosmeticsmod:sol_blur",
+          "width": 1,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "swap"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "output": "prev"
+    },
+    {
+      "vertex_shader": "minecraft:post/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "output": "minecraft:main"
+    }
+  ]
+}

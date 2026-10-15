@@ -24,8 +24,15 @@ import io.github.georgwav.cosmetics.ui.KeyBinds;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
-import io.github.georgwav.cosmetics.ui.CosmeticsScreen;
-import io.github.georgwav.cosmetics.ui.EmoteWheelScreen;
+import io.github.georgwav.cosmetics.sol.ui.menu.SolMenu;
+import io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu;
+import io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel;
+import io.github.georgwav.cosmetics.sol.ui.screens.HudEditor;
+import io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen;
+import io.github.georgwav.cosmetics.client.hud.Hud;
+import io.github.georgwav.cosmetics.client.ModulesSelfTest;
+import io.github.georgwav.cosmetics.client.OutlineHook;
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -66,7 +73,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -109,7 +116,12 @@ public final class DevScenario {
     private int uiTab;
     private int uiFramesAtTabStart;
     /** The settings page the UI check has open. */
-    private CosmeticsScreen uiScreen;
+    private WardrobeScreen uiScreen;
+    /** Whether Mod Menu's Configure button gave the Sol menu. */
+    private boolean modMenuOpened;
+    private int hubFramesAtStart;
+    private int hudFramesAtStart;
+    private int outlineFramesAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -122,6 +134,9 @@ public final class DevScenario {
     private double[] groundPosition;
     private int wheelFramesAtStart;
     private boolean finished;
+    private boolean cameraWasOn;
+    private boolean snowballThrown;
+    private net.minecraft.world.phys.Vec3 freecamFrom;
 
     private DevScenario(boolean smoke, boolean benchmark) {
         this.smoke = smoke;
@@ -208,6 +223,8 @@ public final class DevScenario {
                             CosmeticsConfig.get().editOptions("cosmeticsmod:top_hat").swaps = new ArrayList<>(
                                     List.of(new CosmeticsConfig.ColorSwap(hatColours[0], 0x22CC44)));
                         }
+                        // Nametags' health after your own name tag, shown in the front view.
+                        nametagHealth(true);
                     }
                     enter(Phase.FRONT);
                 }
@@ -218,6 +235,14 @@ public final class DevScenario {
                     // Every cosmetic is worn, the top hat among them, so the name tag must go up.
                     float lift = NameTags.lift(client.player);
                     phases.getAsJsonObject("vanilla_front").addProperty("nameTagLift", lift);
+                    if (smoke) {
+                        phases.getAsJsonObject("vanilla_front").addProperty("nameTagHealth",
+                                io.github.georgwav.cosmetics.client.modules.Nametags.healthShown);
+                        if (io.github.georgwav.cosmetics.client.modules.Nametags.healthShown <= 0) {
+                            failures.add("Nametags never put the health after your name tag");
+                        }
+                        nametagHealth(false);
+                    }
                     phases.getAsJsonObject("vanilla_front").addProperty("recoloredTextures", RecoloredTextures.made());
                     if (smoke && Boolean.getBoolean(PREFIX + "equipAll") && RecoloredTextures.made() <= 0) {
                         failures.add("the recoloured hat's texture was never made");
@@ -294,6 +319,38 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("vanilla_back_off");
                     restoreLoad();
+                    // Sol's cost, with every cosmetic drawn once as on a normal server.
+                    normalLoad();
+                    SolBench.setUp(client);
+                    enter(Phase.SOL_WARMUP);
+                }
+            }
+            case SOL_WARMUP -> {
+                if (ticks >= 100) {
+                    SolBench.setUp(client);
+                    enter(Phase.SOL_ATMOS_OFF);
+                }
+            }
+            case SOL_ATMOS_OFF -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_atmos_off");
+                    SolBench.atmosphereOn();
+                    enter(Phase.SOL_ATMOS_ON);
+                }
+            }
+            case SOL_ATMOS_ON -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_atmos_on");
+                    SolBench.everythingOn();
+                    enter(Phase.SOL_ALL);
+                }
+            }
+            case SOL_ALL -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_all");
+                    SolBench.check(phases.getAsJsonObject("sol_all"), failures);
+                    SolBench.tearDown();
+                    restoreLoad();
                     enter(Phase.DONE);
                 }
             }
@@ -329,20 +386,20 @@ public final class DevScenario {
                     for (String name : new String[]{"wave", "dance", "dab", "cheer", "salute"}) {
                         Emotes.setOnWheel(CosmeticsMod.MOD_ID + ":" + name, false, true);
                     }
-                    wheelFramesAtStart = EmoteWheelScreen.framesRendered;
-                    wheelPicturesAtStart = EmoteWheelScreen.picturesMade();
-                    ScreenOpener.open(new EmoteWheelScreen(false));
+                    wheelFramesAtStart = EmoteWheel.framesRendered;
+                    wheelPicturesAtStart = EmoteWheel.picturesMade();
+                    ScreenOpener.open(new EmoteWheel(false));
                     enter(Phase.EMOTE_WHEEL);
                     writeMarker("ui_emote_wheel");
                 }
             }
             case EMOTE_WHEEL -> {
                 if (ticks >= UI_TAB_TICKS) {
-                    int frames = EmoteWheelScreen.framesRendered - wheelFramesAtStart;
+                    int frames = EmoteWheel.framesRendered - wheelFramesAtStart;
                     if (frames <= 0) {
                         failures.add("the emote wheel never rendered");
                     }
-                    int pictures = EmoteWheelScreen.picturesMade() - wheelPicturesAtStart;
+                    int pictures = EmoteWheel.picturesMade() - wheelPicturesAtStart;
                     if (pictures <= 0) {
                         failures.add("the emote wheel drew no emote pictures");
                     }
@@ -479,8 +536,8 @@ public final class DevScenario {
                         failures.add("the elytra test never got the player gliding");
                     }
                     // Pressing the emote key while gliding opens the elytra wheel.
-                    EmoteWheelScreen.openIfAllowed(client);
-                    elytra.addProperty("elytraWheel", ScreenOpener.current() instanceof EmoteWheelScreen wheel
+                    EmoteWheel.openIfAllowed(client);
+                    elytra.addProperty("elytraWheel", ScreenOpener.current() instanceof EmoteWheel wheel
                             && wheel.isElytraWheel());
                     ScreenOpener.open(null);
                     EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":cloud_rider"), true);
@@ -530,24 +587,25 @@ public final class DevScenario {
                     }
                     EmotePlayer.stop();
                     launchGlider(client, false);
-                    // Open every tab of the settings screen, and a cosmetic's own page, to prove the
-                    // UI works on this version.
+                    // Open every page of the Wardrobe (a cosmetic's own page, the outfits, the emotes, a cape's page
+                    // with the elytra preview, and every settings page) to prove the UI works on this version.
                     uiTab = 0;
                     openSettingsTab(client);
                     enter(Phase.SETTINGS_UI);
-                    writeMarker("ui_" + CosmeticsScreen.testPageName(0));
+                    writeMarker("ui_wardrobe_" + WardrobeScreen.TEST_PAGES[0]);
                 }
             }
             case SETTINGS_UI -> {
                 if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
-                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    String name = WardrobeScreen.TEST_PAGES[uiTab];
+                    int frames = WardrobeScreen.framesRendered - uiFramesAtTabStart;
                     JsonObject ui = phases.has("settings_ui") ? phases.getAsJsonObject("settings_ui") : new JsonObject();
-                    ui.addProperty(CosmeticsScreen.testPageName(uiTab), frames);
+                    ui.addProperty(name, frames);
                     phases.add("settings_ui", ui);
                     if (frames <= 0) {
-                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab) + "' never rendered");
+                        failures.add("Wardrobe page '" + name + "' never rendered");
                     }
-                    if (CosmeticsScreen.testPageName(uiTab).equals("cape_elytra")) {
+                    if (name.equals("drawer_cape")) {
                         // The preview wore an elytra with the cape on it.
                         long previewed = CapeElytra.previewFrames - elytraFramesAtStart;
                         ui.addProperty("elytra_preview_frames", previewed);
@@ -557,37 +615,184 @@ public final class DevScenario {
                     }
                     if (uiTab == 0) {
                         // The Wardrobe's tiles draw each cosmetic's picture.
-                        ui.addProperty("tile_pictures", CosmeticsScreen.tilePicturesMade());
-                        if (CosmeticsScreen.tilePicturesMade() <= 0) {
+                        ui.addProperty("tile_pictures", WardrobeScreen.tilePicturesMade());
+                        if (WardrobeScreen.tilePicturesMade() <= 0) {
                             failures.add("the Wardrobe drew no tile pictures");
                         }
                     }
-                    // Switching tabs and resizing the window rebuild the page; its list must stay at the top.
-                    if (uiScreen != null && !uiScreen.rebuildKeepsListAtTop()) {
-                        failures.add("settings screen page '" + CosmeticsScreen.testPageName(uiTab)
-                                + "' started its list lower after being rebuilt");
+                    // Every page opens at the top of its list.
+                    if (uiScreen != null && !uiScreen.listAtTop()) {
+                        failures.add("Wardrobe page '" + name + "' didn't start at the top of its list");
                     }
                     uiTab++;
-                    if (uiTab < CosmeticsScreen.TEST_PAGE_COUNT) {
+                    if (uiTab < WardrobeScreen.TEST_PAGES.length) {
                         openSettingsTab(client);
-                        writeMarker("ui_" + CosmeticsScreen.testPageName(uiTab));
-                    } else if (FabricLoader.getInstance().isModLoaded("modmenu")) {
+                        writeMarker("ui_wardrobe_" + WardrobeScreen.TEST_PAGES[uiTab]);
+                    } else {
+                        // The quick menu (Right Shift), then the full menu's sections.
+                        hubFramesAtStart = QuickMenu.framesRendered;
+                        ScreenOpener.open(new QuickMenu(null));
+                        enter(Phase.QUICK_MENU);
+                        writeMarker("ui_quick");
+                    }
+                }
+            }
+            case QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS -> {
+                // The Skins view reads the launcher's skins in the background: it stays open until they're read.
+                boolean waiting = phase == Phase.WARDROBE_SKINS && !WardrobeScreen.skinsRead() && ticks < UI_TAB_TICKS * 10;
+                if (ticks >= UI_TAB_TICKS && !waiting) {
+                    int frames = (phase == Phase.QUICK_MENU ? QuickMenu.framesRendered
+                            : phase == Phase.WARDROBE_SKINS ? WardrobeScreen.framesRendered : SolMenu.framesRendered) - hubFramesAtStart;
+                    String page = switch (phase) {
+                        case QUICK_MENU -> "quick";
+                        case MENU_MODULES -> "menu_modules";
+                        case MENU_DRAWER -> "menu_drawer";
+                        case WARDROBE_SKINS -> "wardrobe_skins";
+                        case MENU_WARDROBE -> "menu_wardrobe";
+                        default -> "menu_settings";
+                    };
+                    phases.getAsJsonObject("settings_ui").addProperty(page, frames);
+                    if (frames <= 0) {
+                        failures.add("the Sol menus (" + page + ") never rendered");
+                    }
+                    if (phase == Phase.QUICK_MENU) {
+                        openMenu("modules", null);
+                        enter(Phase.MENU_MODULES);
+                        writeMarker("ui_menu_modules");
+                    } else if (phase == Phase.MENU_MODULES) {
+                        openMenu("modules", "drawer_atmosphere");
+                        enter(Phase.MENU_DRAWER);
+                        writeMarker("ui_menu_drawer");
+                    } else if (phase == Phase.MENU_DRAWER) {
+                        // The Skins view, on the launcher folder the CI run gives (ci/mcci.py): ten saved skins.
+                        hubFramesAtStart = WardrobeScreen.framesRendered;
+                        ScreenOpener.open(WardrobeScreen.on(null, "skins"));
+                        enter(Phase.WARDROBE_SKINS);
+                        writeMarker("ui_wardrobe_skins");
+                    } else if (phase == Phase.WARDROBE_SKINS) {
+                        phases.getAsJsonObject("settings_ui").addProperty("skins_shown", WardrobeScreen.skinsShown());
+                        phases.getAsJsonObject("settings_ui").addProperty("skins_read_ticks", ticks);
+                        if (WardrobeScreen.skinsShown() != 10) {
+                            failures.add("the Skins view showed " + WardrobeScreen.skinsShown() + " of the launcher's 10 skins");
+                        }
+                        List<String> skinProblems = ModulesSelfTest.checkOwnSkin(client);
+                        phases.getAsJsonObject("settings_ui").addProperty("own_skin", skinProblems.isEmpty() ? "ok" : String.join("; ", skinProblems));
+                        failures.addAll(skinProblems);
+                        openMenu("wardrobe", null);
+                        enter(Phase.MENU_WARDROBE);
+                        writeMarker("ui_menu_wardrobe");
+                    } else if (phase == Phase.MENU_WARDROBE) {
+                        openMenu("settings", null);
+                        enter(Phase.MENU_SETTINGS);
+                        writeMarker("ui_menu_settings");
+                    } else {
+                        // The client's world modules: thunder, midnight and fullbright, on your screen only.
+                        ScreenOpener.open(null);
+                        ModulesSelfTest.switchOn(client);
+                        enter(Phase.WORLD_MODULES);
+                        writeMarker("ui_world_modules");
+                    }
+                }
+            }
+            case WORLD_MODULES -> {
+                if (ticks == 20) {
+                    ModulesSelfTest.midway(client);
+                }
+                if (ticks >= UI_TAB_TICKS) {
+                    List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
+                    phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
+                    failures.addAll(problems);
+                    // The freecam: forward held for three seconds flies the camera, not the player.
+                    cameraWasOn = io.github.georgwav.cosmetics.client.Modules.CAMERA.enabled();
+                    io.github.georgwav.cosmetics.client.Modules.CAMERA.setEnabled(true);
+                    freecamFrom = client.player.position();
+                    if (!io.github.georgwav.cosmetics.client.modules.CameraTweaks.setFreecam(client, true)) {
+                        failures.add("the freecam didn't start in singleplayer");
+                    }
+                    client.options.keyUp.setDown(true);
+                    enter(Phase.FREECAM);
+                }
+            }
+            case FREECAM -> {
+                // And projectile trails: a snowball thrown from where you stand. Given once the hotbar rows check's
+                // swaps have reached the server (they'd swap it out of your hand), thrown once it's there.
+                if (ticks == 8) {
+                    ModulesSelfTest.trailsOn(client);
+                }
+                if (!snowballThrown && ticks > 8) {
+                    snowballThrown = ModulesSelfTest.throwSnowball(client);
+                }
+                if (ticks >= UI_TAB_TICKS) {
+                    List<String> trailProblems = ModulesSelfTest.trailsCheckAndOff(client);
+                    phases.getAsJsonObject("settings_ui").addProperty("trails",
+                            io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade);
+                    failures.addAll(trailProblems);
+                    var camera = io.github.georgwav.cosmetics.client.modules.CameraTweaks.freecamPosition(1f);
+                    double flown = camera.distanceTo(client.player.getEyePosition(1f));
+                    double walked = client.player.position().distanceTo(freecamFrom);
+                    phases.getAsJsonObject("settings_ui").addProperty("freecam", String.format(java.util.Locale.ROOT,
+                            "flew %.1f, walked %.2f", flown, walked));
+                    if (flown < 5.0) {
+                        failures.add("the freecam didn't fly forward (" + String.format(java.util.Locale.ROOT, "%.1f", flown) + " blocks)");
+                    }
+                    if (walked > 0.3) {
+                        failures.add("the player walked while the freecam flew (" + String.format(java.util.Locale.ROOT, "%.2f", walked) + " blocks)");
+                    }
+                    // Stopping gives the held keys back to the player: forward is let go after that.
+                    io.github.georgwav.cosmetics.client.modules.CameraTweaks.setFreecam(client, false);
+                    client.options.keyUp.setDown(false);
+                    io.github.georgwav.cosmetics.client.Modules.CAMERA.setEnabled(cameraWasOn);
+                    // The HUD modules, all on over the game, then in the HUD editor.
+                    hudFramesAtStart = Hud.framesDrawn;
+                    outlineFramesAtStart = OutlineHook.framesDrawn;
+                    ModulesSelfTest.switchOnHud(client);
+                    enter(Phase.HUD_MODULES);
+                    writeMarker("ui_hud");
+                }
+            }
+            case HUD_MODULES -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = Hud.framesDrawn - hudFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("hud", frames);
+                    if (frames <= 0) {
+                        failures.add("the HUD modules were never drawn");
+                    }
+                    int outlines = OutlineHook.framesDrawn - outlineFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("outline", outlines);
+                    if (BlockOutline.supported() && outlines <= 0) {
+                        failures.add("the block outline was never drawn");
+                    }
+                    hudFramesAtStart = HudEditor.framesRendered;
+                    ScreenOpener.open(new HudEditor(null));
+                    enter(Phase.HUD_EDITOR);
+                    writeMarker("ui_hud_editor");
+                }
+            }
+            case HUD_EDITOR -> {
+                if (ticks >= UI_TAB_TICKS) {
+                    int frames = HudEditor.framesRendered - hudFramesAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("hud_editor", frames);
+                    if (frames <= 0) {
+                        failures.add("the HUD editor never rendered");
+                    }
+                    ScreenOpener.open(null);
+                    ModulesSelfTest.switchOffHud(client);
+                    if (FabricLoader.getInstance().isModLoaded("modmenu")) {
                         openThroughModMenu();
                         enter(Phase.MOD_MENU);
                         writeMarker("ui_modmenu");
                     } else {
-                        ScreenOpener.open(null);
                         startShadersOrFinish();
                     }
                 }
             }
             case MOD_MENU -> {
                 if (ticks >= UI_TAB_TICKS) {
-                    int frames = CosmeticsScreen.framesRendered - uiFramesAtTabStart;
+                    int frames = SolMenu.framesRendered - uiFramesAtTabStart;
                     JsonObject ui = phases.getAsJsonObject("settings_ui");
                     ui.addProperty("modmenu", frames);
-                    if (uiScreen != null && frames <= 0) {
-                        failures.add("the settings screen opened from Mod Menu never rendered");
+                    if (modMenuOpened && frames <= 0) {
+                        failures.add("the Sol menu opened from Mod Menu never rendered");
                     }
                     ScreenOpener.open(null);
                     startShadersOrFinish();
@@ -653,6 +858,29 @@ public final class DevScenario {
         }
         return RecoloredTextures.palette(java.util.Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture)
                 .distinct().toList());
+    }
+
+    /** Nametags on with players' health after their name (and back as it was). */
+    private static boolean nametagsTurnedOn;
+
+    private static void nametagHealth(boolean on) {
+        var nametags = io.github.georgwav.cosmetics.client.Modules.NAMETAGS;
+        if (on && !nametags.enabled()) {
+            nametags.setEnabled(true);
+            nametagsTurnedOn = true;
+        } else if (!on && nametagsTurnedOn) {
+            nametags.setEnabled(false);
+            nametagsTurnedOn = false;
+        }
+        for (var setting : nametags.settings()) {
+            if (setting.id.equals("health")) {
+                if (on) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
+                } else {
+                    setting.reset();
+                }
+            }
+        }
     }
 
     /** Benchmark: every cosmetic drawn once, as on a normal server, instead of the stress load. */
@@ -766,35 +994,42 @@ public final class DevScenario {
     }
 
     private void openSettingsTab(Minecraft client) {
-        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
+        uiFramesAtTabStart = WardrobeScreen.framesRendered;
         elytraFramesAtStart = CapeElytra.previewFrames;
-        uiScreen = CosmeticsScreen.testPage(uiTab);
+        uiScreen = WardrobeScreen.testPage(uiTab);
         ScreenOpener.open(uiScreen);
     }
 
+    /** The full menu on a section (and in a state, such as a module's drawer). */
+    private void openMenu(String section, String state) {
+        hubFramesAtStart = SolMenu.framesRendered;
+        SolMenu menu = SolMenu.create(null, section, false);
+        ScreenOpener.open(state != null ? menu.stage(state) : menu);
+    }
+
     /**
-     * Opens the settings screen the way Mod Menu's "Configure" button does: Mod Menu's list, then the screen
-     * Mod Menu gets from this mod's "modmenu" entrypoint.
+     * Opens the Sol menu the way Mod Menu's "Configure" button does: Mod Menu's list, then the screen Mod Menu gets
+     * from this mod's "modmenu" entrypoint.
      */
     private void openThroughModMenu() {
-        uiFramesAtTabStart = CosmeticsScreen.framesRendered;
-        uiScreen = null;
+        uiFramesAtTabStart = SolMenu.framesRendered;
+        modMenuOpened = false;
         try {
             Screen modList = (Screen) Class.forName("com.terraformersmc.modmenu.gui.ModsScreen")
                     .getConstructor(Screen.class).newInstance((Screen) null);
             Object screen = Class.forName("com.terraformersmc.modmenu.ModMenu")
                     .getMethod("getConfigScreen", String.class, Screen.class)
                     .invoke(null, CosmeticsMod.MOD_ID, modList);
-            if (screen instanceof CosmeticsScreen ours) {
-                uiScreen = ours;
+            if (screen instanceof SolMenu ours) {
+                modMenuOpened = true;
                 ScreenOpener.open(ours);
             } else {
                 failures.add("Mod Menu has no settings screen for this mod (got " + screen + ")");
             }
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
-            CosmeticsMod.LOGGER.error("Opening the settings screen through Mod Menu failed", cause);
-            failures.add("opening the settings screen through Mod Menu failed: " + cause);
+            CosmeticsMod.LOGGER.error("Opening the Sol menu through Mod Menu failed", cause);
+            failures.add("opening the Sol menu through Mod Menu failed: " + cause);
         }
     }
 
@@ -842,6 +1077,9 @@ public final class DevScenario {
         p.addProperty("cosmeticsOn", CosmeticsConfig.get().enabled);
         p.addProperty("copies", RenderStats.copies);
         p.addProperty("shaderPackInUse", Compat.IRIS && IrisCompat.isShaderPackInUse());
+        if (name.startsWith("sol_")) {
+            SolBench.record(p);
+        }
         phases.add(name, p);
         CosmeticsMod.LOGGER.info("Dev scenario {}: {}", name, p);
     }

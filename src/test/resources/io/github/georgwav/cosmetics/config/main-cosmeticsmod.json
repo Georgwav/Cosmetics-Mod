@@ -1,0 +1,208 @@
+{
+  "configVersion": 5,
+  "enabled": false,
+  "showOwnCosmetics": false,
+  "showOtherPlayersCosmetics": false,
+  "slotVisible": {
+    "HEAD": true,
+    "FACE": true,
+    "BODY": true,
+    "BACK": true,
+    "CAPE": false,
+    "SHIELD": true,
+    "AURA": true,
+    "PET": false,
+    "ARM": true,
+    "FEET": true
+  },
+  "hideHeadwearWithHelmet": false,
+  "severalOfAKind": true,
+  "colorAnyCosmetic": false,
+  "shieldItemIcons": false,
+  "hideCapeWithElytra": false,
+  "elytraCloseToBack": false,
+  "capePhysics": false,
+  "capeSwing": 1.7,
+  "wavyCapes": false,
+  "particles": false,
+  "particleDensity": 0.4,
+  "ownParticlesInFirstPerson": false,
+  "emissiveParts": false,
+  "translucentParts": false,
+  "emotes": false,
+  "emoteCamera": "BACK",
+  "emoteStopOnMove": false,
+  "elytraEmoteRockets": false,
+  "emoteWheelSlots": [
+    "cosmeticsmod:wave",
+    "",
+    "cosmeticsmod:clap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "cosmeticsmod:dance",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "elytraWheelSlots": [
+    "",
+    "cosmeticsmod:cloud_rider",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "emoteWheel": [],
+  "elytraEmoteWheel": [],
+  "maxRenderDistance": 96,
+  "renderInShadowPass": false,
+  "shadowDistance": 48,
+  "maxMeshTriangles": 150000,
+  "slotPriority": {
+    "HEAD": "OVERRIDE",
+    "FACE": "DEFER",
+    "BODY": "DEFER",
+    "BACK": "DEFER",
+    "CAPE": "DEFER",
+    "SHIELD": "DEFER",
+    "AURA": "DEFER",
+    "PET": "DEFER",
+    "ARM": "DEFER",
+    "FEET": "DEFER"
+  },
+  "deferToFigura": false,
+  "equipped": {
+    "local": [
+      "cosmeticsmod:halo",
+      "cosmeticsmod:starlight_cape",
+      "blc_import:wings_1"
+    ],
+    "0f5b8a1e-3c2d-4b6a-9e7f-1a2b3c4d5e6f": [
+      "cosmeticsmod:crown"
+    ],
+    "7d1c2b3a-4e5f-6a7b-8c9d-0e1f2a3b4c5d": [
+      "cosmeticsmod:top_hat",
+      "cosmeticsmod:frost_aura"
+    ]
+  },
+  "savedOutfits": [
+    {
+      "name": "Night run",
+      "cosmetics": [
+        "cosmeticsmod:halo",
+        "cosmeticsmod:starlight_cape"
+      ],
+      "options": {
+        "cosmeticsmod:starlight_cape": {
+          "color": 3829480,
+          "rainbow": true,
+          "rainbowSpeed": 2.5,
+          "saturation": 0.6,
+          "hue": -45.0,
+          "brightness": 1.3,
+          "scale": 1.4,
+          "offsetX": 1.5,
+          "offsetY": -2.0,
+          "offsetZ": 0.5,
+          "glow": false,
+          "animate": false,
+          "animationSpeed": 1.8,
+          "style": "soft_wave",
+          "cloth": true,
+          "elytra": false,
+          "particles": false,
+          "particleAmount": 2.2,
+          "particleSize": 0.5,
+          "turned": true,
+          "upsideDown": true,
+          "colorStyle": "COLORED_PARTS",
+          "swaps": [
+            {
+              "from": 12986408,
+              "to": 8003212
+            },
+            {
+              "from": 16765803,
+              "to": 16765803
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Plain",
+      "cosmetics": [
+        "cosmeticsmod:crown"
+      ],
+      "options": {}
+    }
+  ],
+  "outfits": {},
+  "cosmeticOptions": {
+    "cosmeticsmod:starlight_cape": {
+      "color": 3829480,
+      "rainbow": true,
+      "rainbowSpeed": 2.5,
+      "saturation": 0.6,
+      "hue": -45.0,
+      "brightness": 1.3,
+      "scale": 1.4,
+      "offsetX": 1.5,
+      "offsetY": -2.0,
+      "offsetZ": 0.5,
+      "glow": false,
+      "animate": false,
+      "animationSpeed": 1.8,
+      "style": "soft_wave",
+      "cloth": true,
+      "elytra": false,
+      "particles": false,
+      "particleAmount": 2.2,
+      "particleSize": 0.5,
+      "turned": true,
+      "upsideDown": true,
+      "colorStyle": "COLORED_PARTS",
+      "swaps": [
+        {
+          "from": 12986408,
+          "to": 8003212
+        },
+        {
+          "from": 16765803,
+          "to": 16765803
+        }
+      ]
+    },
+    "cosmeticsmod:pocket_slime": {
+      "rainbow": false,
+      "rainbowSpeed": 1.0,
+      "saturation": 1.0,
+      "hue": 0.0,
+      "brightness": 1.0,
+      "scale": 1.0,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "offsetZ": 0.0,
+      "glow": true,
+      "animate": true,
+      "animationSpeed": 1.0,
+      "cloth": false,
+      "elytra": true,
+      "particles": true,
+      "particleAmount": 1.0,
+      "particleSize": 1.0,
+      "petPosition": "FLOATING",
+      "turned": false,
+      "upsideDown": false
+    }
+  }
+}

@@ -35,7 +35,7 @@ import java.util.Optional;
  * one the mouse points at turns, so it is redrawn each frame. Only a few new ones are made per frame, so opening
  * a long list doesn't stall. Render thread only.
  */
-final class TilePictures {
+public final class TilePictures {
     /** Picture size in pixels. */
     static final int SIZE = 128;
     /** Pictures kept at once (each a small GPU texture). */
@@ -52,7 +52,7 @@ final class TilePictures {
     private static final float FILL = 0.88f;
 
     /** Pictures made since the game started (read by the in-game test). */
-    static int made;
+    public static int made;
 
     private final SoftRaster raster = new SoftRaster(SIZE);
     private final Map<String, SoftRaster.Texture> textures = new HashMap<>();
@@ -78,7 +78,7 @@ final class TilePictures {
     }
 
     /** Call once per frame before drawing tiles. */
-    void beginFrame() {
+    public void beginFrame() {
         madeThisFrame = 0;
         if (generation != CosmeticRegistry.generation()) {
             // Cosmetics or resource packs were reloaded: textures and models may have changed.
@@ -92,7 +92,7 @@ final class TilePictures {
      * {@code turning}: the one the mouse points at. Returns false when it has nothing to show (a cosmetic with only
      * particles, or one whose picture isn't made yet), so the tile can show something else.
      */
-    boolean draw(Canvas g, BakedCosmetic cosmetic, int x, int y, int size, boolean turning) {
+    public boolean draw(Canvas g, BakedCosmetic cosmetic, int x, int y, int size, boolean turning) {
         float yaw = YAW + (back(cosmetic) ? 180f : 0f);
         if (turning) {
             yaw += (System.nanoTime() - startNanos) / 1.0e9f * SPIN;
@@ -131,7 +131,7 @@ final class TilePictures {
     }
 
     /** Releases every picture's texture (when the screen closes or cosmetics reload). */
-    void close() {
+    public void close() {
         for (Picture picture : pictures.values()) {
             picture.texture.release();
         }
@@ -207,7 +207,7 @@ final class TilePictures {
                 Math.max(radius, 1.0e-3f)};
     }
 
-    private static BakedMesh[] meshes(BakedCosmetic.Layer layer, int clip, float clipTime) {
+    static BakedMesh[] meshes(BakedCosmetic.Layer layer, int clip, float clipTime) {
         if (layer.skin() != null) {
             return new BakedMesh[]{layer.skin().update(clip, clipTime)};
         }
@@ -233,7 +233,7 @@ final class TilePictures {
         return textures.computeIfAbsent(id, TilePictures::read);
     }
 
-    private static SoftRaster.Texture read(String id) {
+    static SoftRaster.Texture read(String id) {
         try {
             //? if >=1.21.11 {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(id));
