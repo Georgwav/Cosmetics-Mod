@@ -563,10 +563,17 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     # The benchmark compares frame rates, so nothing may cap them: no frame limit (260 = unlimited), and no
     # "inactivity" limit, which drops the game to 30 FPS after a minute without input (from 1.21.2).
     fps = ["maxFps:260", 'inactivityFpsLimit:"minimized"'] if mode == "benchmark" else ["maxFps:60"]
+    # MCCI_GRAPHICS=fast|fancy|fabulous: the Sol light pass has to work under each (Fabulous composites the world
+    # through its own post chain first). 1.21.x stores it as a number; 26.x as a name.
+    graphics = os.environ.get("MCCI_GRAPHICS", "")
+    extra = []
+    if graphics:
+        extra.append("graphicsMode:" + ({"fast": "0", "fancy": "1", "fabulous": "2"}[graphics]
+                                        if not inst.mc.startswith("26.") else '"' + graphics + '"'))
     (game_dir / "options.txt").write_text("\n".join([
         "onboardAccessibility:false", "skipMultiplayerWarning:true", "tutorialStep:none", "joinedFirstServer:true",
         "pauseOnLostFocus:false", "renderDistance:4", "simulationDistance:5", *fps, "enableVsync:false",
-        "fullscreen:false", "narrator:0", "soundCategory_master:0.0", "guiScale:2", ""]))
+        "fullscreen:false", "narrator:0", "soundCategory_master:0.0", "guiScale:2", *extra, ""]))
 
     jvm = [
         "-Xmx3G", "-XX:+UseG1GC",
@@ -577,6 +584,11 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     ]
     if mode != "sol" and SOL_SCENARIO_IN_SMOKE:
         jvm.append("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO_IN_SMOKE)
+    if mode == "sol":
+        # Local look runs: compare light-pass strengths in one run, or judge at another quality.
+        for env, prop in (("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality")):
+            if os.environ.get(env):
+                jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
     if shaderpack:

@@ -21,18 +21,34 @@ import java.util.List;
 
 /**
  * Sol's in-game scenario ({@code -Dcosmeticsmod.solScenario=full|reduced|look}): builds a showcase scene in the CI
- * world (sand dunes and a lake to the west, hills, trees), then shows each theme at its showpiece moment, facing
- * the way its showpiece frame faces, and writes a marker ({@code cosmeticsmod-phase-sol_<theme>_show}) so the CI
- * script screenshots it. Checks that the Sol sky drew; the result goes to the log and
- * {@code cosmeticsmod-sol-results.json}.
+ * world (a sand beach with sugar cane at the water's edge, water to the west, a low far shore, dunes and trees to
+ * the sides), then shows each theme at its showpiece moment, facing the way its showpiece frame faces, at FOV 70
+ * with only the crosshair on screen, and writes a marker ({@code cosmeticsmod-phase-sol_<theme>_show}) so the CI
+ * script screenshots it. Ember Solstice is shot like for like with the reference frames: tick 12,300, facing west
+ * into the sun. Checks that the Sol sky drew and that the game reports the field of view it was given; the result
+ * goes to the log and {@code cosmeticsmod-sol-results.json}.
  */
 public final class SolScenario {
     private static final String MODE = System.getProperty("cosmeticsmod.solScenario", "");
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
+    /** How long each benchmark preset is measured (ticks). */
+    private static final int BENCH_HOLD = 400;
 
-    private record Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch) {
+    /** One frame: a theme at a sun height (or a fixed day time, when {@code time} isn't -1), facing yaw/pitch. */
+    private record Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time,
+                        java.util.Map<String, Float> tune) {
+        Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time) {
+            this(name, theme, altitude, morning, yaw, pitch, time, java.util.Map.of());
+        }
+
+        Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch) {
+            this(name, theme, altitude, morning, yaw, pitch, -1L);
+        }
     }
+
+    /** The reference frames' moment: the sun just above the western horizon. */
+    private static final long EMBER_TICK = 12300L;
 
     private final List<Shot> shots = new ArrayList<>();
     private final List<String> problems = new ArrayList<>();
@@ -44,6 +60,23 @@ public final class SolScenario {
 
     /** The time the scenario holds (0 is 06:00), or -1. Read by the time lock. */
     public static volatile long lockedTime = -1L;
+    /** Whether the scenario is showing a frame: the HUD is hidden and only the crosshair is drawn. */
+    public static volatile boolean crosshairOnly;
+
+    // The benchmark: frame times and the light pass's own time, while a bench shot is held.
+    private static final float[] frameMs = new float[20000];
+    private static int frames;
+    private static double passMs;
+    private static volatile boolean recording;
+    private final com.google.gson.JsonObject bench = new com.google.gson.JsonObject();
+
+    /** Every rendered frame (from the frame hook): its length and what the light pass took. */
+    public static void frame(float seconds, long passNanos) {
+        if (recording && frames < frameMs.length && seconds > 0f) {
+            frameMs[frames++] = seconds * 1000f;
+            passMs += passNanos / 1e6;
+        }
+    }
 
     public static boolean enabled() {
         return !MODE.isEmpty();
@@ -59,6 +92,15 @@ public final class SolScenario {
     }
 
     private void plan() {
+        if ("bench".equals(MODE)) {
+            // The light pass's cost on the Ember frame: Low (no pass), Medium, High.
+            String[] q = {"low", "medium", "high"};
+            for (int i = 0; i < q.length; i++) {
+                shots.add(new Shot("sol_bench_" + q[i], "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK,
+                        java.util.Map.of("quality", (float) i)));
+            }
+            return;
+        }
         for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
             ThemeSpec s = e.base();
             if (!e.builtIn() || "empty".equals(e.id())) {
@@ -73,8 +115,9 @@ public final class SolScenario {
             }
             switch (phase) {
                 case "night" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -60f, false, yaw, -Extras.SHOW_PITCH));
-                case "dusk" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), false, 90f,
-                        -Extras.SHOW_PITCH));
+                case "dusk" -> shots.add("ember_solstice".equals(e.id())
+                        ? new Shot("sol_" + e.id() + "_show", e.id(), 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK)
+                        : new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), false, 90f, -Extras.SHOW_PITCH));
                 case "dawn" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), true, -90f,
                         -Extras.SHOW_PITCH));
                 default -> {
@@ -85,8 +128,28 @@ public final class SolScenario {
                 }
             }
         }
-        // The Sun lab's framing: Ember with the sun at e = .18.
-        shots.add(0, new Shot("sol_ember_sunlab", "ember_solstice", 0.18f * 38f, false, 90f, -Extras.SHOW_PITCH));
+        // The Sun lab's framing: Ember with the sun just above the horizon (tick 12,300 puts it at about 7.7°,
+        // e ≈ .2), every layer on, facing west into it.
+        shots.add(0, new Shot("sol_ember_sunlab", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+        // Tuning (-Dcosmeticsmod.solTune=name:bloom=0.5,scatter=0.8;name2:...): the Sun lab frame again for each
+        // set of light-pass strengths, to compare them side by side.
+        String tuneSpec = System.getProperty("cosmeticsmod.solTune", "");
+        int at = 1;
+        for (String variant : tuneSpec.split(";")) {
+            int colon = variant.indexOf(':');
+            if (colon <= 0) {
+                continue;
+            }
+            java.util.Map<String, Float> values = new java.util.HashMap<>();
+            for (String kv : variant.substring(colon + 1).split(",")) {
+                String[] p = kv.split("=");
+                if (p.length == 2) {
+                    values.put(p[0].trim(), Float.parseFloat(p[1].trim()));
+                }
+            }
+            shots.add(at++, new Shot("sol_tune_" + variant.substring(0, colon).trim(), "ember_solstice", 0f, false, 90f,
+                    -Extras.SHOW_PITCH, EMBER_TICK, values));
+        }
         if (!"reduced".equals(MODE)) {
             for (String id : new String[]{"ember_solstice", "aurora", "frost_morning"}) {
                 shots.add(new Shot("sol_" + id + "_day", id, 40f, false, 90f, -Extras.SHOW_PITCH));
@@ -131,8 +194,14 @@ public final class SolScenario {
             if (Atmosphere.INSTANCE != null && !Atmosphere.INSTANCE.enabled()) {
                 Atmosphere.INSTANCE.setEnabled(true);
             }
+            // The reference frames are judged at High (the software renderer CI uses would make Auto pick Low).
+            if (Atmosphere.INSTANCE != null) {
+                Atmosphere.INSTANCE.quality.set(System.getProperty("cosmeticsmod.solQuality", "high"));
+            }
             mc.options.setCameraType(CameraType.FIRST_PERSON);
+            mc.options.fov().set(70);
             io.github.georgwav.cosmetics.sol.render.Mc.hideHud(true);
+            crosshairOnly = true;
             plan();
             phaseTick = 0;
             index = -1;
@@ -149,10 +218,24 @@ public final class SolScenario {
                 if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && Guard.on(io.github.georgwav.cosmetics.sol.Feature.SKY)) {
                     problems.add(s.name() + ": the Sol sky didn't draw");
                 }
+                float fov = io.github.georgwav.cosmetics.sol.render.FrameInfo.fovY;
+                if (Math.abs(fov - 70f) > 4f) {
+                    problems.add(s.name() + ": the field of view read from the game is " + fov + "°, not 70°");
+                }
+                if ((s.name().equals("sol_ember_sunlab") || s.name().equals("sol_ember_solstice_show")) && SkyPass.sunVisible < 0.5f) {
+                    problems.add(s.name() + ": the sun isn't in the frame (visible " + SkyPass.sunVisible + ")");
+                }
                 marker(mc, s.name());
             }
         }
-        if (index < 0 || phaseTick >= SETTLE + HOLD) {
+        boolean benching = index >= 0 && index < shots.size() && shots.get(index).name().startsWith("sol_bench");
+        if (benching) {
+            recording = phaseTick > SETTLE && phaseTick < SETTLE + BENCH_HOLD;
+        }
+        if (index < 0 || phaseTick >= SETTLE + (benching ? BENCH_HOLD : HOLD)) {
+            if (benching) {
+                benchResult(shots.get(index).name().substring("sol_bench_".length()));
+            }
             index++;
             phaseTick = 0;
             if (index >= shots.size()) {
@@ -162,33 +245,77 @@ public final class SolScenario {
             Shot s = shots.get(index);
             ThemeState.setTheme(s.theme(), false);
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
+            // Glare is a setting for playing into the sun, not part of the reference frames.
             boolean lab = s.name().endsWith("sunlab");
             Atmosphere at = Atmosphere.INSTANCE;
             if (at != null) {
                 at.flare.set(lab);
-                at.glare.set(lab);
+                at.glare.set(false);
+                // Monsoon's showpiece is a thunderstorm, its frame taken in a lightning flash; every other frame
+                // has a clear sky.
+                boolean storm = "monsoon".equals(s.theme());
+                at.lockWeather.set(true);
+                at.weather.set(storm ? "thunder" : "clear");
+                io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = storm ? 0.32f : Float.NaN;
             }
-            lockedTime = dayTimeFor(s.altitude(), s.morning());
+            lockedTime = s.time() >= 0 ? s.time() : dayTimeFor(s.altitude(), s.morning());
+            io.github.georgwav.cosmetics.sol.render.LightPass.tune.clear();
+            io.github.georgwav.cosmetics.sol.render.LightPass.tune.putAll(s.tune());
+            Float quality = s.tune().get("quality");
+            if (quality != null && at != null) {
+                at.quality.set(new String[]{"low", "medium", "high"}[Math.round(quality)]);
+            }
+            frames = 0;
+            passMs = 0;
         }
     }
 
     private void finish(Minecraft mc) {
         finished = true;
+        io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
+        crosshairOnly = false;
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
         }
         boolean passed = problems.isEmpty();
         CosmeticsMod.LOGGER.info("[Sol] Scenario {}: {}", passed ? "PASSED" : "FAILED", problems);
         try {
-            Files.writeString(mc.gameDirectory.toPath().resolve("cosmeticsmod-sol-results.json"),
-                    "{\"passed\":" + passed + ",\"problems\":" + new com.google.gson.Gson().toJson(problems) + "}");
+            com.google.gson.JsonObject out = new com.google.gson.JsonObject();
+            out.addProperty("passed", passed);
+            out.add("problems", new com.google.gson.Gson().toJsonTree(problems));
+            if (bench.size() > 0) {
+                out.add("bench", bench);
+            }
+            Files.writeString(mc.gameDirectory.toPath().resolve("cosmeticsmod-sol-results.json"), out.toString());
         } catch (IOException e) {
             CosmeticsMod.LOGGER.warn("[Sol] Couldn't write the scenario result", e);
         }
         if (Boolean.parseBoolean(System.getProperty("cosmeticsmod.exitWhenDone", "true"))) {
             mc.stop();
         }
+    }
+
+    /** One preset's numbers: frames per second, frame time p50/p99, and the pass's own CPU time per frame. */
+    private void benchResult(String preset) {
+        recording = false;
+        int n = frames;
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        if (n > 10) {
+            float[] sorted = java.util.Arrays.copyOf(frameMs, n);
+            java.util.Arrays.sort(sorted);
+            double total = 0;
+            for (int i = 0; i < n; i++) {
+                total += sorted[i];
+            }
+            o.addProperty("frames", n);
+            o.addProperty("fps", Math.round(1000.0 * n / total * 10) / 10.0);
+            o.addProperty("p50Ms", Math.round(sorted[n / 2] * 100) / 100.0);
+            o.addProperty("p99Ms", Math.round(sorted[Math.min(n - 1, (int) (n * 0.99))] * 100) / 100.0);
+            o.addProperty("passCpuMs", Math.round(passMs / n * 1000) / 1000.0);
+        }
+        bench.add(preset, o);
+        CosmeticsMod.LOGGER.info("[Sol] Bench {}: {}", preset, o);
     }
 
     private static void marker(Minecraft mc, String name) {
@@ -223,7 +350,11 @@ public final class SolScenario {
         return Math.round((d + 0.25) * 24000.0) % 24000L;
     }
 
-    /** Sand dunes and a lake to the west, grass hills and trees behind them (the integrated server builds it). */
+    /**
+     * The reference scene (the integrated server builds it): a sand beach under the player running down to water
+     * that fills the view to the west, sugar cane at the water's edge 12 blocks out, a low far shore about 58
+     * blocks away (under the sun, so it never hides it), and dunes and trees off to the sides that frame the view.
+     */
     private static void buildScene(Minecraft mc) {
         var server = mc.getSingleplayerServer();
         if (server == null) {
@@ -239,26 +370,35 @@ public final class SolScenario {
             int y = (int) Math.floor(player.getY());
             int z = (int) Math.floor(player.getZ());
             int g = y - 1;
-            String[] cmds = {
+            List<String> cmds = new ArrayList<>(List.of(
                     "gamerule doDaylightCycle false",
                     "gamerule doWeatherCycle false",
+                    "gamerule randomTickSpeed 0",
                     "weather clear",
-                    // Sand under the player and toward the west, with dunes.
-                    "fill " + (x - 60) + " " + g + " " + (z - 40) + " " + (x + 6) + " " + g + " " + (z + 40) + " sand",
-                    "fill " + (x - 18) + " " + (g + 1) + " " + (z - 30) + " " + (x - 10) + " " + (g + 1) + " " + (z - 12) + " sand",
-                    "fill " + (x - 16) + " " + (g + 2) + " " + (z - 26) + " " + (x - 12) + " " + (g + 2) + " " + (z - 16) + " sand",
-                    "fill " + (x - 14) + " " + (g + 1) + " " + (z + 12) + " " + (x - 6) + " " + (g + 1) + " " + (z + 30) + " sand",
-                    // A lake.
-                    "fill " + (x - 42) + " " + g + " " + (z - 14) + " " + (x - 22) + " " + g + " " + (z + 14) + " water",
-                    // Hills further out.
-                    "fill " + (x - 62) + " " + g + " " + (z - 40) + " " + (x - 54) + " " + (g + 6) + " " + (z - 6) + " grass_block",
-                    "fill " + (x - 66) + " " + g + " " + (z + 4) + " " + (x - 56) + " " + (g + 10) + " " + (z + 34) + " stone",
-                    "fill " + (x - 64) + " " + (g + 10) + " " + (z + 6) + " " + (x - 58) + " " + (g + 12) + " " + (z + 30) + " grass_block",
-                    "fill " + (x - 50) + " " + g + " " + (z + 20) + " " + (x - 44) + " " + (g + 3) + " " + (z + 40) + " grass_block",
-                    // Grass patches for trees and fireflies.
-                    "fill " + (x - 12) + " " + g + " " + (z + 22) + " " + (x + 6) + " " + g + " " + (z + 40) + " grass_block",
-                    "fill " + (x - 12) + " " + g + " " + (z - 40) + " " + (x + 6) + " " + g + " " + (z - 22) + " grass_block",
-            };
+                    // A clean slate, then the beach.
+                    "fill " + (x - 62) + " " + (g + 1) + " " + (z - 40) + " " + (x + 10) + " " + (g + 16) + " " + (z + 40) + " air",
+                    "fill " + (x - 12) + " " + (g - 1) + " " + (z - 40) + " " + (x + 10) + " " + g + " " + (z + 40) + " sand",
+                    // The water: two blocks deep from the shore to the far side.
+                    "fill " + (x - 54) + " " + (g - 1) + " " + (z - 40) + " " + (x - 13) + " " + g + " " + (z + 40) + " water",
+                    // The far shore: a low sand bank with grass on top, a silhouette under the sun.
+                    "fill " + (x - 62) + " " + (g - 1) + " " + (z - 40) + " " + (x - 55) + " " + (g + 1) + " " + (z + 40) + " sand",
+                    "fill " + (x - 62) + " " + (g + 2) + " " + (z - 40) + " " + (x - 58) + " " + (g + 2) + " " + (z + 40) + " grass_block",
+                    // Dunes to the sides, low enough to frame rather than block.
+                    "fill " + (x - 6) + " " + (g + 1) + " " + (z - 30) + " " + (x + 8) + " " + (g + 1) + " " + (z - 13) + " sand",
+                    "fill " + (x - 2) + " " + (g + 2) + " " + (z - 26) + " " + (x + 8) + " " + (g + 2) + " " + (z - 16) + " sand",
+                    "fill " + (x - 6) + " " + (g + 1) + " " + (z + 13) + " " + (x + 8) + " " + (g + 1) + " " + (z + 30) + " sand",
+                    "fill " + (x - 2) + " " + (g + 2) + " " + (z + 17) + " " + (x + 8) + " " + (g + 2) + " " + (z + 28) + " sand",
+                    // Grass behind the beach for the trees, the meadow themes and fireflies.
+                    "fill " + (x + 9) + " " + g + " " + (z - 40) + " " + (x + 10) + " " + g + " " + (z + 40) + " grass_block",
+                    "fill " + (x - 4) + " " + (g + 3) + " " + (z - 24) + " " + (x + 8) + " " + (g + 3) + " " + (z - 18) + " grass_block",
+                    "fill " + (x - 4) + " " + (g + 3) + " " + (z + 19) + " " + (x + 8) + " " + (g + 3) + " " + (z + 26) + " grass_block"));
+            // Sugar cane along the water's edge (on sand beside the water, so it stays), two and three tall.
+            int[][] cane = {{-7, 3}, {-6, 2}, {-3, 3}, {-2, 2}, {2, 2}, {3, 3}, {4, 2}, {8, 3}, {9, 2}, {-11, 2}, {12, 3}};
+            for (int[] c : cane) {
+                for (int h = 1; h <= c[1]; h++) {
+                    cmds.add("setblock " + (x - 12) + " " + (g + h) + " " + (z + c[0]) + " sugar_cane");
+                }
+            }
             var source = server.createCommandSourceStack().withSuppressedOutput();
             for (String c : cmds) {
                 try {
@@ -267,16 +407,21 @@ public final class SolScenario {
                     CosmeticsMod.LOGGER.warn("[Sol] Scene command failed: {}", c, e);
                 }
             }
-            String[][] trees = {{"cherry", "-6", "28"}, {"oak", "2", "34"}, {"birch", "-8", "-30"}, {"oak", "4", "-26"},
-                    {"cherry", "-46", "30"}, {"oak", "-52", "-20"}};
+            // Trees on the dunes and the grass behind, out of the line to the sun.
+            String[][] trees = {{"cherry", "2", "22"}, {"oak", "6", "-21"}, {"birch", "9", "30"}, {"oak", "9", "-32"},
+                    {"cherry", "-60", "28"}, {"oak", "-60", "-26"}};
             for (String[] t : trees) {
                 try {
-                    server.getCommands().performPrefixedCommand(source, "place feature minecraft:" + t[0] + " "
-                            + (x + Integer.parseInt(t[1])) + " " + y + " " + (z + Integer.parseInt(t[2])));
+                    int tx = x + Integer.parseInt(t[1]), tz = z + Integer.parseInt(t[2]);
+                    int ty = Integer.parseInt(t[1]) < -50 ? g + 3 : (Math.abs(Integer.parseInt(t[2])) < 27 && Integer.parseInt(t[1]) < 9 ? g + 4 : g + 1);
+                    server.getCommands().performPrefixedCommand(source, "place feature minecraft:" + t[0] + " " + tx + " " + ty + " " + tz);
                 } catch (RuntimeException e) {
                     CosmeticsMod.LOGGER.warn("[Sol] Tree failed: {}", t[0], e);
                 }
             }
+            // Stand on the beach, looking west over the water.
+            server.getCommands().performPrefixedCommand(source, "tp " + player.getName().getString() + " " + (x + 0.5) + " "
+                    + (g + 1) + " " + (z + 0.5) + " 90 0");
         });
         Modules.save();
     }

@@ -205,6 +205,13 @@ jobs:
         env:
           # Also print small base64 copies of the screenshots into the log (readable without artifacts).
           MCCI_LOG_SCREENSHOTS: "1"
+      - name: The Sol look (every theme on the reference nodes, the reference frames everywhere)
+        if: ${{ !cancelled() }}
+        run: |
+          case "${{ matrix.node }}" in 1.21.1|1.21.11|26.3) set=full ;; *) set=reduced ;; esac
+          python3 ci/mcci.py look --node "${{ matrix.node }}" --sol "$set"
+        env:
+          MCCI_LOG_SCREENSHOTS: "1"
       - name: Upload logs and screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -213,6 +220,7 @@ jobs:
           path: |
             ci/work/runs/*/summary.json
             ci/work/runs/*/cosmeticsmod-results.json
+            ci/work/runs/*/cosmeticsmod-sol-results.json
             ci/work/runs/*/screenshot-*.png
             ci/work/runs/*/stdout.log
             ci/work/runs/*/logs/latest.log
@@ -243,6 +251,8 @@ jobs:
             node="${dir#artifacts/runtime-}"
             mkdir -p "pub/$node"
             (cd "$dir" && find . -name 'screenshot-ui*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;)
+            # The Ember reference frames on every node (the like-for-like check); every theme on the reference nodes.
+            (cd "$dir" && find . -name 'screenshot-sol_ember*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;)
             case "$node" in 1.21.1|1.21.11|26.3)
               (cd "$dir" && find . -name 'screenshot-sol*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;) ;;
             esac
