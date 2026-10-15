@@ -35,7 +35,7 @@ public final class SolTexture {
     private final DynamicTexture texture;
     private boolean released;
     /** Render types made for this texture, by {@link WorldDraw} kind (versions that need one per texture). */
-    final Object[] renderTypes = new Object[WorldDraw.KINDS];
+    final Object[] renderTypes = new Object[WorldDraw.KINDS + 1];
 
     /** Registers {@code cosmeticsmod:sol/<path>} as an empty {@code width} x {@code height} texture. */
     public SolTexture(String path, int width, int height, boolean linear) {
@@ -56,6 +56,29 @@ public final class SolTexture {
         /*texture.setFilter(linear, false);
         *///?}
         Minecraft.getInstance().getTextureManager().register(id, texture);
+    }
+
+    /** Whether the pixels are stored premultiplied (GUI glows drawn added, see GuiDraw). */
+    public boolean premultiplied;
+
+    /** A copy of a straight-alpha ARGB picture with its colour premultiplied by alpha. */
+    public static int[] premultiply(int[] argb) {
+        int[] out = new int[argb.length];
+        for (int i = 0; i < argb.length; i++) {
+            int c = argb[i];
+            int a = c >>> 24;
+            int r = ((c >> 16) & 0xFF) * a / 255, g = ((c >> 8) & 0xFF) * a / 255, b = (c & 0xFF) * a / 255;
+            out[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        return out;
+    }
+
+    /** A premultiplied copy of a picture, for drawing it added in the GUI. */
+    public static SolTexture premultiplied(String path, int width, int height, boolean linear, int[] argb) {
+        SolTexture t = new SolTexture(path, width, height, linear);
+        t.premultiplied = true;
+        t.upload(premultiply(argb));
+        return t;
     }
 
     /** A texture already filled from an ARGB array (row by row from the top). */
@@ -99,11 +122,11 @@ public final class SolTexture {
     /*public com.mojang.renderpearl.api.textures.GpuTextureView view() {
         return texture.getTextureView();
     }
-    *///?} elif >=26.2 {
-    /*public com.mojang.blaze3d.textures.GpuTextureView view() {
+    *///?} elif >=1.21.6 {
+    public com.mojang.blaze3d.textures.GpuTextureView view() {
         return texture.getTextureView();
     }
-    *///?}
+    //?}
 
     public void release() {
         if (!released) {
