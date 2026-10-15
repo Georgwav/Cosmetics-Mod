@@ -13,7 +13,8 @@ import java.util.function.Consumer;
  * purpose, for the fault-injection test run.
  */
 public final class Guard {
-    private static final Set<Feature> OFF = EnumSet.noneOf(Feature.class);
+    /** Features switched off; failures come from the render thread and Sol's worker threads alike. */
+    private static final Set<Feature> OFF = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static final String FAULT = System.getProperty("cosmeticsmod.fault", "");
     /** Told once per failed feature (the notifications show it). */
     public static volatile Consumer<Feature> onFailure = f -> {

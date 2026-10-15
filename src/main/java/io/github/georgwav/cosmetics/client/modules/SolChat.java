@@ -267,7 +267,16 @@ public final class SolChat extends Module {
     /** A line you send, with its shortcodes turned into symbols. */
     public static String outgoing(String text) {
         SolChat m = Modules.SOL_CHAT;
-        return m.enabled() && m.emoji.get() ? Emoji.replace(text) : text;
+        return m.enabled() && m.emoji.get() ? fit(Emoji.replace(text)) : text;
+    }
+
+    /** The game sends at most 256 characters: a shortcode can make a full line longer, so it's cut back. */
+    static String fit(String text) {
+        if (text.length() <= 256) {
+            return text;
+        }
+        int end = Character.isHighSurrogate(text.charAt(255)) ? 255 : 256;
+        return text.substring(0, end);
     }
 
     @Override

@@ -842,7 +842,7 @@ public final class QuickMenu extends SolScreen {
             }));
         }
         chips.add(Widgets.Chip.button(tr("sol.quick.save_profile"), () -> {
-            String saved = SolProfiles.saveAs(null);
+            String saved = SolProfiles.saveAs(SolProfiles.newName());
             if (saved != null) {
                 Notifications.post(tr("sol.notify.profile_saved", saved));
             }

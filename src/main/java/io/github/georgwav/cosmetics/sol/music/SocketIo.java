@@ -17,6 +17,8 @@ public final class SocketIo {
     private final BiConsumer<String, String> onEvent;
     private final Runnable onClose;
     private volatile WebSocket socket;
+    /** Closed before the connection was made: it's dropped as soon as it is. */
+    private volatile boolean closed;
 
     public SocketIo(String host, int port, BiConsumer<String, String> onEvent, Runnable onClose) {
         this.uri = URI.create("ws://" + host + ":" + port + "/socket.io/?EIO=4&transport=websocket");
@@ -63,11 +65,15 @@ public final class SocketIo {
                 onClose.run();
             } else {
                 socket = ws;
+                if (closed) {
+                    close();
+                }
             }
         });
     }
 
     public void close() {
+        closed = true;
         WebSocket ws = socket;
         socket = null;
         if (ws != null) {

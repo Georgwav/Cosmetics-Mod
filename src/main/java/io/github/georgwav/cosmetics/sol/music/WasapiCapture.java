@@ -39,30 +39,36 @@ final class WasapiCapture implements AudioCapture.Input {
         } catch (ClassNotFoundException | LinkageError e) {
             return null;
         }
+        // Everything got along the way is let go at the end (COM's Release, CoTaskMemFree for the format); the
+        // client and its capture service only when they don't make it into the capture.
+        Pointer enumerator = null, device = null, client = null, format = null, capture = null;
+        boolean made = false;
         try {
             Function.getFunction("ole32", "CoInitializeEx").invokeInt(new Object[]{Pointer.NULL, COINIT_MULTITHREADED});
-            PointerByReference enumerator = new PointerByReference();
+            PointerByReference enumeratorRef = new PointerByReference();
             int hr = Function.getFunction("ole32", "CoCreateInstance").invokeInt(new Object[]{
                     guid(0xBCDE0395, 0xE52F, 0x467C, 0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E), Pointer.NULL, CLSCTX_ALL,
-                    guid(0xA95664D2, 0x9614, 0x4F35, 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6), enumerator});
+                    guid(0xA95664D2, 0x9614, 0x4F35, 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6), enumeratorRef});
             if (hr < 0) {
                 return null;
             }
-            PointerByReference device = new PointerByReference();
-            if (call(enumerator.getValue(), 4, E_RENDER, E_CONSOLE, device) < 0) {
+            enumerator = enumeratorRef.getValue();
+            PointerByReference deviceRef = new PointerByReference();
+            if (call(enumerator, 4, E_RENDER, E_CONSOLE, deviceRef) < 0) {
                 return null;
             }
+            device = deviceRef.getValue();
             PointerByReference audioClient = new PointerByReference();
-            if (call(device.getValue(), 3, guid(0x1CB9AD4C, 0xDBFA, 0x4C32, 0xB1, 0x78, 0xC2, 0xF5, 0x68, 0xA7, 0x03, 0xB2),
+            if (call(device, 3, guid(0x1CB9AD4C, 0xDBFA, 0x4C32, 0xB1, 0x78, 0xC2, 0xF5, 0x68, 0xA7, 0x03, 0xB2),
                     CLSCTX_ALL, Pointer.NULL, audioClient) < 0) {
                 return null;
             }
-            Pointer client = audioClient.getValue();
+            client = audioClient.getValue();
             PointerByReference formatRef = new PointerByReference();
             if (call(client, 8, formatRef) < 0) {
                 return null;
             }
-            Pointer format = formatRef.getValue();
+            format = formatRef.getValue();
             int tag = format.getShort(0) & 0xFFFF, channels = format.getShort(2), rate = format.getInt(4), bits = format.getShort(14);
             boolean floats = tag == 3 || tag == 0xFFFE && bits == 32;
             if (call(client, 3, SHAREMODE_SHARED, STREAMFLAGS_LOOPBACK, 10_000_000L, 0L, format, Pointer.NULL) < 0) {
@@ -72,13 +78,36 @@ final class WasapiCapture implements AudioCapture.Input {
             if (call(client, 14, guid(0xC8ADBD64, 0xE71E, 0x48A0, 0xA4, 0xDE, 0x18, 0x5C, 0x39, 0x5C, 0xD3, 0x17), captureRef) < 0) {
                 return null;
             }
+            capture = captureRef.getValue();
             if (call(client, 10) < 0) {
                 return null;
             }
-            return new WasapiCapture(client, captureRef.getValue(), rate, Math.max(1, channels), bits, floats);
+            made = true;
+            return new WasapiCapture(client, capture, rate, Math.max(1, channels), bits, floats);
         } catch (RuntimeException | LinkageError e) {
             CosmeticsMod.LOGGER.debug("[Sol] WASAPI loopback unavailable", e);
             return null;
+        } finally {
+            try {
+                if (format != null) {
+                    Function.getFunction("ole32", "CoTaskMemFree").invokeVoid(new Object[]{format});
+                }
+                release(device);
+                release(enumerator);
+                if (!made) {
+                    release(capture);
+                    release(client);
+                }
+            } catch (RuntimeException | LinkageError ignored) {
+                // Nothing more to let go of.
+            }
+        }
+    }
+
+    /** IUnknown's Release (vtable slot 2), when there is something to release. */
+    private static void release(Pointer obj) {
+        if (obj != null) {
+            call(obj, 2);
         }
     }
 

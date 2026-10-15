@@ -51,7 +51,10 @@ public final class CosmeticsMod implements ClientModInitializer {
             // and Block Outline shows as unsupported. Expected there, so info rather than a warning.
             LOGGER.info("No block outline event in this Fabric API, the outline colour is off: {}", e.toString());
         }
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
+                client -> io.github.georgwav.cosmetics.client.Modules.flush());
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            io.github.georgwav.cosmetics.client.Modules.flushIfDue();
             while (openKey.consumeClick()) {
                 ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen(null));
             }

@@ -86,6 +86,25 @@ class MigrationsTest {
     }
 
     @Test
+    void aCurrentIdWinsOverAnOldOneWhateverTheOrder() {
+        for (boolean oldFirst : new boolean[]{true, false}) {
+            com.google.gson.JsonObject modules = new com.google.gson.JsonObject();
+            com.google.gson.JsonObject old = com.google.gson.JsonParser.parseString("{\"enabled\":false,\"x\":1}").getAsJsonObject();
+            com.google.gson.JsonObject current = com.google.gson.JsonParser.parseString("{\"enabled\":true,\"x\":2}").getAsJsonObject();
+            if (oldFirst) {
+                modules.add("coords", old);
+                modules.add("coordinates", current);
+            } else {
+                modules.add("coordinates", current);
+                modules.add("coords", old);
+            }
+            com.google.gson.JsonObject out = Migrations.migrateModules(modules);
+            assertEquals(2, out.getAsJsonObject("coordinates").get("x").getAsInt(), "old id first: " + oldFirst);
+            assertFalse(out.has("coords"));
+        }
+    }
+
+    @Test
     void schemaTwoIsLeftAlone() {
         JsonObject p = json("{\"schema\":2,\"modules\":{},\"theme\":{\"id\":\"grace\"},\"pinned\":[],\"future\":7}");
         assertFalse(Migrations.needsMigration(p));

@@ -316,12 +316,39 @@ public final class Modules {
         save();
     }
 
+    /** When the next save is due (ms), or 0: changes are written once they settle, not once per slider step. */
+    private static volatile long saveDue;
+
+    /** Saves the modules a moment after the last change (see {@link #saveNow}). */
+    public static void save() {
+        if (loading) {
+            return;
+        }
+        saveDue = System.currentTimeMillis() + 300L;
+    }
+
+    /** Each client tick: writes the modules when a change has settled. */
+    public static void flushIfDue() {
+        long due = saveDue;
+        if (due != 0L && System.currentTimeMillis() >= due) {
+            saveNow();
+        }
+    }
+
+    /** When the game closes: anything not written yet is written now. */
+    public static void flush() {
+        if (saveDue != 0L) {
+            saveNow();
+        }
+    }
+
     /**
      * Saves the modules into the main folder (shared by every instance; its client folder is made when missing),
      * or into this instance's file when the main folder can't be written. This instance's file always says which
-     * main folder it uses.
+     * main folder it uses. Render thread (it reads the modules).
      */
-    public static void save() {
+    public static void saveNow() {
+        saveDue = 0L;
         if (loading) {
             return;
         }
@@ -342,7 +369,8 @@ public final class Modules {
     private static boolean write(Path file, JsonObject root) {
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);
+            // Whole or not at all: a crash mid-write never leaves half a file.
+            io.github.georgwav.cosmetics.sol.util.AtomicFiles.writeString(file, GSON.toJson(root));
             return true;
         } catch (IOException | RuntimeException e) {
             CosmeticsMod.LOGGER.warn("Couldn't save {}", file, e);

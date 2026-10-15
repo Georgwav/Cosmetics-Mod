@@ -57,14 +57,21 @@ public final class Migrations {
     /** The modules block with moved ids renamed and time/weather folded into Atmosphere. */
     public static JsonObject migrateModules(JsonObject modules) {
         JsonObject out = new JsonObject();
-        for (Map.Entry<String, JsonElement> e : modules.entrySet()) {
-            String id = MODULE_IDS.getOrDefault(e.getKey(), e.getKey());
-            if (id.equals("time") || id.equals("weather")) {
-                continue;
-            }
-            // Don't overwrite a module the file already has under its new id.
-            if (!out.has(id)) {
-                out.add(id, e.getValue().deepCopy());
+        // Modules under their current ids first, then old ids only where the file has no current one: a file with
+        // both keeps the current settings whatever order they're in.
+        for (int pass = 0; pass < 2; pass++) {
+            for (Map.Entry<String, JsonElement> e : modules.entrySet()) {
+                boolean moved = MODULE_IDS.containsKey(e.getKey()) && !MODULE_IDS.get(e.getKey()).equals(e.getKey());
+                if (moved != (pass == 1)) {
+                    continue;
+                }
+                String id = MODULE_IDS.getOrDefault(e.getKey(), e.getKey());
+                if (id.equals("time") || id.equals("weather")) {
+                    continue;
+                }
+                if (!out.has(id)) {
+                    out.add(id, e.getValue().deepCopy());
+                }
             }
         }
         JsonObject atmosphere = out.has("atmosphere") && out.get("atmosphere").isJsonObject()

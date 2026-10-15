@@ -14,7 +14,7 @@ public final class MprisSource implements MusicSource {
     private volatile Process follow;
     private volatile boolean up;
     private volatile NowPlaying last;
-    private Thread reader;
+    private volatile Thread reader;
     private volatile Thread poller;
 
     @Override
@@ -62,12 +62,18 @@ public final class MprisSource implements MusicSource {
     }
 
     private void run() {
+        Process p = null;
         try {
-            follow = new ProcessBuilder("playerctl", "--follow", "metadata", "--format", FORMAT).redirectErrorStream(true).start();
+            p = new ProcessBuilder("playerctl", "--follow", "metadata", "--format", FORMAT).redirectErrorStream(true).start();
+            follow = p;
+            // Stopped while starting: this playerctl goes again at once (stop() may not have seen it).
+            if (reader != Thread.currentThread()) {
+                return;
+            }
             up = true;
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(follow.getInputStream(), StandardCharsets.UTF_8))) {
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
-                while ((line = in.readLine()) != null) {
+                while ((line = in.readLine()) != null && reader == Thread.currentThread()) {
                     last = parse(line);
                     MusicService.report(this, last);
                 }
@@ -75,6 +81,9 @@ public final class MprisSource implements MusicSource {
         } catch (IOException e) {
             // No playerctl: this source stays idle.
         } finally {
+            if (p != null && reader != Thread.currentThread()) {
+                p.destroy();
+            }
             up = false;
         }
     }
@@ -101,11 +110,12 @@ public final class MprisSource implements MusicSource {
 
     @Override
     public void stop() {
-        if (follow != null) {
-            follow.destroy();
+        reader = null;
+        Process p = follow;
+        if (p != null) {
+            p.destroy();
             follow = null;
         }
-        reader = null;
         if (poller != null) {
             poller.interrupt();
             poller = null;

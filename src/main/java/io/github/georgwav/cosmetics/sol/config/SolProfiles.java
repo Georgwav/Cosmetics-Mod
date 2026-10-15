@@ -282,6 +282,7 @@ public final class SolProfiles {
         try {
             Files.createDirectories(path.getParent());
             AtomicFiles.writeString(path, GSON.toJson(profile));
+            io.github.georgwav.cosmetics.client.Profiles.forget();
             return true;
         } catch (IOException e) {
             CosmeticsMod.LOGGER.warn("[Sol] Couldn't save the profile {}", path, e);
@@ -413,7 +414,16 @@ public final class SolProfiles {
     }
 
     /** Saves what's live as a new profile and makes it active. */
+    /** A new profile's name: "Profile 1", "Profile 2", ...: the first not taken. */
+    public static String newName() {
+        String base = net.minecraft.network.chat.Component.translatable("sol.menu.new_profile", "").getString().strip();
+        return io.github.georgwav.cosmetics.client.Profiles.nextName(base, names());
+    }
+
     public static String saveAs(String name) {
+        if (name == null) {
+            return null;
+        }
         String clean = name.trim().replaceAll("[^\\p{L}\\p{N} _-]", "").replaceAll("\\s+", " ").trim();
         if (clean.isEmpty()) {
             return null;

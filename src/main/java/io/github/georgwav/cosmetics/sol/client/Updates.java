@@ -216,8 +216,20 @@ public final class Updates {
                 .filter(p -> p.toString().endsWith(".jar")).orElse(null);
     }
 
-    /** When the game closes with an update downloaded, the new jar replaces this one. */
+    /**
+     * When the game closes with an update downloaded, the new jar replaces this one. A download that couldn't take
+     * over last time (a locked file, a full disk) is found again here and tried at this close.
+     */
     public static void registerSwap() {
+        Path own = ownJar();
+        if (own != null && pending == null) {
+            try (var files = Files.list(own.getParent())) {
+                files.filter(f -> f.getFileName().toString().startsWith("solclient-") && f.getFileName().toString().endsWith(".jar.pending"))
+                        .findFirst().ifPresent(f -> pending = f);
+            } catch (IOException | RuntimeException e) {
+                // No folder to look in: nothing waiting.
+            }
+        }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             Path next = pending, jar = ownJar();
             if (next == null || jar == null || !Files.exists(next)) {
@@ -227,12 +239,16 @@ public final class Updates {
             boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
             try {
                 if (windows) {
-                    // The running jar is locked until the game has gone: a detached command waits a moment, then swaps.
-                    new ProcessBuilder("cmd", "/c", "ping -n 4 127.0.0.1 > nul & del /f /q \"" + jar + "\" & move /y \""
+                    // The running jar is locked until the game has gone: a detached command waits a moment, then
+                    // swaps, the new jar moving in only once the old one is gone (never two of the mod at once).
+                    new ProcessBuilder("cmd", "/c", "ping -n 4 127.0.0.1 > nul & del /f /q \"" + jar + "\" && move /y \""
                             + next + "\" \"" + finalName + "\"").start();
                 } else {
-                    Files.deleteIfExists(jar);
+                    // The new jar in first, then the old one out: a failed move leaves the old jar working.
                     Files.move(next, finalName, StandardCopyOption.REPLACE_EXISTING);
+                    if (!finalName.equals(jar)) {
+                        Files.deleteIfExists(jar);
+                    }
                 }
             } catch (IOException | RuntimeException e) {
                 // The next start keeps the old jar; the .pending one is tried again next time.

@@ -29,20 +29,38 @@ public final class Profiles {
         return MainFolder.clientFolder().resolve("profiles");
     }
 
-    /** The saved profiles' names, A to Z. */
-    public static List<String> names() {
-        List<String> names = new ArrayList<>();
+    private static List<String> listed;
+    private static long listedAt;
+    private static Path listedFolder;
+
+    /**
+     * The saved profiles' names, A to Z. Menus ask every frame, so the folder is listed at most once a second (and
+     * again at once after a profile is saved or deleted here).
+     */
+    public static synchronized List<String> names() {
         Path folder = folder();
-        if (!Files.isDirectory(folder)) {
-            return names;
+        long now = System.currentTimeMillis();
+        if (listed != null && now - listedAt < 1000L && folder.equals(listedFolder)) {
+            return new ArrayList<>(listed);
         }
-        try (Stream<Path> files = Files.list(folder)) {
-            files.map(f -> f.getFileName().toString()).filter(n -> n.endsWith(".json"))
-                    .map(n -> n.substring(0, n.length() - 5)).sorted(String.CASE_INSENSITIVE_ORDER).forEach(names::add);
-        } catch (IOException e) {
-            CosmeticsMod.LOGGER.warn("Couldn't list the profiles in {}", folder, e);
+        List<String> names = new ArrayList<>();
+        if (Files.isDirectory(folder)) {
+            try (Stream<Path> files = Files.list(folder)) {
+                files.map(f -> f.getFileName().toString()).filter(n -> n.endsWith(".json"))
+                        .map(n -> n.substring(0, n.length() - 5)).sorted(String.CASE_INSENSITIVE_ORDER).forEach(names::add);
+            } catch (IOException e) {
+                CosmeticsMod.LOGGER.warn("Couldn't list the profiles in {}", folder, e);
+            }
         }
-        return names;
+        listed = names;
+        listedAt = now;
+        listedFolder = folder;
+        return new ArrayList<>(names);
+    }
+
+    /** A profile was saved or deleted: list the folder again next time. */
+    public static synchronized void forget() {
+        listed = null;
     }
 
     /** A file name from what was typed: letters, digits, spaces, dashes and underscores. */
@@ -73,7 +91,8 @@ public final class Profiles {
         Path path = folder().resolve(file + ".json");
         try {
             Files.createDirectories(path.getParent());
-            Files.writeString(path, GSON.toJson(root), StandardCharsets.UTF_8);
+            io.github.georgwav.cosmetics.sol.util.AtomicFiles.writeString(path, GSON.toJson(root));
+            forget();
             return file;
         } catch (IOException e) {
             CosmeticsMod.LOGGER.warn("Couldn't save the profile {}", path, e);
@@ -97,6 +116,7 @@ public final class Profiles {
     public static void delete(String name) {
         try {
             Files.deleteIfExists(folder().resolve(name + ".json"));
+            forget();
         } catch (IOException e) {
             CosmeticsMod.LOGGER.warn("Couldn't delete the profile {}", name, e);
         }

@@ -78,8 +78,9 @@ public final class CiderSource implements MusicSource {
                 lastSocketTry = now;
                 SolConfig.Music m = SolConfig.get().music;
                 socket = new SocketIo(m.ciderHost, m.ciderPort, this::event, () -> socketUp = false);
-                socket.connect(Http.CLIENT);
+                // Up before connecting: a failure reported at once (or before this line ran) must win.
                 socketUp = true;
+                socket.connect(Http.CLIENT);
             }
             if (!socketUp || now - lastRest > 5_000L) {
                 lastRest = now;

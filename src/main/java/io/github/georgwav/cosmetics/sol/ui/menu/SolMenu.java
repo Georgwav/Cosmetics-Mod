@@ -472,7 +472,7 @@ public final class SolMenu extends SolScreen {
         }
         ui.button(tk, x + w - 8f, ry + 18f, tr("sol.menu.save_profile"), false, () -> {
             popover = false;
-            String saved = SolProfiles.saveAs(tr("sol.menu.new_profile", names.size() + 1));
+            String saved = SolProfiles.saveAs(SolProfiles.newName());
             if (saved != null) {
                 toast(tr("sol.notify.profile_saved", saved));
             }
