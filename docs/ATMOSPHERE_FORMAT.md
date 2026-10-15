@@ -220,6 +220,22 @@ A list of streams. Each is an object, or the prototype's `["type", count, ["#col
 |---|---|
 | `phase` | `dawn`, `day`, `dusk` or `night`: the theme's showpiece moment. The file's own values are this phase. |
 | `azimuth` | The direction the showpiece faces, in degrees (90 = west). |
+| `hold` | `true`: the sky always shows the showpiece moment, at any hour. The night themes keep their night by day this way. This is visual only: the world's time isn't changed, and the blocks are drawn darker while the held sky is darker than the real one. |
+| `time` | The time of day a held sky shows (0 noon, 0.25 sunset, 0.5 midnight). Without it, the middle of `phase`. |
+
+**The theme's light.** Every theme lights the world with its own light. The light pass reads it every frame:
+- **Sun themes:** the sun, strongest when low; at night, the moon.
+- **Night themes:** their own showpiece light:
+  - `sigil`: the rune;
+  - `eclipse`: the burning ring;
+  - `aurora`: the ribbons, two colours sweeping over the ground;
+  - `nebula`: pink and violet from above;
+  - `galaxy`: cold silver;
+  - a night `moon`: moonlight.
+- **`lightning`:** each flash lights the world from the bolt.
+- **Colours:** `light.sun` and `light.shadow` colour the faces turned toward the light and away from it.
+- **Dimming:** a `light.boost` below 1 also dims the world itself (Eclipse, Monsoon).
+- **Atmosphere intensity** scales all of it.
 
 ## `keyframes`
 

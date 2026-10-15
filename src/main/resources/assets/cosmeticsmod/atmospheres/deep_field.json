@@ -20,20 +20,22 @@
     "color": "#0b0b0e",
     "density": 0.5,
     "near": 10,
-    "far": 140,
-    "scatter": 0.15,
-    "haze": 0.2
+    "far": 130,
+    "scatter": 0.35,
+    "haze": 0.25
   },
   "light": {
     "tint": "#eef0f6",
-    "strength": 0.1,
+    "strength": 0.62,
     "boost": 1.0,
     "sun": "#f4f4fa",
-    "shadow": "#1a1a20"
+    "shadow": "#101014"
   },
   "show": {
     "phase": "night",
-    "azimuth": 180
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
   },
   "stars": {
     "count": 280,
@@ -141,9 +143,9 @@
   },
   "grade": {
     "highlights": "#ffffff",
-    "shadows": "#050507",
-    "saturation": 0.7,
-    "contrast": 1.1,
+    "shadows": "#020203",
+    "saturation": 0.0,
+    "contrast": 1.18,
     "bloomTint": "#ffffff",
     "bloom": 0.9,
     "threshold": 0.55,

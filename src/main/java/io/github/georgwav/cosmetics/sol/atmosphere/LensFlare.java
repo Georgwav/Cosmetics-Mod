@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.sol.atmosphere;
 import io.github.georgwav.cosmetics.sol.Feature;
 import io.github.georgwav.cosmetics.sol.Guard;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
+import io.github.georgwav.cosmetics.sol.render.LightPass;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
@@ -117,7 +118,9 @@ public final class LensFlare {
         lensPetals(theme);
         if (Extras.flash > 0f) {
             WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
-            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash));
+            // With the light pass lighting the world and the clouds, only a thin veil is left to add.
+            float veil = LightPass.preset() == LightPass.HIGH ? 0.3f : 1f;
+            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash * veil));
             WorldDraw.end();
         }
         if (at.vignette.get()) {

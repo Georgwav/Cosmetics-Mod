@@ -21,19 +21,21 @@
     "density": 0.5,
     "near": 4,
     "far": 84,
-    "scatter": 0.6,
+    "scatter": 0.85,
     "haze": 0.4
   },
   "light": {
     "tint": "#ff9a7a",
-    "strength": 0.4,
-    "boost": 0.85,
+    "strength": 0.78,
+    "boost": 0.3,
     "sun": "#ff9a72",
-    "shadow": "#1a0606"
+    "shadow": "#140404"
   },
   "show": {
     "phase": "day",
-    "azimuth": 0
+    "azimuth": 0,
+    "hold": true,
+    "time": 0.1842
   },
   "sun": {
     "size": 0.055,

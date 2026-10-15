@@ -31,6 +31,11 @@ public final class Atmosphere extends Module {
      * visible steps, the look of a block game; Smooth draws them soft.
      */
     public final Setting.Choice lightStyle = add(new Setting.Choice("light_style", "pixel", List.of("pixel", "smooth")));
+    /**
+     * How strongly the theme's look is laid on: 100% is the full cinematic look (the theme's light, rims, shafts,
+     * bloom, grade and fog); lower tones it down toward the game's own.
+     */
+    public final Setting.Slider intensity = add(new Setting.Slider("intensity", 100, 0, 100, 5, v -> Math.round(v) + "%"));
     // World.
     public final Setting.Toggle particles = add(new Setting.Toggle("particles", true).advanced());
     public final Setting.Choice quality = add(new Setting.Choice("quality", "auto", List.of("auto", "low", "medium", "high")));
@@ -49,6 +54,12 @@ public final class Atmosphere extends Module {
     public Atmosphere() {
         super("atmosphere", Category.WORLD, "sun");
         INSTANCE = this;
+    }
+
+    /** The intensity setting, 0..1 (1 when Atmosphere isn't loaded). */
+    public static float intensity() {
+        Atmosphere a = INSTANCE;
+        return a == null ? 1f : (float) (a.intensity.get() / 100.0);
     }
 
     /** Whether the Sol sky replaces the game's sky now: on, in a world, and the theme isn't the plain one. */

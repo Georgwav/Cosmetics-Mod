@@ -20,20 +20,22 @@
     "color": "#3a1747",
     "density": 0.45,
     "near": 8,
-    "far": 128,
-    "scatter": 0.25,
-    "haze": 0.25
+    "far": 118,
+    "scatter": 0.55,
+    "haze": 0.3
   },
   "light": {
     "tint": "#d8b8ff",
-    "strength": 0.3,
+    "strength": 0.68,
     "boost": 1.0,
     "sun": "#e4ccff",
-    "shadow": "#22133a"
+    "shadow": "#1c0e36"
   },
   "show": {
     "phase": "night",
-    "azimuth": 180
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
   },
   "stars": {
     "count": 210,

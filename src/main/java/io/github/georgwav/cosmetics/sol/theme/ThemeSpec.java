@@ -135,8 +135,29 @@ public record ThemeSpec(
                           float spin) {
     }
 
-    /** The showpiece: which time of day the base values describe, and which way to face for it (degrees from south). */
-    public record Show(String phase, float azimuth) {
+    /**
+     * The showpiece: which time of day the base values describe, and which way to face for it (degrees from south).
+     * {@code hold}: the theme looks like its showpiece at every hour (a night theme keeps its night sky by day), shown
+     * as at {@code time} (the game's time-of-day fraction: 0 noon, 0.25 sunset, 0.5 midnight); only what you see
+     * changes, never the world's time.
+     */
+    public record Show(String phase, float azimuth, boolean hold, float time) {
+        public Show(String phase, float azimuth) {
+            this(phase, azimuth, false, -1f);
+        }
+
+        /** The time a held theme is shown at: its own, or its phase's middle. */
+        public float heldTime() {
+            if (time >= 0f) {
+                return time;
+            }
+            return switch (phase) {
+                case "night" -> 0.42f;
+                case "dusk" -> 0.235f;
+                case "dawn" -> 0.765f;
+                default -> 0.08f;
+            };
+        }
     }
 
     public boolean hasSun() {

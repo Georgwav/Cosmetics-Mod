@@ -10,11 +10,11 @@
     "rimAlpha": 0.6
   },
   "sky": {
-    "top": "#9fb5cc",
-    "middle": "#a8bcd2",
-    "horizon": "#d7e0ea",
-    "glow": "#eef3f8",
-    "sunWarmth": 0.2
+    "top": "#7f9cc0",
+    "middle": "#9ab0cc",
+    "horizon": "#d4dde8",
+    "glow": "#f6eedc",
+    "sunWarmth": 0.35
   },
   "fog": {
     "color": "#d3dde9",
@@ -22,26 +22,26 @@
     "voxyThinning": 0.5,
     "near": 2,
     "far": 52,
-    "scatter": 0.45,
+    "scatter": 0.55,
     "haze": 0.5
   },
   "light": {
     "tint": "#e6f0ff",
-    "strength": 0.3,
-    "boost": 1.12,
-    "sun": "#ffffff",
-    "shadow": "#8fa6c6"
+    "strength": 0.42,
+    "boost": 1.0,
+    "sun": "#fff4e0",
+    "shadow": "#7f98bc"
   },
   "show": {
     "phase": "day",
     "azimuth": -90
   },
   "sun": {
-    "size": 0.02,
+    "size": 0.024,
     "core": "#ffffff",
-    "halo": "#ffffff",
-    "haloRadius": 0.2,
-    "haloAlpha": 0.35,
+    "halo": "#fff1d6",
+    "haloRadius": 0.3,
+    "haloAlpha": 0.42,
     "rays": 10,
     "coreRays": 6,
     "x": 0.28,
@@ -147,7 +147,7 @@
       },
       "light": {
         "tint": "#b8d0ff",
-        "strength": 0.14,
+        "strength": 0.45,
         "boost": 1.0
       },
       "clouds": {
@@ -156,13 +156,13 @@
     }
   },
   "grade": {
-    "highlights": "#eef6ff",
-    "shadows": "#2a3a52",
-    "saturation": 0.95,
-    "contrast": 1.02,
+    "highlights": "#fff8ec",
+    "shadows": "#24344e",
+    "saturation": 1.0,
+    "contrast": 1.06,
     "bloomTint": "#e8f4ff",
-    "bloom": 0.45,
-    "threshold": 0.8,
+    "bloom": 0.35,
+    "threshold": 0.86,
     "vignette": 0.1
   }
 }

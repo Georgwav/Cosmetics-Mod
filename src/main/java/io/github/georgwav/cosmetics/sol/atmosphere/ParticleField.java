@@ -84,10 +84,12 @@ public final class ParticleField {
 
         // Screen pixels per block at one block away: what decides a sprite's size on screen.
         pxPerBlock = FrameInfo.height / (2f * (float) Math.tan(Math.toRadians(Math.max(1f, FrameInfo.fovY)) / 2f));
-        float light = 0.35f + 0.65f * (1f - tk.night);
-        float sunUp = Ease.smoothstep(-0.05f, 0.12f, SkyPass.sunY) * SkyPass.sunVisible;
-        int sunTint = Colors.mix(0xFFFFFFFF, tk.lightSun, 0.45f * sunUp);
-        int backColor = Colors.mix(tk.lightSun, 0xFFFFFFFF, 0.3f);
+        // The particles are lit by the theme's light (the sun, the rune, the moon...): tinted toward it, and glowing
+        // through when it's behind them; the theme's own light keeps them from going dark at night.
+        float light = 0.35f + 0.65f * Math.max(1f - tk.night, KeyLight.strength * 0.85f);
+        float sunUp = KeyLight.strength * Math.max(0.35f, KeyLight.visible);
+        int sunTint = Colors.mix(0xFFFFFFFF, KeyLight.color, 0.45f * sunUp);
+        int backColor = Colors.mix(KeyLight.color, 0xFFFFFFFF, 0.3f);
         float[] wind = theme.wind();
 
         // 1. Light: the glowing types (a wide halo and a bright core, drawn added, brighter than white where they
@@ -251,7 +253,7 @@ public final class ParticleField {
 
     /** How much the sun is behind a particle as you look at it (0 none, 1 right behind it). */
     private static float backlight(int i, float d) {
-        float dot = (x[i] * SkyPass.sunX + y[i] * SkyPass.sunY + z[i] * SkyPass.sunZ) / d;
+        float dot = (x[i] * KeyLight.x + y[i] * KeyLight.y + z[i] * KeyLight.z) / d;
         return Ease.smoothstep(0.8f, 0.985f, dot);
     }
 

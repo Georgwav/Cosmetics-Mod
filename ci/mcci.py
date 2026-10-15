@@ -586,7 +586,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         jvm.append("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO_IN_SMOKE)
     if mode == "sol":
         # Local look runs: compare light-pass strengths in one run, or judge at another quality.
-        for env, prop in (("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots")):
+        for env, prop in (("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes")):
             if os.environ.get(env):
                 jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":

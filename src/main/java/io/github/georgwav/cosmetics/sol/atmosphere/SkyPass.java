@@ -55,9 +55,15 @@ public final class SkyPass {
     public static boolean render(float sunAngle, int moonPhase, float rainBrightness) {
         drewThisFrame = false;
         if (!Atmosphere.active() || !Guard.on(Feature.SKY)) {
+            KeyLight.none();
             return false;
         }
-        boolean ok = Guard.run(Feature.SKY, () -> draw(sunAngle, moonPhase, rainBrightness));
+        // A theme holding its showpiece shows its own time (a night theme keeps its night sky by day).
+        float shownAngle = SkyTime.angle(sunAngle);
+        boolean ok = Guard.run(Feature.SKY, () -> draw(shownAngle, moonPhase, rainBrightness));
+        if (!ok) {
+            KeyLight.none();
+        }
         drewThisFrame = ok;
         if (ok) {
             lastDrawFrame = FrameInfo.frame;
@@ -107,6 +113,7 @@ public final class SkyPass {
         band(tk, sunAz, q, rain);
         Extras.renderFront(theme, tk, t, rain);
         Extras.renderMist(theme, tk, t, rain);
+        KeyLight.update(theme, tk, t, rain);
     }
 
     // ------------------------------------------------------------------ dome
@@ -348,11 +355,19 @@ public final class SkyPass {
 
         // Halo and pillar.
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
-        float r = 0.3f + 0.18f * low;
-        SkyDraw.glowAt(0f, 0f, r, r, Colors.withAlpha(halo, (0.45f + 0.4f * low) * vis));
+        // The theme's halo (Ember's is .36 at .85: the Sun lab's .3 + .18·low at .45 + .4·low), widest and strongest
+        // with the sun low; a high sun keeps a smaller, fainter one so a day sky isn't one big disc.
+        float high = Math.min(1f, low * 2f);
+        float r = spec.haloRadius() * (0.83f + 0.5f * low) * (0.7f + 0.3f * high);
+        float ha = spec.haloAlpha() * (0.53f + 0.47f * low) * (0.75f + 0.25f * high);
+        SkyDraw.glowAt(0f, 0f, r, r, Colors.withAlpha(halo, ha * vis));
         if (pillarOn && low > 0.3f) {
             float k = (low - 0.3f) / 0.7f;
-            SkyDraw.rect(-s * 1.2f, -0.42f, s * 1.2f, 0.42f, Colors.withAlpha(halo, k * k * 0.6f * vis));
+            // As strong as Ember's with Ember's halo; a theme with a fainter halo gets a fainter pillar, so it
+            // doesn't stand above its sun like a tower.
+            float f = Math.min(1f, spec.haloAlpha() / 0.85f);
+            float pa = k * k * 0.6f * f * f;
+            SkyDraw.rect(-s * 1.2f, -0.42f, s * 1.2f, 0.42f, Colors.withAlpha(halo, pa * vis));
         }
         // Sun dogs: the spots' glows.
         float dA = dogsOn ? Math.max(0f, 1f - Math.abs(q - 0.22f) / 0.4f) : 0f;

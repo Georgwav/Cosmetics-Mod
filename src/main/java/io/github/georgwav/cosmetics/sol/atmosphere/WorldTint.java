@@ -59,7 +59,7 @@ public final class WorldTint {
         if (at == null || !on(at.light.get()) || !Guard.on(Feature.LIGHT)) {
             return vanilla;
         }
-        return Math.min(1f, vanilla * ThemeState.tokens().lightBoost);
+        return Math.min(1f, vanilla * ThemeState.tokens().lightBoost * SkyTime.worldLight);
     }
 
     /**
@@ -78,7 +78,8 @@ public final class WorldTint {
         }
         Tokens tk = ThemeState.tokens();
         float s = tk.lightStrength;
-        float boost = withBoost ? tk.lightBoost : 1f;
+        // A held night shown by day darkens the light too (SkyTime), with the boost.
+        float boost = withBoost ? tk.lightBoost * SkyTime.worldLight : 1f;
         if (s <= 0f && Math.abs(boost - 1f) < 1e-3f) {
             return;
         }

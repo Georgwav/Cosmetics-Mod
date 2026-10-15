@@ -19,21 +19,23 @@
   "fog": {
     "color": "#10302d",
     "density": 0.78,
-    "near": 2,
+    "near": 3,
     "far": 58,
-    "scatter": 0.5,
+    "scatter": 0.95,
     "haze": 0.7
   },
   "light": {
     "tint": "#b8e0c8",
-    "strength": 0.3,
+    "strength": 0.8,
     "boost": 1.0,
     "sun": "#ffe2a0",
-    "shadow": "#0e2a26"
+    "shadow": "#062420"
   },
   "show": {
     "phase": "night",
-    "azimuth": 180
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
   },
   "stars": {
     "count": 12,

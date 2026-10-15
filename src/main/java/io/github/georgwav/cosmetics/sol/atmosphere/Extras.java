@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
+import io.github.georgwav.cosmetics.sol.util.Ease;
 import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
 import io.github.georgwav.cosmetics.sol.util.Sprites;
 
@@ -76,6 +77,20 @@ public final class Extras {
         o[0] = dx;
         o[1] = dy;
         o[2] = dz;
+    }
+
+    /** The world direction of a prototype frame point, for the key light (see KeyLight). */
+    public static void directionOf(float x, float y, float showAzimuth, boolean turnsWithSky, float[] o) {
+        direction(x, y, showAzimuth, turnsWithSky ? skyTurn() : 0f, o);
+    }
+
+    /** The last bolt's middle (altitude, azimuth in degrees), for the flash's light; NaN with no bolt. */
+    public static float boltAltitude() {
+        return boltN > 1 ? (boltAlt[0] + boltAlt[boltN - 1]) * 0.5f : Float.NaN;
+    }
+
+    public static float boltAzimuth() {
+        return boltN > 1 ? (boltAz[0] + boltAz[boltN - 1]) * 0.5f : Float.NaN;
     }
 
     /** How far the night sky has turned from midnight (so celestial extras sit where designed at midnight). */
@@ -160,37 +175,62 @@ public final class Extras {
 
     // ------------------------------------------------------------------ aurora
 
-    /** Two ribbons across 160° of sky: columns of the strip texture, waving (the prototype's formula). */
+    /**
+     * Two curtains across 170° of sky, in the prototype's wave: each a row of columns of the strip texture with a
+     * bright lower edge fading upward, fine rays shimmering along it, and a faint glow skirt below it that colours
+     * the sky down to the horizon.
+     */
     private static void aurora(int[] colors, float az, float t, float night) {
-        int columns = 140;
-        float span = 160f;
+        int columns = 320;
+        float span = 170f;
         float amp = 1f + MusicSky.auroraBoost();
         float aA = Math.min(2.2f, 1f + MusicSky.auroraBoost() * 0.75f);
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.strip());
-        for (int ri = 0; ri < colors.length; ri++) {
-            for (int i = 0; i < columns; i++) {
-                float u0 = i / (float) columns;
-                float u1 = (i + 1) / (float) columns;
-                float y0 = 0.1f + 0.07f * ri + (float) Math.sin(u0 * 6 + t * 0.25f + ri * 2) * 0.045f * amp
-                        + (float) Math.sin(u0 * 14 + t * 0.45f) * 0.014f;
-                float y1n = 0.1f + 0.07f * ri + (float) Math.sin(u1 * 6 + t * 0.25f + ri * 2) * 0.045f * amp
-                        + (float) Math.sin(u1 * 14 + t * 0.45f) * 0.014f;
-                float len = 0.14f + 0.06f * (float) Math.sin(u0 * 9 + t * 0.35f + ri);
-                float a = Math.min(1f, aA * 0.22f * (0.55f + 0.45f * (float) Math.sin(u0 * 21 + t * 0.8f + ri))) * night;
-                if (a <= 0.004f) {
-                    continue;
+        for (int pass = 0; pass < 2; pass++) {
+            for (int ri = 0; ri < colors.length; ri++) {
+                for (int i = 0; i < columns; i++) {
+                    float u0 = i / (float) columns;
+                    float u1 = (i + 1) / (float) columns;
+                    float b0 = curtainEdge(u0, ri, t, amp), b1 = curtainEdge(u1, ri, t, amp);
+                    float len = 18f + 6f * (float) Math.sin(u0 * 9 + t * 0.35f + ri);
+                    float a = aA * 0.42f * (0.6f + 0.4f * (float) Math.sin(u0 * 21 + t * 0.8f + ri)) * night;
+                    // Fade the ends of the arc instead of cutting them.
+                    a *= Ease.smoothstep(0f, 0.12f, u0) * Ease.smoothstep(1f, 0.88f, u0);
+                    float top0, top1, bot0, bot1;
+                    if (pass == 0) {
+                        a *= 0.2f;
+                        top0 = b0 + len * 0.2f;
+                        top1 = b1 + len * 0.2f;
+                        bot0 = bot1 = 0.5f;
+                    } else {
+                        // Fine rays, about a degree apart, drifting along the curtain.
+                        a *= 0.7f + 0.3f * (float) (Math.sin(u0 * 640 + t * 1.1f + ri * 3) * Math.sin(u0 * 230 - t * 0.7f));
+                        top0 = b0 + len;
+                        top1 = b1 + len;
+                        bot0 = b0 - len * 0.15f;
+                        bot1 = b1 - len * 0.15f;
+                    }
+                    if (a <= 0.004f) {
+                        continue;
+                    }
+                    int c = Colors.withAlpha(colors[ri], Math.min(1f, a));
+                    float z0 = az - span / 2f + u0 * span;
+                    float z1 = az - span / 2f + u1 * span;
+                    // The top of the strip texture at the top: its brightest band (70% down) is the lower edge.
+                    SkyDraw.altAz(top0, z0, 0f, 0f, c);
+                    SkyDraw.altAz(bot0, z0, 0f, 1f, c);
+                    SkyDraw.altAz(bot1, z1, 1f, 1f, c);
+                    SkyDraw.altAz(top1, z1, 1f, 0f, c);
                 }
-                int c = Colors.withAlpha(colors[ri], a);
-                float z0 = az - span / 2f + u0 * span;
-                float z1 = az - span / 2f + u1 * span;
-                // The ribbon hangs from y0 down to y0 + len in the frame: top of the strip texture at the top.
-                SkyDraw.altAz(altitudeOf(y0), z0, 0f, 0f, c);
-                SkyDraw.altAz(altitudeOf(y0 + len), z0, 0f, 1f, c);
-                SkyDraw.altAz(altitudeOf(y1n + len), z1, 1f, 1f, c);
-                SkyDraw.altAz(altitudeOf(y1n), z1, 1f, 0f, c);
             }
         }
         WorldDraw.end();
+    }
+
+    /** A curtain's lower edge (altitude in degrees) along the arc: the prototype's two waves. */
+    private static float curtainEdge(float u, int ri, float t, float amp) {
+        return 8f + 5f * ri + 4f * amp * (float) Math.sin(u * 6 + t * 0.25f + ri * 2)
+                + 1.4f * (float) Math.sin(u * 14 + t * 0.45f);
     }
 
     // ------------------------------------------------------------------ lightning

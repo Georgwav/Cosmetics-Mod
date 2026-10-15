@@ -53,8 +53,12 @@ public final class SolHooks {
                 FrameInfo.skyHidden = player != null && (player.hasEffect(MobEffects.BLINDNESS)
                         || player.hasEffect(MobEffects.DARKNESS));
             }
-            FrameInfo.timeOfDay = (float) (FrameInfo.sunAngle / (Math.PI * 2.0));
-            FrameInfo.timeOfDay -= (float) Math.floor(FrameInfo.timeOfDay);
+            float worldTime = (float) (FrameInfo.sunAngle / (Math.PI * 2.0));
+            worldTime -= (float) Math.floor(worldTime);
+            // The time the sky shows: the world's, or the theme's own while it holds its showpiece.
+            io.github.georgwav.cosmetics.sol.atmosphere.SkyTime.update(worldTime,
+                    io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.intensity());
+            FrameInfo.timeOfDay = io.github.georgwav.cosmetics.sol.atmosphere.SkyTime.shown;
             ThemeState.update(FrameInfo.inWorld ? FrameInfo.timeOfDay : Float.NaN);
             QualityGovernor.frame(FrameInfo.frameSeconds);
             io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
@@ -70,6 +74,7 @@ public final class SolHooks {
      */
     public static void frameEnd() {
         ParticleField.render();
+        io.github.georgwav.cosmetics.sol.atmosphere.GlitterPath.render();
         io.github.georgwav.cosmetics.sol.render.LightPass.world();
         LensFlare.render();
     }

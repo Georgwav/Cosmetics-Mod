@@ -6,6 +6,8 @@ import io.github.georgwav.cosmetics.sol.Feature;
 import io.github.georgwav.cosmetics.sol.Guard;
 import io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere;
 import io.github.georgwav.cosmetics.sol.atmosphere.FogControl;
+import io.github.georgwav.cosmetics.sol.atmosphere.KeyLight;
+import io.github.georgwav.cosmetics.sol.atmosphere.SkyTime;
 import io.github.georgwav.cosmetics.sol.atmosphere.QualityGovernor;
 import io.github.georgwav.cosmetics.sol.atmosphere.SkyPass;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
@@ -235,13 +237,15 @@ public final class LightPass {
         float[] v = values;
         java.util.Arrays.fill(v, 0f);
 
-        // The sun: on screen (uv), visible, and its direction in view space.
-        float sx = SkyPass.sunX, sy = SkyPass.sunY, sz = SkyPass.sunZ;
+        // The theme's light (the sun, the moon, the rune, the ring, the ribbons...: see KeyLight): on screen (uv),
+        // visible, and its direction in view space.
+        float in = Atmosphere.intensity();
+        float sx = KeyLight.x, sy = KeyLight.y, sz = KeyLight.z;
         var view = FrameInfo.view;
         float vx = view.m00() * sx + view.m10() * sy + view.m20() * sz;
         float vy = view.m01() * sx + view.m11() * sy + view.m21() * sz;
         float vz = view.m02() * sx + view.m12() * sy + view.m22() * sz;
-        float vis = SkyPass.sunVisible * (1f - FrameInfo.rain * 0.85f);
+        float vis = KeyLight.visible * (1f - FrameInfo.rain * 0.85f);
         if (vz < -0.02f) {
             float u = proj.m00() * vx / -vz * 0.5f + 0.5f;
             float w = proj.m11() * vy / -vz * 0.5f + 0.5f;
@@ -271,29 +275,27 @@ public final class LightPass {
         // The cleared depth (where nothing was drawn: the sky): 1, or 0 with reversed depth.
         v[10] = c1 > 0f ? 0f : 1f;
         v[11] = preset;
-        float alt = SkyPass.sunAltitude;
-        float golden = Ease.smoothstep(-6f, 2f, alt) * (1f - 0.65f * Ease.smoothstep(12f, 40f, alt));
-        v[12] = golden;
-        v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun"));
+        v[12] = KeyLight.strength;
+        v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun")) * in;
         v[14] = FogControl.start(100000f);
         v[15] = FogControl.end(100000f);
         float rain = FrameInfo.rain;
-        v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter");
-        v[17] = tk.haze * tune("haze");
-        v[18] = tk.bloom * 0.9f * tune("bloom");
+        v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in;
+        v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in);
+        v[18] = tk.bloom * 0.9f * tune("bloom") * in;
         // The theme's threshold, as a brightness the bloom starts at (luminance; only real light blooms), raised
         // in a bright scene (a day sky or white mist would otherwise bloom all over).
         float sceneKey = Math.max(Colors.luma(tk.skyMiddle), Colors.luma(FogControl.color()));
         float thr = Math.max(0.55f + 0.35f * tk.bloomThreshold, 0.6f + 0.33f * Ease.smoothstep(0.25f, 0.65f, sceneKey));
         v[19] = Math.min(0.97f, thr * tune("threshold"));
         v[18] *= 1f - 0.45f * Ease.smoothstep(0.35f, 0.75f, sceneKey);
-        v[20] = tk.vignette;
+        v[20] = tk.vignette * in;
         // Light shafts only show against a darker sky: in a bright day scene they would wash the sky round the
         // sun white (Frost Morning), so they fade with the scene's brightness.
-        v[21] = (Atmosphere.INSTANCE != null && Atmosphere.INSTANCE.rays.get() ? 0.55f + 0.45f * (1f - SkyPass.sunE) : 0f)
-                * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts");
+        v[21] = (Atmosphere.INSTANCE != null && Atmosphere.INSTANCE.rays.get() ? KeyLight.shafts : 0f)
+                * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts") * in;
         v[22] = FrameInfo.time;
-        v[23] = 0.3f * tune("rim");
+        v[23] = 0.3f * KeyLight.rim * tune("rim") * in;
         v[24] = view.m10();
         v[25] = view.m11();
         v[26] = view.m12();
@@ -301,11 +303,31 @@ public final class LightPass {
         v[28] = FrameInfo.width / Math.max(1f, FrameInfo.height);
         v[29] = tk.night;
         v[30] = WorldDraw.pixel ? 1f : 0f;
-        rgb(v, 32, tk.lightSun);
+        rgb(v, 32, KeyLight.color);
         rgb(v, 35, tk.lightShadow);
         rgb(v, 38, FogControl.color());
-        rgb(v, 41, tk.skyGlow);
+        rgb(v, 41, KeyLight.glow);
         rgb(v, 44, tk.bloomTint);
+        // The rim on faces lit at a grazing angle, and a lightning flash lighting the world.
+        v[47] = KeyLight.faceRim * tune("rim") * in;
+        v[48] = KeyLight.flash * (0.5f + 0.5f * in) * tune("flash");
+        // Exposure on the faces the light reaches: a night theme's light has to light a dark world (by day a held
+        // night is also drawn darker, see SkyTime). A theme that dims its own day (Eclipse, Monsoon's overcast)
+        // stays dim: its light shows in the rims and the colour, not in a lift.
+        float dark = Math.max(tk.night, 1f - SkyTime.worldLight);
+        v[49] = 1.3f * KeyLight.strength * dark * in * tune("exposure");
+        v[50] = KeyLight.rimAll * in;
+        // The second light colour sweeping over the ground in bands, and the world's east in view space (the
+        // bands' reference).
+        rgb(v, 51, KeyLight.color2);
+        v[54] = KeyLight.bands;
+        v[55] = view.m00();
+        v[56] = view.m01();
+        v[57] = view.m02();
+        // A theme that dims its own day (Eclipse's darkened world, Monsoon's storm) dims the world here too: the
+        // game's brightness curve lifts a dimmed lightmap most of the way back.
+        float dim = 0.35f + 0.65f * Math.min(1f, tk.lightBoost);
+        v[58] = Ease.lerp(1f, dim, in);
         for (int i = 0; i < PARAMS; i++) {
             int bits = Float.floatToRawIntBits(v[i]);
             int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
@@ -314,7 +336,7 @@ public final class LightPass {
         paramsTexture.upload(params);
 
         String key = tk.lut + "|" + tk.gradeHighlights + "|" + tk.gradeShadows + "|" + tk.saturation + "|" + tk.contrast
-                + "|" + tune("grade");
+                + "|" + tune("grade") * Atmosphere.intensity();
         if (!key.equals(lutKey)) {
             lutKey = key;
             lut = buildLut(tk, lut);
@@ -346,7 +368,7 @@ public final class LightPass {
         if (tk.lut != null && loadLut(tk.lut, out)) {
             return out;
         }
-        return Grade.lut(tk.gradeHighlights, tk.gradeShadows, tk.saturation, tk.contrast, tune("grade"), out);
+        return Grade.lut(tk.gradeHighlights, tk.gradeShadows, tk.saturation, tk.contrast, tune("grade") * Atmosphere.intensity(), out);
     }
 
     /** A LUT image a theme ships (namespace:path to a 1024x32 PNG), read from the resources. */

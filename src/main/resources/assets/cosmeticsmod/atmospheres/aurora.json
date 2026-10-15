@@ -20,20 +20,22 @@
     "color": "#0e2b36",
     "density": 0.5,
     "near": 8,
-    "far": 120,
-    "scatter": 0.25,
-    "haze": 0.3
+    "far": 110,
+    "scatter": 0.6,
+    "haze": 0.35
   },
   "light": {
     "tint": "#9fffe0",
-    "strength": 0.3,
+    "strength": 0.7,
     "boost": 1.0,
     "sun": "#c4ffec",
-    "shadow": "#16303e"
+    "shadow": "#0a1e2c"
   },
   "show": {
     "phase": "night",
-    "azimuth": 180
+    "azimuth": 180,
+    "hold": true,
+    "time": 0.42
   },
   "moon": {
     "size": 0.02,

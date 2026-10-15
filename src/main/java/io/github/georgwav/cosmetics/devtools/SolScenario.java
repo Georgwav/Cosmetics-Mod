@@ -30,7 +30,7 @@ import java.util.List;
  */
 public final class SolScenario {
     private static final String MODE = System.getProperty("cosmeticsmod.solScenario", "");
-    /** Which shots: "world" (the themes), "ui" (the menus over Deep Field's night) or "all". */
+    /** Which shots: "world" (the themes), "sheet" (every theme's showpiece, day and night), "ui" (the menus) or "all". */
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
@@ -98,7 +98,18 @@ public final class SolScenario {
         CosmeticsMod.LOGGER.info("[Sol] Scenario '{}' armed", MODE);
     }
 
+    /** Only these themes' shots (comma-separated ids; empty for all), for quick looks while tuning. */
+    private static final String THEMES = System.getProperty("cosmeticsmod.solThemes", "");
+
     private void plan() {
+        planAll();
+        if (!THEMES.isBlank()) {
+            java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(THEMES.split(",")));
+            shots.removeIf(s -> !keep.contains(s.theme()) && !s.name().equals("sol_ember_sunlab"));
+        }
+    }
+
+    private void planAll() {
         if ("bench".equals(MODE)) {
             // The light pass's cost on the Ember frame: Low (no pass), Medium, High.
             String[] q = {"low", "medium", "high"};
@@ -108,7 +119,7 @@ public final class SolScenario {
             }
             return;
         }
-        if (!"world".equals(SHOTS)) {
+        if (!"world".equals(SHOTS) && !"sheet".equals(SHOTS)) {
             // The menus over the game, as the prototype shows them: Deep Field's night, facing its galaxy.
             ThemeRegistry.Entry deep = ThemeRegistry.find("deep_field");
             float yaw = deep == null ? 180f : deep.base().show().azimuth();
@@ -127,8 +138,8 @@ public final class SolScenario {
             String phase = s.show().phase();
             float yaw = s.show().azimuth();
             if ("silver_night".equals(e.id())) {
-                // Facing the huge moon as it rises in the east, the sun 25° below the western horizon.
-                shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -25f, false, -90f, -Extras.SHOW_PITCH));
+                // Facing the huge moon as it sets in the west over the water, the sun 25° below the eastern horizon.
+                shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -25f, true, 90f, -Extras.SHOW_PITCH));
                 continue;
             }
             switch (phase) {
@@ -165,10 +176,38 @@ public final class SolScenario {
                     values.put(p[0].trim(), Float.parseFloat(p[1].trim()));
                 }
             }
-            shots.add(at++, new Shot("sol_tune_" + variant.substring(0, colon).trim(), "ember_solstice", 0f, false, 90f,
-                    -Extras.SHOW_PITCH, EMBER_TICK, values));
+            // "name@theme:..." tunes that theme's showpiece instead of the Sun lab.
+            String name = variant.substring(0, colon).trim();
+            int amp = name.indexOf('@');
+            Shot base = shots.get(0);
+            if (amp > 0) {
+                String theme = name.substring(amp + 1);
+                name = name.substring(0, amp);
+                for (Shot s : shots) {
+                    if (s.name().equals("sol_" + theme + "_show")) {
+                        base = s;
+                    }
+                }
+            }
+            shots.add(at++, new Shot("sol_tune_" + name, base.theme(), base.altitude(), base.morning(), base.yaw(),
+                    base.pitch(), base.time(), values));
         }
-        if (!"reduced".equals(MODE)) {
+        if ("sheet".equals(SHOTS)) {
+            // The Atmosphere intensity slider toning the Sun lab frame down: half, and none (the theme's sky only).
+            for (int pct : new int[]{50, 0}) {
+                shots.add(1, new Shot("sol_ember_intensity" + pct, "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH,
+                        EMBER_TICK, java.util.Map.of("intensity", (float) pct)));
+            }
+            // The contact sheet: every theme by day (the sun 40° up, facing it) and by night (facing its showpiece
+            // way), beside its showpiece.
+            for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+                if (!e.builtIn()) {
+                    continue;
+                }
+                shots.add(new Shot("sol_" + e.id() + "_day", e.id(), 40f, false, 90f, -Extras.SHOW_PITCH));
+                shots.add(new Shot("sol_" + e.id() + "_night", e.id(), -60f, false, e.base().show().azimuth(), -Extras.SHOW_PITCH));
+            }
+        } else if (!"reduced".equals(MODE)) {
             for (String id : new String[]{"ember_solstice", "aurora", "frost_morning"}) {
                 shots.add(new Shot("sol_" + id + "_day", id, 40f, false, 90f, -Extras.SHOW_PITCH));
                 shots.add(new Shot("sol_" + id + "_night", id, -60f, false, 180f, -Extras.SHOW_PITCH));
@@ -180,9 +219,9 @@ public final class SolScenario {
     private static float showAltitude(String id) {
         return switch (id) {
             case "ember_solstice" -> 0.15f * 38f;
-            case "sakura_dusk" -> 2f;
-            case "maple_afternoon" -> 4f;
-            case "firefly_meadow" -> 0.5f;
+            case "sakura_dusk" -> 4f;
+            case "maple_afternoon" -> 6f;
+            case "firefly_meadow" -> 3.5f;
             case "frost_morning" -> 24f;
             case "eclipse" -> 23.7f;
             case "monsoon" -> 35f;
@@ -233,7 +272,9 @@ public final class SolScenario {
             mc.player.yRotO = s.yaw();
             mc.player.xRotO = s.pitch();
             if (phaseTick == SETTLE) {
-                if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && Guard.on(io.github.georgwav.cosmetics.sol.Feature.SKY)) {
+                // Empty is the game's own sky: nothing of Sol's draws there.
+                if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && !"empty".equals(s.theme())
+                        && Guard.on(io.github.georgwav.cosmetics.sol.Feature.SKY)) {
                     problems.add(s.name() + ": the Sol sky didn't draw");
                 }
                 float fov = io.github.georgwav.cosmetics.sol.render.FrameInfo.fovY;
@@ -244,6 +285,10 @@ public final class SolScenario {
                     problems.add(s.name() + ": the sun isn't in the frame (visible " + SkyPass.sunVisible + ")");
                 }
                 marker(mc, s.name());
+                CosmeticsMod.LOGGER.info("[Sol] {}: light factor {} (world light {}, boost {}), key {}", s.name(),
+                        io.github.georgwav.cosmetics.sol.atmosphere.WorldTint.lightFactor(1f),
+                        io.github.georgwav.cosmetics.sol.atmosphere.SkyTime.worldLight, ThemeState.tokens().lightBoost,
+                        io.github.georgwav.cosmetics.sol.atmosphere.KeyLight.describe());
             }
         }
         boolean benching = index >= 0 && index < shots.size() && shots.get(index).name().startsWith("sol_bench");
@@ -283,6 +328,10 @@ public final class SolScenario {
             Float quality = s.tune().get("quality");
             if (quality != null && at != null) {
                 at.quality.set(new String[]{"low", "medium", "high"}[Math.round(quality)]);
+            }
+            Float intensity = s.tune().get("intensity");
+            if (at != null) {
+                at.intensity.set(intensity != null ? (double) intensity : 100.0);
             }
             frames = 0;
             passMs = 0;

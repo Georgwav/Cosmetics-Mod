@@ -146,7 +146,7 @@
       },
       "light": {
         "tint": "#ff9a6a",
-        "strength": 0.16,
+        "strength": 0.45,
         "boost": 1.0
       },
       "clouds": {

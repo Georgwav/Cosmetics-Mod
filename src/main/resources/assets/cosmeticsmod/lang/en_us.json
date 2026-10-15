@@ -818,5 +818,6 @@
   "sol.theme.sakura_dusk.name": "Sakura Dusk",
   "sol.theme.silver_night.name": "Silver Night",
   "sol.menu.profile_line": "%s · %s modules",
-  "sol.menu.hud.hotbar": "Hotbar"
+  "sol.menu.hud.hotbar": "Hotbar",
+  "cosmeticsmod.module.atmosphere.intensity": "Atmosphere intensity"
 }

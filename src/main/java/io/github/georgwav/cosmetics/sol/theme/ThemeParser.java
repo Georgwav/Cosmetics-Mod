@@ -267,7 +267,8 @@ public final class ThemeParser {
 
         Reader show = r.object("show");
         ThemeSpec.Show showOut = new ThemeSpec.Show(show.choice("phase", base.show().phase(), PHASES),
-                show.number("azimuth", base.show().azimuth(), -360f, 360f));
+                show.number("azimuth", base.show().azimuth(), -360f, 360f), show.bool("hold", base.show().hold()),
+                show.number("time", base.show().time(), -1f, 1f));
         Reader flags = r.object("flags");
 
         return new ThemeSpec(id, name, line, order, new ThemeSpec.Ui(accent, panel, rim), skyOut, fogOut, lightOut, sunOut,

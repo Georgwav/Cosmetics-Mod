@@ -19,17 +19,17 @@
   "fog": {
     "color": "#4f5a65",
     "density": 0.7,
-    "near": 2,
+    "near": 3,
     "far": 64,
     "scatter": 0.2,
     "haze": 0.65
   },
   "light": {
     "tint": "#b8c8d8",
-    "strength": 0.3,
-    "boost": 0.96,
+    "strength": 0.55,
+    "boost": 0.62,
     "sun": "#c8d8e8",
-    "shadow": "#38444f"
+    "shadow": "#28343f"
   },
   "show": {
     "phase": "day",
@@ -99,18 +99,18 @@
       },
       "light": {
         "tint": "#90a8c8",
-        "strength": 0.12
+        "strength": 0.45
       },
       "clouds": {
-        "tint": "#14181e"
+        "tint": "#29313c"
       }
     }
   },
   "grade": {
     "highlights": "#dce8f4",
-    "shadows": "#10161c",
-    "saturation": 0.86,
-    "contrast": 1.06,
+    "shadows": "#0a1016",
+    "saturation": 0.82,
+    "contrast": 1.14,
     "bloomTint": "#c8dcff",
     "bloom": 0.55,
     "threshold": 0.7,
