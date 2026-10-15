@@ -71,7 +71,7 @@ button.
 - Every instance using the same main folder shares the client's settings. Switching to a folder that already has
   them takes them over.
 
-The hub's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/GEIST-OFL.txt`).
+The hub's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/geist-ofl.txt`, Geist Mono included).
 
 ### Settings screen
 
