@@ -1,0 +1,39 @@
+{
+  "targets": [
+    "swap",
+    "prev"
+  ],
+  "passes": [
+    {
+      "name": "sol_blur_mix",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "PrevSampler",
+          "id": "prev"
+        },
+        {
+          "name": "AmountSampler",
+          "id": "sol_blur",
+          "width": 1,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "prev",
+      "use_linear_filter": false
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

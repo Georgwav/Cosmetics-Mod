@@ -124,20 +124,72 @@ public final class LightPass {
         nanos = System.nanoTime() - t0;
     }
 
-    /** After the hand: bloom, grade, vignette. */
+    /** After the hand: bloom, grade, vignette; then motion blur over the finished frame. */
     public static void grade() {
-        if (preset == OFF || lastWorldFrame != FrameInfo.frame) {
-            //? if >=1.21.2 {
-            pool.endFrame();
-            //?}
-            return;
+        if (preset != OFF && lastWorldFrame == FrameInfo.frame) {
+            long t0 = System.nanoTime();
+            Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
+            nanos += System.nanoTime() - t0;
         }
-        long t0 = System.nanoTime();
-        Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
+        motionBlur();
         //? if >=1.21.2 {
         pool.endFrame();
         //?}
-        nanos += System.nanoTime() - t0;
+    }
+
+    // ------------------------------------------------------------------ motion blur
+
+    private static SolTexture blurTexture;
+    private static int blurUploaded = -1;
+    private static boolean blurWarm;
+    /** For the in-game test: frames motion blur ran on. */
+    public static int blurFrames;
+
+    /** Whether this version can blur: its post chains keep a target from one frame to the next (not 1.21.2 to 1.21.5). */
+    public static boolean blurSupported() {
+        //? if >=1.21.2 && <1.21.6 {
+        /*return false;
+        *///?} else {
+        return true;
+        //?}
+    }
+
+    /**
+     * Motion blur (the Screen module): the frame mixed with the last one, which holds the ones before it. The amount
+     * is what's left of a frame after 1/60 s, so the trail lasts as long at any frame rate. It stands aside for a
+     * shader pack (which has its own).
+     */
+    private static void motionBlur() {
+        float amount = io.github.georgwav.cosmetics.client.modules.ScreenTweaks.motionBlur();
+        if (amount > 0f && !blurSupported()) {
+            LogOnce.info("motion-blur", "Motion blur isn't available on this version of Minecraft");
+            amount = 0f;
+        }
+        if (amount <= 0f || !FrameInfo.inWorld || Compat.isShaderPackActive() || !Guard.on(Feature.MOTION_BLUR)) {
+            blurWarm = false;
+            return;
+        }
+        // The first frame only fills the last-frame target.
+        float k = blurWarm ? (float) Math.pow(amount, Math.min(4.0, FrameInfo.frameSeconds * 60.0)) : 0f;
+        blurWarm = true;
+        ensureTextures();
+        if (blurTexture == null || blurTexture.released()) {
+            //? if >=1.21.2 {
+            String ns = CosmeticsMod.MOD_ID;
+            //?} else {
+            /*String ns = "minecraft";
+            *///?}
+            blurTexture = new SolTexture(ns, "textures/effect/sol_blur.png", 1, 1, false);
+            blurUploaded = -1;
+        }
+        int r = Math.round(k * 255f);
+        if (r != blurUploaded) {
+            blurTexture.upload(new int[]{0xFF000000 | r << 16});
+            blurUploaded = r;
+        }
+        if (Guard.run(Feature.MOTION_BLUR, () -> run("sol_motion_blur"))) {
+            blurFrames++;
+        }
     }
 
     /** Resources reloaded: the game rebuilds its chains (1.21.1: Sol's own, closed here). */

@@ -280,6 +280,16 @@ void main() {
     fragColor = vec4(texture(InSampler, texCoord).rgb, 1.0);
 }
 """),
+    # Motion blur: the frame mixed with the last one (which already holds the ones before it), by the amount in
+    # the blur texture's red (Sol works it out from the frame time, so the trail lasts as long at any frame rate).
+    "sol_blur_mix": (["In", "Prev", "Amount"], r"""
+void main() {
+    float k = texelFetch(AmountSampler, ivec2(0, 0), 0).r;
+    vec3 cur = texture(InSampler, texCoord).rgb;
+    vec3 prev = texture(PrevSampler, texCoord).rgb;
+    fragColor = vec4(mix(cur, prev, k), 1.0);
+}
+"""),
 }
 
 # ---------------------------------------------------------------------------------------------------- the chains
@@ -288,6 +298,7 @@ IDENTITY = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
 PARAMS_TEX = ("sol_params", 64, 1, False)
 LUT_TEX = ("sol_lut", 1024, 32, True)
 BLACK_TEX = ("sol_black", 1, 1, False)
+BLUR_TEX = ("sol_blur", 1, 1, False)
 
 # Fixed bloom levels (a 1080p screen's half, then each half of that): post chains only size targets to the screen
 # or to fixed sizes, and a blur this wide looks the same at any resolution.
@@ -314,6 +325,12 @@ def chain(name):
         passes.append(("sol_world", "swap", [("In", "main", T, False), ("Depth", "main", D, False), ("Params", PARAMS_TEX, X, False), shafts]))
         passes.append(("sol_copy", "main", [("In", "swap", T, False)]))
         return passes, targets
+    if name == "sol_motion_blur":
+        # "prev" keeps the last frame: persistent from 1.21.6; 1.21.1's chain owns its targets anyway.
+        passes = [("sol_blur_mix", "swap", [("In", "main", T, False), ("Prev", "prev", T, False), ("Amount", BLUR_TEX, X, False)]),
+                  ("sol_copy", "prev", [("In", "swap", T, False)]),
+                  ("sol_copy", "main", [("In", "swap", T, False)])]
+        return passes, {"swap": None, "prev": "persistent"}
     # sol_grade
     targets = {"swap": None}
     for i, size in enumerate(LEVELS):
@@ -332,7 +349,9 @@ def chain(name):
     return passes, targets
 
 
-CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade"]
+CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade", "sol_motion_blur"]
+# Eras whose post chains can keep a target from one frame to the next (1.21.2 to 1.21.5 can't: no motion blur).
+PERSISTENT = ("e1", "e4", "e5", "e6")
 
 # ---------------------------------------------------------------------------------------------------- per era
 
@@ -404,10 +423,12 @@ def era_files(era):
             write(os.path.join(ns, "shaders", "post", prog + ".fsh"), text)
     for name in CHAINS:
         passes, targets = chain(name)
+        if "persistent" in targets.values() and era not in PERSISTENT:
+            continue
         if era == "e1":
             tlist = []
             for t, size in targets.items():
-                tlist.append(t if size is None else {"name": t, "width": size[0], "height": size[1]})
+                tlist.append(t if size in (None, "persistent") else {"name": t, "width": size[0], "height": size[1]})
             plist = []
             for prog, out, inputs in passes:
                 first = inputs[0]
@@ -431,7 +452,7 @@ def era_files(era):
         else:
             tmap = {}
             for t, size in targets.items():
-                tmap[t] = {} if size is None else {"width": size[0], "height": size[1]}
+                tmap[t] = {} if size is None else {"persistent": True} if size == "persistent" else {"width": size[0], "height": size[1]}
             plist = []
             for prog, out, inputs in passes:
                 ins = []
@@ -458,7 +479,7 @@ def era_files(era):
     crisp_shader(era, base)
     if era == "e1":
         # 1.21.1 asks the resources for a chain's textures before using the one Sol registered under that name.
-        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX):
+        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX):
             png(os.path.join(base, "minecraft", "textures", "effect", tex + ".png"), w, h, [0, 0, 0, 255] * (w * h))
         # 1.21.1's position_tex_color drops anything under 10% alpha, which cuts the faint edge of every glow into
         # a hard disc: Sol draws its sprites with this copy of it that keeps them (registered by SolShaders).
