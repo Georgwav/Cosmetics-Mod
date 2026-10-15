@@ -67,7 +67,7 @@ public abstract class TextHud extends HudModule {
     }
 
     @Override
-    public int width(Minecraft mc) {
+    protected int plainWidth(Minecraft mc) {
         List<String> lines = shown(mc);
         if (lines.isEmpty()) {
             return 0;
@@ -80,9 +80,47 @@ public abstract class TextHud extends HudModule {
     }
 
     @Override
-    public int height(Minecraft mc) {
+    protected int plainHeight(Minecraft mc) {
         List<String> lines = shown(mc);
         return lines.isEmpty() ? 0 : lines.size() * 10 + PAD * 2 - 1;
+    }
+
+    // Sol UI's look: the lines on a glass card in Geist, the first in white and the rest a little dimmer.
+    private static final float SOL_PAD_X = 6f, SOL_PAD_Y = 4.5f, SOL_LINE = 9f;
+
+    @Override
+    protected int solWidth(Minecraft mc) {
+        List<String> lines = shown(mc);
+        if (lines.isEmpty()) {
+            return 0;
+        }
+        float w = 0f;
+        for (String line : lines) {
+            w = Math.max(w, io.github.georgwav.cosmetics.sol.hud.HudKit.measure(
+                    io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.MEDIUM, io.github.georgwav.cosmetics.sol.hud.HudKit.TEXT,
+                    line, scale()));
+        }
+        return (int) Math.ceil(w + iconRoom() + SOL_PAD_X * 2f);
+    }
+
+    @Override
+    protected int solHeight(Minecraft mc) {
+        List<String> lines = shown(mc);
+        return lines.isEmpty() ? 0 : (int) Math.ceil(lines.size() * SOL_LINE + SOL_PAD_Y * 2f - 2f);
+    }
+
+    @Override
+    protected void drawSol(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                           Minecraft mc) {
+        List<String> lines = shown(mc);
+        float w = solWidth(mc), h = solHeight(mc);
+        io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, 0f, 0f, w, h, io.github.georgwav.cosmetics.sol.hud.HudKit.CARD_R);
+        var f = io.github.georgwav.cosmetics.sol.hud.HudKit.text(g);
+        float y = SOL_PAD_Y + (SOL_LINE - 2f) / 2f;
+        for (int i = 0; i < lines.size(); i++) {
+            g.textMid(f, lines.get(i), SOL_PAD_X + iconRoom(), y, i == 0 ? 0xFFFFFFFF : 0xC8FFFFFF);
+            y += SOL_LINE;
+        }
     }
 
     @Override

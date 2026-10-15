@@ -25,6 +25,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");
         all.add("SolHudLookMixin");
+        all.add("TotemPopMixin");
         //? if <1.21.11 {
         /*all.add("SolLightMixin");
         *///?}

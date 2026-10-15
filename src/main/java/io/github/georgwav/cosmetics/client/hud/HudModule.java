@@ -44,13 +44,43 @@ public abstract class HudModule extends Module {
         return Hud.editing;
     }
 
-    /** Its size before scaling, in GUI pixels. */
-    public abstract int width(Minecraft mc);
+    /**
+     * Whether HUD modules draw in Sol UI's look now: glass in the theme's colours (Sol UI on and its "HUD modules"
+     * part not handed back); else the plain look with its own font, colour and dark backing.
+     */
+    public static boolean solLook() {
+        return io.github.georgwav.cosmetics.sol.hud.SolHud.draws(io.github.georgwav.cosmetics.sol.hud.SolHud.Part.MODULES);
+    }
 
-    public abstract int height(Minecraft mc);
+    /** Its size before scaling, in GUI pixels, in the look it draws in now. */
+    public final int width(Minecraft mc) {
+        return solLook() ? solWidth(mc) : plainWidth(mc);
+    }
 
-    /** Draws it with its top left at (0, 0), before scaling. */
+    public final int height(Minecraft mc) {
+        return solLook() ? solHeight(mc) : plainHeight(mc);
+    }
+
+    /** The plain look's size and drawing: its top left at (0, 0), before scaling. */
+    protected abstract int plainWidth(Minecraft mc);
+
+    protected abstract int plainHeight(Minecraft mc);
+
     protected abstract void draw(Canvas g, Minecraft mc);
+
+    /** Sol UI's look: its size, and its drawing with the kit in GUI units from (0, 0) (before scaling). */
+    protected int solWidth(Minecraft mc) {
+        return plainWidth(mc);
+    }
+
+    protected int solHeight(Minecraft mc) {
+        return plainHeight(mc);
+    }
+
+    protected void drawSol(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                           Minecraft mc) {
+        draw(g.canvas(), mc);
+    }
 
     public float scale() {
         return scale.get().floatValue();
@@ -81,6 +111,12 @@ public abstract class HudModule extends Module {
         offsetY = y - anchorY * screenH + anchorY * h;
     }
 
+    /** Draws Sol UI's look (called by SolHud, guarded, with the kit begun). */
+    public void drawSolLook(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                            Minecraft mc) {
+        drawSol(g, tk, mc);
+    }
+
     void render(Canvas g, Minecraft mc, int screenW, int screenH) {
         if (isEmpty(mc)) {
             return;
@@ -89,10 +125,14 @@ public abstract class HudModule extends Module {
         g.push();
         g.translate(Math.round(x(screenW, mc)), Math.round(y(screenH, mc)));
         g.scale(s, s);
-        if (backing.get() && wholeBacking()) {
-            g.fill(0, 0, width(mc), height(mc), 0x70000000);
+        if (solLook()) {
+            io.github.georgwav.cosmetics.sol.hud.SolHud.module(g, s, this, mc);
+        } else {
+            if (backing.get() && wholeBacking()) {
+                g.fill(0, 0, width(mc), height(mc), 0x70000000);
+            }
+            draw(g, mc);
         }
-        draw(g, mc);
         g.pop();
     }
 

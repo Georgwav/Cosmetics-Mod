@@ -6,21 +6,17 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.georgwav.cosmetics.CosmeticsMod;
-import io.github.georgwav.cosmetics.client.hud.ArmorHud;
-import io.github.georgwav.cosmetics.client.hud.ClockHud;
-import io.github.georgwav.cosmetics.client.hud.CoordsHud;
-import io.github.georgwav.cosmetics.client.hud.EffectsHud;
-import io.github.georgwav.cosmetics.client.hud.FpsHud;
+import io.github.georgwav.cosmetics.client.hud.ArmourItemsHud;
+import io.github.georgwav.cosmetics.client.hud.CoordinatesHud;
 import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.Keystrokes;
-import io.github.georgwav.cosmetics.client.hud.PingHud;
+import io.github.georgwav.cosmetics.client.hud.PotionEffectsHud;
+import io.github.georgwav.cosmetics.client.hud.StatsHud;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
-import io.github.georgwav.cosmetics.client.modules.TimeChanger;
-import io.github.georgwav.cosmetics.client.modules.ToggleSprint;
-import io.github.georgwav.cosmetics.client.modules.WeatherChanger;
+import io.github.georgwav.cosmetics.client.modules.Movement;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -43,24 +39,20 @@ public final class Modules {
     private static final String VANILLA_HUD = "vanilla_hud";
 
     public static final Fullbright FULLBRIGHT = new Fullbright();
-    public static final ToggleSprint TOGGLE_SPRINT = new ToggleSprint();
-    public static final WeatherChanger WEATHER = new WeatherChanger();
-    public static final TimeChanger TIME = new TimeChanger();
+    public static final Movement MOVEMENT = new Movement();
     public static final Crosshair CROSSHAIR = new Crosshair();
     public static final BlockOutline OUTLINE = new BlockOutline();
     public static final Keystrokes KEYSTROKES = new Keystrokes();
-    public static final FpsHud FPS = new FpsHud();
-    public static final PingHud PING = new PingHud();
-    public static final ClockHud CLOCK = new ClockHud();
-    public static final CoordsHud COORDS = new CoordsHud();
-    public static final ArmorHud ARMOR = new ArmorHud();
-    public static final EffectsHud EFFECTS = new EffectsHud();
+    public static final StatsHud STATS = new StatsHud();
+    public static final CoordinatesHud COORDINATES = new CoordinatesHud();
+    public static final ArmourItemsHud ARMOUR_ITEMS = new ArmourItemsHud();
+    public static final PotionEffectsHud POTION_EFFECTS = new PotionEffectsHud();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, FULLBRIGHT, CROSSHAIR, OUTLINE, TOGGLE_SPRINT, WEATHER, TIME, KEYSTROKES, FPS,
-            PING, CLOCK, COORDS, ARMOR, EFFECTS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, FPS, PING, CLOCK, COORDS, ARMOR, EFFECTS);
+    private static final List<Module> ALL = List.of(ATMOSPHERE, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, KEYSTROKES, STATS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
 
     private static boolean loading;
     private static boolean started;
@@ -90,6 +82,9 @@ public final class Modules {
     public static void init(Function<String, KeyMapping> registerKey) {
         for (Module m : ALL) {
             m.toggleKey = registerKey.apply("key.cosmeticsmod.module." + m.id);
+            for (String name : new java.util.ArrayList<>(m.keys.keySet())) {
+                m.keys.put(name, registerKey.apply("key.cosmeticsmod.module." + m.id + "." + name));
+            }
         }
         load();
     }
@@ -166,7 +161,9 @@ public final class Modules {
                 file = shared;
                 root = read(shared);
             }
-            JsonObject modules = root.has("modules") ? root.getAsJsonObject("modules") : new JsonObject();
+            // Older files (the client branch's ids, the Time, Weather, FPS, Ping and Clock modules) read as today's.
+            JsonObject modules = io.github.georgwav.cosmetics.sol.config.Migrations.migrateModules(
+                    root.has("modules") ? root.getAsJsonObject("modules") : new JsonObject());
             if (modules.has(VANILLA_HUD) && modules.get(VANILLA_HUD).isJsonObject()) {
                 VanillaHud.load(modules.getAsJsonObject(VANILLA_HUD));
             }
@@ -241,8 +238,9 @@ public final class Modules {
      * Puts modules as {@link #toJson()} wrote them (a profile): their settings, then each switched on or off the way
      * a click would, so what they change in the game follows. Modules it doesn't mention stay as they are.
      */
-    public static void apply(JsonObject modules) {
+    public static void apply(JsonObject given) {
         Minecraft mc = Minecraft.getInstance();
+        JsonObject modules = io.github.georgwav.cosmetics.sol.config.Migrations.migrateModules(given);
         loading = true;
         try {
             if (modules.has(VANILLA_HUD) && modules.get(VANILLA_HUD).isJsonObject()) {

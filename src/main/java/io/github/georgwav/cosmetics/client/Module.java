@@ -24,6 +24,8 @@ public abstract class Module {
     final List<Setting<?>> settings = new ArrayList<>();
     /** Switches the module on and off; unbound until you bind it. */
     KeyMapping toggleKey;
+    /** Its other keys (unbound until bound), by name: {@code key.cosmeticsmod.module.<id>.<name>}. */
+    final java.util.Map<String, KeyMapping> keys = new java.util.LinkedHashMap<>();
     private boolean enabled;
 
     protected Module(String id, Category category, String icon) {
@@ -94,6 +96,16 @@ public abstract class Module {
 
     /** Draws that preview into a box of screen pixels, over the page's background for it. */
     public void drawPreview(Canvas g, int x0, int y0, int x1, int y1) {
+    }
+
+    /** Declares another key (registered at startup, unbound); read it with {@link #key(String)}. */
+    protected void addKey(String name) {
+        keys.put(name, null);
+    }
+
+    /** One of its other keys, or null before startup. */
+    public KeyMapping key(String name) {
+        return keys.get(name);
     }
 
     /** Adds a setting; {@code onChange} runs whenever its value changes. */

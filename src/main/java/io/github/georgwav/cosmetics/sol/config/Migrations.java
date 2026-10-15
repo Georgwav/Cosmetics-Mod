@@ -80,22 +80,80 @@ public final class Migrations {
             JsonObject settings = atmosphere.has("settings") && atmosphere.get("settings").isJsonObject()
                     ? atmosphere.getAsJsonObject("settings") : new JsonObject();
             atmosphere.add("settings", settings);
-            if (time != null) {
-                settings.addProperty("lock_time", enabled(time));
-                JsonObject ts = object(time, "settings");
-                if (ts != null && ts.has("time")) {
-                    settings.add("time", ts.get("time").deepCopy());
-                }
+            // A module that was on sets Atmosphere's lock; one that was off only fills what Atmosphere doesn't have
+            // yet (a live file can have both, and Atmosphere's own lock stays).
+            fold(settings, time, "lock_time", "time");
+            fold(settings, weather, "lock_weather", "weather");
+        }
+        stats(modules, out);
+        return out;
+    }
+
+    private static void fold(JsonObject settings, JsonObject old, String lock, String value) {
+        if (old == null) {
+            return;
+        }
+        boolean on = enabled(old);
+        JsonObject os = object(old, "settings");
+        if (on || !settings.has(lock)) {
+            settings.addProperty(lock, on || settings.has(lock) && settings.get(lock).getAsBoolean());
+        }
+        if (os != null && os.has(value) && (on || !settings.has(value))) {
+            settings.add(value, os.get(value).deepCopy());
+        }
+    }
+
+    /** The FPS, Ping and Clock modules become lines of Stats: each line on where its module was. */
+    static final String[] STATS = {"fps", "ping", "clock"};
+
+    private static void stats(JsonObject modules, JsonObject out) {
+        JsonObject first = null, firstOn = null;
+        boolean any = false;
+        for (String id : STATS) {
+            out.remove(id);
+            JsonObject m = object(modules, id);
+            if (m == null) {
+                continue;
             }
-            if (weather != null) {
-                settings.addProperty("lock_weather", enabled(weather));
-                JsonObject ws = object(weather, "settings");
-                if (ws != null && ws.has("weather")) {
-                    settings.add("weather", ws.get("weather").deepCopy());
+            any = true;
+            if (first == null) {
+                first = m;
+            }
+            if (firstOn == null && enabled(m)) {
+                firstOn = m;
+            }
+        }
+        if (!any || out.has("stats")) {
+            return;
+        }
+        JsonObject base = firstOn != null ? firstOn : first;
+        JsonObject stats = new JsonObject();
+        stats.addProperty("enabled", firstOn != null);
+        JsonObject settings = new JsonObject();
+        JsonObject bs = object(base, "settings");
+        if (bs != null) {
+            for (String shared : new String[]{"scale", "backing", "shadow", "font", "color"}) {
+                if (bs.has(shared)) {
+                    settings.add(shared, bs.get(shared).deepCopy());
                 }
             }
         }
-        return out;
+        for (String id : STATS) {
+            JsonObject m = object(modules, id);
+            // Stats shows FPS by default; with the old modules it shows what was on (FPS when none was).
+            settings.addProperty(id, m != null && enabled(m) || id.equals("fps") && firstOn == null);
+        }
+        JsonObject clock = object(modules, "clock");
+        JsonObject cs = clock == null ? null : object(clock, "settings");
+        if (cs != null && cs.has("format")) {
+            settings.add("format", cs.get("format").deepCopy());
+        }
+        stats.add("settings", settings);
+        JsonObject state = object(base, "state");
+        if (state != null) {
+            stats.add("state", state.deepCopy());
+        }
+        out.add("stats", stats);
     }
 
     private static JsonObject object(JsonObject o, String key) {

@@ -68,16 +68,19 @@ public final class Atmosphere extends Module {
         return a != null && a.enabled() && !ThemeState.entry().base().vanillaSun();
     }
 
-    /** The time of day to show (0 is 06:00), or -1 to leave the world's. */
+    /**
+     * The time of day to show (0 is 06:00), or -1 to leave the world's. The lock works with Atmosphere's sky off too
+     * (it took over the Time module).
+     */
     public static long lockedTime() {
         Atmosphere a = INSTANCE;
-        return a != null && a.enabled() && a.lockTime.get() ? Math.round(a.time.get()) : -1L;
+        return a != null && a.lockTime.get() ? Math.round(a.time.get()) : -1L;
     }
 
-    /** Rain level to show (0..1), or -1 to leave the world's. */
+    /** Rain level to show (0..1), or -1 to leave the world's (with the sky off too, as the time lock). */
     public static float lockedRain() {
         Atmosphere a = INSTANCE;
-        if (a == null || !a.enabled() || !a.lockWeather.get()) {
+        if (a == null || !a.lockWeather.get()) {
             return -1f;
         }
         return "clear".equals(a.weather.get()) ? 0f : 1f;
@@ -86,7 +89,7 @@ public final class Atmosphere extends Module {
     /** Thunder level to show (0..1), or -1 to leave the world's. */
     public static float lockedThunder() {
         Atmosphere a = INSTANCE;
-        if (a == null || !a.enabled() || !a.lockWeather.get()) {
+        if (a == null || !a.lockWeather.get()) {
             return -1f;
         }
         return "thunder".equals(a.weather.get()) ? 1f : 0f;

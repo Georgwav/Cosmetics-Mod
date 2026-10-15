@@ -28,6 +28,15 @@ public final class Mc {
         //?}
     }
 
+    /** The world's day time in ticks (the overworld clock from 26.1). */
+    public static long dayTime(net.minecraft.world.level.Level level) {
+        //? if >=26.1 {
+        /*return level.getDefaultClockTime();
+        *///?} else {
+        return level.getDayTime();
+        //?}
+    }
+
     /** Clears the game's toasts (the test scenario's HUD shots). */
     public static void clearToasts() {
         Minecraft mc = Minecraft.getInstance();

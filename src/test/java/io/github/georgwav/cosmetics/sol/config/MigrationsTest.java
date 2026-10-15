@@ -45,6 +45,47 @@ class MigrationsTest {
     }
 
     @Test
+    void fpsPingAndClockBecomeStatsLines() {
+        JsonObject m = Migrations.migrateModules(json("{"
+                + "\"fps\":{\"enabled\":false,\"settings\":{\"font\":\"minecraft\"},\"state\":{\"x\":1}},"
+                + "\"ping\":{\"enabled\":true,\"settings\":{\"font\":\"geist\",\"color\":\"cyan\"},\"state\":{\"x\":9}},"
+                + "\"clock\":{\"enabled\":true,\"settings\":{\"format\":\"12h\"}}}"));
+        assertFalse(m.has("fps"));
+        assertFalse(m.has("ping"));
+        assertFalse(m.has("clock"));
+        JsonObject stats = m.getAsJsonObject("stats");
+        assertTrue(stats.get("enabled").getAsBoolean());
+        JsonObject s = stats.getAsJsonObject("settings");
+        assertFalse(s.get("fps").getAsBoolean(), "FPS was off");
+        assertTrue(s.get("ping").getAsBoolean());
+        assertTrue(s.get("clock").getAsBoolean());
+        assertEquals("12h", s.get("format").getAsString());
+        assertEquals("geist", s.get("font").getAsString(), "the first module that was on gives the look");
+        assertEquals(9, stats.getAsJsonObject("state").get("x").getAsInt(), "and its place");
+        // Nothing was on: Stats stays off, showing FPS when switched on.
+        JsonObject off = Migrations.migrateModules(json("{\"clock\":{\"enabled\":false,\"settings\":{}}}"))
+                .getAsJsonObject("stats");
+        assertFalse(off.get("enabled").getAsBoolean());
+        assertTrue(off.getAsJsonObject("settings").get("fps").getAsBoolean());
+        // A file that already has Stats keeps it, and migrating twice changes nothing.
+        JsonObject again = Migrations.migrateModules(m);
+        assertEquals(m, again);
+    }
+
+    @Test
+    void anOffTimeModuleKeepsAtmospheresOwnLock() {
+        JsonObject m = Migrations.migrateModules(json("{"
+                + "\"atmosphere\":{\"enabled\":true,\"settings\":{\"lock_time\":true,\"time\":1000}},"
+                + "\"time\":{\"enabled\":false,\"settings\":{\"time\":18000}},"
+                + "\"weather\":{\"enabled\":true,\"settings\":{\"weather\":\"thunder\"}}}"));
+        JsonObject atm = m.getAsJsonObject("atmosphere").getAsJsonObject("settings");
+        assertTrue(atm.get("lock_time").getAsBoolean());
+        assertEquals(1000, atm.get("time").getAsInt());
+        assertTrue(atm.get("lock_weather").getAsBoolean());
+        assertEquals("thunder", atm.get("weather").getAsString());
+    }
+
+    @Test
     void schemaTwoIsLeftAlone() {
         JsonObject p = json("{\"schema\":2,\"modules\":{},\"theme\":{\"id\":\"grace\"},\"pinned\":[],\"future\":7}");
         assertFalse(Migrations.needsMigration(p));

@@ -13,7 +13,7 @@ import java.util.List;
 *///?}
 
 /**
- * For the in-game test: switches the world modules on (thunder, midnight, fullbright with night vision), checks the
+ * For the in-game test: switches the world features on (Atmosphere's thunder and midnight locks, fullbright with night vision), checks the
  * game shows them, then switches them off and checks everything went back.
  */
 public final class ModulesSelfTest {
@@ -24,11 +24,12 @@ public final class ModulesSelfTest {
 
     public static void switchOn(Minecraft mc) {
         gammaBefore = mc.options.gamma().get();
-        setting(Modules.WEATHER, "weather").set("thunder");
-        setting(Modules.TIME, "time").set(18000.0);
+        // Atmosphere's time and weather locks (the Time and Weather modules moved there).
+        setting(Modules.ATMOSPHERE, "weather").set("thunder");
+        setting(Modules.ATMOSPHERE, "time").set(18000.0);
+        setting(Modules.ATMOSPHERE, "lock_weather").set(true);
+        setting(Modules.ATMOSPHERE, "lock_time").set(true);
         setting(Modules.FULLBRIGHT, "night_vision").set("always");
-        Modules.WEATHER.setEnabled(true);
-        Modules.TIME.setEnabled(true);
         Modules.FULLBRIGHT.setEnabled(true);
     }
 
@@ -60,8 +61,10 @@ public final class ModulesSelfTest {
             problems.add("fullbright's night vision isn't on");
         }
         Modules.FULLBRIGHT.setEnabled(false);
-        Modules.TIME.setEnabled(false);
-        Modules.WEATHER.setEnabled(false);
+        setting(Modules.ATMOSPHERE, "lock_time").reset();
+        setting(Modules.ATMOSPHERE, "lock_weather").reset();
+        setting(Modules.ATMOSPHERE, "time").reset();
+        setting(Modules.ATMOSPHERE, "weather").reset();
         if (Math.abs(mc.options.gamma().get() - gammaBefore) > 1e-6) {
             problems.add("fullbright didn't put the brightness back (" + mc.options.gamma().get() + ", was " + gammaBefore + ")");
         }
@@ -89,10 +92,11 @@ public final class ModulesSelfTest {
      * ground in front so there is a block to outline.
      */
     public static void switchOnHud(Minecraft mc) {
-        ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").set(true);
-        ModulesSelfTest.<String>setting(Modules.FPS, "font").set("geist");
-        ModulesSelfTest.<String>setting(Modules.CLOCK, "font").set("geist");
-        ModulesSelfTest.<String>setting(Modules.CLOCK, "color").set("yellow");
+        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").set(true);
+        ModulesSelfTest.<String>setting(Modules.STATS, "font").set("geist");
+        ModulesSelfTest.<String>setting(Modules.STATS, "color").set("yellow");
+        ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").set(true);
+        ModulesSelfTest.<Boolean>setting(Modules.STATS, "clock").set(true);
         if (mc.player != null) {
             mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 95, 0));
             pitchBefore = mc.player.getXRot();
@@ -118,10 +122,11 @@ public final class ModulesSelfTest {
         }
         Modules.CROSSHAIR.setEnabled(false);
         VanillaHud.reset();
-        ModulesSelfTest.<Boolean>setting(Modules.COORDS, "biome").reset();
-        ModulesSelfTest.<String>setting(Modules.FPS, "font").reset();
-        ModulesSelfTest.<String>setting(Modules.CLOCK, "font").reset();
-        ModulesSelfTest.<String>setting(Modules.CLOCK, "color").reset();
+        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").reset();
+        ModulesSelfTest.<String>setting(Modules.STATS, "font").reset();
+        ModulesSelfTest.<String>setting(Modules.STATS, "color").reset();
+        ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").reset();
+        ModulesSelfTest.<Boolean>setting(Modules.STATS, "clock").reset();
         Modules.OUTLINE.setEnabled(false);
         ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").reset();
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").reset();

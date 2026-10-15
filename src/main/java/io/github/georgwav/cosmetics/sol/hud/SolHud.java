@@ -51,7 +51,9 @@ public final class SolHud {
     public enum Part {
         HOTBAR("hotbar"), HEALTH("health"), ARMOR("armor"), FOOD("food"), AIR("air"), MOUNT("mount"), XP("xp"), LEVEL("level"),
         // Restyled rather than redrawn (SolHudCards): the game still lays them out and writes their text.
-        BOSS("boss"), SIDEBAR("sidebar"), TAB("tab"), ACTION_BAR("action_bar");
+        BOSS("boss"), SIDEBAR("sidebar"), TAB("tab"), ACTION_BAR("action_bar"),
+        // The client's HUD modules (Stats, Coordinates, ...) in Sol's glass.
+        MODULES("modules");
 
         public final String id;
 
@@ -157,12 +159,30 @@ public final class SolHud {
 
     /** The kit with design units = the game's GUI units, so Sol's glass lines up with the game's HUD. */
     static Gfx begin(Canvas c) {
+        return begin(c, 1f);
+    }
+
+    /**
+     * The kit in GUI units scaled by {@code scale} (a HUD module's size, already in the transform), so its text is
+     * picked at the size it really has on screen.
+     */
+    static Gfx begin(Canvas c, float scale) {
         Minecraft mc = Minecraft.getInstance();
-        D.gui(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), mc.getWindow().getGuiScale());
+        D.gui(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), mc.getWindow().getGuiScale() * scale);
         c.push();
         c.scale(1f / D.gs, 1f / D.gs);
         G.begin(c);
         return G;
+    }
+
+    /** A HUD module in Sol UI's look, guarded; its transform (place and size) is already set. */
+    public static void module(Canvas c, float scale, io.github.georgwav.cosmetics.client.hud.HudModule module, Minecraft mc) {
+        DRAWN[Part.MODULES.ordinal()]++;
+        Guard.run(Feature.SOL_UI, () -> {
+            Gfx g = begin(c, scale);
+            module.drawSolLook(g, ThemeState.tokens(), mc);
+            end(c);
+        });
     }
 
     static void end(Canvas c) {

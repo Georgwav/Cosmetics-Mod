@@ -376,7 +376,7 @@ public final class SolScenario {
         hudInPlay(hud, what.equals("hud_off"));
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
-        hudForEditor(what.equals("hud_editor"));
+        hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
                 io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
@@ -471,22 +471,38 @@ public final class SolScenario {
         }
     }
 
-    /** The HUD modules switched on for the HUD editor's shot (and off again after it). */
+    /** The HUD modules switched on for the HUD editor's and the HUD shots (and off again after them). */
     private static java.util.List<io.github.georgwav.cosmetics.client.Module> hudShown;
+    private static java.util.List<io.github.georgwav.cosmetics.client.Setting<?>> statsShown;
 
     private static void hudForEditor(boolean on) {
         if (on && hudShown == null) {
             hudShown = new java.util.ArrayList<>();
-            for (String id : new String[]{"fps", "coords", "keystrokes", "armor"}) {
-                var m = io.github.georgwav.cosmetics.client.Modules.byId(id);
-                if (m != null && !m.enabled()) {
+            statsShown = new java.util.ArrayList<>();
+            for (var m : io.github.georgwav.cosmetics.client.Modules.hud()) {
+                if (!m.enabled()) {
                     m.setEnabled(true);
                     hudShown.add(m);
                 }
             }
+            // Stats with a few lines, Coordinates with the biome.
+            for (var setting : io.github.georgwav.cosmetics.client.Modules.STATS.settings()) {
+                if (java.util.Set.of("cps", "ping", "clock").contains(setting.id) && Boolean.FALSE.equals(setting.get())) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
+                    statsShown.add(setting);
+                }
+            }
+            for (var setting : io.github.georgwav.cosmetics.client.Modules.COORDINATES.settings()) {
+                if (setting.id.equals("biome") && Boolean.FALSE.equals(setting.get())) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
+                    statsShown.add(setting);
+                }
+            }
         } else if (!on && hudShown != null) {
             hudShown.forEach(m -> m.setEnabled(false));
+            statsShown.forEach(io.github.georgwav.cosmetics.client.Setting::reset);
             hudShown = null;
+            statsShown = null;
         }
     }
 

@@ -119,7 +119,7 @@ final class HudSection implements Section {
     /** The parts with a chip; the level goes with the experience bar. */
     private static final SolHud.Part[] SOL_PARTS = {SolHud.Part.HOTBAR, SolHud.Part.HEALTH, SolHud.Part.ARMOR, SolHud.Part.FOOD,
             SolHud.Part.AIR, SolHud.Part.MOUNT, SolHud.Part.XP, SolHud.Part.BOSS, SolHud.Part.SIDEBAR, SolHud.Part.TAB,
-            SolHud.Part.ACTION_BAR};
+            SolHud.Part.ACTION_BAR, SolHud.Part.MODULES};
 
     /** Hands a part back to the game, or gives it to Sol (turning Sol UI on if it was off). */
     private static void toggle(SolConfig cfg, SolHud.Part part) {

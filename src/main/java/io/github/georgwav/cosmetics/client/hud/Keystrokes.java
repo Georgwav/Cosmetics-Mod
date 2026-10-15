@@ -26,12 +26,12 @@ public final class Keystrokes extends HudModule {
     }
 
     @Override
-    public int width(Minecraft mc) {
+    protected int plainWidth(Minecraft mc) {
         return WIDTH;
     }
 
     @Override
-    public int height(Minecraft mc) {
+    protected int plainHeight(Minecraft mc) {
         return KEY * 2 + GAP + (mouse.get() ? GAP + KEY : 0) + (space.get() ? GAP + SPACE : 0);
     }
 
@@ -79,6 +79,89 @@ public final class Keystrokes extends HudModule {
         g.scale(0.5f, 0.5f);
         g.text(mc.font, below, -mc.font.width(below) / 2, 0, color, false);
         g.pop();
+    }
+
+    // ---------------------------------------------------------------- Sol UI: glass keys
+
+    private static final float S_KEY = 17f, S_GAP = 2.5f, S_SPACE = 8f, S_WIDTH = S_KEY * 3 + S_GAP * 2;
+    /** How lit each key is (eased toward held, so a tap glows briefly). */
+    private final float[] lit = new float[7];
+    private long lastFrame;
+
+    @Override
+    protected int solWidth(Minecraft mc) {
+        return (int) Math.ceil(S_WIDTH);
+    }
+
+    @Override
+    protected int solHeight(Minecraft mc) {
+        return (int) Math.ceil(S_KEY * 2 + S_GAP + (mouse.get() ? S_GAP + S_KEY : 0f) + (space.get() ? S_GAP + S_SPACE : 0f));
+    }
+
+    @Override
+    protected void drawSol(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                           Minecraft mc) {
+        long now = System.nanoTime() / 1_000_000L;
+        float dt = lastFrame == 0L ? 0f : Math.min(0.1f, (now - lastFrame) / 1000f);
+        lastFrame = now;
+        var f = g.font(io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.MONO, 5.5f);
+        var small = g.font(io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.MEDIUM, 4.5f);
+        solKey(g, tk, f, small, 0, mc.options.keyUp, null, S_KEY + S_GAP, 0f, S_KEY, S_KEY, null, dt);
+        solKey(g, tk, f, small, 1, mc.options.keyLeft, null, 0f, S_KEY + S_GAP, S_KEY, S_KEY, null, dt);
+        solKey(g, tk, f, small, 2, mc.options.keyDown, null, S_KEY + S_GAP, S_KEY + S_GAP, S_KEY, S_KEY, null, dt);
+        solKey(g, tk, f, small, 3, mc.options.keyRight, null, (S_KEY + S_GAP) * 2, S_KEY + S_GAP, S_KEY, S_KEY, null, dt);
+        float y = (S_KEY + S_GAP) * 2;
+        if (mouse.get()) {
+            float w = (S_WIDTH - S_GAP) / 2f;
+            solKey(g, tk, f, small, 4, mc.options.keyAttack, "LMB", 0f, y, w, S_KEY, cps.get() ? Hud.leftCps() + " CPS" : null, dt);
+            solKey(g, tk, f, small, 5, mc.options.keyUse, "RMB", w + S_GAP, y, S_WIDTH - w - S_GAP, S_KEY,
+                    cps.get() ? Hud.rightCps() + " CPS" : null, dt);
+            y += S_KEY + S_GAP;
+        }
+        if (space.get()) {
+            float k = light(6, mc.options.keyJump.isDown(), dt);
+            solBox(g, tk, 0f, y, S_WIDTH, S_SPACE, k);
+            int line = io.github.georgwav.cosmetics.sol.util.Colors.mix(0xCCFFFFFF, tk.onAccent, k);
+            g.round(S_WIDTH / 2f - 10f, y + S_SPACE / 2f - 0.5f, 20f, 1f, 0.5f, line);
+        }
+    }
+
+    private float light(int i, boolean down, float dt) {
+        float target = down ? 1f : 0f;
+        lit[i] += (target - lit[i]) * Math.min(1f, dt * (down ? 30f : 9f));
+        if (io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.calm() || dt == 0f) {
+            lit[i] = target;
+        }
+        return lit[i];
+    }
+
+    private void solKey(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                        io.github.georgwav.cosmetics.sol.ui.kit.SolFont f, io.github.georgwav.cosmetics.sol.ui.kit.SolFont small,
+                        int i, KeyMapping mapping, String fixed, float x, float y, float w, float h, String below, float dt) {
+        float k = light(i, mapping.isDown(), dt);
+        solBox(g, tk, x, y, w, h, k);
+        String label = fixed != null ? fixed : KeyBinds.name(mapping);
+        label = g.fit(f, label, w - 3f);
+        int color = io.github.georgwav.cosmetics.sol.util.Colors.mix(0xFFFFFFFF, tk.onAccent, k);
+        if (below == null) {
+            g.textCentre(f, label, x + w / 2f, y + h / 2f, color);
+        } else {
+            g.textCentre(f, label, x + w / 2f, y + h / 2f - 2.5f, color);
+            g.textCentre(small, below, x + w / 2f, y + h / 2f + 3.5f, io.github.georgwav.cosmetics.sol.util.Colors.fade(color, 0.75f));
+        }
+    }
+
+    /** A glass key, filling with the accent and glowing as it's held. */
+    private static void solBox(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                               float x, float y, float w, float h, float k) {
+        float r = Math.min(4.5f, h / 2f);
+        if (k < 1f) {
+            io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, x, y, w, h, r);
+        }
+        if (k > 0.01f) {
+            g.glow(x, y, w, h, r, 6f, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(tk.accent, 0.5f * k));
+            g.round(x, y, w, h, r, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(tk.accent, k));
+        }
     }
 
     private void box(Canvas g, int x, int y, int w, int h, boolean down) {
