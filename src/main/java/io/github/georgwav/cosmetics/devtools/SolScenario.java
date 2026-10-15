@@ -36,7 +36,7 @@ public final class SolScenario {
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
-            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "keys", "gallery", "crash", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "keys", "gallery", "crash", "mods_browse", "quickplay", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -169,6 +169,10 @@ public final class SolScenario {
         }
         if ("ui".equals(SHOTS)) {
             return;
+        }
+        if (!"sheet".equals(SHOTS) && io.github.georgwav.cosmetics.sol.render.LightPass.blurSupported()) {
+            // Motion blur while the view turns: Ember by day, the camera sweeping over the lake.
+            shots.add(new Shot("sol_motion_blur", "ember_solstice", 40f, false, 60f, -Extras.SHOW_PITCH));
         }
         for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
             ThemeSpec s = e.base();
@@ -307,9 +311,11 @@ public final class SolScenario {
         phaseTick++;
         if (index >= 0 && index < shots.size()) {
             Shot s = shots.get(index);
-            mc.player.setYRot(s.yaw());
+            // The motion blur shot turns the view a little each tick (the blur needs movement to show).
+            float yaw = s.name().equals("sol_motion_blur") ? s.yaw() + phaseTick * 2.5f : s.yaw();
+            mc.player.yRotO = s.name().equals("sol_motion_blur") ? yaw - 2.5f : yaw;
+            mc.player.setYRot(yaw);
             mc.player.setXRot(s.pitch());
-            mc.player.yRotO = s.yaw();
             mc.player.xRotO = s.pitch();
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
             if (play && phaseTick == SETTLE - 10) {
@@ -384,6 +390,7 @@ public final class SolScenario {
             Shot s = shots.get(index);
             stageUi(s.name());
             io.github.georgwav.cosmetics.client.modules.Zoom.hold(s.name().equals("sol_zoom_8x") ? 8.0 : 0.0);
+            motionBlur(s.name().equals("sol_motion_blur"));
             ThemeState.setTheme(s.theme(), false);
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
@@ -412,6 +419,33 @@ public final class SolScenario {
             }
             frames = 0;
             passMs = 0;
+        }
+    }
+
+    private static boolean screenWasOn;
+    private static boolean blurOn;
+
+    /** The Screen module's motion blur at 85% for the motion blur shot, and back as it was after. */
+    private static void motionBlur(boolean on) {
+        var screen = io.github.georgwav.cosmetics.client.Modules.SCREEN;
+        if (on == blurOn) {
+            return;
+        }
+        blurOn = on;
+        for (var setting : screen.settings()) {
+            if (setting.id.equals("motion_blur")) {
+                if (on) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Slider) setting).set(85.0);
+                } else {
+                    setting.reset();
+                }
+            }
+        }
+        if (on) {
+            screenWasOn = screen.enabled();
+            screen.setEnabled(true);
+        } else {
+            screen.setEnabled(screenWasOn);
         }
     }
 
@@ -495,6 +529,10 @@ public final class SolScenario {
         }
         if (what.equals("keys")) {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(null));
+            return;
+        }
+        if (what.equals("quickplay")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.QuickplayScreen(null));
             return;
         }
         if (what.equals("gallery")) {
@@ -800,7 +838,8 @@ public final class SolScenario {
                     "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450",
                     // Chat: a repeat that stacks, a mention of you, an emoji.
                     "tellraw @a \"[Sol] Welcome to the showcase\"", "tellraw @a \"[Sol] Welcome to the showcase\"",
-                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\""));
+                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\"",
+                    "tellraw @a \"<@s> the sunset is on\""));
         }
         if (on) {
             cfg.solUi = !vanilla;
@@ -859,6 +898,25 @@ public final class SolScenario {
                 problems.add("the " + hook.name().toLowerCase(java.util.Locale.ROOT) + " hook was never reached");
             }
         }
+        if (chatShown) {
+            // The chat's search: text no message has leaves every message out, then all come back.
+            io.github.georgwav.cosmetics.client.modules.SolChat.search("no message says this");
+            io.github.georgwav.cosmetics.client.modules.SolChat.search("");
+            if (io.github.georgwav.cosmetics.client.modules.SolChat.filteredOut == 0) {
+                problems.add("the chat's search never left a message out");
+            }
+        }
+        motionBlur(false);
+        if (shots.stream().anyMatch(x -> x.name().equals("sol_motion_blur"))
+                && io.github.georgwav.cosmetics.sol.render.LightPass.blurFrames == 0) {
+            problems.add("motion blur never ran in its shot");
+        }
+        //? if >=1.21.9 {
+        // The HUD shots post a line of yours: Sol Chat puts your face before it.
+        if (chatShown && io.github.georgwav.cosmetics.client.modules.SolChat.headsShown == 0) {
+            problems.add("Sol Chat never put a sender's face before a message");
+        }
+        //?}
         boolean passed = problems.isEmpty();
         CosmeticsMod.LOGGER.info("[Sol] Scenario {}: {}", passed ? "PASSED" : "FAILED", problems);
         try {

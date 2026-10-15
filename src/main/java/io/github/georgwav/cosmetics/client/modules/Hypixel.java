@@ -11,7 +11,8 @@ import java.util.Locale;
 
 /**
  * Hypixel: Auto GG (your line, said once when a game ends: Hypixel's end-of-game summary lines are what it listens
- * for), only while you're on Hypixel.
+ * for, and with Hypixel's Mod API only while you're in a game); Quickplay (its key opens every game and mode, a click
+ * joins the queue); and Play again (its key queues the mode you played last). Only while you're on Hypixel.
  */
 public final class Hypixel extends Module {
     private final Setting.Toggle autoGg = add(new Setting.Toggle("auto_gg", true));
@@ -21,10 +22,16 @@ public final class Hypixel extends Module {
     private long lastGg;
     private int pending = -1;
 
+    /** The mode played last (a {@code /play} name), from Hypixel's Mod API or Quickplay. */
+    private String lastGame;
+
     public Hypixel() {
         super("hypixel", Category.CHAT, "star");
+        addKey("quickplay");
+        addKey("play_again");
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay && enabled() && autoGg.get() && onHypixel()) {
+            var where = io.github.georgwav.cosmetics.sol.client.HypixelModApi.location();
+            if (!overlay && enabled() && autoGg.get() && onHypixel() && (where == null || where.inGame())) {
                 String line = message.getString().toLowerCase(Locale.ROOT).trim();
                 for (String end : ENDS) {
                     if (line.contains(end) && System.currentTimeMillis() - lastGg > 15_000L) {
@@ -42,8 +49,43 @@ public final class Hypixel extends Module {
         return server != null && server.ip.toLowerCase(Locale.ROOT).contains("hypixel.net");
     }
 
+    /** Whether you're on Hypixel now (the server's address, or Hypixel's Mod API said hello). */
+    public static boolean onHypixelNow() {
+        return onHypixel() || io.github.georgwav.cosmetics.sol.client.HypixelModApi.connected();
+    }
+
+    /** The mode played last, or null. */
+    public static String lastGame() {
+        return Modules.HYPIXEL.lastGame;
+    }
+
+    /** Joins a mode's queue with Hypixel's {@code /play}. */
+    public static void play(Minecraft mc, String mode) {
+        if (mc.player == null || !onHypixelNow()) {
+            return;
+        }
+        Modules.HYPIXEL.lastGame = mode;
+        mc.player.connection.sendCommand("play " + mode);
+    }
+
     @Override
     protected void tick(Minecraft mc) {
+        var where = io.github.georgwav.cosmetics.sol.client.HypixelModApi.location();
+        if (where != null) {
+            where.playId().ifPresent(id -> lastGame = id);
+        }
+        var quick = key("quickplay");
+        while (quick != null && quick.consumeClick()) {
+            if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() == null) {
+                io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.QuickplayScreen(null));
+            }
+        }
+        var again = key("play_again");
+        while (again != null && again.consumeClick()) {
+            if (lastGame != null) {
+                play(mc, lastGame);
+            }
+        }
         if (pending > 0 && --pending == 0 && mc.player != null) {
             String text = SolChat.outgoing(ggText.get().trim());
             if (!text.isEmpty()) {

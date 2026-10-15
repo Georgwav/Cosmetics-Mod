@@ -29,7 +29,7 @@ import net.minecraft.client.GuiMessageTag;
  * added again as it becomes; a stacked one takes the place of the one it repeats.
  */
 @Mixin(ChatComponent.class)
-abstract class SolChatMixin {
+abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.ChatRefresh {
     @Shadow
     @Final
     private List<GuiMessage> allMessages;
@@ -58,6 +58,19 @@ abstract class SolChatMixin {
         } catch (RuntimeException | LinkageError e) {
             Guard.fail(Feature.CHAT, e);
             return null;
+        }
+    }
+
+    @Override
+    public void cosmeticsmod$refresh() {
+        refreshTrimmedMessages();
+    }
+
+    /** Sol Chat's tabs and search: a message they leave out isn't shown (it stays in the chat). */
+    @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"), cancellable = true, require = 0)
+    private void cosmeticsmod$filter(GuiMessage message, CallbackInfo ci) {
+        if (SolChat.hides(message.content(), message.signature() != null)) {
+            ci.cancel();
         }
     }
 
