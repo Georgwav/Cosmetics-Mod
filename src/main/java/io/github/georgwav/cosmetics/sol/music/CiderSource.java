@@ -1,0 +1,219 @@
+package io.github.georgwav.cosmetics.sol.music;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import io.github.georgwav.cosmetics.CosmeticsMod;
+import io.github.georgwav.cosmetics.sol.config.Secrets;
+import io.github.georgwav.cosmetics.sol.config.SolConfig;
+
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Cider (the Apple Music client): its REST API on {@code localhost:10767} (the {@code apptoken} header when Cider asks
+ * for one) and its Socket.IO playback events. While the socket is up the events drive the song and its time (with
+ * a REST check every 5 s); without it, REST is asked every second. A closed Cider is tried again every 10 s.
+ */
+public final class CiderSource implements MusicSource {
+    private ScheduledExecutorService loop;
+    private volatile SocketIo socket;
+    private volatile boolean socketUp, reachable, refusedOnce, heard;
+    private long lastSocketTry, lastRest;
+    private volatile NowPlaying last;
+
+    @Override
+    public String id() {
+        return "cider";
+    }
+
+    private static String base() {
+        SolConfig.Music m = SolConfig.get().music;
+        return "http://" + m.ciderHost + ":" + m.ciderPort + "/api/v1";
+    }
+
+    private static Map<String, String> auth() {
+        String token = Secrets.get("ciderToken");
+        return token == null || token.isBlank() ? Map.of() : Map.of("apptoken", token);
+    }
+
+    @Override
+    public void start() {
+        if (loop != null) {
+            return;
+        }
+        loop = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "Sol Cider");
+            t.setDaemon(true);
+            return t;
+        });
+        loop.scheduleWithFixedDelay(this::step, 0, 1, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void stop() {
+        if (loop != null) {
+            loop.shutdownNow();
+            loop = null;
+        }
+        if (socket != null) {
+            socket.close();
+            socket = null;
+        }
+        socketUp = false;
+        reachable = false;
+    }
+
+    @Override
+    public boolean connected() {
+        return reachable;
+    }
+
+    private void step() {
+        try {
+            long now = System.currentTimeMillis();
+            if (!socketUp && now - lastSocketTry > 10_000L) {
+                lastSocketTry = now;
+                SolConfig.Music m = SolConfig.get().music;
+                socket = new SocketIo(m.ciderHost, m.ciderPort, this::event, () -> socketUp = false);
+                socket.connect(Http.CLIENT);
+                socketUp = true;
+            }
+            if (!socketUp || now - lastRest > 5_000L) {
+                lastRest = now;
+                rest();
+            }
+        } catch (RuntimeException e) {
+            CosmeticsMod.LOGGER.debug("[Sol] Cider step failed", e);
+        }
+    }
+
+    private void rest() {
+        Http.Reply r = Http.get(base() + "/playback/now-playing", auth());
+        if (r.status() == 401 || r.status() == 403) {
+            reachable = true;
+            if (!refusedOnce) {
+                refusedOnce = true;
+                MusicService.problem("sol.notify.cider_token");
+            }
+            return;
+        }
+        if (!r.ok()) {
+            reachable = false;
+            if (r.status() == -1) {
+                MusicService.report(this, null);
+            }
+            return;
+        }
+        reachable = true;
+        boolean playing = CiderJson.isPlaying(Http.get(base() + "/playback/is-playing", auth()).body());
+        NowPlaying n = CiderJson.nowPlaying(r.body(), playing);
+        last = n;
+        MusicService.report(this, n);
+    }
+
+    /** A Socket.IO event: Cider's playback changes. */
+    private void event(String name, String data) {
+        if (!"API:Playback".equals(name)) {
+            return;
+        }
+        reachable = true;
+        heard = true;
+        String[] e = CiderJson.playbackEvent(data);
+        switch (e[0]) {
+            case "playbackStatus.nowPlayingItemDidChange" -> {
+                NowPlaying n = CiderJson.nowPlaying(e[1], true);
+                if (n != null) {
+                    last = n;
+                    MusicService.report(this, n);
+                }
+            }
+            case "playbackStatus.playbackTimeDidChange" -> {
+                long[] t = CiderJson.playbackTime(e[1]);
+                NowPlaying n = last;
+                if (t != null && n != null) {
+                    last = n.withPosition(t[0], t[1] == 1);
+                    MusicService.report(this, last);
+                }
+            }
+            case "playbackStatus.playbackStateDidChange" -> {
+                NowPlaying n = last;
+                boolean playing = e[1].contains("\"playing\"");
+                if (n != null) {
+                    last = n.withPosition(n.position(), playing);
+                    MusicService.report(this, last);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void post(String path) {
+        Thread t = new Thread(() -> Http.post(base() + path, "{}", auth()), "Sol Cider control");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Whether Cider's Socket.IO events have come in (since it started). */
+    boolean heardEvents() {
+        return heard;
+    }
+
+    /** A new app token: the next refusal is told again. */
+    void tokenChanged() {
+        refusedOnce = false;
+    }
+
+    @Override
+    public void playPause() {
+        post("/playback/playpause");
+    }
+
+    @Override
+    public void next() {
+        post("/playback/next");
+    }
+
+    @Override
+    public void previous() {
+        post("/playback/previous");
+    }
+
+    /** Apple's lyrics through Cider's Apple Music passthrough: syllable lyrics first, then line lyrics. */
+    @Override
+    public String appleLyricsTtml(NowPlaying song) {
+        if (song.catalogId() == null) {
+            return null;
+        }
+        String storefront = "us";
+        Http.Reply sf = Http.post(base() + "/amapi/run-v3", "{\"path\":\"/v1/me/storefront?limit=1\"}", auth());
+        try {
+            if (sf.ok()) {
+                JsonObject o = JsonParser.parseString(sf.body()).getAsJsonObject();
+                storefront = o.getAsJsonObject("data").getAsJsonArray("data").get(0).getAsJsonObject().get("id").getAsString();
+            }
+        } catch (RuntimeException e) {
+            // Keep "us".
+        }
+        for (String kind : new String[]{"syllable-lyrics", "lyrics"}) {
+            String path = "/v1/catalog/" + storefront + "/songs/" + song.catalogId() + "/" + kind + "?l=en-US&platform=web";
+            Http.Reply r = Http.post(base() + "/amapi/run-v3", "{\"path\":\"" + path + "\"}", auth());
+            if (!r.ok()) {
+                continue;
+            }
+            try {
+                JsonObject o = JsonParser.parseString(r.body()).getAsJsonObject();
+                String ttml = o.getAsJsonObject("data").getAsJsonArray("data").get(0).getAsJsonObject()
+                        .getAsJsonObject("attributes").get("ttml").getAsString();
+                if (ttml != null && !ttml.isBlank()) {
+                    return ttml;
+                }
+            } catch (RuntimeException e) {
+                // Try the next kind.
+            }
+        }
+        return null;
+    }
+}

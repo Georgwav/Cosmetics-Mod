@@ -15,7 +15,8 @@ public final class ThemeState {
     private static String themeId = ThemeRegistry.FALLBACK;
     private static Customisation custom = Customisation.NONE;
     private static Integer accent;
-    private static ThemeRegistry.Entry album;
+    private static String albumKey;
+    private static java.util.function.UnaryOperator<ThemeSpec> album;
 
     private static ThemeRegistry.Entry entry;
     private static int entryGeneration = -1;
@@ -62,7 +63,7 @@ public final class ThemeState {
         return accent;
     }
 
-    /** The current theme with the player's customisation (and the album theme while one is on). */
+    /** The current theme with the player's customisation (and the album's colours while they're on). */
     public static ThemeRegistry.Entry entry() {
         rebuildEntry();
         return entry;
@@ -97,10 +98,17 @@ public final class ThemeState {
         }
     }
 
-    /** The album theme (from the playing song's cover) that replaces the theme while it's on, or null. */
-    public static void setAlbum(ThemeRegistry.Entry albumEntry, boolean animate) {
-        if (albumEntry != album) {
-            album = albumEntry;
+    /**
+     * The album's colours (from the playing song's cover), laid over the theme while they're on, or null.
+     * {@code key} names the overlay (the album), so setting the same one again does nothing.
+     */
+    public static void setAlbum(String key, java.util.function.UnaryOperator<ThemeSpec> overlay, boolean animate) {
+        if (overlay == null) {
+            key = null;
+        }
+        if (!java.util.Objects.equals(key, albumKey)) {
+            albumKey = key;
+            album = overlay;
             changed(animate);
         }
     }
@@ -122,9 +130,11 @@ public final class ThemeState {
         if (entry != null && !dirty && gen == entryGeneration) {
             return;
         }
-        ThemeRegistry.Entry base = album != null ? album : ThemeRegistry.get(themeId);
-        Customisation c = album != null ? Customisation.NONE : custom;
-        entry = c.isNone() ? base : base.map(c::apply);
+        ThemeRegistry.Entry base = ThemeRegistry.get(themeId);
+        entry = custom.isNone() ? base : base.map(custom::apply);
+        if (album != null) {
+            entry = entry.map(album);
+        }
         entryGeneration = gen;
     }
 
@@ -149,7 +159,7 @@ public final class ThemeState {
             } else {
                 Keyframes.weights(Keyframes.altitude(q), Keyframes.morning(q), weights);
             }
-            Keyframes.blend(entry, weights, accent, target);
+            Keyframes.blend(entry, weights, album != null ? null : accent, target);
             dirty = false;
         }
         float k = change();

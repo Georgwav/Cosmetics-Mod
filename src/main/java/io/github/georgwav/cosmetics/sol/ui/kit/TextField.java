@@ -16,11 +16,18 @@ public final class TextField {
     private final Consumer<String> onChange;
     private String text = "";
     private boolean focused;
+    private boolean secret;
     private float blink;
 
     public TextField(int max, Consumer<String> onChange) {
         this.max = max;
         this.onChange = onChange;
+    }
+
+    /** Shows dots instead of the text (a token). */
+    public TextField secret() {
+        secret = true;
+        return this;
     }
 
     public String text() {
@@ -59,7 +66,7 @@ public final class TextField {
             g.textMid(f, g.fit(f, hint, room), tx, y + h / 2f, 0x66FFFFFF);
         } else {
             // The end of a long text stays in view.
-            String shown = text;
+            String shown = secret ? "\u2022".repeat(text.length()) : text;
             while (shown.length() > 1 && g.width(f, shown) > room) {
                 shown = shown.substring(1);
             }

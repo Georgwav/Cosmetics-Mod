@@ -492,8 +492,13 @@ public final class SolMenu extends SolScreen {
             g.textMid(f, p, x, y, 0x99FFFFFF);
             x += g.width(f, p) + 18f;
         }
-        String right = tr("sol.quick.detail.music_none");
+        String playing = io.github.georgwav.cosmetics.sol.music.MusicService.line();
+        String right = playing != null ? g.fit(f, playing, 360f) : tr("sol.quick.detail.music_none");
         g.textRight(f, right, 1240f, y, 0x99FFFFFF);
+        if (playing != null) {
+            io.github.georgwav.cosmetics.sol.ui.kit.Icons.draw(g, "note", 1240f - g.width(f, right) - 16f, y - 6f, 12f, 0x99FFFFFF,
+                    io.github.georgwav.cosmetics.sol.ui.kit.Icons.FILL, 0);
+        }
         g.alpha = base;
     }
 

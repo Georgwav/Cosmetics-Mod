@@ -591,6 +591,15 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
+    # The Sol scenario's music shots: a mock Cider (REST, Socket.IO, Apple lyrics, a cover) and LRCLIB on Cider's port.
+    mock = None
+    if mode == "sol":
+        import mock_cider
+        try:
+            mock = mock_cider.start(10767)
+            jvm += ["-Dcosmeticsmod.mockCider=true", "-Dcosmeticsmod.lrclib=http://127.0.0.1:10767"]
+        except OSError as e:
+            LOG(f"[{inst.mc}/{label}] mock Cider not started: {e}")
     if shaderpack:
         jvm.append("-Dcosmeticsmod.expectShaders=true")
     for arg in inst.fabric.get("arguments", {}).get("jvm", []):
@@ -656,6 +665,9 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                         shots.append(png.name)
             time.sleep(1)
         proc.wait()
+    if mock:
+        mock.shutdown()
+        mock.server_close()
 
     if mode == "control":
         crash = crash_summary(game_dir)

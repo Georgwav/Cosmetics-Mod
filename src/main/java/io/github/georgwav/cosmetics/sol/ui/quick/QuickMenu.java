@@ -683,7 +683,10 @@ public final class QuickMenu extends SolScreen {
                 yield tr("sol.quick.detail.modules", on, all);
             }
             case "world" -> tr("sol.quick.detail.world", Widgets.themeName(ThemeState.baseEntry()));
-            case "music" -> tr("sol.quick.detail.music_none");
+            case "music" -> {
+                String playing = io.github.georgwav.cosmetics.sol.music.MusicService.line();
+                yield playing != null ? playing : tr("sol.quick.detail.music_none");
+            }
             case "mods" -> tr("sol.quick.detail.mods", Widgets.installedMods());
             case "presets" -> tr("sol.quick.detail.presets", Widgets.themeName(ThemeState.baseEntry()), ThemeRegistry.all().size());
             case "emotes" -> tr("sol.quick.detail.emotes", Emotes.all().size(), keyName(KeyBinds.emotes));

@@ -18,6 +18,10 @@ Object.assign(SOL_ICONS, {
   cloud: d('<path d="M7.6 18.5h9.2a3.9 3.9 0 0 0 .5-7.77A5.4 5.4 0 0 0 6.9 9.9a4.3 4.3 0 0 0 .7 8.6z"/>') + '<path d="M7.6 18.5h9.2a3.9 3.9 0 0 0 .5-7.77A5.4 5.4 0 0 0 6.9 9.9a4.3 4.3 0 0 0 .7 8.6z"/>',
   moon: d('<path d="M19.2 14.8A7.6 7.6 0 1 1 9.2 4.8a6 6 0 0 0 10 10z"/>') + '<path d="M19.2 14.8A7.6 7.6 0 1 1 9.2 4.8a6 6 0 0 0 10 10z"/>',
   gauge: d('<path d="M4.4 16.6a8.1 8.1 0 1 1 15.2 0z"/>') + '<path d="M4.4 16.6a8.1 8.1 0 1 1 15.2 0"/><path d="M12 13.4l3.4-4"/><path d="M12 13.4h.01"/>',
+  play: d('<path d="M8 5.5v13l10.5-6.5z"/>') + '<path d="M8 5.5v13l10.5-6.5z"/>',
+  pause: d('<rect x="6.5" y="5.5" width="3.6" height="13" rx="1"/><rect x="13.9" y="5.5" width="3.6" height="13" rx="1"/>') + '<rect x="6.5" y="5.5" width="3.6" height="13" rx="1"/><rect x="13.9" y="5.5" width="3.6" height="13" rx="1"/>',
+  next: d('<path d="M5.5 6v12l9-6z"/>') + '<path d="M5.5 6v12l9-6z"/><path d="M18 6v12"/>',
+  prev: d('<path d="M18.5 6v12l-9-6z"/>') + '<path d="M18.5 6v12l-9-6z"/><path d="M6 6v12"/>',
 });
 
 const num = (s) => (s === undefined ? undefined : parseFloat(s));

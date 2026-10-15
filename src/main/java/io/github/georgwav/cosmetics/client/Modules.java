@@ -90,14 +90,15 @@ public final class Modules {
     public static final Hypixel HYPIXEL = new Hypixel();
     public static final Social SOCIAL = new Social();
     public static final GlintModule GLINT = new GlintModule();
+    public static final io.github.georgwav.cosmetics.client.hud.MusicHud MUSIC = new io.github.georgwav.cosmetics.client.hud.MusicHud();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
     private static final List<Module> ALL = List.of(ATMOSPHERE, ZOOM, CAMERA, PVP_TWEAKS, PVP_EFFECTS, HITBOXES, HELD_ITEMS,
             NAMETAGS, SCREEN, PARTICLES, DROPPED_ITEMS, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS, SOUNDS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS, SOUNDS,
             SOCIAL, SERVERS, HYPIXEL, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, MUSIC);
 
     private static boolean loading;
     private static boolean started;

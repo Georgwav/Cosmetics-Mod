@@ -105,7 +105,18 @@ public final class SolScenario {
     /** Only these themes' shots (comma-separated ids; empty for all), for quick looks while tuning. */
     private static final String THEMES = System.getProperty("cosmeticsmod.solThemes", "");
 
+    /** CI's mock Cider is running (ci/mock_cider.py): the music shots show its song and are checked. */
+    private static final boolean MOCK_CIDER = Boolean.getBoolean("cosmeticsmod.mockCider");
+    private static boolean musicWasOn = true;
+    private static boolean albumUiWas = true;
+
     private void plan() {
+        if (MOCK_CIDER) {
+            // On from the start, so the song, its lyrics and its cover are there by the music shots.
+            musicWasOn = io.github.georgwav.cosmetics.client.Modules.MUSIC.enabled();
+            albumUiWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi;
+            io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(true);
+        }
         planAll();
         if (!THEMES.isBlank()) {
             java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(THEMES.split(",")));
@@ -302,6 +313,9 @@ public final class SolScenario {
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
+            if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().equals("ui_menu_music"))) {
+                checkMusic(s.name());
+            }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.
                 if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && !"empty".equals(s.theme())
@@ -379,6 +393,10 @@ public final class SolScenario {
         // HUD hidden.
         String what = ui ? name.substring(3) : "";
         boolean hud = inPlay(what);
+        if (MOCK_CIDER) {
+            // The album's colours only in the music shots: every other shot shows its theme.
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.equals("menu_music") || what.equals("hud_sol");
+        }
         java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
         hudInPlay(hud, what.equals("hud_off"));
@@ -553,6 +571,37 @@ public final class SolScenario {
         }
     }
 
+    /**
+     * The mock Cider's song reached the game: REST and its Socket.IO events, Apple's syllable lyrics (words, the
+     * duet's second voice, background vocals) and the cover.
+     */
+    private void checkMusic(String name) {
+        var now = io.github.georgwav.cosmetics.sol.music.MusicService.now();
+        if (now == null || !"Sol Sunset".equals(now.title()) || !"cider".equals(now.source())) {
+            problems.add(name + ": the mock Cider's song isn't playing (" + now + ")");
+            return;
+        }
+        if (!io.github.georgwav.cosmetics.sol.music.MusicService.ciderEvents()) {
+            problems.add(name + ": no Socket.IO events came from the mock Cider");
+        }
+        var l = io.github.georgwav.cosmetics.sol.music.MusicService.lyrics();
+        boolean words = l.lines().stream().anyMatch(x -> x.words().size() > 3);
+        boolean duet = l.lines().stream().anyMatch(x -> "v2".equals(x.agent()));
+        boolean bg = l.lines().stream().anyMatch(io.github.georgwav.cosmetics.sol.music.Lyrics.Line::background);
+        if (!l.synced() || !"apple".equals(l.source()) || !words || !duet || !bg) {
+            problems.add(name + ": Apple's lyrics didn't arrive whole (" + l.source() + ", " + l.lines().size() + " lines, synced "
+                    + l.synced() + ", words " + words + ", duet " + duet + ", background " + bg + ")");
+        }
+        if (io.github.georgwav.cosmetics.sol.music.Covers.current() == null) {
+            problems.add(name + ": the cover wasn't loaded");
+        }
+        if (!io.github.georgwav.cosmetics.sol.theme.ThemeState.albumActive()) {
+            problems.add(name + ": the album's colours aren't on the UI");
+        }
+        CosmeticsMod.LOGGER.info("[Sol] {}: music {} at {} ms, {} lyric lines from {}", name, now.title(), now.position(),
+                l.lines().size(), l.source());
+    }
+
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
         return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab");
@@ -642,6 +691,12 @@ public final class SolScenario {
     private void finish(Minecraft mc) {
         finished = true;
         stageUi("");
+        if (MOCK_CIDER) {
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = albumUiWas;
+            if (!musicWasOn) {
+                io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(false);
+            }
+        }
         io.github.georgwav.cosmetics.client.modules.Zoom.hold(0.0);
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;

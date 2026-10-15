@@ -1421,5 +1421,89 @@
    "duo": false,
    "d": "M12 13.4h.01"
   }
+ ],
+ "play": [
+  {
+   "type": "path",
+   "duo": true,
+   "d": "M8 5.5v13l10.5-6.5z"
+  },
+  {
+   "type": "path",
+   "duo": false,
+   "d": "M8 5.5v13l10.5-6.5z"
+  }
+ ],
+ "pause": [
+  {
+   "type": "rect",
+   "duo": true,
+   "x": 6.5,
+   "y": 5.5,
+   "w": 3.6,
+   "h": 13,
+   "rx": 1
+  },
+  {
+   "type": "rect",
+   "duo": true,
+   "x": 13.9,
+   "y": 5.5,
+   "w": 3.6,
+   "h": 13,
+   "rx": 1
+  },
+  {
+   "type": "rect",
+   "duo": false,
+   "x": 6.5,
+   "y": 5.5,
+   "w": 3.6,
+   "h": 13,
+   "rx": 1
+  },
+  {
+   "type": "rect",
+   "duo": false,
+   "x": 13.9,
+   "y": 5.5,
+   "w": 3.6,
+   "h": 13,
+   "rx": 1
+  }
+ ],
+ "next": [
+  {
+   "type": "path",
+   "duo": true,
+   "d": "M5.5 6v12l9-6z"
+  },
+  {
+   "type": "path",
+   "duo": false,
+   "d": "M5.5 6v12l9-6z"
+  },
+  {
+   "type": "path",
+   "duo": false,
+   "d": "M18 6v12"
+  }
+ ],
+ "prev": [
+  {
+   "type": "path",
+   "duo": true,
+   "d": "M18.5 6v12l-9-6z"
+  },
+  {
+   "type": "path",
+   "duo": false,
+   "d": "M18.5 6v12l-9-6z"
+  },
+  {
+   "type": "path",
+   "duo": false,
+   "d": "M6 6v12"
+  }
  ]
 }
