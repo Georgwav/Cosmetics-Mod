@@ -66,4 +66,13 @@ public final class Mc {
         return mc.options.hideGui;
         //?}
     }
+
+    /** Shows a loading overlay (null: none). 26.2 moved overlays into Gui. */
+    public static void setOverlay(net.minecraft.client.gui.screens.Overlay overlay) {
+        //? if >=26.2 {
+        /*Minecraft.getInstance().gui.setOverlay(overlay);
+        *///?} else {
+        Minecraft.getInstance().setOverlay(overlay);
+        //?}
+    }
 }

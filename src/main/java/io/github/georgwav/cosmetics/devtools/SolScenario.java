@@ -36,7 +36,7 @@ public final class SolScenario {
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
-            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -323,6 +323,14 @@ public final class SolScenario {
             if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().startsWith("ui_menu_music"))) {
                 checkMusic(s.name());
             }
+            if (phaseTick == SETTLE && (s.name().equals("ui_pause") || s.name().equals("ui_death") || s.name().equals("ui_loading"))) {
+                var look = io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.class;
+                if (s.name().equals("ui_loading") ? io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.loading == 0
+                        : io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.veils == 0
+                        || io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.buttons == 0) {
+                    problems.add(s.name() + ": the game's screen didn't take Sol's look (" + look.getSimpleName() + ")");
+                }
+            }
             if (phaseTick == SETTLE && s.name().equals("sol_music_viz")) {
                 if (!"listening".equals(io.github.georgwav.cosmetics.sol.music.AudioCapture.state())) {
                     problems.add(s.name() + ": the visualizers aren't listening (" + io.github.georgwav.cosmetics.sol.music.AudioCapture.state() + ")");
@@ -404,8 +412,14 @@ public final class SolScenario {
     }
 
     /** Opens the menu a "ui_" shot shows, in its state; any other shot closes it. */
+    private static boolean loadingShown;
+
     private static void stageUi(String name) {
         boolean ui = name.startsWith("ui_");
+        if (loadingShown) {
+            loadingShown = false;
+            io.github.georgwav.cosmetics.sol.render.Mc.setOverlay(null);
+        }
         io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.pointerOff = ui;
         // The toast, the HUD editor and the HUD shots are shown with the HUD, as in play; every other frame keeps the
         // HUD hidden.
@@ -467,6 +481,44 @@ public final class SolScenario {
                 w.stage(state.equals("grid") ? "all" : state);
             }
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
+            return;
+        }
+        if (what.equals("title")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.SolTitleScreen());
+            return;
+        }
+        if (what.equals("pause")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.PauseScreen(true));
+            return;
+        }
+        if (what.equals("death")) {
+            net.minecraft.network.chat.Component cause = net.minecraft.network.chat.Component.literal("CosmeticsCI fell out of the sky");
+            //? if >=1.21.11 {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.DeathScreen(cause, false,
+                    Minecraft.getInstance().player));
+            //?} else {
+            /*io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.DeathScreen(cause, false));
+            *///?}
+            return;
+        }
+        if (what.equals("loading")) {
+            // A resource reload held at 62% (it never finishes until the next shot takes it away).
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            loadingShown = true;
+            io.github.georgwav.cosmetics.sol.render.Mc.setOverlay(new net.minecraft.client.gui.screens.LoadingOverlay(Minecraft.getInstance(),
+                    new net.minecraft.server.packs.resources.ReloadInstance() {
+                        private final java.util.concurrent.CompletableFuture<?> never = new java.util.concurrent.CompletableFuture<>();
+
+                        @Override
+                        public java.util.concurrent.CompletableFuture<?> done() {
+                            return never;
+                        }
+
+                        @Override
+                        public float getActualProgress() {
+                            return 0.62f;
+                        }
+                    }, error -> { }, true));
             return;
         }
         if (what.equals("toast")) {

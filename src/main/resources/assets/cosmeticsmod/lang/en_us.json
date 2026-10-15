@@ -975,5 +975,7 @@
   "key.cosmeticsmod.module.music.previous_track": "Music: previous song",
   "key.cosmeticsmod.module.music.like": "Music: love this song",
   "sol.notify.music_liked": "Loved %s",
-  "sol.menu.music.in_time": "In time"
+  "sol.menu.music.in_time": "In time",
+  "sol.title.menu": "Sol menu",
+  "sol.title.mods": "Mods"
 }
