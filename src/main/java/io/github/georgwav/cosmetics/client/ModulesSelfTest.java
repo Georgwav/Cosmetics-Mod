@@ -33,6 +33,66 @@ public final class ModulesSelfTest {
         Modules.FULLBRIGHT.setEnabled(true);
         // A diamond in the inventory's top row, for the hotbar rows key.
         command(mc, "item replace entity @s inventory.0 with minecraft:diamond");
+        // World Overlays' structure outlines, with a made-up desert pyramid starting in the chunk next to you.
+        overlaysWereOn = Modules.WORLD_OVERLAYS.enabled();
+        structuresWereOn = ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").get();
+        ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(true);
+        Modules.WORLD_OVERLAYS.setEnabled(true);
+        scansBefore = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans;
+        plantPyramid(mc, true);
+    }
+
+    private static boolean overlaysWereOn;
+    private static boolean structuresWereOn;
+    private static int scansBefore;
+    /** Where the made-up pyramid's box starts (its corner block), once planted. */
+    private static volatile int pyramidX = Integer.MIN_VALUE, pyramidZ;
+    private static java.util.Map<net.minecraft.world.level.levelgen.structure.Structure, net.minecraft.world.level.levelgen.structure.StructureStart> startsBefore;
+    private static java.util.Map<net.minecraft.world.level.levelgen.structure.Structure, it.unimi.dsi.fastutil.longs.LongSet> referencesBefore;
+
+    /**
+     * On the world's server: a desert pyramid's start (with its one piece) in the chunk east of you and a reference
+     * to it there, as world generation would leave them (the test world makes no structures); or, with
+     * {@code plant} false, the chunk's own starts and references back.
+     */
+    private static void plantPyramid(Minecraft mc, boolean plant) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return;
+        }
+        var dimension = mc.level.dimension();
+        int cx = (mc.player.blockPosition().getX() >> 4) + 1, cz = mc.player.blockPosition().getZ() >> 4;
+        server.execute(() -> {
+            var level = server.getLevel(dimension);
+            var chunk = level == null ? null : level.getChunkSource().getChunkNow(cx, cz);
+            if (chunk == null) {
+                return;
+            }
+            if (!plant) {
+                if (startsBefore != null) {
+                    chunk.setAllStarts(startsBefore);
+                    chunk.setAllReferences(referencesBefore);
+                    startsBefore = null;
+                }
+                return;
+            }
+            var structure = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                    .get(net.minecraft.world.level.levelgen.structure.BuiltinStructures.DESERT_PYRAMID).orElseThrow().value();
+            startsBefore = new java.util.HashMap<>(chunk.getAllStarts());
+            referencesBefore = new java.util.HashMap<>(chunk.getAllReferences());
+            var piece = new net.minecraft.world.level.levelgen.structure.structures.DesertPyramidPiece(
+                    net.minecraft.util.RandomSource.create(1L), cx << 4, cz << 4);
+            var pos = new net.minecraft.world.level.ChunkPos(cx, cz);
+            chunk.setStartForStructure(structure, new net.minecraft.world.level.levelgen.structure.StructureStart(structure, pos, 0,
+                    new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(java.util.List.of(piece))));
+            //? if >=26.1 {
+            /*chunk.addReferenceForStructure(structure, pos.pack());
+            *///?} else {
+            chunk.addReferenceForStructure(structure, pos.toLong());
+            //?}
+            pyramidZ = piece.getBoundingBox().minZ();
+            pyramidX = piece.getBoundingBox().minX();
+        });
     }
 
     private static boolean inventoryWasOn;
@@ -121,6 +181,18 @@ public final class ModulesSelfTest {
         }
         command(mc, "item replace entity @s inventory.0 with minecraft:air");
         Modules.INVENTORY.setEnabled(inventoryWasOn);
+        int[] boxes = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureBoxes();
+        if (pyramidX == Integer.MIN_VALUE) {
+            problems.add("the made-up desert pyramid wasn't planted for World Overlays' structures");
+        } else if (io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans == scansBefore) {
+            problems.add("World Overlays didn't look for structures");
+        } else if (boxes.length != 6 || boxes[0] != pyramidX || boxes[2] != pyramidZ) {
+            problems.add("World Overlays didn't find the desert pyramid at " + pyramidX + ", " + pyramidZ + " (found "
+                    + java.util.Arrays.toString(boxes) + ")");
+        }
+        plantPyramid(mc, false);
+        ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(structuresWereOn);
+        Modules.WORLD_OVERLAYS.setEnabled(overlaysWereOn);
         Modules.FULLBRIGHT.setEnabled(false);
         setting(Modules.ATMOSPHERE, "lock_time").reset();
         setting(Modules.ATMOSPHERE, "lock_weather").reset();
