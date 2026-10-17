@@ -29,6 +29,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("DeathLookMixin");
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
+        all.add("PackEntryAccess");
+        all.add("PackSearchMixin");
         all.add("TotemSizeMixin");
         all.add("WaterOverlayMixin");
         all.add("InventoryDimMixin");

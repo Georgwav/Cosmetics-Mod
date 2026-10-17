@@ -40,7 +40,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "servers", "whats_new"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -349,6 +349,27 @@ public final class SolScenario {
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
+            if (phaseTick == SETTLE - 20 && s.name().equals("ui_packs") && io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
+                // Typing in the pack screen's search (Sol's before 1.21.9, the game's after).
+                for (var child : io.github.georgwav.cosmetics.ui.ScreenOpener.current().children()) {
+                    if (child instanceof net.minecraft.client.gui.components.EditBox box) {
+                        box.setValue("default");
+                    }
+                }
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_inventory") && io.github.georgwav.cosmetics.client.modules.ScreenTweaks.undimmed == 0) {
+                problems.add(s.name() + ": the inventory darkened the world behind it with Screen's darkening off");
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_packs")) {
+                if (io.github.georgwav.cosmetics.sol.client.PackPreview.previews == 0) {
+                    problems.add(s.name() + ": the pack screen didn't preview a pack");
+                }
+                //? if <1.21.9 {
+                /*if (io.github.georgwav.cosmetics.sol.client.PackPreview.searchBoxes == 0 || io.github.georgwav.cosmetics.sol.client.PackPreview.searched == 0) {
+                    problems.add(s.name() + ": Sol's pack search wasn't there or didn't search");
+                }
+                *///?}
+            }
             if (phaseTick == SETTLE && s.name().equals("ui_whats_new") && io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew.shown == 0) {
                 problems.add(s.name() + ": the what's new screen didn't draw");
             }
@@ -543,6 +564,13 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
             return;
         }
+        screenForShot(what.equals("inventory"));
+        if (what.equals("inventory")) {
+            // Your inventory over the world, which Screen leaves undarkened.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.inventory.InventoryScreen(
+                    Minecraft.getInstance().player));
+            return;
+        }
         if (what.equals("chat")) {
             // The chat screen with Sol Chat's emoji picker open over it.
             //? if >=1.21.9 {
@@ -592,6 +620,15 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show("Survival", serversShown);
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen(
                     new net.minecraft.client.gui.screens.TitleScreen()));
+            return;
+        }
+        io.github.georgwav.cosmetics.sol.client.PackPreview.forShot = what.equals("packs");
+        if (what.equals("packs")) {
+            // The resource pack screen with a pack's preview (and, before 1.21.9, Sol's search over the lists).
+            Minecraft mc = Minecraft.getInstance();
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.packs.PackSelectionScreen(
+                    mc.getResourcePackRepository(), repo -> { }, mc.getResourcePackDirectory(),
+                    net.minecraft.network.chat.Component.translatable("resourcePack.title")));
             return;
         }
         if (what.equals("whats_new")) {
@@ -669,6 +706,32 @@ public final class SolScenario {
      * The Wardrobe shots show you wearing a few things (the world shots wear nothing): a cape, a hat, wings and an
      * aura when there are some. Back to what you wore after them.
      */
+    private static Boolean screenOnBeforeInventory;
+
+    /** Screen on, with the darkening behind inventories off, for the inventory shot; as it was after. */
+    private static void screenForShot(boolean on) {
+        var screen = io.github.georgwav.cosmetics.client.Modules.SCREEN;
+        if (on == (screenOnBeforeInventory != null)) {
+            return;
+        }
+        for (var setting : screen.settings()) {
+            if (setting.id.equals("inventory_dim")) {
+                if (on) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(false);
+                } else {
+                    setting.reset();
+                }
+            }
+        }
+        if (on) {
+            screenOnBeforeInventory = screen.enabled();
+            screen.setEnabled(true);
+        } else {
+            screen.setEnabled(screenOnBeforeInventory);
+            screenOnBeforeInventory = null;
+        }
+    }
+
     private static net.minecraft.client.multiplayer.ServerList serversShown;
     private static final List<net.minecraft.client.multiplayer.ServerData> SHOT_SERVERS = new java.util.ArrayList<>();
     private static boolean serversModuleWasOn;
@@ -835,7 +898,7 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat");
+        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory");
     }
 
     /** The game mode before the HUD shots (null while they aren't on). */

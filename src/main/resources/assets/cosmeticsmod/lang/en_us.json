@@ -1015,7 +1015,7 @@
   "sol.mods.browser.note": "Mods go in this instance's mods folder (%s) and load the next time the game starts.",
   "sol.notify.mod_installed": "%s installed (%s files): restart to load it",
   "sol.notify.mod_failed": "Couldn't install %s",
-  "sol.menu.settings.pack_folders": "Resource pack folders (packs in subfolders)",
+  "sol.menu.settings.pack_folders": "Resource pack folders, search and previews",
   "sol.mods.ok_zoomer.note": "Zoom (Sol's planets sharpen when it narrows the view)",
   "sol.mods.perspectivemod.note": "Freelook",
   "sol.mods.chat_heads.pill": "Heads in chat",
@@ -1057,5 +1057,6 @@
   "cosmeticsmod.module.glint.gui": "In inventories",
   "cosmeticsmod.module.glint.gui.none": "Glint only",
   "cosmeticsmod.module.glint.gui.outline": "Outline",
-  "cosmeticsmod.module.glint.gui.glow": "Glow"
+  "cosmeticsmod.module.glint.gui.glow": "Glow",
+  "sol.packs.search": "Search packs"
 }

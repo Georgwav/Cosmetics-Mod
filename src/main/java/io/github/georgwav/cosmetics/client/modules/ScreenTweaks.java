@@ -59,9 +59,16 @@ public final class ScreenTweaks extends Module {
         return hides(io.github.georgwav.cosmetics.client.Modules.SCREEN.water);
     }
 
+    /** Darkenings left out behind inventories (for the self-test). */
+    public static int undimmed;
+
     /** Whether inventories (and other container screens) leave the world behind them undarkened and sharp. */
     public static boolean hidesInventoryDim() {
-        return hides(Modules.SCREEN.inventoryDim);
+        boolean hides = hides(Modules.SCREEN.inventoryDim);
+        if (hides) {
+            undimmed++;
+        }
+        return hides;
     }
 
     public static boolean hidesNausea() {

@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 /**
  * Hitboxes: the lines' width (and from 1.21.11 the colour too). Where the game picks the lines for hitboxes: the
  * debug renderer's gizmo stroke from 1.21.11, the hitbox feature renderer on 1.21.9 and 1.21.10, the entity render
- * dispatcher before.
+ * dispatcher before (from 1.21.2 in its private render, named in full: the public one only hands over the renderer).
  */
 //? if >=1.21.11 {
 @Mixin(net.minecraft.client.renderer.debug.EntityHitboxDebugRenderer.class)
@@ -36,8 +36,16 @@ abstract class HitboxWidthMixin {
     private net.minecraft.client.renderer.RenderType cosmeticsmod$lines() {
         return HitboxLines.lines();
     }
+    *///?} elif >=1.21.2 {
+    /*@Redirect(method = {"render(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/client/renderer/entity/EntityRenderer;)V",
+            "renderServerSideHitbox"}, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/RenderType;lines()Lnet/minecraft/client/renderer/RenderType;"), require = 0)
+    private static net.minecraft.client.renderer.RenderType cosmeticsmod$lines() {
+        return HitboxLines.lines();
+    }
     *///?} else {
-    /*@Redirect(method = {"render", "renderServerSideHitbox"}, at = @At(value = "INVOKE",
+    /*@Redirect(method = {"render(Lnet/minecraft/world/entity/Entity;DDDFFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+            "renderServerSideHitbox"}, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/RenderType;lines()Lnet/minecraft/client/renderer/RenderType;"), require = 0)
     private static net.minecraft.client.renderer.RenderType cosmeticsmod$lines() {
         return HitboxLines.lines();
