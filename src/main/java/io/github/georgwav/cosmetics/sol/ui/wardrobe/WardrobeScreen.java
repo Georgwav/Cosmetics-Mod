@@ -403,8 +403,15 @@ public final class WardrobeScreen extends SolScreen {
 
     // ------------------------------------------------------------------ the grid
 
+    /** The view and search the order was taken for, and what you wore then (it sorts first). */
+    private String orderKey;
+    private java.util.Set<String> orderWorn = java.util.Set.of();
+
     /** The view's cosmetics as tiles with the notices above them; returns the cosmetic pointed at. */
     private String grid(Gfx g, Tokens tk, float top, float h) {
+        drawnOrder.clear();
+        tileShown = false;
+        gearShown = false;
         CosmeticsConfig config = CosmeticsConfig.get();
         List<BakedCosmetic> all = new ArrayList<>(wardrobe());
         List<String> wearing = config.localEquipped();
@@ -416,10 +423,17 @@ public final class WardrobeScreen extends SolScreen {
             g.text(g.font(SolFont.Family.MEDIUM, 13f), t("wardrobe.empty"), MAIN_X, y + 18f, 0x99FFFFFF);
             y += 30f;
         } else {
-            // What you wear first, then by name; a search matches names and ids.
-            all.sort(Comparator.comparing((BakedCosmetic c) -> !wearing.contains(c.id()))
-                    .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
+            // What you wore when the view (or search) was opened first, then by name, so a tile stays where it is
+            // as you put it on or take it off; a search matches names and ids.
             String needle = search.text().trim().toLowerCase(Locale.ROOT);
+            String key = view + "|" + needle;
+            if (!key.equals(orderKey)) {
+                orderKey = key;
+                orderWorn = java.util.Set.copyOf(wearing);
+            }
+            java.util.Set<String> worn = orderWorn;
+            all.sort(Comparator.comparing((BakedCosmetic c) -> !worn.contains(c.id()))
+                    .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
             List<BakedCosmetic> shown = all.stream().filter(c -> view.includes(c, wearing) && matches(c, needle)).toList();
             if (shown.isEmpty()) {
                 g.text(g.font(SolFont.Family.MEDIUM, 13f), needle.isEmpty() ? t("wardrobe.empty_view")
@@ -543,12 +557,23 @@ public final class WardrobeScreen extends SolScreen {
             if (hover) {
                 pointed = i;
             }
-            // The gear (shown on hover, focus or worn) first, so a click on it isn't a click on the tile.
-            boolean gear = hover || worn;
-            if (gear) {
-                ui.tool(tk, tx + tw - 32f, ty + 6f, "gear", false, () -> openCosmetic(c.id()));
+            drawnOrder.add(c.id());
+            if (!tileShown) {
+                tileShown = true;
+                tileId = c.id();
+                tileX = tx;
+                tileY = ty;
             }
             int fi = ui.click(tx, ty, tw, th, () -> setEquipped(c.id(), !worn));
+            // The gear (shown on hover or worn) after the tile, so its hit is on top: a click on it opens the
+            // cosmetic's page instead of wearing it.
+            boolean gear = hover || worn;
+            int gearFocus = gear ? ui.click(tx + tw - 32f, ty + 6f, 26f, 26f, () -> openCosmetic(c.id())) : -1;
+            if (gear && !gearShown) {
+                gearShown = true;
+                gearX = tx + tw - 32f;
+                gearY = ty + 6f;
+            }
             if (worn) {
                 g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
             }
@@ -577,9 +602,7 @@ public final class WardrobeScreen extends SolScreen {
                 g.circle(tx + tw - 15f, ty + th - 20f, 3.5f, tk.accent);
             }
             if (gear) {
-                // Drawn over the art (the hit was registered first).
-                g.round(tx + tw - 32f, ty + 6f, 26f, 26f, 7f, 0xB30A0A0E);
-                Icons.draw(g, "gear", tx + tw - 25f, ty + 13f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+                gearButton(g, tk, tx + tw - 32f, ty + 6f, gearFocus);
             }
             if (ui.focused(fi)) {
                 g.stroke(tx - 2f, ty - 2f, tw + 4f, th + 4f, 14f, 2f * g.d.u, tk.accent);
@@ -587,6 +610,16 @@ public final class WardrobeScreen extends SolScreen {
         }
         int rows = (list.size() + cols - 1) / cols;
         return new float[]{y + rows * (th + gap), pointed};
+    }
+
+    /** A tile's gear, drawn over its art: lighter while pointed at, ringed while focused. */
+    private void gearButton(Gfx g, Tokens tk, float x, float y, int focus) {
+        boolean over = ui.over(x, y, 26f, 26f);
+        g.round(x, y, 26f, 26f, 7f, over ? 0xE62A2A33 : 0xB30A0A0E);
+        Icons.draw(g, "gear", x + 7f, y + 7f, 12f, over ? tk.accent : 0xFFFFFFFF, Icons.FILL, 0);
+        if (ui.focused(focus)) {
+            g.stroke(x - 2f, y - 2f, 30f, 30f, 9f, 2f * g.d.u, tk.accent);
+        }
     }
 
     // ------------------------------------------------------------------ outfits
@@ -618,13 +651,12 @@ public final class WardrobeScreen extends SolScreen {
             if (hover) {
                 pointed = o;
             }
-            if (hover || worn) {
-                ui.tool(tk, tx + tw - 32f, ty + 6f, "gear", false, () -> openOutfit(o));
-            }
             ui.click(tx, ty, tw, th, () -> {
                 config.wearOutfit(o);
                 EquippedCosmetics.invalidate();
             });
+            // The gear's hit after the tile's, so it's the one on top.
+            int gearFocus = hover || worn ? ui.click(tx + tw - 32f, ty + 6f, 26f, 26f, () -> openOutfit(o)) : -1;
             if (worn) {
                 g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
             }
@@ -655,8 +687,7 @@ public final class WardrobeScreen extends SolScreen {
             g.text(nf, g.fit(nf, o.name, tw - 20f), tx + 10f, ty + th - 30f, 0xFFFFFFFF);
             g.text(cf, g.fit(cf, t("outfits.count", o.cosmetics.size()), tw - 20f), tx + 10f, ty + th - 13f, 0x8CFFFFFF);
             if (hover || worn) {
-                g.round(tx + tw - 32f, ty + 6f, 26f, 26f, 7f, 0xB30A0A0E);
-                Icons.draw(g, "gear", tx + tw - 25f, ty + 13f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+                gearButton(g, tk, tx + tw - 32f, ty + 6f, gearFocus);
             }
         }
         int rows = (list.size() + cols - 1) / cols;
@@ -964,6 +995,51 @@ public final class WardrobeScreen extends SolScreen {
     public boolean listAtTop() {
         return scroll.value() == 0f && (cosmeticPage == null || cosmeticPage.atTop())
                 && (outfitPageView == null || outfitPageView.atTop()) && settingsView.atTop();
+    }
+
+    // For the in-game test: the tiles drawn last frame in order, the first tile and the first gear shown.
+    private final List<String> drawnOrder = new ArrayList<>();
+    private boolean tileShown, gearShown;
+    private String tileId;
+    private float tileX, tileY, gearX, gearY;
+    private List<String> orderBefore;
+    private String clicked;
+    private boolean clickedWasWorn;
+
+    /** For the in-game test: clicks the first tile (as a click on it would), remembering where every tile was. */
+    public boolean testClickTile() {
+        if (!tileShown) {
+            return false;
+        }
+        orderBefore = List.copyOf(drawnOrder);
+        clicked = tileId;
+        clickedWasWorn = CosmeticsConfig.get().localEquipped().contains(tileId);
+        return ui.press(tileX + 20f, tileY + 60f);
+    }
+
+    /**
+     * Frames later: what's wrong (the tile didn't change, or tiles moved); the tile is put back as it was, then a
+     * gear is clicked, which must open its cosmetic's page.
+     */
+    public List<String> testCheckTileAndGear() {
+        List<String> problems = new ArrayList<>();
+        if (clicked == null) {
+            problems.add("the Wardrobe showed no tile to click");
+            return problems;
+        }
+        if (CosmeticsConfig.get().localEquipped().contains(clicked) == clickedWasWorn) {
+            problems.add("clicking a Wardrobe tile didn't " + (clickedWasWorn ? "take it off" : "put it on"));
+        }
+        if (!drawnOrder.equals(orderBefore)) {
+            problems.add("the Wardrobe's tiles moved when one was clicked (" + orderBefore + " -> " + drawnOrder + ")");
+        }
+        setEquipped(clicked, clickedWasWorn);
+        if (!gearShown) {
+            problems.add("no Wardrobe tile showed its gear");
+        } else if (!ui.press(gearX + 13f, gearY + 13f) || cosmeticPage == null) {
+            problems.add("clicking a Wardrobe tile's gear didn't open the cosmetic's page");
+        }
+        return problems;
     }
 
     /** For the scenario: a state the reference shots show. */

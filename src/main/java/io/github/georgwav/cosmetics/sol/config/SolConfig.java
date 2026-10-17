@@ -41,14 +41,12 @@ public final class SolConfig {
     public boolean irisPausedByAtmosphere;
     /** The parts of the game's HUD switched back from Sol UI's look to the game's own, by id (SolHud.Part). */
     public java.util.List<String> solUiOff = new java.util.ArrayList<>();
-    /** Notifications the player has turned off, by kind. */
-    public java.util.List<String> mutedNotifications = new java.util.ArrayList<>();
-    /** Leaving a single-player world returns at once while it saves in the background. */
-    public boolean fastQuit = true;
     /** Resource packs in subfolders of resourcepacks show up too. */
     public boolean packFolders = true;
-    /** The newest crash report the crash helper has shown (its file time, ms). */
-    public long lastCrashSeen;
+    /** The launcher skin (its texture key) and the Mojang cape id (or "none") Sol last put on an account, and its UUID. */
+    public String wornSkin;
+    public String wornCape;
+    public String wornAccount;
 
     public static final class Music {
         public String ciderHost = "127.0.0.1";
@@ -70,6 +68,9 @@ public final class SolConfig {
         public boolean check = true;
         /** When updates were last looked for (ms); once a day. */
         public long lastCheck;
+        /** A downloaded update's version and notes, shown once it has taken over (then cleared). */
+        public String notesVersion;
+        public String notes;
     }
 
     private static SolConfig current;
@@ -127,7 +128,6 @@ public final class SolConfig {
         if (updates.repo == null || updates.repo.isBlank()) updates.repo = "georgwav/cosmetics-mod";
         if (discordAppId == null) discordAppId = "";
         if (solUiOff == null) solUiOff = new java.util.ArrayList<>();
-        if (mutedNotifications == null) mutedNotifications = new java.util.ArrayList<>();
         return this;
     }
 

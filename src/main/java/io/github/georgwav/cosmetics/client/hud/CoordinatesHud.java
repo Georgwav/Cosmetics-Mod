@@ -13,18 +13,15 @@ import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * Coordinates: where you are (block coordinates), which way you face and the biome, with a compass strip under it.
- * Sol UI shows steady mono numbers with the axes in the accent, the biome underneath, and the strip with an accent
- * marker (the brief's coordinates and compass); the plain look writes lines.
+ * Coordinates: where you are (block coordinates) and which way you face, with a direction bar under it. Sol UI shows
+ * steady mono numbers with the axes in the accent, the facing underneath, and the bar with an accent marker (the
+ * brief's coordinates and compass); the plain look writes lines.
  */
 public final class CoordinatesHud extends TextHud {
     private final Setting.Toggle direction = add(new Setting.Toggle("direction", true));
-    private final Setting.Toggle biome = add(new Setting.Toggle("biome", false));
     private final Setting.Toggle compass = add(new Setting.Toggle("compass", true));
-    private String biomeId = "", biomeName = "";
 
     public CoordinatesHud() {
         super("coordinates", "pin", 0f, 0f, 4f, 40f);
@@ -39,9 +36,6 @@ public final class CoordinatesHud extends TextHud {
         lines.add("XYZ " + mc.player.getBlockX() + " " + mc.player.getBlockY() + " " + mc.player.getBlockZ());
         if (direction.get()) {
             lines.add(facing(mc));
-        }
-        if (biome.get()) {
-            lines.add(biome(mc));
         }
         return lines;
     }
@@ -59,31 +53,6 @@ public final class CoordinatesHud extends TextHud {
                 + " (" + axis + ")";
     }
 
-    private String biome(Minecraft mc) {
-        String id = mc.level.getBiome(mc.player.blockPosition()).getRegisteredName();
-        if (!id.equals(biomeId)) {
-            biomeId = id;
-            biomeName = biomeName(id);
-        }
-        return biomeName;
-    }
-
-    /** "minecraft:dark_forest" as "Dark Forest". */
-    private static String biomeName(String id) {
-        String path = id.substring(id.indexOf(':') + 1);
-        StringBuilder name = new StringBuilder();
-        for (String word : path.split("[_/]")) {
-            if (word.isEmpty()) {
-                continue;
-            }
-            if (!name.isEmpty()) {
-                name.append(' ');
-            }
-            name.append(word.substring(0, 1).toUpperCase(Locale.ROOT)).append(word.substring(1));
-        }
-        return name.toString();
-    }
-
     // ---------------------------------------------------------------- Sol UI
 
     private static final float PAD_X = 6f, PAD_Y = 4.5f, LINE = 9f, SMALL_LINE = 7.5f, STRIP_W = 112f, STRIP_H = 11f;
@@ -98,11 +67,9 @@ public final class CoordinatesHud extends TextHud {
 
     private String sub(Minecraft mc) {
         if (mc.player == null) {
-            return "Plains";
+            return Component.translatable("cosmeticsmod.module.coordinates.facing.north").getString() + " (-Z)";
         }
-        String b = biome.get() ? biome(mc) : null;
-        String d = direction.get() ? facing(mc) : null;
-        return b != null && d != null ? b + "  ·  " + d : b != null ? b : d;
+        return direction.get() ? facing(mc) : null;
     }
 
     private float cardWidth(Minecraft mc) {

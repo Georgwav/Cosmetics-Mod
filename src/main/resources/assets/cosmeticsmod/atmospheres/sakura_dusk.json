@@ -13,11 +13,11 @@
     "top": "#4a3866",
     "middle": "#5d3f68",
     "horizon": "#a3606c",
-    "glow": "#fa9588",
+    "glow": "#fa888e",
     "sunWarmth": 0.45
   },
   "fog": {
-    "color": "#cf7b72",
+    "color": "#cf7279",
     "density": 0.35,
     "near": 3,
     "far": 72,
@@ -28,7 +28,7 @@
     "tint": "#ffc4cc",
     "strength": 0.62,
     "boost": 1.55,
-    "sun": "#ffd0c0",
+    "sun": "#ffc6c0",
     "shadow": "#4e3e74"
   },
   "show": {
@@ -37,8 +37,8 @@
   },
   "sun": {
     "size": 0.034,
-    "core": "#ffe8d8",
-    "halo": "#ff9b86",
+    "core": "#ffe2d8",
+    "halo": "#ff8786",
     "haloRadius": 0.36,
     "haloAlpha": 0.8,
     "rays": 12,
@@ -52,7 +52,7 @@
     "milkyWay": 0.35
   },
   "clouds": {
-    "tint": "#ffb4a8",
+    "tint": "#ffa8aa",
     "litBySun": true,
     "visible": false
   },
@@ -128,7 +128,7 @@
         "top": "#5a4a7c",
         "middle": "#8a6a98",
         "horizon": "#e8a0a8",
-        "glow": "#ffb8b0",
+        "glow": "#ffb0b5",
         "sunWarmth": 0.4
       },
       "fog": {

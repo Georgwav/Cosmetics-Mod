@@ -9,27 +9,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Camera: freelook (Left Alt, held or as a toggle) turns the camera round you without turning you, in third person;
- * snaplook (its own key) shows you from the front while held; freecam (its own key; in singleplayer, or where you
- * may use operator commands) flies the camera away from you with the movement keys while you stand still; the
- * third-person camera's distance, and whether it stops at walls; and whether the world bobs as you walk (your hand
- * still does).
+ * freecam (its own key; in singleplayer, or where you may use operator commands) flies the camera away from you with
+ * the movement keys while you stand still.
  */
 public final class CameraTweaks extends Module {
     private final Setting.Choice freelookMode = add(new Setting.Choice("freelook_mode", "hold", List.of("hold", "toggle")));
     private final Setting.Toggle freelookThirdPerson = add(new Setting.Toggle("freelook_third_person", true));
-    private final Setting.Slider distance = add(new Setting.Slider("distance", 4.0, 1.0, 16.0, 0.5,
-            v -> String.format(Locale.ROOT, "%.1f", v)));
-    private final Setting.Toggle clip = add(new Setting.Toggle("clip", true));
-    /** Third person over a shoulder: the camera this far to the right (left when negative), in blocks. */
-    private final Setting.Slider shoulder = add(new Setting.Slider("shoulder", 0.0, -1.5, 1.5, 0.05,
-            v -> v == 0 ? "\u2014" : String.format(java.util.Locale.ROOT, "%+.2f", v)));
-    private final Setting.Toggle worldBob = add(new Setting.Toggle("world_bob", true));
 
-    private boolean freelooking, snapping, freecam;
+    private boolean freelooking, freecam;
     private float yaw, pitch;
     private CameraType typeBefore;
     /** The freecam's place this tick and last tick (the camera moves between them over the frames). */
@@ -40,7 +30,6 @@ public final class CameraTweaks extends Module {
     public CameraTweaks() {
         super("camera", Category.VIEW, "eye");
         addKey("freelook", InputConstants.KEY_LALT);
-        addKey("snaplook");
         addKey("freecam");
     }
 
@@ -82,7 +71,8 @@ public final class CameraTweaks extends Module {
     }
 
     /** Whether this player may fly the freecam: in singleplayer, or with operator commands (game master). */
-    private static boolean mayFreecam(Minecraft mc) {
+    /** Whether you may use operator commands here (or play singleplayer), as the freecam needs. */
+    public static boolean mayFreecam(Minecraft mc) {
         if (mc.player == null) {
             return false;
         }
@@ -166,7 +156,6 @@ public final class CameraTweaks extends Module {
             setFreecam(mc, !freecam);
         }
         var free = key("freelook");
-        var snap = key("snaplook");
         boolean wantFree = freelooking;
         if (!io.github.georgwav.cosmetics.sol.compat.Overlaps.solFreelooks()) {
             // Freelook does it (the Mods page): Sol's stays still.
@@ -185,12 +174,8 @@ public final class CameraTweaks extends Module {
                 wantFree = free.isDown();
             }
         }
-        boolean wantSnap = snap != null && snap.isDown();
-        while (snap != null && snap.consumeClick()) {
-            // Held, read above.
-        }
         if (mc.player == null) {
-            wantFree = wantSnap = false;
+            wantFree = false;
         }
         if (wantFree != freelooking) {
             freelooking = wantFree;
@@ -205,21 +190,10 @@ public final class CameraTweaks extends Module {
                 restore(mc);
             }
         }
-        if (wantSnap != snapping) {
-            snapping = wantSnap;
-            if (snapping) {
-                if (typeBefore == null) {
-                    typeBefore = mc.options.getCameraType();
-                }
-                mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-            } else {
-                restore(mc);
-            }
-        }
     }
 
     private void restore(Minecraft mc) {
-        if (typeBefore != null && !freelooking && !snapping && !freecam) {
+        if (typeBefore != null && !freelooking && !freecam) {
             mc.options.setCameraType(typeBefore);
             typeBefore = null;
         }
@@ -227,19 +201,12 @@ public final class CameraTweaks extends Module {
 
     @Override
     protected void onDisable(Minecraft mc) {
-        freelooking = snapping = false;
+        freelooking = false;
         if (freecam) {
             freecam = false;
             giveKeysBack(mc);
         }
         restore(mc);
-    }
-
-    /** Whether the camera turns on its own now. */
-    /** The shoulder offset now (0 with the module off). */
-    public static float shoulder() {
-        CameraTweaks c = io.github.georgwav.cosmetics.client.Modules.CAMERA;
-        return c.enabled() ? c.shoulder.get().floatValue() : 0f;
     }
 
     /** Whether the camera turns on its own (freelook, or the freecam): the mouse turns it, not you. */
@@ -261,23 +228,5 @@ public final class CameraTweaks extends Module {
         CameraTweaks c = Modules.CAMERA;
         c.yaw += (float) dYaw * 0.15f;
         c.pitch = Mth.clamp(c.pitch + (float) dPitch * 0.15f, -90f, 90f);
-    }
-
-    /** The third-person camera's distance for the game's {@code base} (4 blocks at normal size). */
-    public static float distance(float base) {
-        CameraTweaks c = Modules.CAMERA;
-        return c.enabled() ? base * (float) (c.distance.get() / 4.0) : base;
-    }
-
-    /** Whether the third-person camera goes through walls instead of stopping at them. */
-    public static boolean noClip() {
-        CameraTweaks c = Modules.CAMERA;
-        return c.enabled() && !c.clip.get();
-    }
-
-    /** Whether the world bobs as you walk (the game's View Bobbing still decides for the hand). */
-    public static boolean worldBobs() {
-        CameraTweaks c = Modules.CAMERA;
-        return !c.enabled() || c.worldBob.get();
     }
 }

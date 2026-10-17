@@ -36,6 +36,9 @@ public final class SkinPixels {
     }
 
     public static Skin current() {
+        if (io.github.georgwav.cosmetics.sol.client.Streamer.on()) {
+            return fallback();
+        }
         int[] pixels = OwnSkin.pixels();
         if (pixels != null) {
             if (pixels != ownPixels) {

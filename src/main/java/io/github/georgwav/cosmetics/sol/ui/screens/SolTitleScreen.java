@@ -145,21 +145,15 @@ public final class SolTitleScreen extends SolScreen {
         }
     }
 
-    /** The crash helper is looked for once per start, the first time the title screen shows. */
-    private static boolean crashChecked;
-    private static volatile io.github.georgwav.cosmetics.sol.client.CrashHelper.Crash crash;
+    /** Updates are looked for once per start, the first time the title screen shows. */
+    private static boolean updatesChecked;
 
     @Override
     protected void frame(Gfx g) {
-        if (!crashChecked) {
-            crashChecked = true;
-            SolExecutors.IO.execute(() -> crash = io.github.georgwav.cosmetics.sol.client.CrashHelper.unseen());
+        if (!updatesChecked) {
+            updatesChecked = true;
             io.github.georgwav.cosmetics.sol.client.Updates.daily();
-        }
-        var c = crash;
-        if (c != null) {
-            crash = null;
-            minecraft.execute(() -> ScreenOpener.open(new CrashHelperScreen(this, c)));
+            io.github.georgwav.cosmetics.sol.client.Updates.afterUpdate();
         }
         Tokens tk = ThemeState.tokens();
         ThemeRegistry.Entry e = ThemeState.entry();
@@ -226,7 +220,7 @@ public final class SolTitleScreen extends SolScreen {
         // The player at the top right.
         var mc = net.minecraft.client.Minecraft.getInstance();
         SolFont name = g.font(SolFont.Family.SEMIBOLD, 13f);
-        String user = mc.getUser().getName();
+        String user = io.github.georgwav.cosmetics.sol.client.Streamer.shownName(mc.getUser().getName());
         float nw = g.width(name, user) + 56f, px = g.d.right() - 24f - nw;
         g.round(px, 22f, nw, 40f, 20f, Colors.withAlpha(tk.panel, Math.max(0.6f, tk.glass)));
         g.stroke(px, 22f, nw, 40f, 20f, Math.max(1f, g.d.u), 0x33FFFFFF);

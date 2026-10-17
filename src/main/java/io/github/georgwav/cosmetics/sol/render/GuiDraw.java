@@ -309,7 +309,7 @@ public final class GuiDraw {
     }
     //?} elif >=1.21.5 {
     /*private static RenderType additiveType(SolTexture tex) {
-        Object cached = tex.renderTypes[WorldDraw.KINDS * 2];
+        Object cached = tex.renderTypes[WorldDraw.KINDS];
         if (cached == null) {
             RenderPipeline p = RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
                     .withLocation(ResourceLocation.fromNamespaceAndPath("cosmeticsmod", "pipeline/sol_gui_add"))
@@ -320,7 +320,7 @@ public final class GuiDraw {
             cached = RenderType.create("cosmeticsmod_sol_gui_add", 256, false, false, p,
                     RenderType.CompositeState.builder().setTextureState(new RenderStateShard.TextureStateShard(tex.id,
                             net.minecraft.util.TriState.DEFAULT, false)).createCompositeState(false));
-            tex.renderTypes[WorldDraw.KINDS * 2] = cached;
+            tex.renderTypes[WorldDraw.KINDS] = cached;
         }
         return (RenderType) cached;
     }

@@ -21,14 +21,14 @@ def ui(a,p,r):
 
 theme("sakura_dusk",1,"Sakura Dusk","Violet dusk over a coral horizon, blossoms falling.",
   ui("#f59ac0","rgba(52,30,56,.52)","rgba(255,190,215,.55)"),
-  sky("#4a3866","#5d3f68","#a3606c","#fa9588",0.45), fog("#cf7b72",.35), {"tint":"#ffc4cc","strength":0.16},
+  sky("#4a3866","#5d3f68","#a3606c","#fa888e",0.45), fog("#cf7279",.35), {"tint":"#ffc4cc","strength":0.16},
   {"phase":"dusk","azimuth":90},
   {"day":{"sky":sky("#6f86c9","#9aa6d8","#f2b8c4","#ffd0d0",0.25),"fog":fog("#e8bcc4",.3),"light":{"tint":"#fff0f2","strength":0.08},"clouds":{"tint":"#fff2f4"}},
-   "dawn":{"sky":sky("#5a4a7c","#8a6a98","#e8a0a8","#ffb8b0",0.4),"fog":fog("#dca0a4",.38)},
+   "dawn":{"sky":sky("#5a4a7c","#8a6a98","#e8a0a8","#ffb0b5",0.4),"fog":fog("#dca0a4",.38)},
    "night":{"sky":sky("#120c22","#1e1430","#3a2440","#6a3a52",0.1),"fog":fog("#2a1a2e",.4),"light":{"tint":"#c8b0ff","strength":0.12},"clouds":{"tint":"#3a2a44"},"particleScale":0.6}},
-  sun={"size":.034,"core":"#ffe8d8","halo":"#ff9b86","haloRadius":.36,"haloAlpha":.8,"rays":12,"coreRays":8,"x":.8,"y":.61},
+  sun={"size":.034,"core":"#ffe2d8","halo":"#ff8786","haloRadius":.36,"haloAlpha":.8,"rays":12,"coreRays":8,"x":.8,"y":.61},
   stars={"count":24,"palette":"warm","milkyWay":0.35},
-  clouds={"tint":"#ffb4a8","litBySun":True}, wind=[0.35,0.0,0.12],
+  clouds={"tint":"#ffa8aa","litBySun":True}, wind=[0.35,0.0,0.12],
   particles=em([["petal",70,["#f7a8c4","#ffc9da","#ee93b4"],[3,6]],["blossom",22,["#f9b3cb","#ffd3e2"],[4,7]],["lens",3,["#f7a8c4"],[34,52]]]))
 
 theme("frost_morning",2,"Frost Morning","Pale blue mist that swallows the world; snow in the air.",
@@ -186,7 +186,7 @@ theme("empty",0,"Empty","Vanilla sky, Atmosphere off, neutral colours. Set it up
 # toward the sun and hangs near the ground, how golden hour lights the blocks (boost, sun and shadow colours), and
 # each theme's colour grade, bloom and vignette. Keyframes get their own fog distances and light where they differ.
 LOOK = {
-  "sakura_dusk": dict(fog=dict(near=3, far=72, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.55, sun="#ffd0c0", shadow="#4e3e74"),
+  "sakura_dusk": dict(fog=dict(near=3, far=72, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.55, sun="#ffc6c0", shadow="#4e3e74"),
     grade=dict(highlights="#ffd9e2", shadows="#24163a", saturation=1.1, contrast=1.05, bloomTint="#ffb2c8", bloom=0.88, threshold=0.6, vignette=0.14),
     kf=dict(day=dict(fog=dict(near=12, far=180), light=dict(boost=1.05)), night=dict(fog=dict(near=6, far=110), light=dict(boost=1.0)))),
   "frost_morning": dict(fog=dict(near=2, far=52, scatter=0.55, haze=0.5), light=dict(strength=0.42, boost=1.0, sun="#fff4e0", shadow="#7f98bc"),
@@ -211,11 +211,14 @@ LOOK = {
   "maple_afternoon": dict(fog=dict(near=4, far=84, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.5, sun="#ffd99a", shadow="#3c4a6c"),
     grade=dict(highlights="#ffe2ae", shadows="#1a2034", saturation=1.12, contrast=1.06, bloomTint="#ffcf88", bloom=0.88, threshold=0.6, vignette=0.12),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.06)), night=dict(fog=dict(near=6, far=100), light=dict(boost=1.0)))),
-  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.85, haze=0.4), light=dict(strength=0.78, boost=0.3, sun="#ff9a72", shadow="#140404"),
-    grade=dict(highlights="#ffb894", shadows="#0a0204", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
+  # The red light and black sky stay; the world is lifted enough to play in, its shadows deep red rather than black,
+  # and the light tints the blocks rather than repainting them, so their own colours show through.
+  "eclipse": dict(fog=dict(near=8, far=110, scatter=0.85, haze=0.4), light=dict(strength=0.35, boost=0.55, sun="#ff9a72", shadow="#3a1a1e"),
+    grade=dict(highlights="#ffb894", shadows="#1c0608", saturation=1.22, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
     kf=dict()),
   "deep_field": dict(fog=dict(near=10, far=130, scatter=0.35, haze=0.25), light=dict(strength=0.62, boost=1.0, sun="#f4f4fa", shadow="#101014"),
-    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.0, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
+    # Black and white with a trace of the world's colour left in it (the sky has none), so the land stays readable.
+    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.22, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
     kf=dict(day=dict(fog=dict(near=16, far=200)))),
   "silver_night": dict(fog=dict(near=8, far=110, scatter=0.55, haze=0.35), light=dict(strength=0.7, boost=1.0, sun="#dfe6ff", shadow="#141c38"),
     grade=dict(highlights="#e8eeff", shadows="#060a1a", saturation=0.94, contrast=1.06, bloomTint="#c8d4ff", bloom=0.9, threshold=0.55, vignette=0.18),

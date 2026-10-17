@@ -1,11 +1,6 @@
 package io.github.georgwav.cosmetics.sol.render;
 
-//? if >=1.21.2 && <1.21.5 {
-/*import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.client.renderer.ShaderDefines;
-import net.minecraft.client.renderer.ShaderProgram;
-import net.minecraft.resources.ResourceLocation;
-*///?} elif <1.21.2 {
+//? if <1.21.2 {
 /*import io.github.georgwav.cosmetics.CosmeticsMod;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
@@ -15,32 +10,15 @@ import net.minecraft.resources.ResourceLocation;
 *///?}
 
 /**
- * Sol's own core shaders, for the two ways its light is drawn (shaders/core in each render era's resources,
- * written by tools/sol-assets/make_light_pass.py):
- * <ul>
- *   <li><b>Crisp</b> ({@code sol_crisp}, the Pixel light style): a light drops every pixel under 10% alpha, so a
- *   glow ends in a clean edge instead of fading to nothing. 1.21.1's own textured shader already does this.</li>
- *   <li><b>Smooth</b>: the game's textured shader, which from 1.21.2 keeps faint light; on 1.21.1 Sol's copy of
- *   it without the cut ({@code sol_tex_color}).</li>
- * </ul>
- * From 1.21.5 the render pipelines name these shaders directly (see {@link WorldDraw}).
+ * Sol's own core shader for its light on 1.21.1 ({@code sol_tex_color}, in that era's resources, written by
+ * tools/sol-assets/make_light_pass.py): the game's textured, coloured shader without its cut of light under 10%
+ * alpha, so every glow fades out smoothly. From 1.21.2 the game's own shader keeps faint light, and Sol uses it.
  */
 public final class SolShaders {
     private SolShaders() {
     }
 
-    //? if >=1.21.2 && <1.21.5 {
-    /*private static final ShaderProgram CRISP = new ShaderProgram(
-            ResourceLocation.fromNamespaceAndPath("cosmeticsmod", "core/sol_crisp"), DefaultVertexFormat.POSITION_TEX_COLOR,
-            ShaderDefines.EMPTY);
-
-    public static void register() {
-    }
-
-    public static ShaderProgram crisp() {
-        return CRISP;
-    }
-    *///?} elif <1.21.2 {
+    //? if <1.21.2 {
     /*private static ShaderInstance texColor;
 
     public static void register() {

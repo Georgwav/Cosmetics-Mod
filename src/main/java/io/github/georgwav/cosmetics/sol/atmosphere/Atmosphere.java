@@ -27,11 +27,6 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle glare = add(new Setting.Toggle("glare", false).advanced());
     public final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false).advanced());
     /**
-     * How Sol's light looks: Pixel (the default) draws every glow pixel-sharp with crisp edges and the bloom in
-     * visible steps, the look of a block game; Smooth draws them soft.
-     */
-    public final Setting.Choice lightStyle = add(new Setting.Choice("light_style", "pixel", List.of("pixel", "smooth")));
-    /**
      * How strongly the theme's look is laid on: 100% is the full cinematic look (the theme's light, rims, shafts,
      * bloom, grade and fog); lower tones it down toward the game's own.
      */
@@ -40,6 +35,8 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle particles = add(new Setting.Toggle("particles", true).advanced());
     public final Setting.Choice quality = add(new Setting.Choice("quality", "auto", List.of("auto", "low", "medium", "high")));
     public final Setting.Toggle fog = add(new Setting.Toggle("fog", true).advanced());
+    /** How far you see under water against the game (100%). */
+    public final Setting.Slider waterView = add(new Setting.Slider("water_view", 100, 100, 400, 25, v -> Math.round(v) + "%").advanced());
     public final Setting.Toggle light = add(new Setting.Toggle("light", true).advanced());
     public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
     public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
@@ -108,6 +105,11 @@ public final class Atmosphere extends Module {
     @Override
     protected void onEnable(Minecraft mc) {
         SkyModGuard.atmosphereOn();
+    }
+
+    @Override
+    protected void tick(Minecraft mc) {
+        Ambience.tick(mc, this);
     }
 
     @Override

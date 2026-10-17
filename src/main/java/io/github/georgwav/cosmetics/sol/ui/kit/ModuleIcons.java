@@ -15,7 +15,6 @@ public final class ModuleIcons {
             Map.entry("hitboxes", "hitbox"),
             Map.entry("held_items", "hand"),
             Map.entry("crosshair", "cross"),
-            Map.entry("zoom", "zoom"),
             Map.entry("camera", "eye"),
             Map.entry("movement", "run"),
             Map.entry("atmosphere", "sun"),
@@ -24,7 +23,6 @@ public final class ModuleIcons {
             Map.entry("glint", "sparkle"),
             Map.entry("screen", "screen"),
             Map.entry("particles", "dots"),
-            Map.entry("dropped_items", "item"),
             Map.entry("world_overlays", "grid"),
             Map.entry("nametags", "tag"),
             Map.entry("sol_ui", "heart"),
@@ -38,10 +36,8 @@ public final class ModuleIcons {
             Map.entry("inventory", "chest"),
             Map.entry("performance", "bolt"),
             Map.entry("screenshots", "camera"),
-            Map.entry("sounds", "speaker"),
             Map.entry("social", "people"),
             Map.entry("servers", "server"),
-            Map.entry("hypixel", "star"),
             Map.entry("cosmetics", "cape"));
 
     /**

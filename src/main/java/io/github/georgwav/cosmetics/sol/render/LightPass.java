@@ -297,7 +297,9 @@ public final class LightPass {
         float vx = view.m00() * sx + view.m10() * sy + view.m20() * sz;
         float vy = view.m01() * sx + view.m11() * sy + view.m21() * sz;
         float vz = view.m02() * sx + view.m12() * sy + view.m22() * sz;
-        float vis = KeyLight.visible * (1f - FrameInfo.rain * 0.85f);
+        // The sun's light on the screen only as far as the sky reaches where you are (none in a cave).
+        float open = io.github.georgwav.cosmetics.sol.atmosphere.SkyOpen.get();
+        float vis = KeyLight.visible * (1f - FrameInfo.rain * 0.85f) * open;
         if (vz < -0.02f) {
             float u = proj.m00() * vx / -vz * 0.5f + 0.5f;
             float w = proj.m11() * vy / -vz * 0.5f + 0.5f;
@@ -328,12 +330,12 @@ public final class LightPass {
         v[10] = c1 > 0f ? 0f : 1f;
         v[11] = preset;
         v[12] = KeyLight.strength;
-        v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun")) * in;
+        v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun")) * in * open;
         v[14] = FogControl.start(100000f);
         v[15] = FogControl.end(100000f);
         float rain = FrameInfo.rain;
-        v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in;
-        v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in);
+        v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in * open;
+        v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in) * open;
         v[18] = tk.bloom * 0.9f * tune("bloom") * in;
         // The theme's threshold, as a brightness the bloom starts at (luminance; only real light blooms), raised
         // in a bright scene (a day sky or white mist would otherwise bloom all over).
@@ -345,30 +347,29 @@ public final class LightPass {
         // Light shafts only show against a darker sky: in a bright day scene they would wash the sky round the
         // sun white (Frost Morning), so they fade with the scene's brightness.
         v[21] = (Atmosphere.INSTANCE != null && Atmosphere.INSTANCE.rays.get() ? KeyLight.shafts : 0f)
-                * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts") * in;
+                * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts") * in * open;
         v[22] = FrameInfo.time;
-        v[23] = 0.3f * KeyLight.rim * tune("rim") * in;
+        v[23] = 0.3f * KeyLight.rim * tune("rim") * in * open;
         v[24] = view.m10();
         v[25] = view.m11();
         v[26] = view.m12();
         v[27] = rain;
         v[28] = FrameInfo.width / Math.max(1f, FrameInfo.height);
         v[29] = tk.night;
-        v[30] = WorldDraw.pixel ? 1f : 0f;
         rgb(v, 32, KeyLight.color);
         rgb(v, 35, tk.lightShadow);
         rgb(v, 38, FogControl.color());
         rgb(v, 41, KeyLight.glow);
         rgb(v, 44, tk.bloomTint);
         // The rim on faces lit at a grazing angle, and a lightning flash lighting the world.
-        v[47] = KeyLight.faceRim * tune("rim") * in;
-        v[48] = KeyLight.flash * (0.5f + 0.5f * in) * tune("flash");
+        v[47] = KeyLight.faceRim * tune("rim") * in * open;
+        v[48] = KeyLight.flash * (0.5f + 0.5f * in) * tune("flash") * open;
         // Exposure on the faces the light reaches: a night theme's light has to light a dark world (by day a held
         // night is also drawn darker, see SkyTime). A theme that dims its own day (Eclipse, Monsoon's overcast)
         // stays dim: its light shows in the rims and the colour, not in a lift.
         float dark = Math.max(tk.night, 1f - SkyTime.worldLight);
-        v[49] = 1.3f * KeyLight.strength * dark * in * tune("exposure");
-        v[50] = KeyLight.rimAll * in;
+        v[49] = 1.3f * KeyLight.strength * dark * in * tune("exposure") * open;
+        v[50] = KeyLight.rimAll * in * open;
         // The second light colour sweeping over the ground in bands, and the world's east in view space (the
         // bands' reference).
         rgb(v, 51, KeyLight.color2);

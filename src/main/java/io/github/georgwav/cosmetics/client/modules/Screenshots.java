@@ -18,8 +18,8 @@ import java.util.stream.Stream;
 
 /**
  * Screenshots: each screenshot copied to the clipboard as an image as it's saved (through the system's own tools:
- * PowerShell on Windows, osascript on macOS, wl-copy or xclip on Linux), with a toast. The gallery of your
- * screenshots is a page of its own.
+ * PowerShell on Windows, osascript on macOS, wl-copy or xclip on Linux), with a toast. Screenshot Viewer, when
+ * installed, is the gallery.
  */
 public final class Screenshots extends Module {
     private final Setting.Toggle copy = add(new Setting.Toggle("copy", true));

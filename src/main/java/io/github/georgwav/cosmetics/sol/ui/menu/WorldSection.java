@@ -106,9 +106,7 @@ final class WorldSection implements Section {
         }
         lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.clouds"), at.clouds.get(), () -> at.clouds.set(!at.clouds.get()));
         lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.ambience"), at.ambience.get(), () -> at.ambience.set(!at.ambience.get()));
-        lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.lock_time"), at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
-        boolean pixel = !"smooth".equals(at.lightStyle.get());
-        toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.pixel_light"), pixel, () -> at.lightStyle.set(pixel ? "smooth" : "pixel"));
+        toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.lock_time"), at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
     }
 
     private static float toggle(Gfx g, Ui ui, Tokens tk, SolFont f, float x, float cy, String label, boolean on, Runnable toggle) {

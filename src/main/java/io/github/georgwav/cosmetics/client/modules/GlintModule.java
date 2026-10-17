@@ -14,8 +14,8 @@ import java.util.Locale;
 /**
  * Glint: the enchantment shimmer in a colour of yours: one colour, two drifting into each other, a rainbow sweeping
  * across, or following the theme's accent; brighter or softer. Everywhere the game draws glint (items in hand, in
- * the inventory, on the ground, armour), because the pack's own glint textures are recoloured; and only where you
- * want it (in hand, in inventories, dropped, in item frames, on armour).
+ * the inventory, on the ground, armour), because the pack's own glint textures are recoloured. Enchanted items in
+ * inventories and the hotbar get an outline or a glow in the glint's colour.
  */
 public final class GlintModule extends Module {
     static final List<String> COLORS = List.of("purple", "red", "orange", "gold", "green", "cyan", "blue", "pink", "white");
@@ -29,12 +29,6 @@ public final class GlintModule extends Module {
     private final Setting.Choice gui = add(new Setting.Choice("gui", "outline", List.of("none", "outline", "glow")));
     private final Setting.Slider speed = add(new Setting.Slider("speed", 1.0, 0.1, 3.0, 0.1,
             v -> String.format(Locale.ROOT, "%.1f×", v)));
-    /** Where the shimmer shows: in hand, in inventories and the hotbar, dropped, in item frames, on worn armour. */
-    private final Setting.Toggle inHand = add(new Setting.Toggle("in_hand", true).advanced());
-    private final Setting.Toggle inInventory = add(new Setting.Toggle("in_inventory", true).advanced());
-    private final Setting.Toggle dropped = add(new Setting.Toggle("dropped", true).advanced());
-    private final Setting.Toggle frames = add(new Setting.Toggle("item_frames", true).advanced());
-    private final Setting.Toggle armour = add(new Setting.Toggle("armour", true).advanced());
     private String paintedKey = "";
 
     public GlintModule() {
@@ -111,28 +105,6 @@ public final class GlintModule extends Module {
         c.fill(x + 1, y + 16, x + 15, y + 17, argb);
         c.fill(x - 1, y + 1, x, y + 15, argb);
         c.fill(x + 16, y + 1, x + 17, y + 15, argb);
-    }
-
-    /** Whether an item shown here (a display context, by name so it reads the same on every version) shimmers. */
-    public static boolean shows(net.minecraft.world.item.ItemDisplayContext context) {
-        GlintModule g = Modules.GLINT;
-        if (!g.enabled() || context == null) {
-            return true;
-        }
-        return switch (context.name()) {
-            case "GUI" -> g.inInventory.get();
-            case "GROUND" -> g.dropped.get();
-            case "FIXED", "ON_SHELF" -> g.frames.get();
-            case "HEAD" -> g.armour.get();
-            case "NONE" -> true;
-            default -> g.inHand.get();
-        };
-    }
-
-    /** Whether worn armour shimmers. */
-    public static boolean armourShows() {
-        GlintModule g = Modules.GLINT;
-        return !g.enabled() || g.armour.get();
     }
 
     /** After a resource reload the game has its own glint back: paint again on the next tick. */

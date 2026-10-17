@@ -140,7 +140,7 @@ public final class Updates {
                     available = rel;
                     state = "available";
                     Notifications.post(Component.translatable("sol.notify.update_available", rel.version()).getString(),
-                            Component.translatable("sol.notify.update_install").getString(), Updates::install);
+                            Component.translatable("sol.notify.update_whats_new").getString(), Updates::showWhatsNew);
                 } else {
                     state = "current";
                     tell(tell, "sol.notify.update_current");
@@ -157,6 +157,36 @@ public final class Updates {
     private static void tell(boolean tell, String key) {
         if (tell) {
             Notifications.post(Component.translatable(key).getString());
+        }
+    }
+
+    /** The available release's notes, with Install (render thread). */
+    public static void showWhatsNew() {
+        Release rel = available;
+        if (rel != null) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew(
+                    io.github.georgwav.cosmetics.ui.ScreenOpener.current(), rel.version(), rel.notes(), true));
+        }
+    }
+
+    /** After an update took over: its notes, once (the title screen asks at its first showing). */
+    public static void afterUpdate() {
+        SolConfig cfg = SolConfig.get();
+        String version = cfg.updates.notesVersion;
+        if (version == null || version.isBlank()) {
+            return;
+        }
+        if (newer(version, current())) {
+            // The new jar hasn't taken over yet (a locked file at the last close): its notes wait for it.
+            return;
+        }
+        String notes = cfg.updates.notes;
+        cfg.updates.notesVersion = null;
+        cfg.updates.notes = null;
+        SolConfig.save();
+        if (version.equals(current())) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew(
+                    io.github.georgwav.cosmetics.ui.ScreenOpener.current(), version, notes, false));
         }
     }
 
@@ -194,6 +224,11 @@ public final class Updates {
                 }
                 pending = target;
                 state = "staged";
+                // Its notes again once it has taken over, at the next start.
+                SolConfig c = SolConfig.get();
+                c.updates.notesVersion = rel.version();
+                c.updates.notes = rel.notes();
+                SolConfig.save();
                 Notifications.post(Component.translatable("sol.notify.update_staged", rel.version()).getString());
             } catch (IOException | RuntimeException e) {
                 state = "failed";

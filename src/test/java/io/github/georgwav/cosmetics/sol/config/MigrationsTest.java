@@ -131,4 +131,15 @@ class MigrationsTest {
         SolConfig.useFile(file);
         assertEquals("Deep Field", SolConfig.get().activeProfile);
     }
+
+    @Test
+    void pinsOnRemovedModules() {
+        // The old default pin on Zoom moves to Camera; pins on modules the client dropped go.
+        assertEquals("camera", Migrations.pin("zoom"));
+        assertNull(Migrations.pin("hypixel"));
+        assertNull(Migrations.pin("dropped_items"));
+        assertNull(Migrations.pin("sounds"));
+        assertEquals("glint", Migrations.pin("glint"));
+        assertEquals(java.util.List.of("crosshair", "glint", "atmosphere", "camera"), Migrations.DEFAULT_PINS);
+    }
 }

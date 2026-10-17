@@ -11,18 +11,21 @@ import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
  * <ul>
  *   <li>{@link #glow()}: the glowing particles. A soft light, a bright core in a wide halo, with nothing that
  *   could read as a square or an edge; and an out-of-focus bokeh disc for the big ones close to the camera.</li>
- *   <li>{@link #shapes()}: petal, ash, blossom, leaf, snow, flake, a four-point star and a music note, drawn with
- *   4×4 samples per pixel at four times the size and box-filtered down, so their edges are smooth.</li>
+ *   <li>{@link #shapes()}: ash, leaf, snow, flake, a four-point star and a music note, drawn with 4×4 samples per
+ *   pixel at four times the size and box-filtered down, so their edges are smooth.</li>
  * </ul>
+ *
+ * <p>Sakura's petals and blossoms are 3D, with their own texture ({@link Petals}).
  */
 final class ParticleSprites {
     /** Glow atlas: levels of {@link #GLOW_SIZES} side by side, the glow in the top row, the bokeh disc below. */
     static final int[] GLOW_SIZES = {128, 64, 32, 16, 8};
     static final int GLOW_W = 256, GLOW_H = 256;
-    /** Shape atlas: eight cells per level, one row per level of {@link #SHAPE_SIZES}. */
+    /** Shape atlas: six cells per level, one row per level of {@link #SHAPE_SIZES}. */
     static final int[] SHAPE_SIZES = {64, 32, 16};
-    static final int SHAPE_W = 512, SHAPE_H = 128;
-    static final int PETAL = 0, ASH = 1, BLOSSOM = 2, LEAF = 3, SNOW = 4, FLAKE = 5, STAR = 6, NOTE = 7;
+    static final int SHAPES = 6;
+    static final int SHAPE_W = 384, SHAPE_H = 128;
+    static final int ASH = 0, LEAF = 1, SNOW = 2, FLAKE = 3, STAR = 4, NOTE = 5;
 
     private static SolTexture glow;
     private static SolTexture shapes;
@@ -149,7 +152,7 @@ final class ParticleSprites {
     private static int[] bakeShapes() {
         int big = SHAPE_SIZES[0] * 4;
         int[] out = new int[SHAPE_W * SHAPE_H];
-        for (int shape = 0; shape < 8; shape++) {
+        for (int shape = 0; shape < SHAPES; shape++) {
             PixelCanvas c = new PixelCanvas(big, big);
             draw(c, shape, big);
             float[] alpha = new float[big * big];
@@ -184,15 +187,6 @@ final class ParticleSprites {
         float m = n / 2f, u = n / 64f;
         int white = 0xFFFFFFFF;
         switch (shape) {
-            case PETAL -> {
-                // A cherry petal: an oval, rounder at the base, with the notch at its tip.
-                c.fillEllipse(m, m + 2 * u, 15 * u, 25 * u, white);
-                c.fillEllipse(m, m - 8 * u, 12 * u, 18 * u, white);
-                c.save();
-                c.setGlobalAlpha(1f);
-                cut(c, new float[]{m - 5 * u, m, m + 5 * u}, new float[]{m - 30 * u, m - 21 * u, m - 30 * u});
-                c.restore();
-            }
             case ASH -> {
                 float[] xs = new float[9], ys = new float[9];
                 double[] r = {0.95, 0.7, 1.0, 0.62, 0.9, 0.75, 1.0, 0.58, 0.85};
@@ -202,17 +196,6 @@ final class ParticleSprites {
                     ys[i] = m + (float) (Math.sin(a) * r[i] * 18 * u);
                 }
                 c.fillPolygon(xs, ys, white);
-            }
-            case BLOSSOM -> {
-                for (int i = 0; i < 5; i++) {
-                    double a = i * Math.PI * 2 / 5 - Math.PI / 2;
-                    c.save();
-                    c.translate(m + (float) Math.cos(a) * 13 * u, m + (float) Math.sin(a) * 13 * u);
-                    c.rotate((float) (a + Math.PI / 2));
-                    c.fillEllipse(0, 0, 9.5f * u, 12.5f * u, white);
-                    c.restore();
-                }
-                c.fillEllipse(m, m, 8 * u, 8 * u, white);
             }
             case LEAF -> {
                 // A pointed leaf with a stalk.
@@ -281,23 +264,6 @@ final class ParticleSprites {
                 float[] fx = {m + 1 * u, m + 16 * u, m + 14 * u, m + 1 * u};
                 float[] fy = {m - 24 * u, m - 12 * u, m - 6 * u, m - 16 * u};
                 c.fillPolygon(fx, fy, white);
-            }
-        }
-    }
-
-    /** Clears a triangle out of the canvas (the petal's notch). */
-    private static void cut(PixelCanvas c, float[] xs, float[] ys) {
-        PixelCanvas mask = new PixelCanvas(c.width, c.height);
-        mask.fillPolygon(xs, ys, 0xFFFFFFFF);
-        int[] m = mask.toArgb(null);
-        for (int y = 0; y < c.height; y++) {
-            for (int x = 0; x < c.width; x++) {
-                float k = (m[y * c.width + x] >>> 24) / 255f;
-                if (k > 0f) {
-                    int p = c.getPixel(x, y);
-                    int a = Math.round((p >>> 24) * (1f - k));
-                    c.setPixel(x, y, (a << 24) | (p & 0xFFFFFF));
-                }
             }
         }
     }

@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 *///?}
 
 /**
- * The theme's fog colour and distances (see {@link FogControl}). Runs after other mods' fog hooks (priority 1100),
+ * The theme's fog colour and distances, and the water view under water (see {@link FogControl}). Runs after other mods' fog hooks (priority 1100),
  * so Voxy and Distant Horizons, which read the game's fog, get the theme's fog too.
  */
 //? if >=26.1 {
@@ -38,6 +38,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class SolFogMixin {
     @Inject(method = "setupFog", at = @At("RETURN"))
     private void cosmeticsmod$fog(CallbackInfoReturnable<FogData> cir) {
+        float water = FogControl.waterView();
+        if (water > 1f) {
+            cir.getReturnValue().environmentalEnd *= water;
+        }
         if (!FogControl.active()) {
             return;
         }
@@ -61,6 +65,10 @@ abstract class SolFogMixin {
     @Inject(method = "setupFog", at = @At(value = "FIELD",
             target = "Lnet/minecraft/client/renderer/fog/FogData;renderDistanceStart:F", opcode = Opcodes.PUTFIELD))
     private void cosmeticsmod$distance(CallbackInfoReturnable<Vector4f> cir, @Local FogData fog) {
+        float water = FogControl.waterView();
+        if (water > 1f) {
+            fog.environmentalEnd *= water;
+        }
         if (FogControl.active()) {
             fog.environmentalStart = FogControl.start(fog.environmentalStart);
             fog.environmentalEnd = FogControl.end(fog.environmentalEnd);
@@ -82,6 +90,12 @@ abstract class SolFogMixin {
     @Inject(method = "setupFog", at = @At("RETURN"), cancellable = true)
     private static void cosmeticsmod$distance(Camera camera, FogRenderer.FogMode mode, Vector4f color, float renderDistance,
                                               boolean thick, float partialTick, CallbackInfoReturnable<FogParameters> cir) {
+        float water = FogControl.waterView();
+        if (water > 1f && mode == FogRenderer.FogMode.FOG_TERRAIN) {
+            FogParameters p = cir.getReturnValue();
+            cir.setReturnValue(new FogParameters(p.start(), p.end() * water, p.shape(), p.red(), p.green(), p.blue(), p.alpha()));
+            return;
+        }
         if (mode != FogRenderer.FogMode.FOG_TERRAIN || thick || !FogControl.active()) {
             return;
         }
@@ -114,6 +128,11 @@ abstract class SolFogMixin {
     @Inject(method = "setupFog", at = @At("TAIL"))
     private static void cosmeticsmod$distance(Camera camera, FogRenderer.FogMode mode, float renderDistance, boolean thick,
                                               float partialTick, CallbackInfo ci) {
+        float water = FogControl.waterView();
+        if (water > 1f && mode == FogRenderer.FogMode.FOG_TERRAIN) {
+            RenderSystem.setShaderFogEnd(RenderSystem.getShaderFogEnd() * water);
+            return;
+        }
         if (mode != FogRenderer.FogMode.FOG_TERRAIN || thick || !FogControl.active()) {
             return;
         }

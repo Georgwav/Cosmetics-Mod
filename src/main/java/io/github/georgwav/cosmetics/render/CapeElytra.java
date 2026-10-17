@@ -135,7 +135,7 @@ public final class CapeElytra {
         CosmeticsConfig config = CosmeticsConfig.get();
         boolean local = player == Minecraft.getInstance().player;
         if (!config.enabled || RenderGuard.isLayerDisabled() || !config.slotVisible(CosmeticSlot.CAPE)
-                || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)) {
+                || !CosmeticRenderer.showsFor(player.getUUID(), local)) {
             return null;
         }
         BakedCosmetic cape = null;

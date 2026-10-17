@@ -52,10 +52,7 @@ void main() {
     vec3 col = texture(InSampler, texCoord).rgb;
     float depth = texture(DepthSampler, texCoord).r;
     vec3 sunCol = P3(32);
-    // Pixel light reads the quarter-size shafts texel by texel: light in visible steps.
-    vec2 ss = vec2(textureSize(ShaftsSampler, 0));
-    vec2 suv = P(30) > 0.5 ? (floor(texCoord * ss) + 0.5) / ss : texCoord;
-    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, suv).rgb * sunCol * P(21) : vec3(0.0);
+    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, texCoord).rgb * sunCol * P(21) : vec3(0.0);
     if (isSky(depth)) {
         // A lightning flash lights the clouds from inside.
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);

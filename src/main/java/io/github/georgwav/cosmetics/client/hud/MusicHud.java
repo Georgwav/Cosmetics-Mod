@@ -71,7 +71,7 @@ public final class MusicHud extends TextHud {
         return switch (id) {
             case "cider" -> cider.get();
             case "spotify" -> spotify.get();
-            case "mpris", "smtc" -> systemPlayer.get();
+            case "mpris" -> systemPlayer.get();
             default -> true;
         };
     }

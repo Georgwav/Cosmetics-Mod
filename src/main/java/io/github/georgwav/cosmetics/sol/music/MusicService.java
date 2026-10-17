@@ -42,7 +42,6 @@ public final class MusicService {
         add(new CiderSource());
         add(new SpotifySource());
         add(new MprisSource());
-        add(new SmtcSource());
     }
 
     private MusicService() {

@@ -17,9 +17,6 @@ import io.github.georgwav.cosmetics.ui.FolderPicker;
 import io.github.georgwav.cosmetics.ui.PictureTexture;
 import net.minecraft.client.Minecraft;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -100,7 +97,7 @@ final class SkinsView {
             try {
                 List<Entry> entries = new ArrayList<>();
                 for (SkinLibrary.Skin skin : SkinLibrary.load(db, player)) {
-                    int[] argb = pixels(skin.png(), 64);
+                    int[] argb = SkinLibrary.pixels(skin.png(), 64);
                     if (argb != null) {
                         entries.add(new Entry(skin, argb));
                     }
@@ -123,43 +120,6 @@ final class SkinsView {
         Thread thread = new Thread(task, "Sol skins");
         thread.setDaemon(true);
         thread.start();
-    }
-
-    /**
-     * A skin's (or a cape's) PNG as 64 x 64 ARGB pixels: a 64 x 64 skin as it is, an old 64 x 32 skin with its right
-     * arm and leg copied to the left ones, a 64 x 32 cape in the top half ({@code height} 32 asks for a cape).
-     */
-    static int[] pixels(byte[] png, int height) {
-        try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
-            if (image == null || image.getWidth() % 64 != 0) {
-                return null;
-            }
-            int scale = image.getWidth() / 64;
-            int h = image.getHeight() / scale;
-            if (h != 64 && h != 32) {
-                return null;
-            }
-            int[] argb = new int[64 * 64];
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < 64; x++) {
-                    argb[y * 64 + x] = image.getRGB(x * scale, y * scale);
-                }
-            }
-            if (height == 64 && h == 32) {
-                copy(argb, 0, 16, 16, 32, 16, 48);
-                copy(argb, 40, 16, 16, 32, 32, 48);
-            }
-            return argb;
-        } catch (IOException | RuntimeException e) {
-            return null;
-        }
-    }
-
-    private static void copy(int[] argb, int fromX, int fromY, int w, int h, int toX, int toY) {
-        for (int y = 0; y < h; y++) {
-            System.arraycopy(argb, (fromY + y) * 64 + fromX, argb, (toY + y) * 64 + toX, w);
-        }
     }
 
     /** Takes in what the background reads finished, and makes the textures. */
@@ -195,7 +155,7 @@ final class SkinsView {
                 for (MojangCapes.Cape c : listing.capes()) {
                     CapeEntry e = new CapeEntry(c);
                     list.add(e);
-                    MojangCapes.texture(c.url()).thenAccept(png -> e.argb = pixels(png, 32)).exceptionally(x -> null);
+                    MojangCapes.texture(c.url()).thenAccept(png -> e.argb = SkinLibrary.pixels(png, 32)).exceptionally(x -> null);
                 }
                 capes = list;
                 capesProblem = list.isEmpty() ? WardrobeScreen.tr("sol.wardrobe.capes.none") : null;
@@ -276,6 +236,7 @@ final class SkinsView {
                         screen.toast(t("offline"));
                     } else if (status == 200) {
                         OwnSkin.set(entry.argb, skin.slim());
+                        io.github.georgwav.cosmetics.sol.config.ProfileWear.skinWorn(skin.key(), skin.slim());
                         screen.toast(t("applied"));
                     } else if (status == 401) {
                         screen.toast(t("signed_out"));
@@ -299,6 +260,8 @@ final class SkinsView {
             if (error != null) {
                 screen.toast(WardrobeScreen.tr("sol.wardrobe.capes.offline"));
             } else if (status == 200) {
+                io.github.georgwav.cosmetics.sol.config.ProfileWear.capeWorn(cape == null
+                        ? io.github.georgwav.cosmetics.sol.config.ProfileWear.NO_CAPE : cape.id());
                 List<CapeEntry> next = new ArrayList<>();
                 for (CapeEntry e : capes) {
                     CapeEntry n = new CapeEntry(new MojangCapes.Cape(e.cape.id(), e.cape.alias(), e.cape.url(),

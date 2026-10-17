@@ -35,9 +35,9 @@ final class ModulesSection implements Section {
         String id = m.id;
         return switch (id) {
             case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "crosshair", "nametags" -> "pvp";
-            case "zoom", "camera", "glint", "screen", "particles", "fullbright", "outline", "dropped_items" -> "visual";
+            case "camera", "glint", "screen", "particles", "fullbright", "outline" -> "visual";
             case "atmosphere", "world_overlays", "time", "weather" -> "world";
-            case "sol_chat", "music", "social", "hypixel", "servers" -> "social";
+            case "sol_chat", "music", "social", "servers" -> "social";
             default -> switch (m.category) {
                 case HUD -> "hud";
                 case WORLD -> "world";

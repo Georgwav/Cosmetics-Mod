@@ -102,12 +102,6 @@ public final class WorldDraw {
     public static final int WORLD_ADD = 3;
     public static final int KINDS = 4;
 
-    /**
-     * The Pixel light style (Atmosphere's default): every Sol light drawn pixel-sharp, with crisp edges where it
-     * fades out (light under 10% is dropped), so glows fall off in visible steps. Off: smooth (Smooth style).
-     */
-    public static boolean pixel = true;
-
     private static final int FLOATS = 6;
     private static float[] data = new float[FLOATS * 4 * 512];
     private static int vertices;
@@ -190,9 +184,8 @@ public final class WorldDraw {
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         modelView.pushMatrix();
         modelView.identity();
-        tex.useLinear(!pixel && tex.linear);
         try {
-            draw(pixel ? k + KINDS : k, tex, mesh);
+            draw(k, tex, mesh);
         } finally {
             modelView.popMatrix();
             //? if <1.21.2 {
@@ -202,20 +195,15 @@ public final class WorldDraw {
     }
 
     private static boolean add(int k) {
-        return k % KINDS == SKY_ADD || k % KINDS == WORLD_ADD;
+        return k == SKY_ADD || k == WORLD_ADD;
     }
 
     private static boolean world(int k) {
-        return k % KINDS >= WORLD_ALPHA;
-    }
-
-    /** The crisp variant of a kind (Pixel light): light under 10% alpha is dropped. */
-    private static boolean crisp(int k) {
-        return k >= KINDS;
+        return k >= WORLD_ALPHA;
     }
 
     //? if >=26.2 {
-    /*private static final RenderPipeline[] PIPELINES = new RenderPipeline[KINDS * 2];
+    /*private static final RenderPipeline[] PIPELINES = new RenderPipeline[KINDS];
     private static GpuBuffer vertexBuffer;
 
     private static RenderPipeline pipeline(int k) {
@@ -229,8 +217,7 @@ public final class WorldDraw {
             //?}
             b = b.withLocation(Identifier.fromNamespaceAndPath("cosmeticsmod", "pipeline/sol_" + k))
                     .withVertexShader("core/position_tex_color")
-                    .withFragmentShader(crisp(k) ? Identifier.fromNamespaceAndPath("cosmeticsmod", "core/sol_crisp")
-                            : Identifier.withDefaultNamespace("core/position_tex_color"))
+                    .withFragmentShader(Identifier.withDefaultNamespace("core/position_tex_color"))
                     .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
                     .withColorTargetState(new ColorTargetState(add(k) ? BlendFunction.LIGHTNING : BlendFunction.TRANSLUCENT))
                     .withCull(false)
@@ -285,7 +272,7 @@ public final class WorldDraw {
         }
     }
     *///?} elif >=1.21.5 {
-    private static final RenderPipeline[] PIPELINES = new RenderPipeline[KINDS * 2];
+    private static final RenderPipeline[] PIPELINES = new RenderPipeline[KINDS];
 
     private static RenderPipeline pipeline(int k) {
         RenderPipeline p = PIPELINES[k];
@@ -297,7 +284,7 @@ public final class WorldDraw {
             *///?}
             b = b.withLocation(id("pipeline/sol_" + k))
                     .withVertexShader("core/position_tex_color")
-                    .withFragmentShader(crisp(k) ? id("core/sol_crisp") : vanilla("core/position_tex_color"))
+                    .withFragmentShader(vanilla("core/position_tex_color"))
                     .withSampler("Sampler0")
                     .withCull(false)
                     .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS);
@@ -361,14 +348,10 @@ public final class WorldDraw {
     //?} else {
     /*private static void draw(int k, SolTexture tex, MeshData mesh) {
         //? if >=1.21.2 {
-        RenderSystem.setShader(crisp(k) ? SolShaders.crisp() : CoreShaders.POSITION_TEX_COLOR);
+        RenderSystem.setShader(CoreShaders.POSITION_TEX_COLOR);
         //?} else {
-        // 1.21.1's own textured shader is the crisp one; Sol's copy keeps the faint light.
-        if (crisp(k)) {
-            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        } else {
-            RenderSystem.setShader(SolShaders::texColor);
-        }
+        // 1.21.1's own textured shader cuts faint light into a hard edge; Sol's copy keeps it.
+        RenderSystem.setShader(SolShaders::texColor);
         RenderSystem.applyModelViewMatrix();
         //?}
         RenderSystem.setShaderTexture(0, tex.id);

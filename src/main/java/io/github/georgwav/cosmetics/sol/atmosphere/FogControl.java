@@ -12,6 +12,7 @@ import net.minecraft.world.level.material.FogType;
  * The theme's fog: its colour (which is also what the far terrain melts into, and the sky below the horizon) and
  * its distances, from the fog density (thicker fog starts and ends closer). Only open-air fog changes: under water,
  * in lava or powder snow, or blinded, the game's own fog stays. Weather and other fog that is already closer win.
+ * Under water, the water fog's end goes as far as Atmosphere's water view asks.
  */
 public final class FogControl {
     private FogControl() {
@@ -23,6 +24,16 @@ public final class FogControl {
         return at != null && at.fog.get() && Atmosphere.active() && !FrameInfo.skyHidden
                 && FrameInfo.frame - SkyPass.lastDrawFrame <= 3 && Guard.on(Feature.FOG)
                 && io.github.georgwav.cosmetics.sol.render.Mc.camera().getFluidInCamera() == FogType.NONE;
+    }
+
+    /** How much further the water fog ends now (1: the game's), under water with Atmosphere on. */
+    public static float waterView() {
+        Atmosphere at = Atmosphere.INSTANCE;
+        if (at == null || !at.enabled() || at.waterView.get() <= 100.0 || !Guard.on(Feature.FOG)
+                || io.github.georgwav.cosmetics.sol.render.Mc.camera().getFluidInCamera() != FogType.WATER) {
+            return 1f;
+        }
+        return (float) (at.waterView.get() / 100.0);
     }
 
     /** Whether the Sol sky is the open-air sky now (drawn in the last frames). */
