@@ -38,7 +38,7 @@ public final class SolProfiles {
     private static final long SAVE_DELAY_MS = 300L;
 
     /** The active profile's extras (what isn't in the modules), mirrored here while it's active. */
-    private static final Set<String> pinned = new LinkedHashSet<>(List.of("zoom", "crosshair", "glint", "atmosphere"));
+    private static final Set<String> pinned = new LinkedHashSet<>(Migrations.DEFAULT_PINS);
     private static final Map<String, Customisation> customs = new LinkedHashMap<>();
     private static String outfit;
     private static String skinKey;
@@ -183,8 +183,9 @@ public final class SolProfiles {
         pinned.clear();
         if (p.has("pinned") && p.get("pinned").isJsonArray()) {
             for (JsonElement e : p.getAsJsonArray("pinned")) {
-                if (e.isJsonPrimitive()) {
-                    pinned.add(e.getAsString());
+                String id = e.isJsonPrimitive() ? Migrations.pin(e.getAsString()) : null;
+                if (id != null) {
+                    pinned.add(id);
                 }
             }
         }

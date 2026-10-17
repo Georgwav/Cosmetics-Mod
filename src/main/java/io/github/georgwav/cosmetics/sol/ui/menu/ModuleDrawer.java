@@ -74,7 +74,7 @@ public final class ModuleDrawer {
         float by = py + ph + 12f, bottom = y + h - 44f;
         g.clip(x + 1f, by - 2f, x + w - 1f, bottom);
         float rowY = by - scroll.value();
-        // The key sits on top when it's bound (the prototype's Zoom on C); an unbound one waits under Advanced.
+        // The key sits on top when it's bound (freelook on Left Alt); an unbound one waits under Advanced.
         KeyMapping key = module.toggleKey();
         boolean keyOnTop = key != null && (binding == key || !key.isUnbound());
         if (keyOnTop) {
@@ -180,7 +180,7 @@ public final class ModuleDrawer {
         } else if (st instanceof Setting.Text t) {
             var field = fields.computeIfAbsent(t, k -> {
                 var made = new io.github.georgwav.cosmetics.sol.ui.kit.TextField(k.max, k::set);
-                return k instanceof Setting.Secret ? made.secret() : made;
+                return made;
             });
             if (!field.focused()) {
                 field.set(t.get());

@@ -20,11 +20,6 @@ public final class Overlaps {
         return "sol".equals(SolConfig.get().overlaps.get(modId));
     }
 
-    /** Sol's zoom, unless Zoomify (or OK Zoomer) does it. */
-    public static boolean solZooms() {
-        return solDoes("zoomify") && solDoes("ok_zoomer");
-    }
-
     /** Sol's freelook, unless Freelook (or Perspective) does it. */
     public static boolean solFreelooks() {
         return solDoes("freelook") && solDoes("perspectivemod");

@@ -148,7 +148,7 @@ public abstract class Setting<T> {
     }
 
     /** A line of text (up to {@code max} characters): what an auto-text key sends, a word to be mentioned by. */
-    public static class Text extends Setting<String> {
+    public static final class Text extends Setting<String> {
         public final int max;
 
         public Text(String id, String def, int max) {
@@ -175,68 +175,6 @@ public abstract class Setting<T> {
             if (json.isJsonPrimitive() && json.getAsJsonPrimitive().isString()) {
                 value = clean(json.getAsString());
             }
-        }
-    }
-
-    /**
-     * A secret line (an API key): kept in the owner-only secrets file, never in a profile (profiles get shared), and
-     * shown masked in the drawer.
-     */
-    public static final class Secret extends Text {
-        private final String key;
-        /** The value, read from the file once; written back half a second after the typing stops. */
-        private volatile String cached;
-        private final java.util.concurrent.atomic.AtomicLong edits = new java.util.concurrent.atomic.AtomicLong();
-
-        public Secret(String id, String secretKey, int max) {
-            super(id, "", max);
-            this.key = secretKey;
-        }
-
-        @Override
-        public String get() {
-            String v = cached;
-            if (v == null) {
-                v = io.github.georgwav.cosmetics.sol.config.Secrets.get(key);
-                v = v == null ? "" : v;
-                cached = v;
-            }
-            return v;
-        }
-
-        @Override
-        public void set(String v) {
-            String next = clean(v).strip();
-            if (!next.equals(get())) {
-                cached = next;
-                long edit = edits.incrementAndGet();
-                java.util.concurrent.CompletableFuture.delayedExecutor(500, java.util.concurrent.TimeUnit.MILLISECONDS,
-                        io.github.georgwav.cosmetics.sol.util.SolExecutors.IO).execute(() -> {
-                    if (edits.get() == edit) {
-                        io.github.georgwav.cosmetics.sol.config.Secrets.put(key, next);
-                    }
-                });
-                onChange.run();
-            }
-        }
-
-        /** A module's Reset leaves a secret alone: clearing a key is for its own field. */
-        @Override
-        public void reset() {
-        }
-
-        @Override
-        public boolean changed() {
-            return false;
-        }
-
-        @Override
-        JsonElement save() {
-            return null;
-        }
-
-        @Override
-        void load(JsonElement json) {
         }
     }
 }

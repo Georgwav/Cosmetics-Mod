@@ -189,27 +189,6 @@ public final class SolHud {
         });
     }
 
-    /** A small glass card of text lines centred on {@code cx}, its top at {@code y} (GUI units), guarded. */
-    public static void textCard(Canvas c, float cx, float y, java.util.List<String> lines) {
-        Guard.run(Feature.SOL_UI, () -> {
-            Gfx g = begin(c);
-            var tk = ThemeState.tokens();
-            SolFont f = HudKit.text(g);
-            float w = 0f;
-            for (String l : lines) {
-                w = Math.max(w, g.width(f, l));
-            }
-            float padX = 6f, line = 9f, cw = w + padX * 2f, ch = lines.size() * line + 7f, x = cx - cw / 2f;
-            HudKit.card(g, tk, x, y, cw, ch, HudKit.CARD_R);
-            float ty = y + 3.5f + line / 2f;
-            for (int i = 0; i < lines.size(); i++) {
-                g.textMid(f, lines.get(i), x + padX, ty, i < lines.size() - 1 || lines.size() == 1 ? 0xFFFFFFFF : 0xC8FFFFFF);
-                ty += line;
-            }
-            end(c);
-        });
-    }
-
     static void end(Canvas c) {
         G.end();
         c.pop();

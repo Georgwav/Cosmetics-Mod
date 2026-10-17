@@ -171,7 +171,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | `stars.meteorNights` | 7 | Every n-th night is a meteor shower (0: never). |
 | `stars.comets` | true | A comet now and then, staying three nights. |
 | `stars.through` | `clear` | `clear`, `cloudGaps` (Monsoon) or `fog` (Grace). |
-| `planets.enabled` | true | Saturn, Jupiter, Mars and Venus on a tilted path; Zoom swaps in the detailed sprites. |
+| `planets.enabled` | true | Saturn, Jupiter, Mars and Venus on a tilted path; a narrow view (Zoomify, a spyglass) swaps in the detailed sprites. |
 | `planets.style` | `natural` | Sprite style, e.g. `mono` for Deep Field's white-ringed Saturn. |
 | `planets.tint` | none | |
 | `planets.daytime` | `["venus"]` | Planets that show by day near sunset. |

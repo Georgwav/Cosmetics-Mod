@@ -25,12 +25,12 @@ import java.util.Locale;
  * profile, an action. Every word typed has to match; the best matches first; Enter runs the chosen one.
  */
 final class CommandBar {
-    /** One thing to run; {@code key} names it for the suggestions ("module:zoom", "preset:ember_solstice", ...). */
+    /** One thing to run; {@code key} names it for the suggestions ("module:camera", "preset:ember_solstice", ...). */
     record Item(String key, String label, String kind, String icon, Runnable run) {
     }
 
     /** What shows before anything is typed: the prototype's five, then stand-ins while a module doesn't exist yet. */
-    private static final String[] SUGGESTED = {"module:zoom", "action:edit_hud", "preset:ember_solstice", "profile:",
+    private static final String[] SUGGESTED = {"module:camera", "action:edit_hud", "preset:ember_solstice", "profile:",
             "settings:glint", "settings:atmosphere", "module:crosshair"};
 
     private final SolMenu menu;

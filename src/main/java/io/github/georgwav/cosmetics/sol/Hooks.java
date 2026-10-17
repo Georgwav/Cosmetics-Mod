@@ -6,7 +6,7 @@ package io.github.georgwav.cosmetics.sol;
  * fails the run on that version instead of quietly doing nothing. Render thread only.
  */
 public enum Hooks {
-    ZOOM_FOV(true), CAMERA_SETUP(true), WORLD_BOB(true), HURT_BOB(true), CHAT_ADD(false), FIRE(false), FREELOOK_TURN(false),
+    CAMERA_SETUP(true), WORLD_BOB(true), HURT_BOB(true), CHAT_ADD(false), FIRE(false), FREELOOK_TURN(false),
     MAX_ZOOM(false), HELD_ITEM(false);
 
     /** Whether every frame in a world passes through it (so the scenario can expect it). */
