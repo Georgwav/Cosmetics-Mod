@@ -47,6 +47,11 @@ public final class SolScenario {
     private static final int BENCH_HOLD = 400;
 
     /** One frame: a theme at a sun height (or a fixed day time, when {@code time} isn't -1), facing yaw/pitch. */
+    /** The shot from inside a closed room (built in the air above the beach, taken away after). */
+    private static final String UNDERGROUND = "sol_ember_underground";
+    private static boolean inRoom;
+    private static int flaresBefore;
+
     private record Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time,
                         java.util.Map<String, Float> tune) {
         Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time) {
@@ -211,6 +216,8 @@ public final class SolScenario {
         // The Sun lab's framing: Ember with the sun just above the horizon (tick 12,300 puts it at about 7.7°,
         // e ≈ .2), every layer on, facing west into it.
         shots.add(0, new Shot("sol_ember_sunlab", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+        // The same sunset from inside a closed stone room: none of the sun's light may reach the screen.
+        shots.add(1, new Shot(UNDERGROUND, "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
         // Tuning (-Dcosmeticsmod.solTune=name:bloom=0.5,scatter=0.8;name2:...): the Sun lab frame again for each
         // set of light-pass strengths, to compare them side by side.
         String tuneSpec = System.getProperty("cosmeticsmod.solTune", "");
@@ -359,6 +366,18 @@ public final class SolScenario {
                     problems.add(s.name() + ": the horizon EQ isn't on");
                 }
             }
+            if (s.name().equals(UNDERGROUND) && phaseTick == SETTLE - 20) {
+                flaresBefore = io.github.georgwav.cosmetics.sol.atmosphere.LensFlare.drawn;
+            }
+            if (s.name().equals(UNDERGROUND) && phaseTick == SETTLE) {
+                float open = io.github.georgwav.cosmetics.sol.atmosphere.SkyOpen.get();
+                if (open > 0.05f) {
+                    problems.add(s.name() + ": the sky still reaches the camera in a closed room (" + open + ")");
+                }
+                if (io.github.georgwav.cosmetics.sol.atmosphere.LensFlare.drawn != flaresBefore) {
+                    problems.add(s.name() + ": the sun's flare or glare was drawn in a closed room");
+                }
+            }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.
                 if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && !"empty".equals(s.theme())
@@ -395,6 +414,7 @@ public final class SolScenario {
                 return;
             }
             Shot s = shots.get(index);
+            room(mc, s.name().equals(UNDERGROUND));
             stageUi(s.name());
             io.github.georgwav.cosmetics.client.modules.Zoom.hold(s.name().equals("sol_zoom_8x") ? 8.0 : 0.0);
             motionBlur(s.name().equals("sol_motion_blur"));
@@ -402,10 +422,12 @@ public final class SolScenario {
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
             boolean lab = s.name().endsWith("sunlab");
+            boolean room = s.name().equals(UNDERGROUND);
             Atmosphere at = Atmosphere.INSTANCE;
             if (at != null) {
-                at.flare.set(lab);
-                at.glare.set(false);
+                // In the closed room both are on: neither may show.
+                at.flare.set(lab || room);
+                at.glare.set(room);
                 // Monsoon's showpiece is a thunderstorm, its frame taken in a lightning flash; every other frame
                 // has a clear sky.
                 boolean storm = "monsoon".equals(s.theme());
@@ -894,8 +916,23 @@ public final class SolScenario {
         });
     }
 
+    /**
+     * Into a closed stone room 24 blocks above where you stand (nothing of the scene to put back), or back down and
+     * the room taken away.
+     */
+    private static void room(Minecraft mc, boolean in) {
+        if (in == inRoom) {
+            return;
+        }
+        inRoom = in;
+        asPlayer(mc, in
+                ? List.of("execute at @s run fill ~-3 ~23 ~-3 ~3 ~29 ~3 stone hollow", "execute at @s run tp @s ~ ~24 ~")
+                : List.of("execute at @s run tp @s ~ ~-24 ~", "execute at @s run fill ~-3 ~23 ~-3 ~3 ~29 ~3 air"));
+    }
+
     private void finish(Minecraft mc) {
         finished = true;
+        room(mc, false);
         stageUi("");
         if (MOCK_CIDER) {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = albumUiWas;

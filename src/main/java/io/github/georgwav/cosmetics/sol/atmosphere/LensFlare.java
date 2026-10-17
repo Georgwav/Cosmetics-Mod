@@ -29,6 +29,8 @@ public final class LensFlare {
             0xFF9CFF7A};
 
     private static float occlusion = 1f;
+    /** Frames the flare or the glare was drawn in (the scenario checks none are in a closed room). */
+    public static int drawn;
     private static float occlusionTarget = 1f;
     private static float nextRay;
     private static SolTexture vignette;
@@ -66,11 +68,12 @@ public final class LensFlare {
             float x = screen[0], y = screen[1];
             // The sun's half-size in pixels.
             float s = SkyPass.sunS * SkyDraw.T / (2f * (float) Math.tan(Math.toRadians(FrameInfo.fovY) / 2f)) * H;
-            float vis = SkyPass.sunVisible * occlusion;
+            float vis = SkyPass.sunVisible * occlusion * SkyOpen.get();
             // Off screen it fades over a sun's width.
             float off = Math.max(Math.max(-x, x - W), Math.max(-y, y - H));
             vis *= 1f - Math.max(0f, Math.min(1f, off / Math.max(1f, s * 3f)));
             if (vis > 0.005f) {
+                drawn++;
                 float dx = W / 2f - x, dy = H / 2f - y;
                 float dist = (float) Math.sqrt(dx * dx + dy * dy);
                 float maxD = (float) Math.sqrt(W * W + H * H) * 0.5f;
@@ -116,11 +119,11 @@ public final class LensFlare {
             }
         }
         lensPetals(theme);
-        if (Extras.flash > 0f) {
+        if (Extras.flash > 0f && SkyOpen.get() > 0.01f) {
             WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
             // With the light pass lighting the world and the clouds, only a thin veil is left to add.
             float veil = LightPass.preset() == LightPass.HIGH ? 0.3f : 1f;
-            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash * veil));
+            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash * veil * SkyOpen.get()));
             WorldDraw.end();
         }
         if (at.vignette.get()) {
@@ -141,7 +144,8 @@ public final class LensFlare {
                 break;
             }
         }
-        if (lens == null) {
+        float open = SkyOpen.get();
+        if (lens == null || open < 0.01f) {
             return;
         }
         float W = FrameInfo.width, H = FrameInfo.height, t = FrameInfo.time;
@@ -152,7 +156,7 @@ public final class LensFlare {
             float y = ((petalY[i] + t * 0.0025f) % 1.05f) * H;
             float R = (lens.minSize() + (lens.maxSize() - lens.minSize()) * (i / 2f)) * sc;
             float a = petalA[i] + t * 0.3f;
-            int c = Colors.withAlpha(lens.colors()[i % lens.colors().length], 0.26f);
+            int c = Colors.withAlpha(lens.colors()[i % lens.colors().length], 0.26f * open);
             float cs = (float) Math.cos(a), sn = (float) Math.sin(a);
             screenPoint(x + (-R * cs - -R * 0.6f * sn), y + (-R * sn + -R * 0.6f * cs), 0f, 0f, c);
             screenPoint(x + (-R * cs - R * 0.6f * sn), y + (-R * sn + R * 0.6f * cs), 0f, 1f, c);
