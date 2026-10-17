@@ -7,12 +7,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class ModrinthTest {
     @Test
     void searchAskesForFabricModsOfThisVersion() {
-        String url = Modrinth.searchUrl("sodium extra", "1.21.11");
+        String url = Modrinth.searchUrl("sodium extra", "1.21.11", Modrinth.Kind.MOD);
         assertTrue(url.contains("query=sodium+extra"));
         assertTrue(url.contains("index=relevance"));
         String decoded = java.net.URLDecoder.decode(url, java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(decoded.contains("[[\"categories:fabric\"],[\"versions:1.21.11\"],[\"project_type:mod\"]]"));
-        assertTrue(Modrinth.searchUrl(" ", "1.21.11").contains("index=downloads"));
+        assertTrue(Modrinth.searchUrl(" ", "1.21.11", Modrinth.Kind.MOD).contains("index=downloads"));
+    }
+
+    @Test
+    void packSearchAsksForResourcePacksOfThisVersion() {
+        String decoded = java.net.URLDecoder.decode(Modrinth.searchUrl("faithful", "1.21.1", Modrinth.Kind.PACK),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(decoded.contains("[[\"versions:1.21.1\"],[\"project_type:resourcepack\"]]"));
+        assertFalse(decoded.contains("categories:fabric"));
+        assertEquals("resourcepacks", Modrinth.Kind.PACK.folder);
     }
 
     @Test
