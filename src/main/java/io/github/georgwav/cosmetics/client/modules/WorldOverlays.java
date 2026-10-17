@@ -17,8 +17,9 @@ import java.util.Random;
 
 /**
  * World Overlays: the game's chunk borders kept on, the spots where mobs can spawn marked on the ground around you
- * (red where they can now, amber where only at night), slime chunks tinted green in singleplayer (from the
- * world's seed, which only your own world tells), how far nearby beacons reach (a band at your height along
+ * (red where they can now, amber where only at night), slime chunks tinted green (from the world's seed: your own
+ * world's, one you type in, or as an operator the server's answer to /seed, asked once and kept out of the chat),
+ * how far nearby beacons reach (a band at your height along
  * the edge of each one's effect), and in singleplayer the outlines of the structures round you (villages, temples,
  * strongholds…), which only the world's server knows of.
  */
@@ -26,6 +27,8 @@ public final class WorldOverlays extends Module {
     private final Setting.Toggle chunks = add(new Setting.Toggle("chunk_borders", true));
     private final Setting.Toggle spawns = add(new Setting.Toggle("spawnable", true));
     private final Setting.Toggle slime = add(new Setting.Toggle("slime_chunks", false));
+    /** The world's seed for slime chunks on a server (singleplayer knows its own). */
+    private final Setting.Text typedSeed = add(new Setting.Text("seed", "", 32));
     private final Setting.Toggle beacons = add(new Setting.Toggle("beacon_range", false));
     private final Setting.Toggle structures = add(new Setting.Toggle("structures", false));
     /** Nearby beacons: centre x, z and their reach in blocks. */
@@ -48,9 +51,33 @@ public final class WorldOverlays extends Module {
     private int count;
     private Boolean chunksBefore;
     private long seed = Long.MIN_VALUE;
+    /** Asked the server for its seed (as an operator) in this world; waiting for the answer. */
+    private boolean seedAsked;
+    private volatile boolean seedAwaited;
+    /** The server's answer to /seed in this world, or Long.MIN_VALUE. */
+    private long serverSeed = Long.MIN_VALUE;
 
     public WorldOverlays() {
         super("world_overlays", Category.WORLD, "grid");
+        // The answer to our own /seed: its number taken, the line kept out of the chat.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
+            if (!seedAwaited || overlay || !(message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t)
+                    || !t.getKey().equals("commands.seed.success") || t.getArgs().length == 0) {
+                return true;
+            }
+            Object arg = t.getArgs()[0];
+            Long found = io.github.georgwav.cosmetics.sol.client.Seeds.fromReply(
+                    arg instanceof net.minecraft.network.chat.Component c ? c.getString() : String.valueOf(arg));
+            if (found == null) {
+                return true;
+            }
+            seedAwaited = false;
+            Minecraft.getInstance().execute(() -> {
+                serverSeed = found;
+                seed = Long.MIN_VALUE;
+            });
+            return false;
+        });
     }
 
     private static boolean chunkBorders(Minecraft mc) {
@@ -83,6 +110,8 @@ public final class WorldOverlays extends Module {
 
     @Override
     protected void onSettingsChanged(Minecraft mc) {
+        // A seed typed in (or taken away) is read again on the next tick.
+        seed = Long.MIN_VALUE;
         if (chunks.get()) {
             if (chunksBefore == null) {
                 chunksBefore = chunkBorders(mc);
@@ -113,6 +142,9 @@ public final class WorldOverlays extends Module {
             count = 0;
             beaconCount = 0;
             seed = Long.MIN_VALUE;
+            seedAsked = false;
+            seedAwaited = false;
+            serverSeed = Long.MIN_VALUE;
             structureBoxes = NONE;
             structureSearch = false;
         }
@@ -133,8 +165,19 @@ public final class WorldOverlays extends Module {
         } else {
             structureBoxes = NONE;
         }
-        if (slime.get() && seed == Long.MIN_VALUE && mc.getSingleplayerServer() != null) {
-            seed = mc.getSingleplayerServer().overworld().getSeed();
+        if (slime.get() && seed == Long.MIN_VALUE) {
+            Long typed = io.github.georgwav.cosmetics.sol.client.Seeds.typed(typedSeed.get());
+            if (mc.getSingleplayerServer() != null) {
+                seed = mc.getSingleplayerServer().overworld().getSeed();
+            } else if (typed != null) {
+                seed = typed;
+            } else if (serverSeed != Long.MIN_VALUE) {
+                seed = serverSeed;
+            } else if (!seedAsked && CameraTweaks.mayFreecam(mc)) {
+                seedAsked = true;
+                seedAwaited = true;
+                mc.player.connection.sendCommand("seed");
+            }
         }
         if (beacons.get() && mc.level.getGameTime() % 20 == 0) {
             findBeacons(mc);

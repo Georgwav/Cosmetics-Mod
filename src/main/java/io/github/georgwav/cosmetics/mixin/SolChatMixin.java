@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -26,7 +28,9 @@ import net.minecraft.client.GuiMessageTag;
 
 /**
  * Sol Chat's messages: each one on its way into the chat goes through SolChat (timestamp, stacking) and is added
- * again as it becomes; a stacked one takes the place of the one it repeats.
+ * again as it becomes; a stacked one takes the place of the one it repeats. Streamer mode (Social) scrubs every line
+ * first, with Sol Chat on or off. The chat keeps as many lines as Sol Chat's
+ * history asks (the game's 100 otherwise).
  */
 @Mixin(ChatComponent.class)
 abstract class SolChatMixin {
@@ -41,6 +45,12 @@ abstract class SolChatMixin {
         throw new AssertionError();
     }
 
+    /** How many messages (and lines) the chat keeps before the oldest go. */
+    @ModifyConstant(method = {"addMessageToDisplayQueue", "addMessageToQueue"}, constant = @Constant(intValue = 100), require = 0)
+    private int cosmeticsmod$history(int game) {
+        return SolChat.history(game);
+    }
+
     /** What to add instead (null: the message as it is), with the stacked one it repeats taken away. */
     @Unique
     private SolChat.Added cosmeticsmod$process(Component message) {
@@ -49,7 +59,11 @@ abstract class SolChatMixin {
             return null;
         }
         try {
-            SolChat.Added added = SolChat.process(message);
+            Component scrubbed = io.github.georgwav.cosmetics.sol.client.Streamer.scrub(message);
+            SolChat.Added added = SolChat.process(scrubbed);
+            if (added == null && scrubbed != message) {
+                added = new SolChat.Added(scrubbed, false);
+            }
             if (added != null && added.replacesLast() && !allMessages.isEmpty()) {
                 allMessages.remove(0);
                 refreshTrimmedMessages();

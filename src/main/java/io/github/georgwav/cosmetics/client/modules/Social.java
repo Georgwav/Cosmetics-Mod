@@ -5,7 +5,8 @@ import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.Setting;
 
 /**
- * Social: streamer mode, for recording and streaming (your coordinates and the server's address are hidden from the
+ * Social: streamer mode, for recording and streaming (your name reads "You", you wear the default skin, private
+ * messages are hidden, and your coordinates and the server's address are hidden from the
  * HUD modules and from your Discord status while it's on), and your Discord status ("Playing on a server", how long,
  * Sol Client's theme), through the player's own Discord application id (Settings › Discord; D9).
  */

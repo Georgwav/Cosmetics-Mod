@@ -15,8 +15,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Sol Chat: timestamps (click one to copy its message), repeated messages stacked into one with a count, and
- * {@code :name:} shortcodes turned into symbols as you send. The chat's look follows Sol UI (its "Chat" part).
+ * Sol Chat: timestamps (click one to copy its message), repeated messages stacked into one with a count, a longer
+ * history to scroll back through, and {@code :name:} shortcodes turned into symbols as you send. The chat's look
+ * follows Sol UI (its "Chat" part).
  */
 public final class SolChat extends Module {
     private static final DateTimeFormatter H24 = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT);
@@ -29,12 +30,20 @@ public final class SolChat extends Module {
     private final Setting.Toggle copy = add(new Setting.Toggle("copy", true));
     private final Setting.Toggle compact = add(new Setting.Toggle("compact", true));
     private final Setting.Toggle emoji = add(new Setting.Toggle("emoji", true));
+    /** How many messages the chat keeps (the game keeps 100). */
+    private final Setting.Slider history = add(new Setting.Slider("history", 1000, 100, 5000, 100, v -> Integer.toString((int) Math.round(v))));
 
     private String lastRaw;
     private int repeats;
 
     public SolChat() {
         super("sol_chat", Category.CHAT, "chat");
+    }
+
+    /** How many messages the chat keeps, given the game's number. */
+    public static int history(int game) {
+        SolChat m = Modules.SOL_CHAT;
+        return m.enabled() ? (int) Math.round(m.history.get()) : game;
     }
 
     /** What a message becomes as it reaches the chat. */

@@ -26,13 +26,16 @@
     "java": ">=${java}"
   },
   "suggests": {
+    "lithium": "*",
+    "ferritecore": "*",
+    "immediatelyfast": "*",
+    "entityculling": "*",
+    "modernfix": "*",
     "zoomify": "*",
-    "freelook": "*",
     "mousetweaks": "*",
     "appleskin": "*",
     "shulkerboxtooltip": "*",
     "inventoryprofilesnext": "*",
-    "chatpatches": "*",
     "chat_heads": "*",
     "nochatreports": "*",
     "jade": "*",

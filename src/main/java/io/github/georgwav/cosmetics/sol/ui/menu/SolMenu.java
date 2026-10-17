@@ -514,7 +514,7 @@ public final class SolMenu extends SolScreen {
             return tr("sol.menu.status.singleplayer");
         }
         var data = minecraft.getCurrentServer();
-        return data == null ? tr("sol.menu.status.multiplayer") : data.ip;
+        return data == null || io.github.georgwav.cosmetics.sol.client.Streamer.on() ? tr("sol.menu.status.multiplayer") : data.ip;
     }
 
     private String ping() {

@@ -14,14 +14,17 @@ import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 
 /**
- * PvP Effects: a sound of your choice when you hit something, and a kill effect (a burst of totem sparks, flames or
- * souls, with a crack of fireworks) where something you hit in the last three seconds dies. Only on your screen.
+ * PvP Effects: a sound of your choice when you hit something, and a kill effect where something you hit in the last
+ * three seconds dies: a lightning strike, a burst of totem sparks with a crack of fireworks, or only a sound. Only on
+ * your screen: the lightning is a bolt of your own world's, harmless and seen by no one else.
  */
 public final class PvpEffects extends Module {
     private final Setting.Choice hitSound = add(new Setting.Choice("hit_sound", "none", List.of("none", "click", "bell", "pling", "orb")));
-    private final Setting.Choice kill = add(new Setting.Choice("kill_effect", "burst", List.of("none", "burst", "flames", "souls")));
+    private final Setting.Choice kill = add(new Setting.Choice("kill_effect", "burst", List.of("none", "lightning", "burst", "sound")));
     private LivingEntity target;
     private long hitAt;
+    /** Ids for our own bolts, far below any the server hands out. */
+    private static int nextBoltId = -1_000_000;
 
     public PvpEffects() {
         super("pvp_effects", Category.VIEW, "burst");
@@ -61,15 +64,30 @@ public final class PvpEffects extends Module {
     }
 
     private void effect(Minecraft mc, LivingEntity dead) {
-        ParticleOptions p = switch (kill.get()) {
-            case "flames" -> ParticleTypes.FLAME;
-            case "souls" -> ParticleTypes.SOUL;
-            case "burst" -> ParticleTypes.TOTEM_OF_UNDYING;
-            default -> null;
-        };
-        if (p == null) {
-            return;
+        switch (kill.get()) {
+            case "lightning" -> {
+                //? if >=26.2 {
+                /*var bolt = new net.minecraft.world.entity.LightningBolt(net.minecraft.world.entity.EntityTypes.LIGHTNING_BOLT, mc.level);
+                *///?} else {
+                var bolt = new net.minecraft.world.entity.LightningBolt(net.minecraft.world.entity.EntityType.LIGHTNING_BOLT, mc.level);
+                //?}
+                bolt.setId(nextBoltId--);
+                bolt.setPos(dead.getX(), dead.getY(), dead.getZ());
+                bolt.setVisualOnly(true);
+                mc.level.addEntity(bolt);
+                return;
+            }
+            case "sound" -> {
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.4f, 0.6f));
+                return;
+            }
+            case "burst" -> {
+            }
+            default -> {
+                return;
+            }
         }
+        ParticleOptions p = ParticleTypes.TOTEM_OF_UNDYING;
         double x = dead.getX(), y = dead.getY() + dead.getBbHeight() * 0.6, z = dead.getZ();
         var random = mc.level.getRandom();
         for (int i = 0; i < 40; i++) {

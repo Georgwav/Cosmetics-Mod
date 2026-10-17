@@ -79,7 +79,8 @@ final class ModsSection implements Section {
         g.textMid(mono, SolMenu.tr("sol.menu.mods.count", styled.size() + overlaps.size() + alongside.size(), overlaps.size()),
                 x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
         List<String> missing = new ArrayList<>(), missingIds = new ArrayList<>();
-        for (String id : new String[]{"lithium", "ferritecore", "immediatelyfast"}) {
+        // The performance pack Sol suggests (fabric.mod.json).
+        for (String id : new String[]{"lithium", "ferritecore", "immediatelyfast", "entityculling", "modernfix"}) {
             if (!FabricLoader.getInstance().isModLoaded(id)) {
                 missing.add(SolMenu.tr("sol.mods." + id));
                 missingIds.add(id);

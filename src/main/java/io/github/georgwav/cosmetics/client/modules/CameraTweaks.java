@@ -71,7 +71,8 @@ public final class CameraTweaks extends Module {
     }
 
     /** Whether this player may fly the freecam: in singleplayer, or with operator commands (game master). */
-    private static boolean mayFreecam(Minecraft mc) {
+    /** Whether you may use operator commands here (or play singleplayer), as the freecam needs. */
+    public static boolean mayFreecam(Minecraft mc) {
         if (mc.player == null) {
             return false;
         }

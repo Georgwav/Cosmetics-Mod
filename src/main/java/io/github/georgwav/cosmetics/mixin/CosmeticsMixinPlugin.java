@@ -33,11 +33,13 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("WaterOverlayMixin");
         all.add("NametagLookMixin");
         all.add("NametagHealthMixin");
+        all.add("NametagShadowMixin");
         all.add("BeaconLevelsAccess");
         all.add("HitboxColorMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");
+        all.add("PlayerInfoSkinMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
         all.add("SolChatMixin");
