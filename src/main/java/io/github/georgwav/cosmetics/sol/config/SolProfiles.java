@@ -29,7 +29,8 @@ import java.util.Set;
 
 /**
  * Sol profiles (schema 2): everything a setup is, under a name. The modules (as {@code modules.json} has them), the
- * pinned modules, the theme with its accent and the player's edits per theme, the outfit worn, skin and cape. Old
+ * pinned modules, the theme with its accent and the player's edits per theme, the cosmetics worn (and the outfit
+ * they are), skin and cape (ProfileWear). Old
  * profiles (schema 1, modules only) are migrated when read and written back. Switching profiles puts all of it
  * back; any change is saved into the active profile (a moment after the last change, and when the game closes).
  */
@@ -41,6 +42,11 @@ public final class SolProfiles {
     private static final Set<String> pinned = new LinkedHashSet<>(Migrations.DEFAULT_PINS);
     private static final Map<String, Customisation> customs = new LinkedHashMap<>();
     private static String outfit;
+    /** The profile's cosmetics as it was read (null: a profile from before cosmetics were recorded). */
+    private static List<String> equipped;
+    /** What the cosmetics worn looked like at the last look, to see a change in the Wardrobe. */
+    private static int wornHash;
+    private static boolean wornSeen;
     private static String skinKey;
     private static boolean skinSlim;
     private static String cape;
@@ -133,6 +139,10 @@ public final class SolProfiles {
             adopt(p);
             Modules.apply(p.getAsJsonObject("modules"));
             applyTheme(p);
+            ProfileWear.wearCosmetics(outfit, equipped);
+            wornSeen = false;
+            ProfileWear.wearSkin(skinKey);
+            ProfileWear.wearCape(cape);
         } finally {
             switching = false;
         }
@@ -159,6 +169,15 @@ public final class SolProfiles {
         }
         JsonObject cos = p.has("cosmetics") && p.get("cosmetics").isJsonObject() ? p.getAsJsonObject("cosmetics") : null;
         outfit = cos != null && cos.has("outfit") && cos.get("outfit").isJsonPrimitive() ? cos.get("outfit").getAsString() : null;
+        equipped = null;
+        if (cos != null && cos.has("equipped") && cos.get("equipped").isJsonArray()) {
+            equipped = new ArrayList<>();
+            for (JsonElement e : cos.getAsJsonArray("equipped")) {
+                if (e.isJsonPrimitive() && !equipped.contains(e.getAsString())) {
+                    equipped.add(e.getAsString());
+                }
+            }
+        }
         JsonObject skin = p.has("skin") && p.get("skin").isJsonObject() ? p.getAsJsonObject("skin") : null;
         skinKey = skin != null && skin.has("key") && skin.get("key").isJsonPrimitive() ? skin.get("key").getAsString() : null;
         skinSlim = skin != null && skin.has("slim") && skin.get("slim").getAsBoolean();
@@ -206,11 +225,16 @@ public final class SolProfiles {
         theme.add("custom", custom);
         p.add("theme", theme);
         JsonObject cos = new JsonObject();
+        outfit = ProfileWear.outfitWorn();
+        equipped = ProfileWear.equipped();
         if (outfit != null) {
             cos.addProperty("outfit", outfit);
         } else {
             cos.add("outfit", JsonNull.INSTANCE);
         }
+        JsonArray wearing = new JsonArray();
+        equipped.forEach(wearing::add);
+        cos.add("equipped", wearing);
         p.add("cosmetics", cos);
         JsonObject skin = new JsonObject();
         if (skinKey != null) {
@@ -249,8 +273,16 @@ public final class SolProfiles {
         }
     }
 
-    /** Called every tick: saves when the delay has passed. */
+    /** Called every tick: notes a change in the cosmetics worn, and saves when the delay has passed. */
     public static void tick() {
+        int worn = io.github.georgwav.cosmetics.config.CosmeticsConfig.get().localEquipped().hashCode();
+        if (!wornSeen || worn != wornHash) {
+            if (wornSeen) {
+                changed();
+            }
+            wornHash = worn;
+            wornSeen = true;
+        }
         long at = saveAt;
         if (at > 0L && System.currentTimeMillis() >= at) {
             flush();
@@ -334,15 +366,6 @@ public final class SolProfiles {
 
     public static void setAccent(Integer accent) {
         ThemeState.setAccent(accent);
-        changed();
-    }
-
-    public static String outfit() {
-        return outfit;
-    }
-
-    public static void setOutfit(String name) {
-        outfit = name;
         changed();
     }
 
