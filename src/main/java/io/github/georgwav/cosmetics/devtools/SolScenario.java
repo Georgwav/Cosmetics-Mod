@@ -680,15 +680,9 @@ public final class SolScenario {
                 io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.setEnabled(true);
                 hudShown.add(io.github.georgwav.cosmetics.client.Modules.SOL_CHAT);
             }
-            // Stats with a few lines, Coordinates with the biome.
+            // Stats with a few lines.
             for (var setting : io.github.georgwav.cosmetics.client.Modules.STATS.settings()) {
                 if (java.util.Set.of("cps", "ping", "clock").contains(setting.id) && Boolean.FALSE.equals(setting.get())) {
-                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
-                    statsShown.add(setting);
-                }
-            }
-            for (var setting : io.github.georgwav.cosmetics.client.Modules.COORDINATES.settings()) {
-                if (setting.id.equals("biome") && Boolean.FALSE.equals(setting.get())) {
                     ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
                     statsShown.add(setting);
                 }
@@ -812,10 +806,9 @@ public final class SolScenario {
                     "scoreboard objectives setdisplay sidebar solshow", "scoreboard objectives setdisplay list solshow",
                     "scoreboard players set @s solshow 23", "scoreboard players set Kills solshow 12",
                     "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450",
-                    // Chat: a repeat that stacks, a mention of you, an emoji.
+                    // Chat: a repeat that stacks, an emoji.
                     "tellraw @a \"[Sol] Welcome to the showcase\"", "tellraw @a \"[Sol] Welcome to the showcase\"",
-                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\"",
-                    "tellraw @a \"<@s> the sunset is on\""));
+                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\""));
         }
         if (on) {
             cfg.solUi = !vanilla;
@@ -907,25 +900,11 @@ public final class SolScenario {
                 && io.github.georgwav.cosmetics.ui.Mannequin.framesPainted == 0) {
             problems.add("the mannequin (you without a world) was never drawn");
         }
-        if (chatShown) {
-            // The chat's search: text no message has leaves every message out, then all come back.
-            io.github.georgwav.cosmetics.client.modules.SolChat.search("no message says this");
-            io.github.georgwav.cosmetics.client.modules.SolChat.search("");
-            if (io.github.georgwav.cosmetics.client.modules.SolChat.filteredOut == 0) {
-                problems.add("the chat's search never left a message out");
-            }
-        }
         motionBlur(false);
         if (shots.stream().anyMatch(x -> x.name().equals("sol_motion_blur"))
                 && io.github.georgwav.cosmetics.sol.render.LightPass.blurFrames == 0) {
             problems.add("motion blur never ran in its shot");
         }
-        //? if >=1.21.9 {
-        // The HUD shots post a line of yours: Sol Chat puts your face before it.
-        if (chatShown && io.github.georgwav.cosmetics.client.modules.SolChat.headsShown == 0) {
-            problems.add("Sol Chat never put a sender's face before a message");
-        }
-        //?}
         boolean passed = problems.isEmpty();
         CosmeticsMod.LOGGER.info("[Sol] Scenario {}: {}", passed ? "PASSED" : "FAILED", problems);
         try {

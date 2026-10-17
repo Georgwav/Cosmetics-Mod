@@ -31,8 +31,6 @@ public final class ModulesSelfTest {
         setting(Modules.ATMOSPHERE, "lock_time").set(true);
         setting(Modules.FULLBRIGHT, "night_vision").set("always");
         Modules.FULLBRIGHT.setEnabled(true);
-        // A diamond in the inventory's top row, for the hotbar rows key.
-        command(mc, "item replace entity @s inventory.0 with minecraft:diamond");
         // World Overlays' structure outlines, with a made-up desert pyramid starting in the chunk next to you.
         overlaysWereOn = Modules.WORLD_OVERLAYS.enabled();
         structuresWereOn = ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").get();
@@ -95,43 +93,6 @@ public final class ModulesSelfTest {
         });
     }
 
-    private static boolean inventoryWasOn;
-
-    /** Midway, once the diamond is there: the hotbar rows key, so the diamond comes down to the hotbar. */
-    public static void midway(Minecraft mc) {
-        inventoryWasOn = Modules.INVENTORY.enabled();
-        Modules.INVENTORY.setEnabled(true);
-        rotated = io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
-    }
-
-    private static boolean rotated;
-
-    /** Projectile trails on, and a snowball in your hand to throw. */
-    public static void trailsOn(Minecraft mc) {
-        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").set("sparkle");
-        command(mc, "item replace entity @s weapon.mainhand with minecraft:snowball 4");
-    }
-
-    /** Throws the snowball (as a right click would) once it has reached your hand; true when thrown. */
-    public static boolean throwSnowball(Minecraft mc) {
-        if (mc.gameMode == null || mc.player == null || !mc.player.getMainHandItem().is(net.minecraft.world.item.Items.SNOWBALL)) {
-            return false;
-        }
-        mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
-        return true;
-    }
-
-    /** Whether the snowball left a trail; then the trails go off and the snowballs go. */
-    public static java.util.List<String> trailsCheckAndOff(Minecraft mc) {
-        java.util.List<String> problems = new java.util.ArrayList<>();
-        if (io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade <= 0) {
-            problems.add("the thrown snowball left no trail");
-        }
-        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").reset();
-        command(mc, "clear @s minecraft:snowball");
-        return problems;
-    }
-
     private static void command(Minecraft mc, String command) {
         var server = mc.getSingleplayerServer();
         if (server == null || mc.player == null) {
@@ -169,18 +130,6 @@ public final class ModulesSelfTest {
         if (!mc.player.hasEffect(MobEffects.NIGHT_VISION)) {
             problems.add("fullbright's night vision isn't on");
         }
-        if (!rotated) {
-            problems.add("the hotbar rows key didn't swap (no inventory to swap in)");
-        } else if (!mc.player.getInventory().getItem(0).is(net.minecraft.world.item.Items.DIAMOND)) {
-            problems.add("the hotbar rows key didn't bring the top row's diamond to the hotbar (it holds "
-                    + mc.player.getInventory().getItem(0) + ")");
-        }
-        // Three more turns put every row back; then the diamond goes.
-        for (int i = 0; i < 3 && rotated; i++) {
-            io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
-        }
-        command(mc, "item replace entity @s inventory.0 with minecraft:air");
-        Modules.INVENTORY.setEnabled(inventoryWasOn);
         int[] boxes = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureBoxes();
         if (pyramidX == Integer.MIN_VALUE) {
             problems.add("the made-up desert pyramid wasn't planted for World Overlays' structures");
@@ -225,7 +174,6 @@ public final class ModulesSelfTest {
      * ground in front so there is a block to outline.
      */
     public static void switchOnHud(Minecraft mc) {
-        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").set(true);
         ModulesSelfTest.<String>setting(Modules.STATS, "font").set("geist");
         ModulesSelfTest.<String>setting(Modules.STATS, "color").set("yellow");
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").set(true);
@@ -255,7 +203,6 @@ public final class ModulesSelfTest {
         }
         Modules.CROSSHAIR.setEnabled(false);
         VanillaHud.reset();
-        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").reset();
         ModulesSelfTest.<String>setting(Modules.STATS, "font").reset();
         ModulesSelfTest.<String>setting(Modules.STATS, "color").reset();
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").reset();

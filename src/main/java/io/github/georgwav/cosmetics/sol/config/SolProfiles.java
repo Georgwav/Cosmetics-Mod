@@ -44,7 +44,6 @@ public final class SolProfiles {
     private static String skinKey;
     private static boolean skinSlim;
     private static String cape;
-    private static final List<String> servers = new ArrayList<>();
     private static JsonObject unknown = new JsonObject();
 
     private static volatile long saveAt = -1L;
@@ -120,44 +119,6 @@ public final class SolProfiles {
         return h.endsWith(":25565") ? h.substring(0, h.length() - 6) : h;
     }
 
-    /** Whether the active profile is used on this server. */
-    public static boolean usedOn(String address) {
-        String h = host(address);
-        return servers.stream().anyMatch(s -> host(s).equals(h));
-    }
-
-    /** Uses the active profile on this server, or stops. */
-    public static void setUsedOn(String address, boolean on) {
-        String h = host(address);
-        servers.removeIf(s -> host(s).equals(h));
-        if (on && !h.isEmpty()) {
-            servers.add(h);
-        }
-        changed();
-    }
-
-    /** The profile kept for this server (the first by name), or null. */
-    public static String forServer(String address) {
-        String h = host(address);
-        if (h.isEmpty()) {
-            return null;
-        }
-        if (usedOn(h)) {
-            return active();
-        }
-        for (String name : names()) {
-            JsonObject p = read(name);
-            if (p != null && p.has("servers") && p.get("servers").isJsonArray()) {
-                for (JsonElement e : p.getAsJsonArray("servers")) {
-                    if (e.isJsonPrimitive() && host(e.getAsString()).equals(h)) {
-                        return name;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
     /** Switches to a profile: modules, theme, accent, edits, pins. False when it can't be read. */
     public static boolean switchTo(String name) {
         JsonObject p = read(name);
@@ -202,15 +163,8 @@ public final class SolProfiles {
         skinKey = skin != null && skin.has("key") && skin.get("key").isJsonPrimitive() ? skin.get("key").getAsString() : null;
         skinSlim = skin != null && skin.has("slim") && skin.get("slim").getAsBoolean();
         cape = p.has("cape") && p.get("cape").isJsonPrimitive() ? p.get("cape").getAsString() : null;
-        servers.clear();
-        if (p.has("servers") && p.get("servers").isJsonArray()) {
-            for (JsonElement e : p.getAsJsonArray("servers")) {
-                if (e.isJsonPrimitive()) {
-                    servers.add(e.getAsString());
-                }
-            }
-        }
         unknown = p.deepCopy();
+        // "servers" too: server profiles were dropped, so an old list of them isn't written back.
         for (String known : new String[]{"schema", "modules", "pinned", "theme", "cosmetics", "skin", "cape", "servers"}) {
             unknown.remove(known);
         }
@@ -271,9 +225,6 @@ public final class SolProfiles {
         } else {
             p.add("cape", JsonNull.INSTANCE);
         }
-        JsonArray sv = new JsonArray();
-        servers.forEach(sv::add);
-        p.add("servers", sv);
         return p;
     }
 

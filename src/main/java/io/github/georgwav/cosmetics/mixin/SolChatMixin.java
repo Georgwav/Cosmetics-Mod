@@ -25,11 +25,11 @@ import net.minecraft.client.GuiMessageTag;
 //?}
 
 /**
- * Sol Chat's messages: each one on its way into the chat goes through SolChat (timestamp, stacking, mentions) and is
- * added again as it becomes; a stacked one takes the place of the one it repeats.
+ * Sol Chat's messages: each one on its way into the chat goes through SolChat (timestamp, stacking) and is added
+ * again as it becomes; a stacked one takes the place of the one it repeats.
  */
 @Mixin(ChatComponent.class)
-abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.ChatRefresh {
+abstract class SolChatMixin {
     @Shadow
     @Final
     private List<GuiMessage> allMessages;
@@ -61,25 +61,6 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         }
     }
 
-    @Override
-    public void cosmeticsmod$refresh() {
-        refreshTrimmedMessages();
-    }
-
-    /** Sol Chat's tabs and search: a message they leave out isn't shown (it stays in the chat). */
-    @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"), cancellable = true, require = 0)
-    private void cosmeticsmod$filter(GuiMessage message, CallbackInfo ci) {
-        if (SolChat.hides(message.content(), message.signature() != null)) {
-            ci.cancel();
-        }
-    }
-
-    @Unique
-    private static GuiMessageTag cosmeticsmod$tag(SolChat.Added added, GuiMessageTag tag) {
-        return added.mention() ? new GuiMessageTag(SolChat.mentionColor(), null,
-                Component.translatable("sol.chat.mention"), "Mention") : tag;
-    }
-
     //? if >=26.1 {
     /*@Shadow
     private void addMessage(Component message, MessageSignature signature, GuiMessageSource source, GuiMessageTag tag) {
@@ -96,7 +77,7 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         }
         cosmeticsmod$adding = true;
         try {
-            addMessage(added.component(), signature, source, cosmeticsmod$tag(added, tag));
+            addMessage(added.component(), signature, source, tag);
         } finally {
             cosmeticsmod$adding = false;
         }
@@ -115,7 +96,7 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         }
         cosmeticsmod$adding = true;
         try {
-            addMessage(added.component(), signature, cosmeticsmod$tag(added, tag));
+            addMessage(added.component(), signature, tag);
         } finally {
             cosmeticsmod$adding = false;
         }

@@ -145,21 +145,14 @@ public final class SolTitleScreen extends SolScreen {
         }
     }
 
-    /** The crash helper is looked for once per start, the first time the title screen shows. */
-    private static boolean crashChecked;
-    private static volatile io.github.georgwav.cosmetics.sol.client.CrashHelper.Crash crash;
+    /** Updates are looked for once per start, the first time the title screen shows. */
+    private static boolean updatesChecked;
 
     @Override
     protected void frame(Gfx g) {
-        if (!crashChecked) {
-            crashChecked = true;
-            SolExecutors.IO.execute(() -> crash = io.github.georgwav.cosmetics.sol.client.CrashHelper.unseen());
+        if (!updatesChecked) {
+            updatesChecked = true;
             io.github.georgwav.cosmetics.sol.client.Updates.daily();
-        }
-        var c = crash;
-        if (c != null) {
-            crash = null;
-            minecraft.execute(() -> ScreenOpener.open(new CrashHelperScreen(this, c)));
         }
         Tokens tk = ThemeState.tokens();
         ThemeRegistry.Entry e = ThemeState.entry();

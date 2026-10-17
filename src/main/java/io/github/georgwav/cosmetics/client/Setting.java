@@ -147,7 +147,7 @@ public abstract class Setting<T> {
         }
     }
 
-    /** A line of text (up to {@code max} characters): what an auto-text key sends, a word to be mentioned by. */
+    /** A line of text (up to {@code max} characters), such as the Discord application id. */
     public static final class Text extends Setting<String> {
         public final int max;
 

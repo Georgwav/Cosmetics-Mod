@@ -135,7 +135,6 @@ public final class DevScenario {
     private int wheelFramesAtStart;
     private boolean finished;
     private boolean cameraWasOn;
-    private boolean snowballThrown;
     private net.minecraft.world.phys.Vec3 freecamFrom;
 
     private DevScenario(boolean smoke, boolean benchmark) {
@@ -704,9 +703,6 @@ public final class DevScenario {
                 }
             }
             case WORLD_MODULES -> {
-                if (ticks == 20) {
-                    ModulesSelfTest.midway(client);
-                }
                 if (ticks >= UI_TAB_TICKS) {
                     List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
                     phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
@@ -723,19 +719,7 @@ public final class DevScenario {
                 }
             }
             case FREECAM -> {
-                // And projectile trails: a snowball thrown from where you stand. Given once the hotbar rows check's
-                // swaps have reached the server (they'd swap it out of your hand), thrown once it's there.
-                if (ticks == 8) {
-                    ModulesSelfTest.trailsOn(client);
-                }
-                if (!snowballThrown && ticks > 8) {
-                    snowballThrown = ModulesSelfTest.throwSnowball(client);
-                }
                 if (ticks >= UI_TAB_TICKS) {
-                    List<String> trailProblems = ModulesSelfTest.trailsCheckAndOff(client);
-                    phases.getAsJsonObject("settings_ui").addProperty("trails",
-                            io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade);
-                    failures.addAll(trailProblems);
                     var camera = io.github.georgwav.cosmetics.client.modules.CameraTweaks.freecamPosition(1f);
                     double flown = camera.distanceTo(client.player.getEyePosition(1f));
                     double walked = client.player.position().distanceTo(freecamFrom);

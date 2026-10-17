@@ -213,15 +213,10 @@ public final class CosmeticRenderer {
                 && EquippedCosmetics.forPlayer(player, local).length > 0;
     }
 
-    /**
-     * Whether this player's cosmetics are shown at all: your own or other players' (Display), and not someone whose
-     * cosmetics you hid (Social). Everything of ours drawn on a player asks this: the layer, held items, the cape on
-     * an elytra, particles, the raised name.
-     */
+    /** Whether this player's cosmetics are shown at all: your own or other players' (Display). */
     public static boolean showsFor(java.util.UUID player, boolean local) {
         CosmeticsConfig config = CosmeticsConfig.get();
-        return local ? config.showOwnCosmetics
-                : config.showOtherPlayersCosmetics && !io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(player);
+        return local ? config.showOwnCosmetics : config.showOtherPlayersCosmetics;
     }
 
     /** Draws every layer of one cosmetic at the pose stack's current pose. */

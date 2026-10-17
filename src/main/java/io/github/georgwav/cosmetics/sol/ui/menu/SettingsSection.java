@@ -35,8 +35,8 @@ final class SettingsSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
 
-        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "keys", "screenshots",
-                "fast_quit", "pack_folders", "main_folder", "updates"};
+        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "pack_folders",
+                "main_folder", "updates"};
         Row[] rows = {
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.solUi, () -> {
                     cfg.solUi = !cfg.solUi;
@@ -78,14 +78,6 @@ final class SettingsSection implements Section {
                 },
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.cosmetics_open"), false,
                         () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, "settings"))),
-                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
-                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(menu))),
-                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
-                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(menu))),
-                (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.fastQuit, () -> {
-                    cfg.fastQuit = !cfg.fastQuit;
-                    SolConfig.save();
-                }),
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.packFolders, () -> {
                     cfg.packFolders = !cfg.packFolders;
                     SolConfig.save();

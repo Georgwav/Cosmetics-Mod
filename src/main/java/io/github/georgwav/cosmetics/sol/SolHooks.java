@@ -64,7 +64,6 @@ public final class SolHooks {
             QualityGovernor.frame(FrameInfo.frameSeconds);
             io.github.georgwav.cosmetics.sol.atmosphere.SkyOpen.frame(FrameInfo.frameSeconds);
             SolTiming.frame(FrameInfo.frameSeconds);
-            io.github.georgwav.cosmetics.client.modules.Performance.frame();
             io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
                     io.github.georgwav.cosmetics.sol.render.LightPass.nanos);
         } catch (RuntimeException | LinkageError e) {

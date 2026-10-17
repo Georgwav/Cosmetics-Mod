@@ -429,8 +429,7 @@ public final class SolMenu extends SolScreen {
     private void popover(Gfx g, Tokens tk) {
         float w = 320f, x = 1280f - 30f - w, y = 74f;
         java.util.List<String> names = SolProfiles.names();
-        String server = io.github.georgwav.cosmetics.sol.client.ServerProfiles.current();
-        float h = 8f + 26f + names.size() * 46f + 40f + (server != null ? 40f : 0f);
+        float h = 8f + 26f + names.size() * 46f + 40f;
         g.glow(x, y, w, h, 16f, 30f, 0x80000000);
         g.round(x, y, w, h, 16f, 0xF00A0A0E);
         g.stroke(x, y, w, h, 16f, Math.max(1f, g.d.u), 0x24FFFFFF);
@@ -461,14 +460,6 @@ public final class SolMenu extends SolScreen {
                 g.textRight(s, "✓", x + w - 20f, ry + 22f, tk.accent);
             }
             ry += 46f;
-        }
-        if (server != null) {
-            // Keep the active profile for the server you're on: joining it again switches to it.
-            String host = SolProfiles.host(server);
-            g.text(s, g.fit(s, tr("sol.menu.profile_server", host), w - 80f), x + 16f, ry + 22f, 0xCCFFFFFF);
-            boolean used = SolProfiles.usedOn(server);
-            ui.smallSwitch(tk, x + w - 54f, ry + 9f, used, () -> SolProfiles.setUsedOn(server, !used));
-            ry += 40f;
         }
         ui.button(tk, x + w - 8f, ry + 18f, tr("sol.menu.save_profile"), false, () -> {
             popover = false;

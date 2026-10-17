@@ -27,18 +27,13 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TooltipLookMixin");
         all.add("PauseLookMixin");
         all.add("DeathLookMixin");
-        all.add("FastQuitMixin");
-        all.add("FastQuitGateMixin");
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
         all.add("TotemSizeMixin");
         all.add("WaterOverlayMixin");
         all.add("NametagLookMixin");
         all.add("NametagHealthMixin");
-        all.add("GlintPlacesMixin");
-        all.add("GlintArmourMixin");
         all.add("BeaconLevelsAccess");
-        all.add("ShulkerTooltipMixin");
         all.add("HitboxColorMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
@@ -53,10 +48,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("LowFireMixin");
         all.add("OverlayTextureAccessor");
         all.add("HeldItemsMixin");
-        all.add("SwingMixin");
         all.add("ScreenOverlayMixin");
         all.add("NametagMixin");
-        all.add("BackgroundFpsMixin");
         all.add("ParticleTweaksMixin");
         all.add("ScreenshotMixin");
         all.add("ItemDecorationsMixin");
@@ -71,9 +64,6 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         *///?}
         //? if <26.1 {
         all.add("ClientLevelDataMixin");
-        //?}
-        //? if >=1.21.4 {
-        all.add("ItemLayersAccess");
         //?}
         return all;
     }

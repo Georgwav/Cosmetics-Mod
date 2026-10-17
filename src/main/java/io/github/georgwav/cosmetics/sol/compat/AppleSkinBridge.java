@@ -26,6 +26,13 @@ public final class AppleSkinBridge {
     private AppleSkinBridge() {
     }
 
+    private static final boolean PRESENT = FabricLoader.getInstance().isModLoaded("appleskin");
+
+    /** Whether AppleSkin is installed: its saturation, held-food and exhaustion details are then Sol UI's to draw. */
+    public static boolean present() {
+        return PRESENT;
+    }
+
     public static void init() {
         if (!FabricLoader.getInstance().isModLoaded("appleskin")) {
             return;
