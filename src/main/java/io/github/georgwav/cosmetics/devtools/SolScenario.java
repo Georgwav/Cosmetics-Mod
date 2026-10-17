@@ -714,6 +714,9 @@ public final class SolScenario {
                 problems.add(name + ": Sol UI's " + p.id + " didn't draw");
             }
         }
+        if (name.equals("ui_tab") && io.github.georgwav.cosmetics.sol.hud.HudTweaks.pingsWritten == 0) {
+            problems.add(name + ": the tab list's ping wasn't written in milliseconds");
+        }
         if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
             problems.add(name + ": Glint didn't recolour any glint texture");
         }
