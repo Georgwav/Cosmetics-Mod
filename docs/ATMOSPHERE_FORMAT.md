@@ -172,7 +172,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | `stars.comets` | true | A comet now and then, staying three nights. |
 | `stars.through` | `clear` | `clear`, `cloudGaps` (Monsoon) or `fog` (Grace). |
 | `planets.enabled` | true | Saturn, Jupiter, Mars and Venus on a tilted path; a narrow view (Zoomify, a spyglass) swaps in the detailed sprites. |
-| `planets.style` | `natural` | Sprite style, e.g. `mono` for a white-ringed Saturn. |
+| `planets.style` | `natural` | Sprite style, e.g. `mono` for Deep Field's white-ringed Saturn. |
 | `planets.tint` | none | |
 | `planets.daytime` | `["venus"]` | Planets that show by day near sunset. |
 
@@ -180,10 +180,10 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 
 | Key | Shape | Meaning |
 |---|---|---|
-| `galaxy` | `{x, y, r, tilt}` | Deep Field's two-arm galaxy: a gold core, blue-white arms, pink knots. |
+| `galaxy` | `{x, y, r, tilt}` | Deep Field's two-arm galaxy. |
 | `aurora` | `["#colour", …]` | Three folding curtains of rays across the sky the theme faces: the first colour at their bright lower edge, rising into the second (or a pink of the first) and a pink-red top. |
 | `nebula` | `[{x, y, r, color}]` or `[[x, y, r, "#colour"]]` | One cloud of glowing gas painted across a third of the sky: each entry is a region of it in its colour, with billows, filaments, dust lanes, a hot core and young stars twinkling inside. |
-| `eclipse` | `{x, y, size, corona}` | The black square sun with its burning ring, the corona's streamers and the diamond ring's bead. |
+| `eclipse` | `{x, y, size, corona}` | The black square sun with its burning ring. |
 | `sigil` | `{x, y, r, color, halo}` | Grace's rune, with bloom, crackle, pillar and lit cloud. |
 | `mist` | `{color, warm, bands, alpha}` | Mist bands drifting over the horizon. |
 
@@ -232,11 +232,11 @@ A list of streams. Each is an object, or the prototype's `["type", count, ["#col
   - `eclipse`: the burning ring;
   - `aurora`: the curtains, two colours sweeping over the ground;
   - `nebula`: pink and violet from above;
-  - `galaxy`: its arms' silver and its core's gold sweeping over the ground;
+  - `galaxy`: cold silver;
   - a night `moon`: moonlight.
 - **`lightning`:** each flash lights the world from the bolt.
 - **Colours:** `light.sun` and `light.shadow` colour the faces turned toward the light and away from it.
-- **Dimming:** a `light.boost` below 1 also dims the world itself (Monsoon's storm; Eclipse a little).
+- **Dimming:** a `light.boost` below 1 also dims the world itself (Eclipse, Monsoon).
 - **Atmosphere intensity** scales all of it.
 
 ## `keyframes`

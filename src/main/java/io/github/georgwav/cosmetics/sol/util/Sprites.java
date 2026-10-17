@@ -73,10 +73,9 @@ public final class Sprites {
             PixelCanvas g = new PixelCanvas(s, s);
             Mulberry32 r = new Mulberry32(99);
             g.setLighter(true);
-            // A real spiral's colours: a warm gold bulge, blue-white arms of young stars, pink knots of star birth.
             g.fillRect(0, 0, s, s, PixelCanvas.radial(s / 2f, s / 2f, s / 2f, PixelCanvas.Stops.of(
-                    0f, Colors.argb(Math.round(0.36f * 255), 255, 205, 140), 0.12f, Colors.argb(Math.round(0.16f * 255), 236, 190, 200),
-                    0.5f, Colors.argb(Math.round(0.07f * 255), 130, 160, 255), 1f, 0)));
+                    0f, Colors.argb(Math.round(0.5f * 255), 255, 255, 255), 0.12f, Colors.argb(Math.round(0.2f * 255), 235, 235, 245),
+                    0.5f, Colors.argb(Math.round(0.05f * 255), 200, 200, 215), 1f, 0)));
             for (int arm = 0; arm < 2; arm++) {
                 for (int i = 0; i < 1500; i++) {
                     double u = r.next(), a = u * 4.4 * Math.PI + arm * Math.PI, rad = 6 + u * s * 0.46;
@@ -85,14 +84,13 @@ public final class Sprites {
                     double y = s / 2.0 + Math.sin(a) * rad + Math.sin(a + 1.57) * spread * 0.6;
                     double sz = r.next() < 0.04 ? 2.4 : r.next() * 1.3 + 0.4;
                     g.setGlobalAlpha((float) ((1 - u * 0.75) * (0.35 + r.next() * 0.65)));
-                    double pick = r.next();
-                    int color = pick < 0.12 ? 0xFFFFFFFF : pick < 0.27 && u > 0.2 ? 0xFFFF78C0 : u < 0.18 ? 0xFFFFD890 : 0xFF98B4FF;
+                    int color = r.next() < 0.15 ? 0xFFFFFFFF : 0xFFC9C9D4;
                     g.fillRect((float) x, (float) y, (float) sz, (float) sz, color);
                 }
             }
             g.setGlobalAlpha(1f);
             g.fillRect(0, 0, s, s, PixelCanvas.radial(s / 2f, s / 2f, s * 0.1f,
-                    PixelCanvas.Stops.of(0f, 0xC0FFE8C0, 1f, 0x00FFC870)));
+                    PixelCanvas.Stops.of(0f, 0xFFFFFFFF, 1f, 0x00FFFFFF)));
             return g;
         });
     }

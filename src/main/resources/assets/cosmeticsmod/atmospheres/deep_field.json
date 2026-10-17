@@ -1,6 +1,6 @@
 {
   "name": "Deep Field",
-  "line": "Deep space: a spiral galaxy turning overhead, its silver and gold light on the land.",
+  "line": "Black and white space: a spiral galaxy turning overhead, star dust drifting through.",
   "order": 10,
   "ui": {
     "accent": "#ffffff",
@@ -10,26 +10,26 @@
     "rimAlpha": 0.55
   },
   "sky": {
-    "top": "#010208",
-    "middle": "#060a18",
-    "horizon": "#18203a",
-    "glow": "#c8d4ff",
+    "top": "#000000",
+    "middle": "#060608",
+    "horizon": "#15151a",
+    "glow": "#e4e4ea",
     "sunWarmth": 0.05
   },
   "fog": {
-    "color": "#0c1224",
+    "color": "#0b0b0e",
     "density": 0.5,
-    "near": 12,
-    "far": 150,
+    "near": 10,
+    "far": 130,
     "scatter": 0.35,
-    "haze": 0.2
+    "haze": 0.25
   },
   "light": {
-    "tint": "#dfe6ff",
-    "strength": 0.3,
-    "boost": 1.35,
-    "sun": "#e4ecff",
-    "shadow": "#34426a"
+    "tint": "#eef0f6",
+    "strength": 0.62,
+    "boost": 1.0,
+    "sun": "#f4f4fa",
+    "shadow": "#101014"
   },
   "show": {
     "phase": "night",
@@ -39,7 +39,7 @@
   },
   "stars": {
     "count": 280,
-    "palette": "natural",
+    "palette": "mono",
     "milkyWay": 0.8,
     "shooting": true,
     "meteorNights": 6
@@ -52,10 +52,10 @@
   },
   "planets": {
     "enabled": true,
-    "style": "natural"
+    "style": "mono"
   },
   "clouds": {
-    "tint": "#1a2034",
+    "tint": "#18181c",
     "litBySun": false,
     "visible": false
   },
@@ -70,8 +70,8 @@
       "count": 80,
       "colors": [
         "#ffffff",
-        "#d6e0ff",
-        "#ffe6c0"
+        "#d0d0d8",
+        "#9a9aa3"
       ],
       "size": [
         1,
@@ -82,8 +82,7 @@
       "type": "sparkle",
       "count": 14,
       "colors": [
-        "#ffffff",
-        "#dce6ff"
+        "#ffffff"
       ],
       "size": [
         3,
@@ -94,14 +93,14 @@
   "keyframes": {
     "day": {
       "sky": {
-        "top": "#1a2a52",
-        "middle": "#34508a",
-        "horizon": "#a4b8dc",
-        "glow": "#dfe8ff",
+        "top": "#3a3c44",
+        "middle": "#5a5c66",
+        "horizon": "#a8aab2",
+        "glow": "#d8d8de",
         "sunWarmth": 0.1
       },
       "fog": {
-        "color": "#8a9cc0",
+        "color": "#8a8c94",
         "density": 0.45,
         "near": 16,
         "far": 200
@@ -111,45 +110,45 @@
         "strength": 0.0
       },
       "clouds": {
-        "tint": "#e8eefc"
+        "tint": "#e0e0e4"
       },
       "particleScale": 0.4
     },
     "dawn": {
       "sky": {
-        "top": "#0e1230",
-        "middle": "#26305a",
-        "horizon": "#7a7aa8",
-        "glow": "#e0c8d8",
+        "top": "#101014",
+        "middle": "#24242c",
+        "horizon": "#6a6a74",
+        "glow": "#b0b0ba",
         "sunWarmth": 0.15
       },
       "fog": {
-        "color": "#3a4266",
+        "color": "#3a3a42",
         "density": 0.5
       }
     },
     "dusk": {
       "sky": {
-        "top": "#0a0e28",
-        "middle": "#20284e",
-        "horizon": "#6a6a98",
-        "glow": "#d8b8c8",
+        "top": "#0c0c10",
+        "middle": "#1e1e26",
+        "horizon": "#5a5a64",
+        "glow": "#a0a0aa",
         "sunWarmth": 0.15
       },
       "fog": {
-        "color": "#323a5e",
+        "color": "#303038",
         "density": 0.5
       }
     }
   },
   "grade": {
-    "highlights": "#f6f2ff",
-    "shadows": "#050a1a",
-    "saturation": 1.16,
-    "contrast": 1.08,
-    "bloomTint": "#dfe6ff",
+    "highlights": "#ffffff",
+    "shadows": "#020203",
+    "saturation": 0.0,
+    "contrast": 1.18,
+    "bloomTint": "#ffffff",
     "bloom": 0.9,
     "threshold": 0.55,
-    "vignette": 0.16
+    "vignette": 0.18
   }
 }

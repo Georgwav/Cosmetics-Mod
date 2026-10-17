@@ -348,28 +348,9 @@ public final class SkyPass {
         sunCore = 0xFF050303;
         sunHalo = ec.corona();
         SkyDraw.billboard(sunX, sunY, sunZ);
-        float t = FrameInfo.time;
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
         SkyDraw.glowAt(0f, 0f, s * 4.5f, s * 4.5f, Colors.withAlpha(ec.corona(), 0.9f * vis));
         SkyDraw.glowAt(0f, 0f, s * 2f, s * 2f, Colors.withAlpha(0xFFFFD0A0, 0.7f * vis));
-        // The diamond ring: a bead of the sun's light at one corner of the black disc, breathing.
-        float bead = 0.75f + 0.25f * (float) Math.sin(t * 0.9f);
-        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 0.9f, s * 0.9f, Colors.withAlpha(0xFFFFF4E0, 0.8f * bead * vis));
-        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 2.6f, s * 0.22f, Colors.withAlpha(0xFFFFE6C8, 0.5f * bead * vis));
-        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 0.22f, s * 2.6f, Colors.withAlpha(0xFFFFE6C8, 0.5f * bead * vis));
-        WorldDraw.end();
-        // The corona's streamers: long soft fans of pearl light turning slowly, as a total eclipse shows them.
-        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ray());
-        for (int i = 0; i < 18; i++) {
-            float a = (float) (i / 18.0 * 6.283) + t * 0.012f + (i % 3) * 0.11f;
-            float len = s * (2.2f + 2.6f * (0.5f + 0.5f * (float) Math.sin(i * 2.7f + t * 0.21f)) + (i % 4 == 0 ? 2.4f : 0f));
-            float w = s * (i % 2 == 0 ? 1.1f : 0.7f);
-            int c = Colors.mix(0xFFFFEEDD, ec.corona(), (i % 3) * 0.3f);
-            SkyDraw.rotRect(0f, 0f, a, s * 0.7f, -w / 2f, s * 0.7f + len, w / 2f, Colors.withAlpha(c, 0.26f * vis));
-        }
-        WorldDraw.end();
-        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
-        SkyDraw.softRing(0f, 0f, s * 1.25f, Colors.withAlpha(0xFFFFD8B0, 0.55f * vis));
         WorldDraw.end();
         WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
         SkyDraw.rect(-s, -s, s, s, Colors.withAlpha(0xFF050303, vis));

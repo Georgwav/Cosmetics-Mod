@@ -43,7 +43,7 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
   - Eclipse: the burning ring.
   - Aurora: the curtains' moving green and violet light.
   - Nebula: pink and violet light from above.
-  - Deep Field: the galaxy's silver and gold.
+  - Deep Field: cold silver.
   - Silver Night: the moon, with a glitter path on water.
   - Monsoon: each lightning flash.
   - The others: their sun, and the moon at night.
