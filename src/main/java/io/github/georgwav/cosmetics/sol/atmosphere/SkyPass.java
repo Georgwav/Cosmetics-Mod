@@ -40,7 +40,12 @@ public final class SkyPass {
     /** The frame number the Sol sky was last drawn in (the fog follows it). */
     public static long lastDrawFrame = -100L;
 
-    private static SolTexture plasma;
+    /**
+     * The plasma in two textures taking turns: each new picture goes into the one the last frame didn't draw with,
+     * so the upload never waits for a frame still being drawn (it did with Voxy keeping the renderer busy).
+     */
+    private static final SolTexture[] plasmas = new SolTexture[2];
+    private static int plasmaShown;
     private static SolTexture moons;
     private static final int[] plasmaPixels = new int[256];
     private static float plasmaTime = -1f;
@@ -483,7 +488,7 @@ public final class SkyPass {
         // The body: 16 rows of the plasma texture, shifted by the heat shimmer near the horizon.
         updatePlasma(plasmaOn, core, halo, t);
         float shim = shimmerOn ? low * low * low * 1.4f : 0f;
-        WorldDraw.begin(WorldDraw.SKY_ALPHA, plasma);
+        WorldDraw.begin(WorldDraw.SKY_ALPHA, plasmas[plasmaShown]);
         int body = Colors.withAlpha(0xFFFFFFFF, vis);
         for (int j = 0; j < 16; j++) {
             float off = shim > 0f ? Math.round((float) Math.sin(j * 0.9f + t * 7f) * shim * 2f) / 2f * px : 0f;
@@ -509,14 +514,17 @@ public final class SkyPass {
 
     /** The prototype's pixel plasma, rewritten at most 20 times a second. */
     private static void updatePlasma(boolean plasmaOn, int core, int halo, float t) {
-        if (plasma == null || plasma.released()) {
-            plasma = new SolTexture("sun_plasma", 16, 16, false);
-            plasmaTime = -1f;
+        for (int k = 0; k < plasmas.length; k++) {
+            if (plasmas[k] == null || plasmas[k].released()) {
+                plasmas[k] = new SolTexture("sun_plasma_" + k, 16, 16, false);
+                plasmaTime = -1f;
+            }
         }
         int[] album = MusicSky.albumSun();
         if (album != null) {
             if (plasmaTime != -2f || album != albumShown) {
-                plasma.upload(album);
+                plasmaShown ^= 1;
+                plasmas[plasmaShown].upload(album);
                 plasmaTime = -2f;
                 albumShown = album;
             }
@@ -547,6 +555,7 @@ public final class SkyPass {
                 plasmaPixels[j * 16 + i] = c | 0xFF000000;
             }
         }
-        plasma.upload(plasmaPixels);
+        plasmaShown ^= 1;
+        plasmas[plasmaShown].upload(plasmaPixels);
     }
 }

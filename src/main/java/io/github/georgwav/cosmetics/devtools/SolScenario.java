@@ -110,6 +110,8 @@ public final class SolScenario {
     private static boolean musicWasOn = true;
     private static boolean albumUiWas = true;
     private static boolean albumSkyWas;
+    /** The visualizer switches as they were, put back at the end. */
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Setting.Toggle, Boolean> vizWas = new java.util.HashMap<>();
 
     private void plan() {
         if (MOCK_CIDER) {
@@ -117,6 +119,11 @@ public final class SolScenario {
             musicWasOn = io.github.georgwav.cosmetics.client.Modules.MUSIC.enabled();
             albumUiWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi;
             albumSkyWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky;
+            for (var setting : io.github.georgwav.cosmetics.client.Modules.MUSIC.settings()) {
+                if (setting instanceof io.github.georgwav.cosmetics.client.Setting.Toggle t && t.id.startsWith("viz_")) {
+                    vizWas.put(t, t.get());
+                }
+            }
             io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(true);
         }
         planAll();
@@ -468,6 +475,11 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
                     || name.equals("sol_music_stars");
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = name.equals("sol_music_stars");
+            // The visualizers (album sun, horizon EQ, beat rings…) only in the music sky shots, likewise.
+            boolean viz = name.equals("sol_music_viz") || name.equals("sol_music_stars");
+            for (var t : vizWas.keySet()) {
+                t.set(viz);
+            }
         }
         java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
@@ -888,6 +900,7 @@ public final class SolScenario {
         if (MOCK_CIDER) {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = albumUiWas;
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = albumSkyWas;
+            vizWas.forEach(io.github.georgwav.cosmetics.client.Setting.Toggle::set);
             if (!musicWasOn) {
                 io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(false);
             }
