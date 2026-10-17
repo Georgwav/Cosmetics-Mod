@@ -40,7 +40,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat"};
+            "hud_sol", "hud_off", "tab", "chat", "servers"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -349,6 +349,9 @@ public final class SolScenario {
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
+            if (phaseTick == SETTLE && s.name().equals("ui_servers") && io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.filtered == 0) {
+                problems.add(s.name() + ": the server list didn't show its Survival folder");
+            }
             if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().startsWith("ui_menu_music"))) {
                 checkMusic(s.name());
             }
@@ -513,6 +516,7 @@ public final class SolScenario {
         hudInPlay(hud, what.equals("hud_off"));
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
+        serversForShot(what.equals("servers"));
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -578,6 +582,13 @@ public final class SolScenario {
                 w.stage(state.equals("grid") ? "all" : state);
             }
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
+            return;
+        }
+        if (what.equals("servers")) {
+            // The server list showing its Survival folder (the servers are made up; nothing answers them).
+            io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show("Survival", serversShown);
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen(
+                    new net.minecraft.client.gui.screens.TitleScreen()));
             return;
         }
         if (what.equals("mods_browse")) {
@@ -646,6 +657,43 @@ public final class SolScenario {
      * The Wardrobe shots show you wearing a few things (the world shots wear nothing): a cape, a hat, wings and an
      * aura when there are some. Back to what you wore after them.
      */
+    private static net.minecraft.client.multiplayer.ServerList serversShown;
+    private static final List<net.minecraft.client.multiplayer.ServerData> SHOT_SERVERS = new java.util.ArrayList<>();
+    private static boolean serversModuleWasOn;
+
+    /** Made-up servers in the list for the server list shot, two in a Survival folder; taken out after. */
+    private static void serversForShot(boolean on) {
+        Minecraft mc = Minecraft.getInstance();
+        if (on && serversShown == null) {
+            serversModuleWasOn = io.github.georgwav.cosmetics.client.Modules.SERVERS.enabled();
+            io.github.georgwav.cosmetics.client.Modules.SERVERS.setEnabled(true);
+            serversShown = new net.minecraft.client.multiplayer.ServerList(mc);
+            serversShown.load();
+            String[][] made = {{"Survival/Home", "127.0.0.1:1"}, {"Survival/Creative world", "127.0.0.1:2"},
+                    {"PvP/Arena", "127.0.0.1:3"}, {"Lobby", "127.0.0.1:4"}};
+            for (String[] m : made) {
+                var data = new net.minecraft.client.multiplayer.ServerData(m[0], m[1], net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                SHOT_SERVERS.add(data);
+                serversShown.add(data, false);
+            }
+            serversShown.save();
+        } else if (!on && serversShown != null) {
+            var list = new net.minecraft.client.multiplayer.ServerList(mc);
+            list.load();
+            for (int i = list.size() - 1; i >= 0; i--) {
+                var d = list.get(i);
+                if (SHOT_SERVERS.stream().anyMatch(m -> m.ip.equals(d.ip) && m.name.equals(d.name))) {
+                    list.remove(d);
+                }
+            }
+            list.save();
+            SHOT_SERVERS.clear();
+            serversShown = null;
+            io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show(null, list);
+            io.github.georgwav.cosmetics.client.Modules.SERVERS.setEnabled(serversModuleWasOn);
+        }
+    }
+
     private static void wearForWardrobe(boolean on) {
         var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
         java.util.List<String> worn = config.localEquipped();

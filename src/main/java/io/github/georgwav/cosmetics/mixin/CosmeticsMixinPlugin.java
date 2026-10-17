@@ -63,6 +63,10 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ScreenshotMixin");
         all.add("ItemDecorationsMixin");
         all.add("DisconnectedScreenMixin");
+        all.add("ServerEntryMixin");
+        all.add("ServerFoldersMixin");
+        all.add("ServerListSwapMixin");
+        all.add("ServerListScreenMixin");
         //? if >=1.21.11 {
         all.add("SolChatDrawMixin");
         //?} else {
