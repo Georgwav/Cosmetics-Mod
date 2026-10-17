@@ -6,8 +6,8 @@ import io.github.georgwav.cosmetics.client.Setting;
 
 /**
  * Screen: the overlays that cover the view, each one you can switch off: the pumpkin's mask, the powder snow frost,
- * the dark vignette at the screen's edges, the nether portal's swirl, nausea's wobble and the underwater overlay;
- * and motion blur (not on 1.21.2 to 1.21.5, whose post effects can't keep the last frame).
+ * the dark vignette at the screen's edges, the nether portal's swirl, nausea's wobble, the underwater overlay and the
+ * darkening (and blur) behind inventories; and motion blur (not on 1.21.2 to 1.21.5, whose post effects can't keep the last frame).
  */
 public final class ScreenTweaks extends Module {
     private final Setting.Toggle pumpkin = add(new Setting.Toggle("pumpkin", false));
@@ -16,6 +16,7 @@ public final class ScreenTweaks extends Module {
     private final Setting.Toggle portal = add(new Setting.Toggle("portal", true));
     private final Setting.Toggle nausea = add(new Setting.Toggle("nausea", true));
     private final Setting.Toggle water = add(new Setting.Toggle("water", true));
+    private final Setting.Toggle inventoryDim = add(new Setting.Toggle("inventory_dim", false));
     //? if <1.21.2 || >=1.21.6 {
     /** Motion blur: how much of a frame is left after 1/60 s (0 = none). */
     private final Setting.Slider motionBlur = add(new Setting.Slider("motion_blur", 0, 0, 90, 5,
@@ -56,6 +57,11 @@ public final class ScreenTweaks extends Module {
 
     public static boolean hidesWater() {
         return hides(io.github.georgwav.cosmetics.client.Modules.SCREEN.water);
+    }
+
+    /** Whether inventories (and other container screens) leave the world behind them undarkened and sharp. */
+    public static boolean hidesInventoryDim() {
+        return hides(Modules.SCREEN.inventoryDim);
     }
 
     public static boolean hidesNausea() {

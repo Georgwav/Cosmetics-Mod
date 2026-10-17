@@ -40,6 +40,8 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle particles = add(new Setting.Toggle("particles", true).advanced());
     public final Setting.Choice quality = add(new Setting.Choice("quality", "auto", List.of("auto", "low", "medium", "high")));
     public final Setting.Toggle fog = add(new Setting.Toggle("fog", true).advanced());
+    /** How far you see under water against the game (100%). */
+    public final Setting.Slider waterView = add(new Setting.Slider("water_view", 100, 100, 400, 25, v -> Math.round(v) + "%").advanced());
     public final Setting.Toggle light = add(new Setting.Toggle("light", true).advanced());
     public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
     public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
@@ -108,6 +110,11 @@ public final class Atmosphere extends Module {
     @Override
     protected void onEnable(Minecraft mc) {
         SkyModGuard.atmosphereOn();
+    }
+
+    @Override
+    protected void tick(Minecraft mc) {
+        Ambience.tick(mc, this);
     }
 
     @Override
