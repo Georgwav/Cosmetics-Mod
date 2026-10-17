@@ -211,11 +211,13 @@ LOOK = {
   "maple_afternoon": dict(fog=dict(near=4, far=84, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.5, sun="#ffd99a", shadow="#3c4a6c"),
     grade=dict(highlights="#ffe2ae", shadows="#1a2034", saturation=1.12, contrast=1.06, bloomTint="#ffcf88", bloom=0.88, threshold=0.6, vignette=0.12),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.06)), night=dict(fog=dict(near=6, far=100), light=dict(boost=1.0)))),
-  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.85, haze=0.4), light=dict(strength=0.78, boost=0.3, sun="#ff9a72", shadow="#140404"),
-    grade=dict(highlights="#ffb894", shadows="#0a0204", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
+  # The red light and black sky stay; the world is lifted enough to play in, its shadows deep red rather than black.
+  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.85, haze=0.4), light=dict(strength=0.78, boost=0.55, sun="#ff9a72", shadow="#3a0c0c"),
+    grade=dict(highlights="#ffb894", shadows="#1c0608", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
     kf=dict()),
   "deep_field": dict(fog=dict(near=10, far=130, scatter=0.35, haze=0.25), light=dict(strength=0.62, boost=1.0, sun="#f4f4fa", shadow="#101014"),
-    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.0, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
+    # Black and white with a trace of the world's colour left in it (the sky has none), so the land stays readable.
+    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.22, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
     kf=dict(day=dict(fog=dict(near=16, far=200)))),
   "silver_night": dict(fog=dict(near=8, far=110, scatter=0.55, haze=0.35), light=dict(strength=0.7, boost=1.0, sun="#dfe6ff", shadow="#141c38"),
     grade=dict(highlights="#e8eeff", shadows="#060a1a", saturation=0.94, contrast=1.06, bloomTint="#c8d4ff", bloom=0.9, threshold=0.55, vignette=0.18),

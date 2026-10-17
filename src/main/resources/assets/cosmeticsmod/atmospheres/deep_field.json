@@ -144,7 +144,7 @@
   "grade": {
     "highlights": "#ffffff",
     "shadows": "#020203",
-    "saturation": 0.0,
+    "saturation": 0.22,
     "contrast": 1.18,
     "bloomTint": "#ffffff",
     "bloom": 0.9,
