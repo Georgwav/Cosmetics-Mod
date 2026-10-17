@@ -864,7 +864,7 @@
   "cosmeticsmod.module.inventory.as.percent": "Percent",
   "key.cosmeticsmod.module.inventory": "Inventory on/off",
   "cosmeticsmod.module.servers": "Servers",
-  "cosmeticsmod.module.servers.note": "Reconnect when a server drops you",
+  "cosmeticsmod.module.servers.note": "Reconnect when a server drops you; a better server list",
   "cosmeticsmod.module.servers.reconnect_delay": "Reconnect after",
   "cosmeticsmod.module.servers.server_list": "Server list upgrade",
   "cosmeticsmod.module.servers.server_list.hint": "Pings in milliseconds, players online, and folders: name a server \"Folder/Name\"",
