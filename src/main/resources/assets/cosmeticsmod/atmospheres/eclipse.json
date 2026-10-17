@@ -19,17 +19,17 @@
   "fog": {
     "color": "#3a0d0b",
     "density": 0.5,
-    "near": 4,
-    "far": 84,
+    "near": 8,
+    "far": 110,
     "scatter": 0.85,
     "haze": 0.4
   },
   "light": {
     "tint": "#ff9a7a",
-    "strength": 0.78,
+    "strength": 0.35,
     "boost": 0.55,
     "sun": "#ff9a72",
-    "shadow": "#3a0c0c"
+    "shadow": "#3a1a1e"
   },
   "show": {
     "phase": "day",
@@ -139,7 +139,7 @@
   "grade": {
     "highlights": "#ffb894",
     "shadows": "#1c0608",
-    "saturation": 1.08,
+    "saturation": 1.22,
     "contrast": 1.12,
     "bloomTint": "#ff6a3a",
     "bloom": 1.0,

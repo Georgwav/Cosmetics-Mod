@@ -211,9 +211,10 @@ LOOK = {
   "maple_afternoon": dict(fog=dict(near=4, far=84, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.5, sun="#ffd99a", shadow="#3c4a6c"),
     grade=dict(highlights="#ffe2ae", shadows="#1a2034", saturation=1.12, contrast=1.06, bloomTint="#ffcf88", bloom=0.88, threshold=0.6, vignette=0.12),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.06)), night=dict(fog=dict(near=6, far=100), light=dict(boost=1.0)))),
-  # The red light and black sky stay; the world is lifted enough to play in, its shadows deep red rather than black.
-  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.85, haze=0.4), light=dict(strength=0.78, boost=0.55, sun="#ff9a72", shadow="#3a0c0c"),
-    grade=dict(highlights="#ffb894", shadows="#1c0608", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
+  # The red light and black sky stay; the world is lifted enough to play in, its shadows deep red rather than black,
+  # and the light tints the blocks rather than repainting them, so their own colours show through.
+  "eclipse": dict(fog=dict(near=8, far=110, scatter=0.85, haze=0.4), light=dict(strength=0.35, boost=0.55, sun="#ff9a72", shadow="#3a1a1e"),
+    grade=dict(highlights="#ffb894", shadows="#1c0608", saturation=1.22, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
     kf=dict()),
   "deep_field": dict(fog=dict(near=10, far=130, scatter=0.35, haze=0.25), light=dict(strength=0.62, boost=1.0, sun="#f4f4fa", shadow="#101014"),
     # Black and white with a trace of the world's colour left in it (the sky has none), so the land stays readable.
