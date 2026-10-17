@@ -40,7 +40,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab"};
+            "hud_sol", "hud_off", "tab", "chat"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -536,6 +536,16 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
             return;
         }
+        if (what.equals("chat")) {
+            // The chat screen with Sol Chat's emoji picker open over it.
+            //? if >=1.21.9 {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.ChatScreen("gg :heart: ", false));
+            //?} else {
+            /*io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.ChatScreen("gg :heart: "));
+            *///?}
+            io.github.georgwav.cosmetics.sol.chat.EmojiPicker.openForShot();
+            return;
+        }
         if (hud) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
                 io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
@@ -714,6 +724,9 @@ public final class SolScenario {
                 problems.add(name + ": Sol UI's " + p.id + " didn't draw");
             }
         }
+        if (name.equals("ui_chat") && io.github.georgwav.cosmetics.sol.chat.EmojiPicker.gridsDrawn == 0) {
+            problems.add(name + ": Sol Chat's emoji picker didn't draw on the chat screen");
+        }
         if (name.equals("ui_tab") && io.github.georgwav.cosmetics.sol.hud.HudTweaks.pingsWritten == 0) {
             problems.add(name + ": the tab list's ping wasn't written in milliseconds");
         }
@@ -762,7 +775,7 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab");
+        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat");
     }
 
     /** The game mode before the HUD shots (null while they aren't on). */

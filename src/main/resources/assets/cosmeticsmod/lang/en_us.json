@@ -747,7 +747,7 @@
   "cosmeticsmod.module.sol_chat.format.seconds": "With seconds",
   "cosmeticsmod.module.sol_chat.compact": "Stack repeated messages",
   "cosmeticsmod.module.sol_chat.history": "Messages kept",
-  "cosmeticsmod.module.sol_chat.emoji": "Emoji shortcodes (:heart:)",
+  "cosmeticsmod.module.sol_chat.emoji": "Emoji (:heart: shortcodes and the picker)",
   "cosmeticsmod.module.sol_chat.copy": "Click a message's time to copy it",
   "sol.chat.copy": "Click to copy",
   "key.cosmeticsmod.module.sol_chat": "Sol Chat on/off",

@@ -41,6 +41,12 @@ public final class SolChat extends Module {
     }
 
     /** How many messages the chat keeps, given the game's number. */
+    /** Whether the emoji shortcodes and picker are on. */
+    public static boolean emojiOn() {
+        SolChat m = Modules.SOL_CHAT;
+        return m.enabled() && m.emoji.get();
+    }
+
     public static int history(int game) {
         SolChat m = Modules.SOL_CHAT;
         return m.enabled() ? (int) Math.round(m.history.get()) : game;

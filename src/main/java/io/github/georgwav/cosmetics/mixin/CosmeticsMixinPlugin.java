@@ -50,6 +50,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TotemPopMixin");
         all.add("SolChatMixin");
         all.add("ChatSendMixin");
+        all.add("ChatEmojiMixin");
         all.add("CameraTweaksMixin");
         all.add("FreelookTurnMixin");
         all.add("ViewBobMixin");
