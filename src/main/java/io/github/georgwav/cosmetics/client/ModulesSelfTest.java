@@ -38,7 +38,32 @@ public final class ModulesSelfTest {
         Modules.WORLD_OVERLAYS.setEnabled(true);
         scansBefore = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans;
         plantPyramid(mc, true);
+        // Hitboxes in red at twice the game's width, on a pig in front of you.
+        hitboxesWereOn = Modules.HITBOXES.enabled();
+        setting(Modules.HITBOXES, "color").set("red");
+        setting(Modules.HITBOXES, "width").set(2.0);
+        Modules.HITBOXES.setEnabled(true);
+        hitboxLines = io.github.georgwav.cosmetics.render.HitboxLines.drawn;
+        hitboxAsks = io.github.georgwav.cosmetics.client.modules.Hitboxes.asked;
+        command(mc, "execute as @s at @s run summon pig ^ ^ ^3 {Tags:[\"sol_hitbox\"],NoAI:1b}");
+        // Sol UI leaving out a boss bar, a scoreboard and a title the server shows.
+        setting(Modules.SOL_UI, "boss_bars").set(false);
+        setting(Modules.SOL_UI, "scoreboard").set(false);
+        setting(Modules.SOL_UI, "titles").set(false);
+        hidden = new int[]{io.github.georgwav.cosmetics.sol.hud.HudTweaks.bossesHidden, io.github.georgwav.cosmetics.sol.hud.HudTweaks.sidebarsHidden,
+                io.github.georgwav.cosmetics.sol.hud.HudTweaks.titlesHidden};
+        for (String c : List.of("bossbar add cosmeticsmod:selftest \"Self-test\"", "bossbar set cosmeticsmod:selftest players @s",
+                "scoreboard objectives add solselftest dummy", "scoreboard objectives setdisplay sidebar solselftest",
+                "scoreboard players set @s solselftest 1", "title @s times 0 200 0", "title @s title \"Sol\"")) {
+            command(mc, c);
+        }
     }
+
+    private static int[] hidden;
+
+    private static boolean hitboxesWereOn;
+    private static int hitboxLines;
+    private static int hitboxAsks;
 
     private static boolean overlaysWereOn;
     private static boolean structuresWereOn;
@@ -139,6 +164,33 @@ public final class ModulesSelfTest {
             problems.add("World Overlays didn't find the desert pyramid at " + pyramidX + ", " + pyramidZ + " (found "
                     + java.util.Arrays.toString(boxes) + ")");
         }
+        if (io.github.georgwav.cosmetics.client.modules.Hitboxes.asked == hitboxAsks) {
+            problems.add("Hitboxes' players-only filter was never asked about an entity");
+        }
+        if (io.github.georgwav.cosmetics.render.HitboxLines.drawn == hitboxLines) {
+            problems.add("Hitboxes' line width never reached the hitbox lines");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.bossesHidden == hidden[0]) {
+            problems.add("Sol UI didn't leave out the boss bar");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.sidebarsHidden == hidden[1]) {
+            problems.add("Sol UI didn't leave out the scoreboard");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.titlesHidden == hidden[2]) {
+            problems.add("Sol UI didn't leave out the title");
+        }
+        for (String c : List.of("bossbar remove cosmeticsmod:selftest", "scoreboard objectives remove solselftest", "title @s clear",
+                "title @s reset")) {
+            command(mc, c);
+        }
+        setting(Modules.SOL_UI, "boss_bars").reset();
+        setting(Modules.SOL_UI, "scoreboard").reset();
+        setting(Modules.SOL_UI, "titles").reset();
+        // Into the void, so it leaves nothing behind on the ground.
+        command(mc, "tp @e[tag=sol_hitbox] 0 -400 0");
+        Modules.HITBOXES.setEnabled(hitboxesWereOn);
+        setting(Modules.HITBOXES, "width").reset();
+        setting(Modules.HITBOXES, "color").reset();
         plantPyramid(mc, false);
         ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(structuresWereOn);
         Modules.WORLD_OVERLAYS.setEnabled(overlaysWereOn);
