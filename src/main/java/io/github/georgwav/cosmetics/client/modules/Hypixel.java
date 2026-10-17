@@ -13,8 +13,9 @@ import java.util.Locale;
 /**
  * Hypixel: Auto GG (your line, said once when a game ends: Hypixel's end-of-game summary lines are what it listens
  * for, and with Hypixel's Mod API only while you're in a game); Quickplay (its key opens every game and mode, a click
- * joins the queue); Play again (its key queues the mode you played last); and Level head (players' network
- * level after their name, from Hypixel's API with your own key). Only while you're on Hypixel.
+ * joins the queue); Play again (its key queues the mode you played last); Level head (players' network level
+ * after their name, from Hypixel's API with your own key); and Bed Wars timers (the nearest diamond and emerald
+ * generators' next spawn and the next event, at the top of the screen). Only while you're on Hypixel.
  */
 public final class Hypixel extends Module {
     private final Setting.Toggle autoGg = add(new Setting.Toggle("auto_gg", true));
@@ -22,6 +23,13 @@ public final class Hypixel extends Module {
     /** Players' network level after their name, from Hypixel's API with your key (kept in the secrets file). */
     private final Setting.Toggle levelHead = add(new Setting.Toggle("level_head", false));
     private final Setting.Secret apiKey = add(new Setting.Secret("api_key", "hypixel_api_key", 64).advanced());
+    /** In Bed Wars: the nearest generators' next spawn and the sidebar's next event, at the top of the screen. */
+    private final Setting.Toggle bedwarsTimers = add(new Setting.Toggle("bedwars_timers", true));
+    /** The timers' lines now (empty: none to show), and what they were made from. */
+    private List<String> timerLines = List.of();
+    private String timerKey = "";
+    /** For the self-test: the made-up Bed Wars sidebar counts as Hypixel's. */
+    public static boolean pretendForTest;
     private static final List<String> ENDS = List.of("1st killer", "winner:", "winners:", "winner -", "reward summary",
             "your overall winstreak", "1st place");
     private long lastGg;
@@ -105,11 +113,93 @@ public final class Hypixel extends Module {
                 play(mc, lastGame);
             }
         }
+        if (mc.level != null && mc.level.getGameTime() % 10 == 0) {
+            updateTimers(mc);
+        }
         if (pending > 0 && --pending == 0 && mc.player != null) {
             String text = SolChat.outgoing(ggText.get().trim());
             if (!text.isEmpty()) {
                 mc.player.connection.sendChat(text);
             }
+        }
+    }
+
+    /**
+     * Twice a second in Bed Wars (Hypixel's Mod API says so, or the sidebar's title does): the nearest generators'
+     * countdowns from the text floating over them, and the next event from the sidebar.
+     */
+    private void updateTimers(Minecraft mc) {
+        var board = mc.level.getScoreboard();
+        var objective = board.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR);
+        var where = io.github.georgwav.cosmetics.sol.client.HypixelModApi.location();
+        boolean bedWars = where != null && where.serverType().map("BEDWARS"::equalsIgnoreCase).orElse(false)
+                || objective != null && io.github.georgwav.cosmetics.sol.client.BedWarsTimers.isBedWars(objective.getDisplayName().getString());
+        if (!bedwarsTimers.get() || mc.player == null || !(onHypixelNow() || pretendForTest) || !bedWars) {
+            timerLines = List.of();
+            timerKey = "";
+            return;
+        }
+        List<String> sidebar = new java.util.ArrayList<>();
+        if (objective != null) {
+            for (var entry : board.listPlayerScores(objective)) {
+                if (!entry.isHidden()) {
+                    sidebar.add(net.minecraft.world.scores.PlayerTeam.formatNameForTeam(board.getPlayersTeam(entry.owner()),
+                            entry.ownerName()).getString());
+                }
+            }
+        }
+        List<io.github.georgwav.cosmetics.sol.client.BedWarsTimers.Label> labels = new java.util.ArrayList<>();
+        for (var e : mc.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.decoration.ArmorStand && e.hasCustomName() && e.distanceToSqr(mc.player) < 96 * 96) {
+                labels.add(new io.github.georgwav.cosmetics.sol.client.BedWarsTimers.Label(e.getX(), e.getY(), e.getZ(),
+                        e.getCustomName().getString()));
+            }
+        }
+        int[] gens = io.github.georgwav.cosmetics.sol.client.BedWarsTimers.nearest(labels, mc.player.getX(), mc.player.getZ());
+        String event = io.github.georgwav.cosmetics.sol.client.BedWarsTimers.event(sidebar);
+        String key = gens[0] + "|" + gens[1] + "|" + event;
+        if (key.equals(timerKey)) {
+            return;
+        }
+        timerKey = key;
+        List<String> lines = new java.util.ArrayList<>();
+        if (gens[0] >= 0) {
+            lines.add(Component.translatable("cosmeticsmod.module.hypixel.timer_diamond", gens[0]).getString());
+        }
+        if (gens[1] >= 0) {
+            lines.add(Component.translatable("cosmeticsmod.module.hypixel.timer_emerald", gens[1]).getString());
+        }
+        if (event != null) {
+            lines.add(event);
+        }
+        timerLines = List.copyOf(lines);
+    }
+
+    /** The Bed Wars timers' lines now (for the self-test). */
+    public static List<String> timerLines() {
+        return Modules.HYPIXEL.timerLines;
+    }
+
+    /** The Bed Wars timers at the top of the screen, in the middle, while there are any. */
+    public static void drawTimers(io.github.georgwav.cosmetics.ui.Canvas g, int w, int h) {
+        Hypixel hy = Modules.HYPIXEL;
+        List<String> lines = hy.timerLines;
+        if (!hy.enabled() || lines.isEmpty()) {
+            return;
+        }
+        if (io.github.georgwav.cosmetics.client.hud.HudModule.solLook()) {
+            io.github.georgwav.cosmetics.sol.hud.SolHud.textCard(g, w / 2f, 4f, lines);
+            return;
+        }
+        var font = Minecraft.getInstance().font;
+        int tw = 0;
+        for (String l : lines) {
+            tw = Math.max(tw, font.width(l));
+        }
+        int x = (w - tw) / 2;
+        g.fill(x - 4, 3, x + tw + 4, 6 + lines.size() * 10, 0x70000000);
+        for (int i = 0; i < lines.size(); i++) {
+            g.text(font, lines.get(i), x, 5 + i * 10, 0xFFFFFFFF, true);
         }
     }
 

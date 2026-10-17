@@ -151,6 +151,7 @@ public final class Hud {
         }
         io.github.georgwav.cosmetics.sol.render.SolTiming.end(io.github.georgwav.cosmetics.sol.render.SolTiming.Part.HUD, t0);
         io.github.georgwav.cosmetics.client.modules.Performance.drawGraph(g, w, h);
+        io.github.georgwav.cosmetics.client.modules.Hypixel.drawTimers(g, w, h);
     }
 
     /** Draws one module where it sits (the HUD editor). */

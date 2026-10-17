@@ -40,6 +40,71 @@ public final class ModulesSelfTest {
         Modules.WORLD_OVERLAYS.setEnabled(true);
         scansBefore = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans;
         plantPyramid(mc, true);
+        // Hypixel's Bed Wars timers, read from a made-up Bed Wars sidebar and generator.
+        hypixelWasOn = Modules.HYPIXEL.enabled();
+        Modules.HYPIXEL.setEnabled(true);
+        io.github.georgwav.cosmetics.client.modules.Hypixel.pretendForTest = true;
+        fakeBedWars(mc, true);
+    }
+
+    private static boolean hypixelWasOn;
+    private static net.minecraft.world.entity.decoration.ArmorStand[] stands;
+
+    /**
+     * On the world's server: Hypixel's Bed Wars look, made up: its sidebar (the event line as a team's prefix before
+     * an invisible colour-code name, as Hypixel writes its lines) and a diamond generator's floating text beside
+     * you; or, with {@code make} false, all of it taken away.
+     */
+    private static void fakeBedWars(Minecraft mc, boolean make) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return;
+        }
+        var dimension = mc.level.dimension();
+        double x = mc.player.getX() + 2.5, y = mc.player.getY() + 1.0, z = mc.player.getZ() + 2.5;
+        server.execute(() -> {
+            var board = server.getScoreboard();
+            var level = server.getLevel(dimension);
+            if (!make) {
+                var objective = board.getObjective("solbw");
+                if (objective != null) {
+                    board.removeObjective(objective);
+                }
+                var team = board.getPlayerTeam("solbw");
+                if (team != null) {
+                    board.removePlayerTeam(team);
+                }
+                if (stands != null) {
+                    for (var a : stands) {
+                        a.discard();
+                    }
+                    stands = null;
+                }
+                return;
+            }
+            if (level == null) {
+                return;
+            }
+            var objective = board.addObjective("solbw", net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY,
+                    net.minecraft.network.chat.Component.literal("\u00a7e\u00a7lBED WARS"),
+                    net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType.INTEGER, false, null);
+            var team = board.addPlayerTeam("solbw");
+            team.setPlayerPrefix(net.minecraft.network.chat.Component.literal("Diamond II in \u00a7a4:59"));
+            board.addPlayerToTeam("\u00a71", team);
+            board.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly("\u00a71"), objective).set(3);
+            board.setDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR, objective);
+            var kind = new net.minecraft.world.entity.decoration.ArmorStand(level, x, y + 0.3, z);
+            kind.setCustomName(net.minecraft.network.chat.Component.literal("\u00a7b\u00a7lDiamond"));
+            var count = new net.minecraft.world.entity.decoration.ArmorStand(level, x, y, z);
+            count.setCustomName(net.minecraft.network.chat.Component.literal("\u00a7eSpawns in \u00a7c12 \u00a7eseconds"));
+            stands = new net.minecraft.world.entity.decoration.ArmorStand[]{kind, count};
+            for (var a : stands) {
+                a.setCustomNameVisible(true);
+                a.setNoGravity(true);
+                a.setInvisible(true);
+                level.addFreshEntity(a);
+            }
+        });
     }
 
     private static boolean overlaysWereOn;
@@ -191,6 +256,15 @@ public final class ModulesSelfTest {
                     + java.util.Arrays.toString(boxes) + ")");
         }
         plantPyramid(mc, false);
+        List<String> timers = io.github.georgwav.cosmetics.client.modules.Hypixel.timerLines();
+        List<String> wantTimers = List.of(net.minecraft.network.chat.Component.translatable("cosmeticsmod.module.hypixel.timer_diamond", 12)
+                .getString(), "Diamond II in 4:59");
+        if (!timers.equals(wantTimers)) {
+            problems.add("the Bed Wars timers read " + timers + ", not " + wantTimers);
+        }
+        fakeBedWars(mc, false);
+        io.github.georgwav.cosmetics.client.modules.Hypixel.pretendForTest = false;
+        Modules.HYPIXEL.setEnabled(hypixelWasOn);
         ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(structuresWereOn);
         Modules.WORLD_OVERLAYS.setEnabled(overlaysWereOn);
         Modules.FULLBRIGHT.setEnabled(false);
