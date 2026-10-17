@@ -40,7 +40,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "servers"};
+            "hud_sol", "hud_off", "tab", "chat", "servers", "whats_new"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -349,6 +349,9 @@ public final class SolScenario {
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
+            if (phaseTick == SETTLE && s.name().equals("ui_whats_new") && io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew.shown == 0) {
+                problems.add(s.name() + ": the what's new screen didn't draw");
+            }
             if (phaseTick == SETTLE && s.name().equals("ui_servers") && io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.filtered == 0) {
                 problems.add(s.name() + ": the server list didn't show its Survival folder");
             }
@@ -589,6 +592,15 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show("Survival", serversShown);
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen(
                     new net.minecraft.client.gui.screens.TitleScreen()));
+            return;
+        }
+        if (what.equals("whats_new")) {
+            // A release's notes as GitHub gives them, before installing it.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew(null, "0.2.0",
+                    "## Atmosphere\n- **More ambience**: leaf bits under trees, rain splashes, fireflies at night\n"
+                            + "- Underwater view up to 4x the game's\n\n## Servers\n- Pings in milliseconds and players online\n"
+                            + "- Folders: name a server `PvP/Hypixel` to put it in [PvP](https://example.invalid)\n\n"
+                            + "## Social\n- Streamer mode hides your name, skin, the server and private messages\n", true));
             return;
         }
         if (what.equals("mods_browse")) {

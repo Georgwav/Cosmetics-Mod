@@ -153,6 +153,7 @@ public final class SolTitleScreen extends SolScreen {
         if (!updatesChecked) {
             updatesChecked = true;
             io.github.georgwav.cosmetics.sol.client.Updates.daily();
+            io.github.georgwav.cosmetics.sol.client.Updates.afterUpdate();
         }
         Tokens tk = ThemeState.tokens();
         ThemeRegistry.Entry e = ThemeState.entry();

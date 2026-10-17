@@ -98,7 +98,7 @@ final class SettingsSection implements Section {
                     float bw;
                     if (state.equals("available") && rel != null) {
                         bw = u.button(t, r, cy, SolMenu.tr("sol.menu.settings.update_install", rel.version()), true,
-                                io.github.georgwav.cosmetics.sol.client.Updates::install);
+                                io.github.georgwav.cosmetics.sol.client.Updates::showWhatsNew);
                     } else if (state.equals("staged")) {
                         bw = u.pill(t, r, cy, SolMenu.tr("sol.menu.settings.update_restart"), true);
                     } else if (state.equals("checking") || state.equals("downloading")) {

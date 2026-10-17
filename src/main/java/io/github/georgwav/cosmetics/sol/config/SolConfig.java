@@ -67,6 +67,9 @@ public final class SolConfig {
         public boolean check = true;
         /** When updates were last looked for (ms); once a day. */
         public long lastCheck;
+        /** A downloaded update's version and notes, shown once it has taken over (then cleared). */
+        public String notesVersion;
+        public String notes;
     }
 
     private static SolConfig current;
