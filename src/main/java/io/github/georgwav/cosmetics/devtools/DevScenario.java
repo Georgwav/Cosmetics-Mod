@@ -596,6 +596,9 @@ public final class DevScenario {
                 }
             }
             case SETTINGS_UI -> {
+                if (uiTab == 0 && ticks == UI_TAB_TICKS - 30 && uiScreen != null && !uiScreen.testClickTile()) {
+                    failures.add("the Wardrobe's first tile took no click");
+                }
                 if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
                     String name = WardrobeScreen.TEST_PAGES[uiTab];
                     int frames = WardrobeScreen.framesRendered - uiFramesAtTabStart;
@@ -623,6 +626,12 @@ public final class DevScenario {
                     // Every page opens at the top of its list.
                     if (uiScreen != null && !uiScreen.listAtTop()) {
                         failures.add("Wardrobe page '" + name + "' didn't start at the top of its list");
+                    }
+                    if (uiTab == 0 && uiScreen != null) {
+                        // A click on a tile wears it (or takes it off) where it is; a click on its gear opens its page.
+                        List<String> clicks = uiScreen.testCheckTileAndGear();
+                        ui.addProperty("tile_clicks", clicks.isEmpty() ? "ok" : String.join("; ", clicks));
+                        failures.addAll(clicks);
                     }
                     uiTab++;
                     if (uiTab < WardrobeScreen.TEST_PAGES.length) {
