@@ -26,9 +26,14 @@ abstract class PackSearchMixin extends Screen {
         throw new AssertionError();
     }
 
+    // A new (or resized) pack screen starts unsearched: its lists fill in init, before the new, empty box.
+    @Inject(method = "init", at = @At("HEAD"), require = 0)
+    private void cosmeticsmod$fresh(CallbackInfo ci) {
+        PackPreview.clearSearch();
+    }
+
     @Inject(method = "init", at = @At("TAIL"), require = 0)
     private void cosmeticsmod$search(CallbackInfo ci) {
-        PackPreview.clearSearch();
         if (!PackPreview.on()) {
             return;
         }

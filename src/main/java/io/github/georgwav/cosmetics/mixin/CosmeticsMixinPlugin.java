@@ -48,6 +48,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("HudTweaksMixin");
         all.add("BossBarTweaksMixin");
         all.add("PlayerInfoSkinMixin");
+        all.add("DeathStreamerMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
         all.add("SolChatMixin");
@@ -66,6 +67,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ItemDecorationsMixin");
         all.add("DisconnectedScreenMixin");
         all.add("ServerEntryMixin");
+        all.add("ServerEntryCountMixin");
         all.add("ServerFoldersMixin");
         all.add("ServerListSwapMixin");
         all.add("ServerListScreenMixin");

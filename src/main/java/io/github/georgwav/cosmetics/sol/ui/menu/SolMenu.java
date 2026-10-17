@@ -403,7 +403,7 @@ public final class SolMenu extends SolScreen {
 
     private void profile(Gfx g, Tokens tk) {
         SolFont b = g.font(SolFont.Family.SEMIBOLD, 13f), s = g.font(SolFont.Family.MEDIUM, 11f);
-        String name = minecraft.getUser().getName();
+        String name = io.github.georgwav.cosmetics.sol.client.Streamer.shownName(minecraft.getUser().getName());
         String prof = SolProfiles.active();
         float tw = Math.max(g.width(b, name), g.width(s, prof));
         float w = 5f + 32f + 10f + tw + 10f + 10f + 14f, h = 42f;

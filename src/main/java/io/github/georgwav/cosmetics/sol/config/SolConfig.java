@@ -43,9 +43,10 @@ public final class SolConfig {
     public java.util.List<String> solUiOff = new java.util.ArrayList<>();
     /** Resource packs in subfolders of resourcepacks show up too. */
     public boolean packFolders = true;
-    /** The launcher skin (its texture key) and the Mojang cape id (or "none") Sol last put on this account. */
+    /** The launcher skin (its texture key) and the Mojang cape id (or "none") Sol last put on an account, and its UUID. */
     public String wornSkin;
     public String wornCape;
+    public String wornAccount;
 
     public static final class Music {
         public String ciderHost = "127.0.0.1";

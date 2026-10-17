@@ -51,11 +51,14 @@ public final class WorldOverlays extends Module {
     private int count;
     private Boolean chunksBefore;
     private long seed = Long.MIN_VALUE;
-    /** Asked the server for its seed (as an operator) in this world; waiting for the answer. */
+    /** Asked this server for its seed (as an operator); waiting for the answer (until a tick count). */
     private boolean seedAsked;
     private volatile boolean seedAwaited;
-    /** The server's answer to /seed in this world, or Long.MIN_VALUE. */
+    private long seedWaitUntil;
+    /** The server's answer to /seed on this connection, or Long.MIN_VALUE: one server, one seed, every dimension. */
     private long serverSeed = Long.MIN_VALUE;
+    /** The connection the server seed belongs to. */
+    private Object seedConnection;
 
     public WorldOverlays() {
         super("world_overlays", Category.WORLD, "grid");
@@ -142,14 +145,22 @@ public final class WorldOverlays extends Module {
             count = 0;
             beaconCount = 0;
             seed = Long.MIN_VALUE;
-            seedAsked = false;
-            seedAwaited = false;
-            serverSeed = Long.MIN_VALUE;
             structureBoxes = NONE;
             structureSearch = false;
         }
+        if (mc.getConnection() != seedConnection) {
+            // Another server (or none): its seed is asked for again, once.
+            seedConnection = mc.getConnection();
+            seedAsked = false;
+            seedAwaited = false;
+            serverSeed = Long.MIN_VALUE;
+        }
         if (mc.level == null || mc.player == null) {
             return;
+        }
+        if (seedAwaited && mc.level.getGameTime() > seedWaitUntil) {
+            // No answer in ten seconds: a /seed of your own later isn't taken for ours.
+            seedAwaited = false;
         }
         Throwable failed = structureError;
         if (failed != null) {
@@ -176,6 +187,7 @@ public final class WorldOverlays extends Module {
             } else if (!seedAsked && CameraTweaks.mayFreecam(mc)) {
                 seedAsked = true;
                 seedAwaited = true;
+                seedWaitUntil = mc.level.getGameTime() + 200;
                 mc.player.connection.sendCommand("seed");
             }
         }

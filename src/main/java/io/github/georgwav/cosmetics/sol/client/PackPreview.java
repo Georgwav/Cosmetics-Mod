@@ -54,7 +54,8 @@ public final class PackPreview {
     /** The pack under the mouse in the pack screen's lists, or null. */
     private static PackSelectionModel.Entry under(net.minecraft.client.gui.screens.Screen screen, int mouseX, int mouseY) {
         for (var child : screen.children()) {
-            if (child instanceof net.minecraft.client.gui.screens.packs.TransferableSelectionList list) {
+            // Rows scrolled out of the list still answer for the mouse, so the list's own area comes first.
+            if (child instanceof net.minecraft.client.gui.screens.packs.TransferableSelectionList list && (forShot || list.isMouseOver(mouseX, mouseY))) {
                 for (var entry : list.children()) {
                     if (entry instanceof io.github.georgwav.cosmetics.mixin.PackEntryAccess access
                             && (forShot || entry.isMouseOver(mouseX, mouseY))) {

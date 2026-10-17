@@ -220,7 +220,7 @@ public final class SolTitleScreen extends SolScreen {
         // The player at the top right.
         var mc = net.minecraft.client.Minecraft.getInstance();
         SolFont name = g.font(SolFont.Family.SEMIBOLD, 13f);
-        String user = mc.getUser().getName();
+        String user = io.github.georgwav.cosmetics.sol.client.Streamer.shownName(mc.getUser().getName());
         float nw = g.width(name, user) + 56f, px = g.d.right() - 24f - nw;
         g.round(px, 22f, nw, 40f, 20f, Colors.withAlpha(tk.panel, Math.max(0.6f, tk.glass)));
         g.stroke(px, 22f, nw, 40f, 20f, Math.max(1f, g.d.u), 0x33FFFFFF);

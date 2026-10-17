@@ -61,7 +61,7 @@ public final class HudTweaks {
 
     /** The room a row keeps for the ping (the game's 13 for its bars). */
     public static int pingRoom(int game) {
-        return pingText() ? Math.max(game, Minecraft.getInstance().font.width("999ms") + 3) : game;
+        return pingText() ? Math.max(game, Minecraft.getInstance().font.width("9999ms") + 3) : game;
     }
 
     /** Writes a player's ping where the game draws its bars: right-aligned, coloured from green to red. */

@@ -22,13 +22,44 @@ import java.util.concurrent.CompletableFuture;
  * What a profile wears: its cosmetics (a saved outfit, or a list), its skin (from the launcher's skin library, sent to
  * Mojang) and its cape (one of your Mojang capes, or none). A profile puts them on when it becomes active; what you
  * wear while it's active is recorded in it. The skin and cape are sent only when they differ from what Sol last sent
- * for this account, so switching between profiles with the same skin costs nothing.
+ * for the signed-in account (kept with its UUID), so switching between profiles with the same skin costs nothing.
  */
 public final class ProfileWear {
     /** A profile's cape when it hides your cape. */
     public static final String NO_CAPE = "none";
 
     private ProfileWear() {
+    }
+
+    /** The signed-in account's UUID, as text. */
+    private static String account() {
+        return String.valueOf(Minecraft.getInstance().getUser().getProfileId());
+    }
+
+    /** What Sol last sent for the signed-in account: the skin key, or the cape (null: nothing known for it). */
+    private static String sent(boolean skin) {
+        SolConfig cfg = SolConfig.get();
+        if (!account().equals(cfg.wornAccount)) {
+            return null;
+        }
+        return skin ? cfg.wornSkin : cfg.wornCape;
+    }
+
+    /** Notes what Sol sent for the signed-in account (another account's record is dropped). */
+    private static void sent(String skin, String cape) {
+        SolConfig cfg = SolConfig.get();
+        if (!account().equals(cfg.wornAccount)) {
+            cfg.wornAccount = account();
+            cfg.wornSkin = null;
+            cfg.wornCape = null;
+        }
+        if (skin != null) {
+            cfg.wornSkin = skin;
+        }
+        if (cape != null) {
+            cfg.wornCape = cape;
+        }
+        SolConfig.save();
     }
 
     /** The saved outfit you wear exactly (cosmetics and their settings), or null. */
@@ -69,21 +100,19 @@ public final class ProfileWear {
 
     /** You wear this skin now (sent from the Wardrobe): the active profile records it. */
     public static void skinWorn(String key, boolean slim) {
-        SolConfig.get().wornSkin = key;
-        SolConfig.save();
+        sent(key, null);
         SolProfiles.setSkin(key, slim);
     }
 
     /** You wear this cape now (or none, {@link #NO_CAPE}): the active profile records it. */
     public static void capeWorn(String id) {
-        SolConfig.get().wornCape = id;
-        SolConfig.save();
+        sent(null, id);
         SolProfiles.setCape(id);
     }
 
     /** Sends a profile's skin to your account, unless it's the one Sol last sent (or the profile has none). */
     public static void wearSkin(String key) {
-        if (key == null || key.equals(SolConfig.get().wornSkin)) {
+        if (key == null || key.equals(sent(true))) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -117,8 +146,7 @@ public final class ProfileWear {
                     if (argb != null) {
                         OwnSkin.set(argb, skin.slim());
                     }
-                    SolConfig.get().wornSkin = key;
-                    SolConfig.save();
+                    sent(key, null);
                     Notifications.post(Component.translatable("sol.profiles.skin_worn").getString());
                 } else {
                     Notifications.post(Component.translatable(status == 401 ? "cosmeticsmod.hub.skins.signed_out" : "sol.profiles.skin_failed").getString());
@@ -132,7 +160,7 @@ public final class ProfileWear {
 
     /** Wears a profile's cape on your account (or hides it), unless that's what Sol last did (or the profile has none). */
     public static void wearCape(String id) {
-        if (id == null || id.equals(SolConfig.get().wornCape)) {
+        if (id == null || id.equals(sent(false))) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -140,8 +168,7 @@ public final class ProfileWear {
         CompletableFuture<Integer> call = NO_CAPE.equals(id) ? MojangCapes.hide(token) : MojangCapes.wear(token, id);
         call.whenComplete((status, error) -> mc.execute(() -> {
             if (error == null && status != null && status == 200) {
-                SolConfig.get().wornCape = id;
-                SolConfig.save();
+                sent(null, id);
             } else {
                 Notifications.post(Component.translatable(status != null && status == 401
                         ? "sol.wardrobe.capes.signed_out" : "sol.profiles.cape_failed").getString());

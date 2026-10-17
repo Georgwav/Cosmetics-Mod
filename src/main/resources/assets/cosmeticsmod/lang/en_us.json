@@ -879,6 +879,7 @@
   "cosmeticsmod.module.social.streamer_mode.hint": "Hides your name, your skin, the server's address and private messages",
   "sol.streamer.you": "You",
   "sol.streamer.private": "Private message (hidden while streaming)",
+  "sol.streamer.hidden": "A chat line (hidden while streaming)",
   "key.cosmeticsmod.module.social": "Social on/off",
   "cosmeticsmod.module.glint": "Glint",
   "cosmeticsmod.module.glint.note": "The enchantment shimmer in your colours",

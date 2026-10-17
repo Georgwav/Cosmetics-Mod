@@ -23,10 +23,19 @@ public final class Streamer {
         return Social.streaming();
     }
 
-    /** Your name as the game knows it, or null without a player. */
+    /** Your name as the game knows it (the account's name without a player), or null. */
     private static String ownName() {
         var player = Minecraft.getInstance().player;
-        return player == null ? null : player.getGameProfile() == null ? null : player.getScoreboardName();
+        if (player != null) {
+            return player.getScoreboardName();
+        }
+        var user = Minecraft.getInstance().getUser();
+        return user == null ? null : user.getName();
+    }
+
+    /** Your account name to show in Sol's own screens: "You" while streaming. */
+    public static String shownName(String name) {
+        return on() ? Component.translatable("sol.streamer.you").getString() : name;
     }
 
     /** A chat line as a recording may show it: private messages hidden, your name as "You". */
@@ -34,6 +43,16 @@ public final class Streamer {
         if (!on() || message == null) {
             return message;
         }
+        try {
+            return scrubbed(message);
+        } catch (RuntimeException e) {
+            // A line that couldn't be looked through is hidden rather than shown as it is.
+            io.github.georgwav.cosmetics.sol.util.LogOnce.warn("streamer", "Streamer mode couldn't read a chat line: {}", e.toString());
+            return Component.translatable("sol.streamer.hidden").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+        }
+    }
+
+    private static Component scrubbed(Component message) {
         if (message.getContents() instanceof TranslatableContents t
                 && (t.getKey().equals("commands.message.display.incoming") || t.getKey().equals("commands.message.display.outgoing"))) {
             return Component.translatable("sol.streamer.private").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
@@ -43,9 +62,14 @@ public final class Streamer {
             return message;
         }
         String you = Component.translatable("sol.streamer.you").getString();
+        if (replace(message.getString(), name, you).equals(message.getString())) {
+            return message;
+        }
+        // The line names you: its hover cards, click actions and shift-click text would still give your name (a
+        // sender's card has the name and UUID; clicking it suggests /tell with it), so they go with it.
         MutableComponent out = Component.empty();
         message.visit((style, text) -> {
-            out.append(Component.literal(replace(text, name, you)).setStyle(style));
+            out.append(Component.literal(replace(text, name, you)).setStyle(style.withHoverEvent(null).withClickEvent(null).withInsertion(null)));
             return Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
         return out;
@@ -65,18 +89,29 @@ public final class Streamer {
         return Component.translatable("sol.streamer.you").setStyle(shown.getStyle());
     }
 
-    /** {@code text} with every {@code name} in it (any case) as {@code you}. */
+    /**
+     * {@code text} with every {@code name} in it (any case) as {@code you}: whole names only, not inside a longer word
+     * (a name is letters, digits and underscores, so "Ash" leaves "Crash" alone).
+     */
     static String replace(String text, String name, String you) {
         StringBuilder b = null;
         int from = 0;
         String lower = text.toLowerCase(Locale.ROOT), n = name.toLowerCase(Locale.ROOT);
-        for (int at = lower.indexOf(n); at >= 0; at = lower.indexOf(n, from)) {
+        for (int at = lower.indexOf(n); at >= 0; at = lower.indexOf(n, at + 1)) {
+            int end = at + n.length();
+            if (at < from || at > 0 && nameChar(text.charAt(at - 1)) || end < text.length() && nameChar(text.charAt(end))) {
+                continue;
+            }
             if (b == null) {
                 b = new StringBuilder(text.length());
             }
             b.append(text, from, at).append(you);
-            from = at + n.length();
+            from = end;
         }
         return b == null ? text : b.append(text, from, text.length()).toString();
+    }
+
+    private static boolean nameChar(char c) {
+        return c == '_' || c < 128 && Character.isLetterOrDigit(c);
     }
 }

@@ -55,23 +55,28 @@ abstract class SolChatMixin {
     @Unique
     private SolChat.Added cosmeticsmod$process(Component message) {
         io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD.hit();
-        if (cosmeticsmod$adding || !Guard.on(Feature.CHAT)) {
+        if (cosmeticsmod$adding) {
             return null;
         }
+        // Streamer mode first, on its own: a Sol Chat failure mustn't let your name or a whisper through.
+        Component scrubbed = io.github.georgwav.cosmetics.sol.client.Streamer.scrub(message);
+        SolChat.Added plain = scrubbed != message ? new SolChat.Added(scrubbed, false) : null;
+        if (!Guard.on(Feature.CHAT)) {
+            return plain;
+        }
         try {
-            Component scrubbed = io.github.georgwav.cosmetics.sol.client.Streamer.scrub(message);
             SolChat.Added added = SolChat.process(scrubbed);
-            if (added == null && scrubbed != message) {
-                added = new SolChat.Added(scrubbed, false);
+            if (added == null) {
+                return plain;
             }
-            if (added != null && added.replacesLast() && !allMessages.isEmpty()) {
+            if (added.replacesLast() && !allMessages.isEmpty()) {
                 allMessages.remove(0);
                 refreshTrimmedMessages();
             }
             return added;
         } catch (RuntimeException | LinkageError e) {
             Guard.fail(Feature.CHAT, e);
-            return null;
+            return plain;
         }
     }
 

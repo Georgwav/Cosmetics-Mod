@@ -176,6 +176,10 @@ public final class Updates {
         if (version == null || version.isBlank()) {
             return;
         }
+        if (newer(version, current())) {
+            // The new jar hasn't taken over yet (a locked file at the last close): its notes wait for it.
+            return;
+        }
         String notes = cfg.updates.notes;
         cfg.updates.notesVersion = null;
         cfg.updates.notes = null;
