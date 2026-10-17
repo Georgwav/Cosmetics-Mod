@@ -84,7 +84,6 @@ public final class SkyPass {
         Tokens tk = ThemeState.tokens();
         ThemeSpec theme = ThemeState.entry().base();
         Atmosphere at = Atmosphere.INSTANCE;
-        WorldDraw.pixel = at == null || !"smooth".equals(at.lightStyle.get());
         float t = FrameInfo.time;
         float rain = Ease.clamp01(1f - rainBrightness);
 
@@ -268,9 +267,8 @@ public final class SkyPass {
         SkyDraw.glowAt(0f, 0f, hr, hr, Colors.withAlpha(m.halo(), m.haloAlpha() * alpha * (0.4f + 0.6f * tk.night)));
         WorldDraw.end();
         if (m.ring() && tk.night > 0.5f) {
-            WorldDraw.begin(WorldDraw.SKY_ADD, null);
-            SkyDraw.ring(0f, 0f, 0.3f, Math.max(SkyDraw.pixel() * 1.5f, m.size() * 0.12f), 96,
-                    Colors.withAlpha(0xFFCFE4FF, 0.08f * alpha));
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
+            SkyDraw.softRing(0f, 0f, 0.3f, Colors.withAlpha(0xFFCFE4FF, 0.07f * alpha));
             WorldDraw.end();
         }
         float s = m.size();
@@ -350,9 +348,28 @@ public final class SkyPass {
         sunCore = 0xFF050303;
         sunHalo = ec.corona();
         SkyDraw.billboard(sunX, sunY, sunZ);
+        float t = FrameInfo.time;
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
         SkyDraw.glowAt(0f, 0f, s * 4.5f, s * 4.5f, Colors.withAlpha(ec.corona(), 0.9f * vis));
         SkyDraw.glowAt(0f, 0f, s * 2f, s * 2f, Colors.withAlpha(0xFFFFD0A0, 0.7f * vis));
+        // The diamond ring: a bead of the sun's light at one corner of the black disc, breathing.
+        float bead = 0.75f + 0.25f * (float) Math.sin(t * 0.9f);
+        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 0.9f, s * 0.9f, Colors.withAlpha(0xFFFFF4E0, 0.8f * bead * vis));
+        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 2.6f, s * 0.22f, Colors.withAlpha(0xFFFFE6C8, 0.5f * bead * vis));
+        SkyDraw.glowAt(s * 0.92f, -s * 0.92f, s * 0.22f, s * 2.6f, Colors.withAlpha(0xFFFFE6C8, 0.5f * bead * vis));
+        WorldDraw.end();
+        // The corona's streamers: long soft fans of pearl light turning slowly, as a total eclipse shows them.
+        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ray());
+        for (int i = 0; i < 18; i++) {
+            float a = (float) (i / 18.0 * 6.283) + t * 0.012f + (i % 3) * 0.11f;
+            float len = s * (2.2f + 2.6f * (0.5f + 0.5f * (float) Math.sin(i * 2.7f + t * 0.21f)) + (i % 4 == 0 ? 2.4f : 0f));
+            float w = s * (i % 2 == 0 ? 1.1f : 0.7f);
+            int c = Colors.mix(0xFFFFEEDD, ec.corona(), (i % 3) * 0.3f);
+            SkyDraw.rotRect(0f, 0f, a, s * 0.7f, -w / 2f, s * 0.7f + len, w / 2f, Colors.withAlpha(c, 0.26f * vis));
+        }
+        WorldDraw.end();
+        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
+        SkyDraw.softRing(0f, 0f, s * 1.25f, Colors.withAlpha(0xFFFFD8B0, 0.55f * vis));
         WorldDraw.end();
         WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
         SkyDraw.rect(-s, -s, s, s, Colors.withAlpha(0xFF050303, vis));
@@ -383,7 +400,6 @@ public final class SkyPass {
         }
         float low = 1f - q;
         float px = s * 2f / 16f;
-        float pix = SkyDraw.pixel();
         int halo = sunHalo;
         int core = sunCore;
         boolean plasmaOn = spec.plasma() && (at == null || at.plasma.get());
@@ -447,43 +463,47 @@ public final class SkyPass {
             WorldDraw.end();
         }
 
-        WorldDraw.begin(WorldDraw.SKY_ADD, null);
-        // Sun dogs: the 22° rings and the pixel bars.
+        // Sun dogs: the 22° ring, red inside and blue outside, blended into one soft band; and the dogs' colours,
+        // soft glows from red to blue.
         if (dA > 0f) {
-            float lw = Math.max(pix, px * 0.7f);
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
             for (int o = -1; o <= 1; o++) {
-                SkyDraw.ring(0f, 0f, dogD + o * Math.max(1.5f * pix, px * 0.8f), lw, 96,
-                        Colors.withAlpha(DOG_RINGS[o + 1], 0.13f * dA * vis));
+                SkyDraw.softRing(0f, 0f, dogD + o * 0.006f, Colors.withAlpha(DOG_RINGS[o + 1], 0.08f * dA * vis));
             }
+            WorldDraw.end();
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
             for (int dir = -1; dir <= 1; dir += 2) {
                 float dx = dir * dogD;
                 for (int k = 0; k < 3; k++) {
-                    float bx = dx + dir * (k - 1) * px - px / 2f;
-                    SkyDraw.rect(bx, -px * 1.5f, bx + px, px * 1.5f, Colors.withAlpha(DOG_BARS[k], 0.9f * dA * vis));
+                    SkyDraw.glowAt(dx + dir * (k - 1) * px, 0f, px * 1.6f, px * 3.2f,
+                            Colors.withAlpha(DOG_BARS[k], 0.55f * dA * vis));
                 }
             }
+            WorldDraw.end();
         }
-        // Corona: three squares snapped to the sun's pixels, and two square rings pulsing out.
+        // Corona: three round glows close round the sun, and two soft rings pulsing out.
         if (coronaOn) {
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
             for (float[] sq : CORONA_SQUARES) {
-                float h = Math.round(s * sq[0] / px) * px;
-                SkyDraw.rect(-h, -h, h, h, Colors.withAlpha(halo, sq[1] * vis));
+                float h = s * sq[0] * 1.35f;
+                SkyDraw.glowAt(0f, 0f, h, h, Colors.withAlpha(halo, sq[1] * 1.3f * vis));
             }
-            float lw = Math.max(pix, px * 0.6f);
+            WorldDraw.end();
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
             for (int ring = 0; ring < 2; ring++) {
                 float ph = ((t * 0.4f + ring * 0.5f) % 1f + 1f) % 1f;
-                float h = Math.round(s * (1.15f + ph * 2.4f) / px) * px;
-                SkyDraw.hollowSquare(0f, 0f, h, lw, Colors.withAlpha(core, (1f - ph) * (1f - ph) * 0.24f * vis));
+                SkyDraw.softRing(0f, 0f, s * (1.3f + ph * 2.6f), Colors.withAlpha(core, (1f - ph) * (1f - ph) * 0.3f * vis));
             }
+            WorldDraw.end();
         }
-        // Music: a square ring of the accent spreading from the sun on each beat (a visualizer).
+        // Music: a ring of the accent spreading from the sun on each beat (a visualizer).
         float beatRing = MusicSky.ring();
         if (beatRing >= 0f) {
-            float h = Math.round(s * (1.2f + beatRing * 3.4f) / px) * px;
-            SkyDraw.hollowSquare(0f, 0f, h, Math.max(pix, px * 0.8f),
-                    Colors.withAlpha(ThemeState.tokens().accent, (1f - beatRing) * (1f - beatRing) * 0.5f * vis));
+            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
+            SkyDraw.softRing(0f, 0f, s * (1.3f + beatRing * 3.6f),
+                    Colors.withAlpha(ThemeState.tokens().accent, (1f - beatRing) * (1f - beatRing) * 0.55f * vis));
+            WorldDraw.end();
         }
-        WorldDraw.end();
 
         // The body: 16 rows of the plasma texture, shifted by the heat shimmer near the horizon.
         updatePlasma(plasmaOn, core, halo, t);

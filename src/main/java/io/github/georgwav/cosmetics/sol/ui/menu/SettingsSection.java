@@ -35,7 +35,7 @@ final class SettingsSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
 
-        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "pack_folders",
+        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "cosmetics", "pack_folders",
                 "main_folder", "updates"};
         Row[] rows = {
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.solUi, () -> {
@@ -67,14 +67,6 @@ final class SettingsSection implements Section {
                         menu.mc().options.save();
                         SolConfig.save();
                     });
-                },
-                (gg, u, t, r, cy) -> {
-                    if (at == null) {
-                        return;
-                    }
-                    boolean pixel = !"smooth".equals(at.lightStyle.get());
-                    u.segmented(t, r, cy, new String[]{at.optionName(at.lightStyle, "pixel"), at.optionName(at.lightStyle, "smooth")},
-                            pixel ? 0 : 1, i -> at.lightStyle.set(i == 0 ? "pixel" : "smooth"));
                 },
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.cosmetics_open"), false,
                         () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, "settings"))),

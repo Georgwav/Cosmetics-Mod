@@ -27,11 +27,6 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle glare = add(new Setting.Toggle("glare", false).advanced());
     public final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false).advanced());
     /**
-     * How Sol's light looks: Pixel (the default) draws every glow pixel-sharp with crisp edges and the bloom in
-     * visible steps, the look of a block game; Smooth draws them soft.
-     */
-    public final Setting.Choice lightStyle = add(new Setting.Choice("light_style", "pixel", List.of("pixel", "smooth")));
-    /**
      * How strongly the theme's look is laid on: 100% is the full cinematic look (the theme's light, rims, shafts,
      * bloom, grade and fog); lower tones it down toward the game's own.
      */

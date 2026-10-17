@@ -52,6 +52,7 @@ public final class ParticleField {
 
     public static void clear() {
         count = 0;
+        petalCount = 0;
         builtFor = "";
         placed = false;
     }
@@ -139,12 +140,12 @@ public final class ParticleField {
         }
         WorldDraw.end();
 
-        // 2. Shapes: petals, blossoms, leaves, ash, snow and flakes, smooth-edged, lit by the theme's sun and glowing
-        // through when it's behind them.
+        // 2. Shapes: leaves, ash, snow and flakes, smooth-edged, lit by the theme's sun and glowing through when it's
+        // behind them.
         WorldDraw.begin(WorldDraw.WORLD_ALPHA, ParticleSprites.shapes());
         for (int i = 0; i < count; i++) {
             int k = type[i];
-            if (hidden[i] || glowing(k) || k == RAIN) {
+            if (hidden[i] || glowing(k) || k == RAIN || k == PETAL || k == BLOSSOM) {
                 continue;
             }
             float a = fade(i);
@@ -164,9 +165,7 @@ public final class ParticleField {
             int shape;
             float w, h, rot = angle[i], squash = 1f;
             switch (k) {
-                case PETAL -> { shape = ParticleSprites.PETAL; w = s * 0.62f; h = s; squash = sq; }
                 case ASH -> { shape = ParticleSprites.ASH; w = s; h = s; squash = sq; }
-                case BLOSSOM -> { shape = ParticleSprites.BLOSSOM; w = s; h = s; }
                 case LEAF -> { shape = ParticleSprites.LEAF; w = s * 0.7f; h = s; squash = Math.max(0.2f, sq); }
                 case SNOW -> { shape = ParticleSprites.SNOW; w = s * 0.6f; h = s * 0.6f; rot = 0f; }
                 default -> { shape = ParticleSprites.FLAKE; w = s; h = s; }
@@ -176,7 +175,32 @@ public final class ParticleField {
         }
         WorldDraw.end();
 
-        // 3. Light with a shape: sparkles' four points and the music notes, added.
+        // 3. Petals and blossoms: small 3D shapes tumbling as they fall, lit per vertex, drawn back to front.
+        if (petalCount > 0) {
+            Petals.light(sunUp, sunTint, backColor, light, pxPerBlock);
+            sortPetals();
+            WorldDraw.begin(WorldDraw.WORLD_ALPHA, Petals.texture());
+            for (int n = 0; n < petalCount; n++) {
+                int i = petalOrder[n];
+                float a = hidden[i] ? 0f : fade(i);
+                if (a <= 0.01f) {
+                    continue;
+                }
+                float d = dist(i);
+                float s = Math.min(size[i], 0.03f * FrameInfo.height * d / pxPerBlock);
+                float roll = 0.55f * (float) Math.sin(t * 1.3f + phase[i]);
+                if (type[i] == PETAL) {
+                    Petals.petal(x[i], y[i], z[i], s * 2f, s * 0.72f, angle[i], flip[i], roll, color[i], a);
+                } else {
+                    // A blossom falls face up or down like a little parachute, rocking.
+                    float tip = -1.2f + 0.5f * (float) Math.sin(flip[i]) + 0.4f * (float) Math.sin(t * 0.7f + phase[i]);
+                    Petals.blossom(x[i], y[i], z[i], s * 1.6f, angle[i], tip, roll * 0.6f, color[i], a);
+                }
+            }
+            WorldDraw.end();
+        }
+
+        // 4. Light with a shape: sparkles' four points and the music notes, added.
         WorldDraw.begin(WorldDraw.WORLD_ADD, ParticleSprites.shapes());
         for (int i = 0; i < count; i++) {
             int k = type[i];
@@ -202,7 +226,7 @@ public final class ParticleField {
         }
         WorldDraw.end();
 
-        // 4. Rain: thin streaks along the fall.
+        // 5. Rain: thin streaks along the fall.
         boolean anyRain = false;
         for (int i = 0; i < count && !anyRain; i++) {
             anyRain = type[i] == RAIN;
@@ -223,6 +247,31 @@ public final class ParticleField {
     }
 
     private static float pxPerBlock = 700f;
+
+    /** The petals and blossoms, far to near as of the last frame, and their distances. */
+    private static int[] petalOrder = new int[0];
+    private static float[] petalDist = new float[0];
+    private static int petalCount;
+
+    /** Sorts the petals far to near; they barely move between frames, so this is close to one pass. */
+    private static void sortPetals() {
+        for (int n = 0; n < petalCount; n++) {
+            int i = petalOrder[n];
+            petalDist[n] = x[i] * x[i] + y[i] * y[i] + z[i] * z[i];
+        }
+        for (int n = 1; n < petalCount; n++) {
+            int i = petalOrder[n];
+            float d = petalDist[n];
+            int m = n - 1;
+            while (m >= 0 && petalDist[m] < d) {
+                petalOrder[m + 1] = petalOrder[m];
+                petalDist[m + 1] = petalDist[m];
+                m--;
+            }
+            petalOrder[m + 1] = i;
+            petalDist[m + 1] = d;
+        }
+    }
 
     private static boolean glowing(int k) {
         return k == EMBER || k == DUST || k == FIREFLY || k == SPARKLE || k == NOTE;
@@ -528,6 +577,16 @@ public final class ParticleField {
                 type[i] = kind;
                 hidden[i] = false;
                 ground[i] = -1e9f;
+            }
+        }
+        petalCount = 0;
+        if (petalOrder.length < count) {
+            petalOrder = new int[count];
+            petalDist = new float[count];
+        }
+        for (int i = 0; i < count; i++) {
+            if (type[i] == PETAL || type[i] == BLOSSOM) {
+                petalOrder[petalCount++] = i;
             }
         }
         placed = false;

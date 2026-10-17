@@ -10,26 +10,26 @@
     "rimAlpha": 0.55
   },
   "sky": {
-    "top": "#040405",
-    "middle": "#12070a",
-    "horizon": "#5e130f",
+    "top": "#07040f",
+    "middle": "#1a0814",
+    "horizon": "#6a1612",
     "glow": "#ff4b2b",
     "sunWarmth": 0.3
   },
   "fog": {
-    "color": "#3a0d0b",
+    "color": "#4a1a22",
     "density": 0.5,
-    "near": 4,
-    "far": 84,
-    "scatter": 0.85,
-    "haze": 0.4
+    "near": 14,
+    "far": 150,
+    "scatter": 0.6,
+    "haze": 0.25
   },
   "light": {
-    "tint": "#ff9a7a",
-    "strength": 0.78,
-    "boost": 0.3,
-    "sun": "#ff9a72",
-    "shadow": "#140404"
+    "tint": "#ffc4a4",
+    "strength": 0.38,
+    "boost": 0.85,
+    "sun": "#ffb080",
+    "shadow": "#34507a"
   },
   "show": {
     "phase": "day",
@@ -120,30 +120,31 @@
     },
     "night": {
       "sky": {
-        "top": "#020203",
-        "middle": "#080405",
-        "horizon": "#2a0a08",
+        "top": "#040308",
+        "middle": "#0c0610",
+        "horizon": "#2e0c10",
         "glow": "#7a2014",
         "sunWarmth": 0.1
       },
       "fog": {
-        "color": "#1e0706",
+        "color": "#26101a",
         "density": 0.5
       },
       "light": {
-        "tint": "#ff8060",
-        "strength": 0.14
+        "tint": "#ffa080",
+        "strength": 0.14,
+        "boost": 1.0
       }
     }
   },
   "grade": {
-    "highlights": "#ffb894",
-    "shadows": "#0a0204",
-    "saturation": 1.08,
-    "contrast": 1.12,
-    "bloomTint": "#ff6a3a",
+    "highlights": "#ffe0c8",
+    "shadows": "#0a1220",
+    "saturation": 1.12,
+    "contrast": 1.06,
+    "bloomTint": "#ff7a48",
     "bloom": 1.0,
     "threshold": 0.5,
-    "vignette": 0.2
+    "vignette": 0.16
   }
 }

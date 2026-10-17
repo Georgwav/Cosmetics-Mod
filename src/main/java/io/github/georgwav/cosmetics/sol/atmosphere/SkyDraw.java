@@ -22,6 +22,9 @@ public final class SkyDraw {
     private static SolTexture glow;
     private static SolTexture strip;
     private static SolTexture ray;
+    private static SolTexture ring;
+    /** Where the soft ring's light peaks, as a fraction of its sprite's half-size. */
+    private static final float RING_AT = 0.8f;
 
     // The billboard: centre, right and up in view space (one H long each).
     private static float cx, cy, cz, rx, ry, rz, ux, uy, uz;
@@ -50,6 +53,33 @@ public final class SkyDraw {
             ray = SolTexture.of("ray", 256, 64, true, Sprites.ray(0xFFFFFFFF).toArgb(null));
         }
         return ray;
+    }
+
+    /**
+     * A soft ring: a band of light at {@link #RING_AT} of the sprite's half-size, fading out both ways like a
+     * Gaussian, with no edge anywhere.
+     */
+    public static SolTexture ring() {
+        if (ring == null || ring.released()) {
+            int n = 256;
+            int[] px = new int[n * n];
+            for (int j = 0; j < n; j++) {
+                for (int i = 0; i < n; i++) {
+                    float dx = (i + 0.5f) / n * 2f - 1f, dy = (j + 0.5f) / n * 2f - 1f;
+                    float k = ((float) Math.sqrt(dx * dx + dy * dy) - RING_AT) / 0.06f;
+                    int a = Math.round((float) Math.exp(-k * k) * 255f);
+                    px[j * n + i] = (a << 24) | 0xFFFFFF;
+                }
+            }
+            ring = SolTexture.of("soft_ring", n, n, true, px);
+        }
+        return ring;
+    }
+
+    /** A soft ring of radius r (H units) round (x, y), about a tenth of r wide; draw with {@link #ring()}. */
+    public static void softRing(float x, float y, float r, int argb) {
+        float h = r / RING_AT;
+        rect(x - h, y - h, x + h, y + h, argb);
     }
 
     /** One screen pixel, in H units. */
@@ -147,22 +177,6 @@ public final class SkyDraw {
         rect(x - h - hw, y + h - hw, x + h + hw, y + h + hw, argb);
         rect(x - h - hw, y - h + hw, x - h + hw, y + h - hw, argb);
         rect(x + h - hw, y - h + hw, x + h + hw, y + h - hw, argb);
-    }
-
-    /** A ring of radius r and width w around (x, y), as {@code segments} thin quads. */
-    public static void ring(float x, float y, float r, float w, int segments, int argb) {
-        float r0 = r - w / 2f;
-        float r1 = r + w / 2f;
-        for (int i = 0; i < segments; i++) {
-            float a0 = (float) (i * Math.PI * 2 / segments);
-            float a1 = (float) ((i + 1) * Math.PI * 2 / segments);
-            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0);
-            float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
-            point(x + c0 * r0, y + s0 * r0, 0f, 0f, argb);
-            point(x + c0 * r1, y + s0 * r1, 0f, 1f, argb);
-            point(x + c1 * r1, y + s1 * r1, 1f, 1f, argb);
-            point(x + c1 * r0, y + s1 * r0, 1f, 0f, argb);
-        }
     }
 
     /** A vertex at a world direction (from the camera) at the sky's distance. */

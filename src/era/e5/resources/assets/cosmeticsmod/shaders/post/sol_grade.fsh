@@ -34,10 +34,6 @@ float luma(vec3 c) {
 }
 
 vec3 grade(vec3 c) {
-    // Pixel light: the grade in its own 32 steps, so smooth skies fall into visible bands of colour.
-    if (P(30) > 0.5) {
-        c = floor(c * 31.0 + 0.5) / 31.0;
-    }
     float b = c.b * 31.0;
     float b0 = floor(b);
     float b1 = min(b0 + 1.0, 31.0);
@@ -50,9 +46,7 @@ vec3 grade(vec3 c) {
 
 void main() {
     vec3 c = texture(InSampler, texCoord).rgb;
-    // Pixel light reads the bloom texel by texel, as the game did on 1.21.1 when Sol first ran there.
-    vec2 bs = vec2(textureSize(BloomSampler, 0));
-    vec3 bloom = texture(BloomSampler, P(30) > 0.5 ? (floor(texCoord * bs) + 0.5) / bs : texCoord).rgb;
+    vec3 bloom = texture(BloomSampler, texCoord).rgb;
     c += bloom * P3(44) * P(18);
     c = grade(clamp(c, 0.0, 1.0));
     vec2 d = (texCoord - 0.5) * vec2(P(28), 1.0) / max(1.0, P(28) * 0.75);

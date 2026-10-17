@@ -43,13 +43,13 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
   - Eclipse: the burning ring.
   - Aurora: the curtains' moving green and violet light.
   - Nebula: pink and violet light from above.
-  - Deep Field: cold silver.
+  - Deep Field: the galaxy's silver and gold.
   - Silver Night: the moon, with a glitter path on water.
   - Monsoon: each lightning flash.
   - The others: their sun, and the moon at night.
 - **Night themes keep their night** at any time of day. This is visual only: the game's time is not changed.
 - **Atmosphere intensity** (100% by default) tones the look down.
-- **Quality:** Low, Medium, High or Auto. **Light style:** Pixel light (the default) or Smooth.
+- **Quality:** Low, Medium, High or Auto.
 - **Theme packs:** resource packs can add themes; see [docs/ATMOSPHERE_FORMAT.md](docs/ATMOSPHERE_FORMAT.md).
 
 ### The quick menu (Right Shift)

@@ -17,7 +17,7 @@ import io.github.georgwav.cosmetics.sol.util.Ease;
  *   <li>Eclipse: the burning ring, red-orange, with hot rims.</li>
  *   <li>Aurora: the ribbons, their light moving over the ground and turning from green to violet.</li>
  *   <li>Nebula: pink and violet light from high above.</li>
- *   <li>Deep Field: the galaxy's cold silver light.</li>
+ *   <li>Deep Field: the galaxy's light, its arms' silver and its core's gold sweeping over the ground.</li>
  *   <li>Silver Night: the huge moon.</li>
  *   <li>Monsoon: the overcast's dull light, and each lightning flash lighting the world from the bolt.</li>
  * </ul>
@@ -118,8 +118,10 @@ public final class KeyLight {
             ThemeSpec.Galaxy g = theme.galaxy();
             Extras.directionOf(g.x(), g.y(), theme.show().azimuth(), true, dir);
             set(dir);
-            color = 0xFFE8EEFF;
-            glow = 0xFFF4F6FF;
+            color = 0xFFC8D8FF;
+            color2 = 0xFFFFCF8A;
+            bands = 0.85f;
+            glow = 0xFFF0F2FF;
             strength = 0.85f * tk.night * (1f - rain * 0.6f);
             visible = 0.75f * tk.night;
             shafts = 0.7f;
