@@ -17,19 +17,30 @@ public final class Performance extends Module {
     /** One choice for the game's heaviest video settings (render, simulation and entity distance, biome blend). */
     private final Setting.Choice preset = add(new Setting.Choice("video_preset", "custom",
             java.util.List.of("custom", "low", "balanced", "high")));
+    /** The preset the video settings were last set from (or loaded with): only a new pick changes them. */
     private String applied;
 
     private static final float[] FRAMES = new float[120];
     private static int head;
+    private static long lastNanos;
+    /** The label's value in tenths of a millisecond, and the label made for it. */
+    private static int labelTenths = -1;
+    private static String label = "";
 
     public Performance() {
         super("performance", Category.TOOLS, "bolt");
     }
 
     @Override
-    protected void onEnable(Minecraft mc) {
+    protected void loadState(com.google.gson.JsonObject state) {
         // What's saved stays as the video settings are now: a preset is applied only when it's picked.
         applied = preset.get();
+    }
+
+    @Override
+    protected void onEnable(Minecraft mc) {
+        // A preset picked while the module was off.
+        onSettingsChanged(mc);
     }
 
     @Override
@@ -55,10 +66,14 @@ public final class Performance extends Module {
         o.save();
     }
 
-    /** Each frame: its length, for the graph. */
-    public static void frame(float seconds) {
-        FRAMES[head] = seconds;
-        head = (head + 1) % FRAMES.length;
+    /** Each frame: its length, for the graph (timed here, so a long hitch shows at its real length). */
+    public static void frame() {
+        long now = System.nanoTime();
+        if (lastNanos != 0L) {
+            FRAMES[head] = Math.min(10f, (now - lastNanos) / 1e9f);
+            head = (head + 1) % FRAMES.length;
+        }
+        lastNanos = now;
     }
 
     /** The frame graph, over the HUD: green within 60 FPS, amber within 30, red beyond. */
@@ -78,8 +93,12 @@ public final class Performance extends Module {
             g.fill(x + i, y + gh - bar, x + i + 1, y + gh, colour);
         }
         g.fill(x, y + gh - Math.round(16.7f / 66f * gh), x + gw, y + gh - Math.round(16.7f / 66f * gh) + 1, 0x40FFFFFF);
-        g.text(Minecraft.getInstance().font, String.format(java.util.Locale.ROOT, "%.1f ms max", worst * 1000f), x, y - 11,
-                0xFFFFFFFF, true);
+        int tenths = Math.round(worst * 10000f);
+        if (tenths != labelTenths) {
+            labelTenths = tenths;
+            label = tenths / 10 + "." + tenths % 10 + " ms max";
+        }
+        g.text(Minecraft.getInstance().font, label, x, y - 11, 0xFFFFFFFF, true);
     }
 
     /** The frame rate cap for the game's {@code limit} now. */

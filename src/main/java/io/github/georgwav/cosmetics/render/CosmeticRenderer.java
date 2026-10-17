@@ -63,8 +63,7 @@ public final class CosmeticRenderer {
                               ModelPart root, ModelPart head, ModelPart body, ModelPart[] limbs, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || info.uuid == null || info.invisible
-                || (info.local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
-                || (!info.local && io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(info.uuid))
+                || !showsFor(info.uuid, info.local)
                 || beyond(info.distanceSq, config.maxRenderDistance)) {
             return;
         }
@@ -210,9 +209,19 @@ public final class CosmeticRenderer {
     public static boolean anyToDraw(java.util.UUID player, boolean local) {
         CosmeticsConfig config = CosmeticsConfig.get();
         return config.enabled && !RenderGuard.isLayerDisabled()
-                && (local ? config.showOwnCosmetics : config.showOtherPlayersCosmetics)
-                && (local || !io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(player))
+                && showsFor(player, local)
                 && EquippedCosmetics.forPlayer(player, local).length > 0;
+    }
+
+    /**
+     * Whether this player's cosmetics are shown at all: your own or other players' (Display), and not someone whose
+     * cosmetics you hid (Social). Everything of ours drawn on a player asks this: the layer, held items, the cape on
+     * an elytra, particles, the raised name.
+     */
+    public static boolean showsFor(java.util.UUID player, boolean local) {
+        CosmeticsConfig config = CosmeticsConfig.get();
+        return local ? config.showOwnCosmetics
+                : config.showOtherPlayersCosmetics && !io.github.georgwav.cosmetics.client.modules.Social.hidesCosmetics(player);
     }
 
     /** Draws every layer of one cosmetic at the pose stack's current pose. */
@@ -340,8 +349,7 @@ public final class CosmeticRenderer {
                                      java.util.UUID holder, boolean firstPerson, boolean blocking, Sink sink) {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || RenderGuard.isDisabled(cosmetic.id())
-                || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)
-                || !config.slotVisible(cosmetic.slot())) {
+                || !showsFor(holder, local) || !config.slotVisible(cosmetic.slot())) {
             return false;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
@@ -699,7 +707,7 @@ public final class CosmeticRenderer {
     public static boolean shouldHideVanillaCape(java.util.UUID player, boolean local) {
         CosmeticsConfig config = CosmeticsConfig.get();
         if (!config.enabled || RenderGuard.isLayerDisabled() || player == null
-                || config.priority(CosmeticSlot.CAPE) != SlotPriority.OVERRIDE) {
+                || config.priority(CosmeticSlot.CAPE) != SlotPriority.OVERRIDE || !showsFor(player, local)) {
             return false;
         }
         for (BakedCosmetic cosmetic : EquippedCosmetics.forPlayer(player, local)) {

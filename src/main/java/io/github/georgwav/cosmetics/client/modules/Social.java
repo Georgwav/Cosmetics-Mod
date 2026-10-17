@@ -19,6 +19,7 @@ public final class Social extends Module {
     private static volatile java.util.Set<java.util.UUID> hidden = java.util.Set.of();
     private String hiddenFor = "";
     private int hiddenPlayers = -1;
+    private int hideAge;
     private long joinedAt;
     private String lastPlace;
 
@@ -64,14 +65,18 @@ public final class Social extends Module {
         return s.enabled() && s.streamer.get();
     }
 
-    /** The names to hide, matched against the tab list when either changes. */
+    /**
+     * The names to hide, matched against the tab list when either changes, and once a second anyway (a player can
+     * join as another leaves, the count unchanged).
+     */
     private void hideTick(net.minecraft.client.Minecraft mc) {
         var connection = mc.getConnection();
         String names = hideCosmeticsOf.get();
         int players = connection == null ? 0 : connection.getOnlinePlayers().size();
-        if (names.equals(hiddenFor) && players == hiddenPlayers) {
+        if (names.equals(hiddenFor) && players == hiddenPlayers && ++hideAge < 20) {
             return;
         }
+        hideAge = 0;
         hiddenFor = names;
         hiddenPlayers = players;
         java.util.Set<String> wanted = new java.util.HashSet<>();

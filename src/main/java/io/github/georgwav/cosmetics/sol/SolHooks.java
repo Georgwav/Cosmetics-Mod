@@ -63,7 +63,7 @@ public final class SolHooks {
             ThemeState.update(FrameInfo.inWorld ? FrameInfo.timeOfDay : Float.NaN);
             QualityGovernor.frame(FrameInfo.frameSeconds);
             SolTiming.frame(FrameInfo.frameSeconds);
-            io.github.georgwav.cosmetics.client.modules.Performance.frame(FrameInfo.frameSeconds);
+            io.github.georgwav.cosmetics.client.modules.Performance.frame();
             io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
                     io.github.georgwav.cosmetics.sol.render.LightPass.nanos);
         } catch (RuntimeException | LinkageError e) {

@@ -60,7 +60,7 @@ public final class NameTags {
         CosmeticsConfig config = CosmeticsConfig.get();
         boolean local = player == Minecraft.getInstance().player;
         if (!config.enabled || player.isInvisible()
-                || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)) {
+                || !CosmeticRenderer.showsFor(player.getUUID(), local)) {
             return 0f;
         }
         boolean helmet = !player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();

@@ -77,7 +77,7 @@ public final class AuraParticles {
 
     private static void emit(Minecraft client, ClientLevel level, AbstractClientPlayer player, CosmeticsConfig config) {
         boolean local = player == client.player;
-        if (player.isInvisible() || (local ? !config.showOwnCosmetics : !config.showOtherPlayersCosmetics)) {
+        if (player.isInvisible() || !io.github.georgwav.cosmetics.render.CosmeticRenderer.showsFor(player.getUUID(), local)) {
             return;
         }
         if (local && !config.ownParticlesInFirstPerson && client.options.getCameraType().isFirstPerson()) {
