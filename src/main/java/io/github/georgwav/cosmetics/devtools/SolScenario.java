@@ -1145,7 +1145,8 @@ public final class SolScenario {
             switch (id) {
                 // The lab's cameras (its azimuths are from north through east, the game's from south through west).
                 case "aurora" -> shots.add(new Shot(name, id, 0f, false, 222f, -30f, 18000L));
-                case "nebula" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
+                // Sakura's nebulae, looking up toward them.
+                case "sakura_dusk" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
                 case "grace" -> shots.add(new Shot(name, id, 0f, false, 342f, -22f, 18000L));
                 case "deep_field" -> shots.add(new Shot(name, id, 0f, false, 45f, -18f, 4 * 24000L + 15000L));
                 case "silver_night" -> shots.add(new Shot(name, id, 0f, false, 20f, -10f, 18000L));

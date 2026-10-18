@@ -182,7 +182,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 |---|---|---|
 | `galaxy` | `{x, y, r, tilt}` | Deep Field's two-arm galaxy. |
 | `aurora` | `["#colour", …]` | Three folding curtains of rays across the sky the theme faces: the first colour at their bright lower edge, rising into the second (or a pink of the first) and a pink-red top. |
-| `nebula` | `[{x, y, r, color}]` or `[[x, y, r, "#colour"]]` | One cloud of glowing gas painted across a third of the sky: each entry is a region of it in its colour, with billows, filaments, dust lanes, a hot core and young stars twinkling inside. |
+| `nebula` | `[{x, y, r, color, big, tint, strength}]` or `[[x, y, r, "#colour"]]` | Huge painted nebulae among the stars at night (gone by day): glowing gas with billows, filaments, dust lanes, a hot core and young stars. Each entry is one of the three painted nebulae: `big` picks which (0 magenta and violet, 1 coral and pink, 2 blue; without it, the one in its place in the list), `tint` (0 to 1) how far its colours lean toward `color`, `strength` (0 to 2) how bright. `x`, `y` and `r` place it on the menu's little sky. |
 | `eclipse` | `{x, y, size, corona}` | The black square sun with its burning ring. |
 | `sigil` | `{x, y, r, color, halo}` | Grace's rune, with bloom, crackle, pillar and lit cloud. |
 | `mist` | `{color, warm, bands, alpha}` | Mist bands drifting over the horizon. |
@@ -231,7 +231,6 @@ A list of streams. Each is an object, or the prototype's `["type", count, ["#col
   - `sigil`: the rune;
   - `eclipse`: the burning ring;
   - `aurora`: the curtains, two colours sweeping over the ground;
-  - `nebula`: pink and violet from above;
   - `galaxy`: cold silver;
   - a night `moon`: moonlight.
 - **`lightning`:** each flash lights the world from the bolt.

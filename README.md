@@ -33,8 +33,10 @@ The only required dependency is Fabric API.
 ### Atmosphere
 
 Atmosphere replaces the sky with a theme, chosen in the menu's World section, the quick menu's presets or Ctrl+K.
-- **Themes:** Empty (the vanilla sky), Sakura Dusk, Frost Morning, Ember Solstice, Aurora, Nebula, Firefly Meadow,
-  Monsoon, Maple Afternoon, Eclipse, Deep Field, Silver Night and Grace.
+- **Themes:** Empty (the vanilla sky), Sakura Dusk, Frost Morning, Ember Solstice, Aurora, Firefly Meadow, Monsoon,
+  Maple Afternoon, Eclipse, Deep Field, Silver Night and Grace.
+- **Nebulae at night:** Sakura Dusk, Frost Morning, Silver Night and Maple Afternoon show huge painted nebulae among
+  the stars at night, each in the theme's own colours.
 - **Each theme's light:** it lights the world the way Ember's low sun lights the sand. Its colour falls on the
   faces turned toward it and the theme's shadow colour on the faces turned away. It adds rims, bloom, light shafts,
   scattering in the fog, lit particles and the theme's colour grade.
@@ -42,7 +44,6 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
   - Grace: the rune.
   - Eclipse: the burning ring.
   - Aurora: the curtains' moving green and violet light.
-  - Nebula: pink and violet light from above.
   - Deep Field: cold silver.
   - Silver Night: the moon, with a glitter path on water.
   - Monsoon: each lightning flash.

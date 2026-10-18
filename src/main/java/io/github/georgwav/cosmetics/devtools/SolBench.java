@@ -68,11 +68,11 @@ final class SolBench {
     }
 
     /**
-     * The night: the Nebula theme at midnight, facing south and looking up into its nebulae with every layer on
+     * The night: Sakura Dusk at midnight, facing south and looking up into its nebulae with every layer on
      * (stars, the Milky Way, constellations, planets, wild worlds, the moon, meteors, the comet, ships).
      */
     static void night(Minecraft mc) {
-        ThemeState.setTheme("nebula", false);
+        ThemeState.setTheme("sakura_dusk", false);
         Atmosphere at = Atmosphere.INSTANCE;
         if (at != null) {
             at.time.set(18000.0);

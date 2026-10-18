@@ -19,7 +19,7 @@ BLOOM = [("sky top", "#5d1b0f"), ("sky middle", "#672012"), ("above the glow", "
 POINTS = [(0.1, 0.04), (0.1, 0.22), (0.1, 0.42), (0.08, 0.53), (0.38, 0.5), (0.95, 0.6), (0.2, 0.66), (0.3, 0.95),
           (0.85, 0.76)]
 THEMES = [("sakura_dusk", "sakura"), ("frost_morning", "frost"), ("ember_solstice", "ember"), ("aurora", "aurora"),
-          ("nebula", "nebula"), ("firefly_meadow", "firefly"), ("monsoon", "monsoon"), ("maple_afternoon", "maple"),
+          ("firefly_meadow", "firefly"), ("monsoon", "monsoon"), ("maple_afternoon", "maple"),
           ("eclipse", "eclipse"), ("deep_field", "mono"), ("silver_night", "silver"), ("grace", "grace")]
 
 

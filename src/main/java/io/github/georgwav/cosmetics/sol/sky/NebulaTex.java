@@ -6,7 +6,7 @@ import static io.github.georgwav.cosmetics.sol.sky.LabNoise.fbm;
 import static io.github.georgwav.cosmetics.sol.sky.LabNoise.sstep;
 
 /**
- * One of the Nebula theme's three huge painted nebulae (the Night Sky lab's {@code nebulaTex}): domain-warped noise
+ * One of the three huge painted nebulae some themes show at night (the Night Sky lab's {@code nebulaTex}): domain-warped noise
  * in four colours, folded into billows and filaments, a hot pale core where it's thickest, young stars inside, and
  * a second picture of the dark dust lanes that cross it, drawn over the stars behind. Pure Java: bakes on Sol's CPU
  * thread and in tests.
