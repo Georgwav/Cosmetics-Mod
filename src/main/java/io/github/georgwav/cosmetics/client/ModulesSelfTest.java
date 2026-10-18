@@ -46,6 +46,13 @@ public final class ModulesSelfTest {
         hitboxLines = io.github.georgwav.cosmetics.render.HitboxLines.drawn;
         hitboxAsks = io.github.georgwav.cosmetics.client.modules.Hitboxes.asked;
         command(mc, "execute as @s at @s run summon pig ^ ^ ^3 {Tags:[\"sol_hitbox\"],NoAI:1b}");
+        // Crystal PvP's optimizer, on a crystal floating out of the way (cleared with /kill, which doesn't blow it up).
+        crystalWasOn = Modules.CRYSTAL_PVP.enabled();
+        ModulesSelfTest.<Boolean>setting(Modules.CRYSTAL_PVP, "optimizer").set(true);
+        Modules.CRYSTAL_PVP.setEnabled(true);
+        command(mc, "execute as @s at @s run summon end_crystal ^1 ^1 ^5 {Tags:[\"sol_crystal\"],ShowBottom:0b}");
+        crystalSize = io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SIZE.count();
+        crystalSpin = io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SPIN.count();
         // Sol UI leaving out a boss bar, a scoreboard and a title the server shows.
         setting(Modules.SOL_UI, "boss_bars").set(false);
         setting(Modules.SOL_UI, "scoreboard").set(false);
@@ -62,6 +69,8 @@ public final class ModulesSelfTest {
     private static int[] hidden;
 
     private static boolean hitboxesWereOn;
+    private static boolean crystalWasOn;
+    private static int crystalSize, crystalSpin;
     private static int hitboxLines;
     private static int hitboxAsks;
 
@@ -135,6 +144,28 @@ public final class ModulesSelfTest {
             problems.add("no world to check the modules in");
             return problems;
         }
+        // Hitting the crystal (the game's attack event, as a click would fire it) takes it down on your side at once.
+        var crystals = mc.level.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class,
+                mc.player.getBoundingBox().inflate(12.0));
+        if (crystals.isEmpty()) {
+            problems.add("the test crystal for Crystal PvP didn't appear");
+        } else {
+            var crystal = crystals.get(0);
+            net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker().interact(mc.player, mc.level,
+                    net.minecraft.world.InteractionHand.MAIN_HAND, crystal, null);
+            if (!crystal.isRemoved()) {
+                problems.add("the crystal optimizer didn't take a hit crystal down at once");
+            }
+        }
+        // Its look rides on the crystal renderer's hooks, which must have run while it was in view.
+        if (io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SIZE.count() == crystalSize) {
+            problems.add("Crystal PvP's crystal size hook never ran");
+        }
+        if (io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SPIN.count() == crystalSpin) {
+            problems.add("Crystal PvP's crystal spin hook never ran");
+        }
+        command(mc, "kill @e[type=end_crystal,tag=sol_crystal]");
+        Modules.CRYSTAL_PVP.setEnabled(crystalWasOn);
         if (mc.level.getRainLevel(1f) < 0.99f || mc.level.getThunderLevel(1f) < 0.99f) {
             problems.add("the weather changer's thunder doesn't show (rain " + mc.level.getRainLevel(1f) + ")");
         }

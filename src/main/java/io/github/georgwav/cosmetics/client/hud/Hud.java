@@ -144,6 +144,7 @@ public final class Hud {
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
         long t0 = io.github.georgwav.cosmetics.sol.render.SolTiming.start();
+        io.github.georgwav.cosmetics.client.modules.CrystalPvp.drawHud(g, mc, w, h);
         for (HudModule hud : Modules.hud()) {
             if (hud.enabled()) {
                 hud.render(g, mc, w, h);

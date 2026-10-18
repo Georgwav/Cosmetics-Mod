@@ -51,6 +51,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("DeathStreamerMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
+        all.add("EndCrystalLookMixin");
         all.add("SolChatMixin");
         all.add("ChatSendMixin");
         all.add("ChatEmojiMixin");

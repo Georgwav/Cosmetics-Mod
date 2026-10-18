@@ -12,9 +12,11 @@ import io.github.georgwav.cosmetics.client.hud.HudModule;
 import io.github.georgwav.cosmetics.client.hud.Keystrokes;
 import io.github.georgwav.cosmetics.client.hud.PotionEffectsHud;
 import io.github.georgwav.cosmetics.client.hud.StatsHud;
+import io.github.georgwav.cosmetics.client.hud.TargetHud;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
+import io.github.georgwav.cosmetics.client.modules.CrystalPvp;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
 import io.github.georgwav.cosmetics.client.modules.Movement;
 import io.github.georgwav.cosmetics.client.modules.SolChat;
@@ -64,6 +66,7 @@ public final class Modules {
     public static final CoordinatesHud COORDINATES = new CoordinatesHud();
     public static final ArmourItemsHud ARMOUR_ITEMS = new ArmourItemsHud();
     public static final PotionEffectsHud POTION_EFFECTS = new PotionEffectsHud();
+    public static final TargetHud TARGET = new TargetHud();
     public static final SolChat SOL_CHAT = new SolChat();
     public static final CameraTweaks CAMERA = new CameraTweaks();
     public static final PvpTweaks PVP_TWEAKS = new PvpTweaks();
@@ -77,6 +80,7 @@ public final class Modules {
     public static final ParticleTweaks PARTICLES = new ParticleTweaks();
     public static final Screenshots SCREENSHOTS = new Screenshots();
     public static final PvpEffects PVP_EFFECTS = new PvpEffects();
+    public static final CrystalPvp CRYSTAL_PVP = new CrystalPvp();
     public static final WorldOverlays WORLD_OVERLAYS = new WorldOverlays();
     public static final InventoryTweaks INVENTORY = new InventoryTweaks();
     public static final Servers SERVERS = new Servers();
@@ -86,11 +90,11 @@ public final class Modules {
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, HITBOXES, HELD_ITEMS,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, MUSIC);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC);
 
     private static boolean loading;
     private static boolean started;

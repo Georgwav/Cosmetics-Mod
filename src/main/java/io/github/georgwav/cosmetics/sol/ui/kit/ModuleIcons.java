@@ -12,6 +12,8 @@ public final class ModuleIcons {
     public static final Map<String, String> MODULES = Map.ofEntries(
             Map.entry("pvp_tweaks", "sword"),
             Map.entry("pvp_effects", "burst"),
+            Map.entry("crystal_pvp", "spark"),
+            Map.entry("target_hud", "lookat"),
             Map.entry("hitboxes", "hitbox"),
             Map.entry("held_items", "hand"),
             Map.entry("crosshair", "cross"),
