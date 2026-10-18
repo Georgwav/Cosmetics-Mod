@@ -317,7 +317,7 @@ writes into your private `cosmetics-personal` repository, into the mod jar.
 built jar (see the [importer's README](tools/badlion-import/README.md#bundle-your-packs-inside-the-mods-jar)):
 
 ```
-badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\badlion-packs
+badlion-import bundle solclient-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\badlion-packs
 ```
 
 **Building it yourself** (needs Java 21, and 25 for 26.x):
@@ -328,7 +328,7 @@ badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\ba
 
 - The pack's `assets/` folder is copied into the jar, where the mod finds `assets/<ns>/cosmetics/*.json` like its
   own cosmetics. The path is relative to this repository's root, or absolute.
-- The jars are named `cosmeticsmod-<v>+mc<minecraft>-personal.jar`.
+- The jars are named `solclient-<v>+mc<minecraft>-personal.jar`.
 - A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
 - Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
   checks this mechanism with a tiny made-up pack.
