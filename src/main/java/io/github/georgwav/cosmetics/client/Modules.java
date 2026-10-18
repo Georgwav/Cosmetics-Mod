@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.client.hud.StatsHud;
 import io.github.georgwav.cosmetics.client.hud.TargetHud;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.modules.BlockOutline;
+import io.github.georgwav.cosmetics.client.modules.PunchyModule;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.CrystalPvp;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
@@ -71,6 +72,7 @@ public final class Modules {
     public static final CameraTweaks CAMERA = new CameraTweaks();
     public static final PvpTweaks PVP_TWEAKS = new PvpTweaks();
     public static final HeldItems HELD_ITEMS = new HeldItems();
+    public static final PunchyModule PUNCHY = new PunchyModule();
     public static final ScreenTweaks SCREEN = new ScreenTweaks();
     public static final Hitboxes HITBOXES = new Hitboxes();
     public static final Nametags NAMETAGS = new Nametags();
@@ -90,7 +92,7 @@ public final class Modules {
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
             COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
@@ -137,6 +139,7 @@ public final class Modules {
             // Modules left on last time are switched on once the game is up.
             started = true;
             for (Module m : ALL) {
+                m.startup(mc);
                 if (m.enabled()) {
                     m.onEnable(mc);
                 }

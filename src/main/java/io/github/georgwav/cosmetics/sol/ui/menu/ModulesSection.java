@@ -34,7 +34,7 @@ final class ModulesSection implements Section {
     static String category(Module m) {
         String id = m.id;
         return switch (id) {
-            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "crosshair", "nametags" -> "pvp";
+            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "punchy", "crosshair", "nametags" -> "pvp";
             case "camera", "glint", "screen", "particles", "fullbright", "outline" -> "visual";
             case "atmosphere", "world_overlays", "time", "weather" -> "world";
             case "sol_chat", "music", "social", "servers" -> "social";

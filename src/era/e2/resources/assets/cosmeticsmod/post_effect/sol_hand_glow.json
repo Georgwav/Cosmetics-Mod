@@ -1,0 +1,234 @@
+{
+  "targets": {
+    "swap": {},
+    "hmask": {
+      "width": 480,
+      "height": 270
+    },
+    "hu0": {
+      "width": 480,
+      "height": 270
+    },
+    "hg1": {
+      "width": 240,
+      "height": 135
+    },
+    "hu1": {
+      "width": 240,
+      "height": 135
+    },
+    "hg2": {
+      "width": 120,
+      "height": 68
+    },
+    "hu2": {
+      "width": 120,
+      "height": 68
+    },
+    "hg3": {
+      "width": 60,
+      "height": 34
+    },
+    "hu3": {
+      "width": 60,
+      "height": 34
+    },
+    "hg4": {
+      "width": 30,
+      "height": 17
+    }
+  },
+  "passes": [
+    {
+      "program": "cosmeticsmod:post/sol_hand_mask",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hmask"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "hmask",
+          "bilinear": true
+        }
+      ],
+      "output": "hg1"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "hg1",
+          "bilinear": true
+        }
+      ],
+      "output": "hg2"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "hg2",
+          "bilinear": true
+        }
+      ],
+      "output": "hg3"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_down",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "hg3",
+          "bilinear": true
+        }
+      ],
+      "output": "hg4"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "hg4",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "hg3"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hu3"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "hu3",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "hg2"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hu2"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "hu2",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "hg1"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hu1"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_glow_up",
+      "inputs": [
+        {
+          "sampler_name": "Up",
+          "target": "hu1",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Cur",
+          "target": "hmask"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hu0"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_hand_glow",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Glow",
+          "target": "hu0",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "swap"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "output": "minecraft:main"
+    }
+  ]
+}

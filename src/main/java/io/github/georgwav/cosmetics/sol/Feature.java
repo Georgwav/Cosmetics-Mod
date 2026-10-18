@@ -11,6 +11,7 @@ public enum Feature {
     CLOUDS("clouds"),
     LIGHT_PASS("light_pass"),
     MOTION_BLUR("motion_blur"),
+    HAND_GLOW("hand_glow"),
     SOL_UI("sol_ui"),
     HUD("hud"),
     CHAT("chat"),

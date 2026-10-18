@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "servers", "whats_new", "packs"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hands", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -255,8 +255,8 @@ public final class SolScenario {
                 if (!only.get(0).isBlank() && !only.contains(ui)) {
                     continue;
                 }
-                // The HUD in play: Ember Solstice by day, facing west.
-                shots.add(inPlay(ui)
+                // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night).
+                shots.add(inPlay(ui) && !ui.equals("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
@@ -647,6 +647,7 @@ public final class SolScenario {
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
         serversForShot(what.equals("servers"));
+        handsForShot(what);
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -964,6 +965,9 @@ public final class SolScenario {
         if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
             problems.add(name + ": Glint didn't recolour any glint texture");
         }
+        if (name.equals("ui_hands") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run");
+        }
         if (name.equals("ui_hud_off")) {
             for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
                 if (drawn[p.ordinal()] > 0) {
@@ -1006,7 +1010,31 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory");
+        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
+                || what.startsWith("hands");
+    }
+
+    /** Whether the Punchy module was on before the hands shot (null while it isn't on). */
+    private static Boolean punchyWas;
+
+    /**
+     * The hands shots, with an enchanted sword in hand: the Punchy module on (Sol's arms, the glow), off (the game's
+     * own hands, to compare), and on again at night.
+     */
+    private static void handsForShot(String what) {
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        boolean on = what.startsWith("hands");
+        if (on && punchyWas == null) {
+            punchyWas = punchy.enabled();
+            asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with diamond_sword[enchantment_glint_override=true]"));
+            io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        if (on) {
+            punchy.setEnabled(!what.equals("hands_plain"));
+        } else if (punchyWas != null) {
+            punchy.setEnabled(punchyWas);
+            punchyWas = null;
+        }
     }
 
     /** The game mode before the HUD shots (null while they aren't on). */

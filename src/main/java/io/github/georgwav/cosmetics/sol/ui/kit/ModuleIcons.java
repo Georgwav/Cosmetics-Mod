@@ -16,6 +16,7 @@ public final class ModuleIcons {
             Map.entry("target_hud", "lookat"),
             Map.entry("hitboxes", "hitbox"),
             Map.entry("held_items", "hand"),
+            Map.entry("punchy", "flame"),
             Map.entry("crosshair", "cross"),
             Map.entry("camera", "eye"),
             Map.entry("movement", "run"),

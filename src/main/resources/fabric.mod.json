@@ -27,6 +27,7 @@
   },
   "suggests": {
     "lithium": "*",
+    "punchy": "*",
     "ferritecore": "*",
     "immediatelyfast": "*",
     "entityculling": "*",

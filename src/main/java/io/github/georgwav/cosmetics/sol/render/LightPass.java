@@ -67,6 +67,8 @@ public final class LightPass {
     private static String lutKey = "";
     private static int preset;
     private static long lastWorldFrame = -1;
+    /** The frame the parameter texture was last filled for. */
+    private static long lastUpdate = -1;
     /** For the benchmark: nanoseconds spent in the passes this frame. */
     public static long nanos;
     /**
@@ -125,8 +127,9 @@ public final class LightPass {
         nanos = System.nanoTime() - t0;
     }
 
-    /** After the hand: bloom, grade, vignette; then motion blur over the finished frame. */
+    /** After the hand: the glow round the hands, then bloom, grade, vignette; then motion blur over the finished frame. */
     public static void grade() {
+        handGlow();
         if (preset != OFF && lastWorldFrame == FrameInfo.frame) {
             long t0 = System.nanoTime();
             Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
@@ -136,6 +139,33 @@ public final class LightPass {
         //? if >=1.21.2 {
         pool.endFrame();
         //?}
+    }
+
+    // ------------------------------------------------------------------ hand glow
+
+    /** For the in-game test: frames the hand glow ran on. */
+    public static int handGlowFrames;
+
+    /**
+     * The Punchy module's glow round the first-person hands and held item: everything drawn after the game cleared
+     * the depth for the hands is the mask, blurred wide and laid round them. Runs whether Atmosphere is on or not; it
+     * stands aside for a shader pack (which draws the hands its own way).
+     */
+    private static void handGlow() {
+        if (!FrameInfo.inWorld || Compat.isShaderPackActive() || !Guard.on(Feature.HAND_GLOW)
+                || io.github.georgwav.cosmetics.client.modules.PunchyModule.glowNow() <= 0f) {
+            return;
+        }
+        long t0 = System.nanoTime();
+        if (Guard.run(Feature.HAND_GLOW, () -> {
+            if (lastUpdate != FrameInfo.frame) {
+                update();
+            }
+            run("sol_hand_glow");
+        })) {
+            handGlowFrames++;
+        }
+        nanos += System.nanoTime() - t0;
     }
 
     // ------------------------------------------------------------------ motion blur
@@ -284,6 +314,7 @@ public final class LightPass {
 
     /** Fills and uploads the parameter texture, and rebuilds the grade when the theme changes it. */
     private static void update() {
+        lastUpdate = FrameInfo.frame;
         ensureTextures();
         Tokens tk = ThemeState.tokens();
         Matrix4f proj = FrameInfo.projection;
@@ -399,6 +430,8 @@ public final class LightPass {
         v[71] = night * in * open;
         rgb(v, 72, io.github.georgwav.cosmetics.sol.atmosphere.NightSky.floorColor);
         v[75] = night * in;
+        // The glow round the hands (the Punchy module).
+        io.github.georgwav.cosmetics.client.modules.PunchyModule.glowParams(v, 76, tk);
         for (int i = 0; i < PARAMS; i++) {
             int bits = Float.floatToRawIntBits(v[i]);
             int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
