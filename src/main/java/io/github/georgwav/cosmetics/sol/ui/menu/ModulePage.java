@@ -40,7 +40,7 @@ import java.util.Map;
  * picker and long choices that open in place, and the advanced settings folded at the end with the key that switches
  * the whole module ("Toggle mod").
  */
-public final class ModulePage {
+public final class ModulePage implements Page {
     /** The page, in design pixels. */
     static final float X = 40f, Y = 40f, W = 1200f, H = 636f;
     private static final float LEFT_W = 360f, GAP = 28f, PAD = 20f;
@@ -74,7 +74,8 @@ public final class ModulePage {
         return module;
     }
 
-    void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk) {
+    @Override
+    public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk) {
         g.glow(X, Y, W, H, 22f, 40f, Colors.withAlpha(tk.glow, 0.18f));
         g.round(X, Y, W, H, 22f, 0xFF0B0C11);
         g.stroke(X, Y, W, H, 22f, Math.max(1f, g.d.u), tk.rim);
@@ -199,7 +200,8 @@ public final class ModulePage {
     }
 
     /** The game's own drawing over the page: a module's live preview (the crosshair, exactly as on screen). */
-    void game(Canvas c) {
+    @Override
+    public void game(Canvas c) {
         if (module.previewHeight() <= 0f || pvX1 <= pvX0) {
             return;
         }
@@ -229,6 +231,11 @@ public final class ModulePage {
             } else {
                 groups.computeIfAbsent(st.group, k -> new ArrayList<>()).add(st);
             }
+        }
+        // A HUD module's size and backing (the same on every one) after its own settings.
+        List<Setting<?>> size = groups.remove("size");
+        if (size != null) {
+            groups.put("size", size);
         }
         boolean shownAny = false;
         for (Map.Entry<String, List<Setting<?>>> e : groups.entrySet()) {
@@ -469,11 +476,13 @@ public final class ModulePage {
         scroll.toEnd();
     }
 
-    boolean scroll(float amount) {
+    @Override
+    public boolean scroll(float amount) {
         return scroll.wheel(amount);
     }
 
-    boolean typed(String text) {
+    @Override
+    public boolean typed(String text) {
         if (search.typed(text)) {
             return true;
         }
@@ -489,7 +498,8 @@ public final class ModulePage {
     }
 
     /** While waiting for a key to bind: that key, or Esc to clear it; otherwise the text fields'. */
-    boolean key(int key, boolean ctrl) {
+    @Override
+    public boolean key(int key, boolean ctrl) {
         if (binding != null) {
             KeyMapping target = binding;
             binding = null;
@@ -508,7 +518,8 @@ public final class ModulePage {
         return false;
     }
 
-    void release() {
+    @Override
+    public void release() {
         if (sky != null) {
             sky.release();
         }

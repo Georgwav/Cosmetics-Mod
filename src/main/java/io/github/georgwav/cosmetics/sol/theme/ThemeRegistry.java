@@ -91,7 +91,21 @@ public final class ThemeRegistry {
             return base.name();
         }
 
-        /** The same theme with every time of day changed by {@code change} (customisation). */
+        /**
+         * The same theme with each time of day changed by {@code change}, which is told which time of day it is (the
+         * base's is its showpiece's).
+         */
+        public Entry mapPhases(java.util.function.BiFunction<Phase, ThemeSpec, ThemeSpec> change) {
+            ThemeSpec newBase = change.apply(Phase.of(base.show().phase()), base);
+            ThemeSpec[] out = new ThemeSpec[phases.length];
+            for (Phase p : Phase.values()) {
+                ThemeSpec ph = phases[p.ordinal()];
+                out[p.ordinal()] = ph == base && Phase.of(base.show().phase()) == p ? newBase : change.apply(p, ph);
+            }
+            return new Entry(id, newBase, out, particleScale, builtIn);
+        }
+
+        /** The same theme with every time of day changed by {@code change} (the album's colours). */
         public Entry map(java.util.function.UnaryOperator<ThemeSpec> change) {
             ThemeSpec[] out = new ThemeSpec[phases.length];
             for (int i = 0; i < phases.length; i++) {

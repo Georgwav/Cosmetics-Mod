@@ -54,7 +54,7 @@ public final class SolMenu extends SolScreen {
     private final Spring sunT;
     private float sunRise;
     private float openT, sectionT;
-    private ModulePage drawer;
+    private Page drawer;
     private float drawerK;
     private CommandBar palette;
     private boolean popover;
@@ -122,6 +122,14 @@ public final class SolMenu extends SolScreen {
                 go("world");
                 ((WorldSection) sections.get("world")).showNight();
             }
+            case "theme" -> {
+                go("world");
+                openTheme(false);
+            }
+            case "theme_night" -> {
+                go("world");
+                openTheme(true);
+            }
             case "settings_about" -> {
                 go("settings");
                 ((SettingsSection) sections.get("settings")).showAbout();
@@ -181,6 +189,14 @@ public final class SolMenu extends SolScreen {
         drawer = new ModulePage(m);
     }
 
+    /** Opens the theme's page over the menu ({@code night}: at its night). */
+    public void openTheme(boolean night) {
+        if (drawer != null) {
+            drawer.release();
+        }
+        drawer = new ThemePage(night);
+    }
+
     public void closeDrawer() {
         if (drawer != null) {
             drawer.release();
@@ -188,8 +204,14 @@ public final class SolMenu extends SolScreen {
         drawer = null;
     }
 
+    /** The module page open over the menu, or null (none, or the theme's page). */
     public ModulePage drawer() {
-        return drawer;
+        return drawer instanceof ModulePage m ? m : null;
+    }
+
+    /** Whether a page (a module's or the theme's) is open over the menu. */
+    public boolean pageOpen() {
+        return drawer != null;
     }
 
     public float time() {

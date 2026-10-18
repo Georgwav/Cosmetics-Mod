@@ -38,7 +38,7 @@ public final class SolScenario {
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -69,6 +69,22 @@ public final class SolScenario {
         Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch) {
             this(name, theme, altitude, morning, yaw, pitch, -1L);
         }
+    }
+
+    /** The theme page's edits for a "custom" shot: none for a theme's own look. */
+    private static io.github.georgwav.cosmetics.sol.theme.Customisation edits(String shot) {
+        var c = io.github.georgwav.cosmetics.sol.theme.Customisation.NONE;
+        if (shot.endsWith("_blue")) {
+            c = c.withColour("sky_top", 0xFF0E2A6E).withColour("sky_middle", 0xFF2456B8).withColour("sky_horizon", 0xFF7DB4FF)
+                    .withColour("sky_glow", 0xFF8FE0FF).withColour("corona", 0xFF5FE6FF).withColour("fog", 0xFF35558F)
+                    .withColour("light", 0xFFA8C8FF).withColour("accent", 0xFF5FB4FF).withColour("night_top", 0xFF050B22)
+                    .withColour("night_middle", 0xFF0A1A44).withColour("night_horizon", 0xFF1F3F7A).withColour("moon", 0xFFCFE6FF)
+                    .withColour("moon_halo", 0xFF6FA8FF).withColour("airglow", 0xFF2F6FB0).withColour("particles", 0xFF7FD0FF).withMoonLook("silver");
+        } else if (shot.endsWith("_more")) {
+            c = c.withSunSize(1.4f).withRays(24).withDensity(2f).withAmount("sun_glow", 1.6f).withAmount("bloom", 2f)
+                    .withAmount("particle_size", 1.6f).withAmount("ray_length", 1.5f);
+        }
+        return c;
     }
 
     /** The reference frames' moment: the sun just above the western horizon. */
@@ -198,6 +214,19 @@ public final class SolScenario {
         }
         if ("timelapse".equals(SHOTS)) {
             timelapse();
+            return;
+        }
+        if ("custom".equals(SHOTS)) {
+            // A theme's own look and the same theme recoloured on the theme page (-Dcosmeticsmod.solShots=custom):
+            // Eclipse as it comes and in blue, by day and at midnight; Ember at sunset with its effects turned up.
+            ThemeRegistry.Entry ec = ThemeRegistry.find("eclipse");
+            float yaw = ec == null ? 90f : ec.base().show().azimuth();
+            shots.add(new Shot("sol_custom_eclipse_own", "eclipse", 30f, false, yaw, -Extras.SHOW_PITCH));
+            shots.add(new Shot("sol_custom_eclipse_blue", "eclipse", 30f, false, yaw, -Extras.SHOW_PITCH));
+            shots.add(new Shot("sol_custom_eclipse_night_own", "eclipse", 0f, false, 0f, -30f, 18000L));
+            shots.add(new Shot("sol_custom_eclipse_night_blue", "eclipse", 0f, false, 0f, -30f, 18000L));
+            shots.add(new Shot("sol_custom_ember_own", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+            shots.add(new Shot("sol_custom_ember_more", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
             return;
         }
         if ("bench".equals(MODE)) {
@@ -509,6 +538,9 @@ public final class SolScenario {
             spyglass(mc, spyglassShot(s.name()));
             motionBlur(s.name().equals("sol_motion_blur"));
             ThemeState.setTheme(s.theme(), false);
+            if ("custom".equals(SHOTS)) {
+                ThemeState.setCustomisation(edits(s.name()));
+            }
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
             boolean lab = s.name().endsWith("sunlab");

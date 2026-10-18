@@ -194,6 +194,38 @@ public final class Colors {
         return (c & 0xFF000000) | (fromHsl(h, Math.min(1f, hsl[1] * saturation), hsl[2]) & 0xFFFFFF);
     }
 
+    /**
+     * {@code x} recoloured the way {@code from} became {@code to}: {@code to}'s hue, and x's saturation and lightness
+     * moved as from's became to's (toward black or grey by the same share when they fall, toward white or full colour
+     * when they rise). {@code recolour(from, from, to)} is {@code to}; x's alpha is kept.
+     */
+    public static int recolour(int x, int from, int to) {
+        return recolour(x, from, to, false);
+    }
+
+    /** As {@link #recolour(int, int, int)}; with {@code spread}, x keeps its hue's distance from from's (a palette stays varied). */
+    public static int recolour(int x, int from, int to, boolean spread) {
+        if ((x & 0xFFFFFF) == (from & 0xFFFFFF)) {
+            return (x & 0xFF000000) | (to & 0xFFFFFF);
+        }
+        float[] hx = toHsl(x), hf = toHsl(from), ht = toHsl(to);
+        // A grey has no hue of its own to keep a distance from: it takes the new one.
+        float h = !spread || hf[1] < 0.04f || hx[1] < 0.04f ? ht[0] : ht[0] + (hx[0] - hf[0]);
+        h = (h % 1f + 1f) % 1f;
+        return (x & 0xFF000000) | (fromHsl(h, move(hx[1], hf[1], ht[1]), move(hx[2], hf[2], ht[2])) & 0xFFFFFF);
+    }
+
+    /** {@code v} moved the way {@code from} moved to {@code to}, within 0..1. */
+    private static float move(float v, float from, float to) {
+        float out;
+        if (to <= from) {
+            out = from <= 1e-4f ? to : v * to / from;
+        } else {
+            out = from >= 1f - 1e-4f ? to : 1f - (1f - v) * (1f - to) / (1f - from);
+        }
+        return Math.max(0f, Math.min(1f, out));
+    }
+
     /** HSV (0..1 each) to an opaque colour. */
     public static int fromHsv(float h, float s, float v) {
         h = (h % 1f + 1f) % 1f;

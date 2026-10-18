@@ -61,6 +61,15 @@ final class CommandBar {
                 }));
             }
         }
+        String theme = Widgets.themeName(io.github.georgwav.cosmetics.sol.theme.ThemeState.baseEntry());
+        it.add(new Item("theme:customise", SolMenu.tr("sol.cmd.customise_theme", theme), SolMenu.tr("sol.cmd.open"), "sun", () -> {
+            menu.go("world");
+            menu.openTheme(false);
+        }));
+        it.add(new Item("theme:night", SolMenu.tr("sol.cmd.customise_night", theme), SolMenu.tr("sol.cmd.open"), "sun", () -> {
+            menu.go("world");
+            menu.openTheme(true);
+        }));
         for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
             it.add(new Item("preset:" + e.id(), SolMenu.tr("sol.cmd.preset", Widgets.themeName(e)), SolMenu.tr("sol.cmd.kind.preset"), "sun",
                     () -> WorldSection.apply(menu, e)));

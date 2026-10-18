@@ -125,6 +125,7 @@ public final class NightSky {
         // holds its moon's phase too.
         String forced = lookOverride;
         look = forced != null ? MoonLooks.find(forced) : MoonLooks.tonight(SPHERE.night, moonPhase, theme.night().moon());
+        look = customised(look, io.github.georgwav.cosmetics.sol.theme.ThemeState.customisation());
         if (theme.show().hold()) {
             SPHERE.update(days, tod, moonPhase, lat, year, look.elongation());
         }
@@ -292,6 +293,28 @@ public final class NightSky {
         screen[0] = (vx / -vz / tanX * 0.5f + 0.5f) * sw;
         screen[1] = (0.5f - vy / -vz / tanY * 0.5f) * sh;
         return true;
+    }
+
+    /**
+     * Tonight's look with the theme page's edits: the moon's colour as its tint, its size and glow, and its light's
+     * colour. Unchanged without edits.
+     */
+    static MoonLook customised(MoonLook lk, io.github.georgwav.cosmetics.sol.theme.Customisation c) {
+        Integer colour = c.colour("moon"), light = c.colour("moonlight");
+        float size = c.amount("moon_size"), glow = c.amount("moon_glow");
+        if (colour == null && light == null && size == 1f && glow == 1f) {
+            return lk;
+        }
+        float[] tint = lk.tint();
+        if (colour != null) {
+            // The picked colour as a tint, its brightest channel a little over one (the map is darker than white).
+            float r = ((colour >> 16) & 0xFF) / 255f, g = ((colour >> 8) & 0xFF) / 255f, b = (colour & 0xFF) / 255f;
+            float m = Math.max(0.05f, Math.max(r, Math.max(g, b)));
+            tint = new float[]{1.02f * r / m, 1.02f * g / m, 1.02f * b / m};
+        }
+        return new MoonLook(lk.id(), lk.name(), lk.chance(), lk.minNightsBetween(), lk.phases(), tint, lk.size() * size, lk.glow() * glow,
+                lk.light(), light != null ? light : lk.lightColor(), lk.body(), lk.earthshine(), lk.milkyWay(), lk.harvest(), lk.halo(),
+                lk.corona(), lk.eclipse(), lk.skyTint(), lk.hidden(), lk.elongation());
     }
 
     // ------------------------------------------------------------------ the catalogue

@@ -96,6 +96,39 @@ class ThemeBlendTest {
     }
 
     @Test
+    void aPartsColourIsExactAtTheShowpieceAndFollowsTheThemeElsewhere() throws IOException {
+        ThemeRegistry.load(ThemeParserTest.bundled(), (id, m) -> fail(m));
+        ThemeRegistry.Entry eclipse = ThemeRegistry.get("eclipse");
+        int blue = 0xFF2A5BFF;
+        Customisation c = Customisation.NONE.withColour("sky_top", blue).withColour("night_top", 0xFF101830)
+                .withColour("corona", 0xFF66CCFF).withAmount("bloom", 1.5f).withAmount("moon_size", 2f).withMoonLook("silver");
+        ThemeRegistry.Entry out = ThemeState.customised(eclipse, c);
+        assertEquals(blue, out.base().sky().top(), "exact at the showpiece");
+        assertEquals(0xFF66CCFF, out.base().eclipse().corona());
+        ThemeSpec night = out.phase(ThemeRegistry.Phase.NIGHT);
+        assertEquals(0xFF101830, night.sky().top(), "the night's own pick at night");
+        ThemeSpec sunset = out.phase(ThemeRegistry.Phase.SUNSET), sunset0 = eclipse.phase(ThemeRegistry.Phase.SUNSET);
+        assertEquals(Colors.toHsl(blue)[0], Colors.toHsl(sunset.sky().top())[0], 0.03f, "the day's hue at sunset too");
+        assertEquals(Colors.toHsl(sunset0.sky().top())[2] < Colors.toHsl(eclipse.base().sky().top())[2],
+                Colors.toHsl(sunset.sky().top())[2] < Colors.toHsl(blue)[2], "as much darker or lighter as the theme's own");
+        assertEquals(eclipse.base().grade().bloom() * 1.5f, out.base().grade().bloom(), 1e-5);
+        assertEquals(eclipse.base().moon().size() * 2f, out.base().moon().size(), 1e-6);
+        assertEquals("silver", out.phase(ThemeRegistry.Phase.NIGHT).night().moon(), "the picked moon look");
+        assertEquals(c, Customisation.fromJson(c.toJson()), "round trip");
+        assertTrue(c.withColour("sky_top", null).withColour("night_top", null).withColour("corona", null)
+                .withAmount("bloom", 1f).withAmount("moon_size", 1f).withMoonLook(null).isNone(), "taken back is no edit at all");
+    }
+
+    @Test
+    void recolourKeepsTheOrderOfLightAndDark() {
+        int from = 0xFF8A3020, to = 0xFF2050C0;
+        assertEquals(to, Colors.recolour(from, from, to));
+        int darker = Colors.recolour(0xFF451810, from, to), lighter = Colors.recolour(0xFFD06048, from, to);
+        assertTrue(Colors.toHsl(darker)[2] < Colors.toHsl(to)[2] && Colors.toHsl(to)[2] < Colors.toHsl(lighter)[2]);
+        assertEquals(0x80000000, Colors.recolour(0x80451810, from, to) & 0xFF000000, "alpha kept");
+    }
+
+    @Test
     void nightLayersAreAllOnUntilATurnsOffAndSaveWithTheTheme() {
         for (String layer : Customisation.LAYERS) {
             assertTrue(Customisation.NONE.layerOn(layer), layer + " on by default");

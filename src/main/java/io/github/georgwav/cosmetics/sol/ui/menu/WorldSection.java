@@ -37,11 +37,7 @@ final class WorldSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.world.count", Widgets.themeName(cur)), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
         float bw = ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.world.customise", Widgets.themeName(cur)), false,
-                () -> {
-                    if (Modules.ATMOSPHERE != null) {
-                        menu.openDrawer(Modules.ATMOSPHERE);
-                    }
-                });
+                () -> menu.openTheme(night));
         bw += 8f + ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr(night ? "sol.menu.world.themes" : "sol.menu.world.night"), night,
                 () -> night = !night);
         if (!night) {

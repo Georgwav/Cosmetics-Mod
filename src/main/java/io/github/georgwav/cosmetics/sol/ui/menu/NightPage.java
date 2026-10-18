@@ -17,7 +17,8 @@ import java.util.List;
 /**
  * World › Night sky: the night sky for every theme on the left (the game's own sky to compare, the constellations,
  * the moon's glow, the square moon, the sky's latitude and year, looking around), and on the right which of its
- * layers the theme in use shows, saved with the theme's edits in the profile.
+ * layers the theme in use shows, saved with the theme's edits in the profile, and the way to its colours, moon and
+ * stars on the theme's page.
  */
 final class NightPage {
     private static final List<String> MODES = List.of("off", "look", "always");
@@ -72,10 +73,12 @@ final class NightPage {
         float rx = x + colW + 32f;
         cy = top + 10f;
         g.textMid(hf, SolMenu.tr("sol.menu.night.theme", Widgets.themeName(ThemeState.baseEntry())), rx, cy, 0xFFFFFFFF);
-        ui.button(tk, rx + colW, cy, SolMenu.tr("sol.menu.night.everywhere"), false, () -> {
+        float ew = ui.button(tk, rx + colW, cy, SolMenu.tr("sol.menu.night.everywhere"), false, () -> {
             SolProfiles.layersEverywhere();
             menu.toast(SolMenu.tr("sol.notify.night_everywhere"));
         });
+        // Its colours, moon and stars: the theme's page at its night.
+        ui.button(tk, rx + colW - ew - 8f, cy, SolMenu.tr("sol.menu.night.customise"), true, () -> menu.openTheme(true));
         cy += 34f;
         for (String id : Customisation.LAYERS) {
             boolean on = c.layerOn(id);
