@@ -8,38 +8,56 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ThemeBlendTest {
+    private static final int N = ThemeRegistry.Phase.values().length;
+
     @Test
     void weightsAddUpToOneEverywhere() {
-        float[] w = new float[4];
-        for (float alt = -90f; alt <= 90f; alt += 0.5f) {
+        float[] w = new float[N];
+        for (float alt = -90f; alt <= 90f; alt += 0.25f) {
             for (boolean morning : new boolean[]{true, false}) {
                 Keyframes.weights(alt, morning, w);
-                assertEquals(1f, w[0] + w[1] + w[2] + w[3], 1e-5, "at " + alt);
+                float sum = 0f;
+                for (float v : w) {
+                    sum += v;
+                }
+                assertEquals(1f, sum, 1e-5, "at " + alt);
             }
         }
     }
 
     @Test
     void phasesAtTheirMoments() {
-        float[] w = new float[4];
-        Keyframes.weights(60f, false, w);
-        assertEquals(1f, w[ThemeRegistry.Phase.DAY.ordinal()], 1e-6);
+        float[] w = new float[N];
+        Keyframes.weights(50f, false, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.NOON.ordinal()], 1e-6);
+        Keyframes.weights(17f, false, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.AFTERNOON.ordinal()], 1e-6);
+        Keyframes.weights(17f, true, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.MORNING.ordinal()], 1e-6);
+        Keyframes.weights(3f, false, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.SUNSET.ordinal()], 1e-6);
+        Keyframes.weights(3f, true, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.SUNRISE.ordinal()], 1e-6);
+        Keyframes.weights(-8f, false, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.BLUEHOUR.ordinal()], 1e-6);
+        Keyframes.weights(-8f, true, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.PREDAWN.ordinal()], 1e-6);
         Keyframes.weights(-40f, false, w);
         assertEquals(1f, w[ThemeRegistry.Phase.NIGHT.ordinal()], 1e-6);
-        Keyframes.weights(3f, false, w);
-        assertEquals(1f, w[ThemeRegistry.Phase.DUSK.ordinal()], 1e-6);
-        Keyframes.weights(3f, true, w);
-        assertEquals(1f, w[ThemeRegistry.Phase.DAWN.ordinal()], 1e-6);
-        // The Sun lab's sunset height is fully dusk.
-        Keyframes.weights(0.18f * 38f, false, w);
-        assertTrue(w[ThemeRegistry.Phase.DUSK.ordinal()] > 0.97f);
+        assertEquals(1f, Keyframes.night(w), 1e-6);
+        // The Sun lab's sunset height is fully sunset.
+        Keyframes.weights(6.7f, false, w);
+        assertEquals(1f, w[ThemeRegistry.Phase.SUNSET.ordinal()], 1e-6);
     }
 
     @Test
-    void altitudeFollowsTheGamesSun() {
+    void altitudeFollowsTheSkySphere() {
+        Keyframes.latitude = 0f;
         assertEquals(90f, Keyframes.altitude(0f), 1e-3);
-        assertEquals(0f, Keyframes.altitude(0.25f), 1e-3);
         assertEquals(-90f, Keyframes.altitude(0.5f), 1e-3);
+        Keyframes.latitude = 34f;
+        assertEquals(56f, Keyframes.altitude(0f), 1e-3, "noon: 90° less the latitude");
+        assertEquals(0f, Keyframes.altitude(0.25f), 1e-3, "sunset where the game has it");
         assertTrue(Keyframes.morning(0.8f));
         assertFalse(Keyframes.morning(0.2f));
         assertEquals(0.5f, Keyframes.quantise(0.5011f), 1e-6);
@@ -49,7 +67,8 @@ class ThemeBlendTest {
     void blendIsTheShowPhaseAtTheShowMoment() throws IOException {
         ThemeRegistry.load(ThemeParserTest.bundled(), (id, m) -> fail(m));
         ThemeRegistry.Entry ember = ThemeRegistry.get("ember_solstice");
-        float[] w = {0f, 0f, 1f, 0f};
+        float[] w = new float[N];
+        w[ThemeRegistry.Phase.SUNSET.ordinal()] = 1f;
         Tokens t = new Tokens();
         Keyframes.blend(ember, w, null, t);
         assertEquals(ember.base().sky().top(), t.skyTop);

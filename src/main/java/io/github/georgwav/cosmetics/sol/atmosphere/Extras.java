@@ -10,7 +10,7 @@ import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
 import io.github.georgwav.cosmetics.sol.util.Sprites;
 
 /**
- * The themes' extras in the sky: the aurora ({@link Aurora}), the nebula ({@link Nebula}), the Deep Field galaxy,
+ * The themes' extras in the sky: the aurora ({@link Aurora}), the nebulae ({@link Nebula}), the Deep Field galaxy,
  * the Grace rune with its lit cloud and mist, and Monsoon's lightning. Each is placed where the theme's showpiece
  * frame has it: the prototype frame is a 70° tall view facing {@code show.azimuth}, tipped up so the horizon sits at
  * 64% of its height.
@@ -100,28 +100,32 @@ public final class Extras {
 
     // ------------------------------------------------------------------ layers
 
-    /** Behind the moon and sun: nebula, galaxy, aurora. */
-    static void renderBehind(ThemeSpec theme, Tokens tk, float t, float rain) {
-        float night = tk.night * (1f - rain);
-        if (night <= 0.01f) {
-            updateLightning(theme, t);
-            return;
-        }
-        float az = theme.show().azimuth();
+    /**
+     * Right after the stars, before the planets and the moon: the nebulae (their dust over the stars), the aurora and
+     * Monsoon's broken cloud.
+     */
+    static void renderNight(ThemeSpec theme, float t, float rain) {
         if (!theme.nebula().isEmpty()) {
-            Nebula.render(theme.nebula(), az, t, night);
-        }
-        if (theme.galaxy() != null) {
-            galaxy(theme.galaxy(), az, t, night);
+            Nebula.render(rain);
         }
         if (theme.aurora() != null && theme.aurora().length > 0) {
-            Aurora.render(theme.aurora(), az, t, night);
+            Aurora.render(theme.aurora(), theme.show().azimuth(), t, rain);
+        }
+        NightClouds.clouds(theme, t, rain);
+    }
+
+    /** Behind the sun: the galaxy. */
+    static void renderBehind(ThemeSpec theme, Tokens tk, float t, float rain) {
+        float night = tk.night * (1f - rain);
+        if (night > 0.01f && theme.galaxy() != null) {
+            galaxy(theme.galaxy(), theme.show().azimuth(), t, night);
         }
         updateLightning(theme, t);
     }
 
-    /** After the horizon band: the Grace rune and Monsoon's bolt (terrain then covers its foot). */
+    /** After the horizon band: the haze, the Grace rune and Monsoon's bolt (terrain then covers its foot). */
     static void renderFront(ThemeSpec theme, Tokens tk, float t, float rain) {
+        NightClouds.haze(theme, rain);
         if (theme.sigil() != null) {
             rune(theme, t, rain);
         }

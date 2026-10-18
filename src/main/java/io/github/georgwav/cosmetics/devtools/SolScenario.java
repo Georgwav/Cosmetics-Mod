@@ -175,6 +175,11 @@ public final class SolScenario {
                 float[] aim = aimAt(id, 0.75, 0.5f);
                 shots.add(new Shot(ZOOM + id, "maple_afternoon", 0f, false, aim[0], aim[1], newMoon + 18000L));
             }
+            themeNights();
+            return;
+        }
+        if ("timelapse".equals(SHOTS)) {
+            timelapse();
             return;
         }
         if ("bench".equals(MODE)) {
@@ -239,10 +244,10 @@ public final class SolScenario {
             }
             switch (phase) {
                 case "night" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -60f, false, yaw, -Extras.SHOW_PITCH));
-                case "dusk" -> shots.add("ember_solstice".equals(e.id())
+                case "sunset", "dusk" -> shots.add("ember_solstice".equals(e.id())
                         ? new Shot("sol_" + e.id() + "_show", e.id(), 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK)
                         : new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), false, 90f, -Extras.SHOW_PITCH));
-                case "dawn" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), true, -90f,
+                case "sunrise", "dawn" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), true, -90f,
                         -Extras.SHOW_PITCH));
                 default -> {
                     float alt = showAltitude(e.id());
@@ -497,10 +502,12 @@ public final class SolScenario {
                 at.glare.set(room);
                 // Monsoon's showpiece is a thunderstorm, its frame taken in a lightning flash; every other frame
                 // has a clear sky.
-                boolean storm = "monsoon".equals(s.theme());
+                boolean storm = "monsoon".equals(s.theme()) && !s.name().startsWith("sol_night_") && !s.name().startsWith("sol_tl_");
                 at.lockWeather.set(true);
                 at.weather.set(storm ? "thunder" : "clear");
-                io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = storm ? 0.32f : Float.NaN;
+                // At night no flash, as the lab's frame: the broken cloud with the stars in its gaps.
+                io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = !"monsoon".equals(s.theme()) ? Float.NaN
+                        : s.name().startsWith("sol_night_") ? 0f : 0.32f;
             }
             lockedTime = s.time() >= 0 ? s.time() : dayTimeFor(s.altitude(), s.morning());
             // The sky's season from the shot's time, not the test world's age, so every run shows the same stars. The
@@ -1024,6 +1031,51 @@ public final class SolScenario {
     }
 
     /** A spyglass into your hand (used while the shot holds the use key), or out of it again. */
+    /**
+     * Every theme's night as the Night Sky lab's theme table has it: the aurora over the north-east, the nebulae
+     * overhead, the rune, Deep Field's Milky Way on a new moon, Silver Night's haze along the horizon, Monsoon's broken
+     * cloud lit by lightning; the rest facing their moon as it climbs in the east at 21:00 on the full moon's night.
+     */
+    private void themeNights() {
+        for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+            if (!e.builtIn() || "empty".equals(e.id())) {
+                continue;
+            }
+            String id = e.id(), name = "sol_night_theme_" + id;
+            switch (id) {
+                // The lab's cameras (its azimuths are from north through east, the game's from south through west).
+                case "aurora" -> shots.add(new Shot(name, id, 0f, false, 222f, -30f, 18000L));
+                case "nebula" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
+                case "grace" -> shots.add(new Shot(name, id, 0f, false, 342f, -22f, 18000L));
+                case "deep_field" -> shots.add(new Shot(name, id, 0f, false, 45f, -18f, 4 * 24000L + 15000L));
+                case "silver_night" -> shots.add(new Shot(name, id, 0f, false, 20f, -10f, 18000L));
+                case "monsoon" -> shots.add(new Shot(name, id, 0f, false, 0f, -35f, 18000L));
+                default -> {
+                    float[] m = new float[3];
+                    io.github.georgwav.cosmetics.sol.atmosphere.NightSky.moonAt(e.base(), 15000 / 24000.0, celestial(15000L), 0, null, m);
+                    float yaw = (float) Math.toDegrees(Math.atan2(-m[0], m[2])), alt = (float) Math.toDegrees(Math.asin(m[1]));
+                    shots.add(new Shot(name, id, 0f, false, yaw, -Math.max(4f, alt - 8f), 15000L));
+                }
+            }
+        }
+    }
+
+    /** Each theme through the day from one place, facing its showpiece: the eight times of day in order. */
+    private void timelapse() {
+        String[] phases = {"predawn", "sunrise", "morning", "noon", "afternoon", "sunset", "bluehour", "night"};
+        long[] times = {sphereTime(-8.5f, true), sphereTime(3f, true), sphereTime(17f, true), 6000L, sphereTime(17f, false),
+                sphereTime(3f, false), sphereTime(-8.5f, false), 18000L};
+        for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+            if (!e.builtIn() || "empty".equals(e.id())) {
+                continue;
+            }
+            for (int i = 0; i < phases.length; i++) {
+                shots.add(new Shot("sol_tl_" + e.id() + "_" + i + phases[i], e.id(), 0f, false, e.base().show().azimuth(),
+                        -Extras.SHOW_PITCH, times[i]));
+            }
+        }
+    }
+
     /** A shot facing the moon in a look, on the full moon's night (day 0) at a day time. */
     private void moonShot(String look, String theme, long dayTime) {
         ThemeRegistry.Entry e = ThemeRegistry.find(theme);

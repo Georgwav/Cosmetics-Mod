@@ -104,6 +104,7 @@ public final class SkyPass {
         dome(tk, sunAz, q, rain);
         Twilight.render(theme, at, rain);
         NightSky.render(theme, at, t, rain);
+        Extras.renderNight(theme, t, rain);
         Planets.render(tk, at, t, rain);
         if (at != null && at.squareMoon.get()) {
             moon(theme, tk, sunAngle, moonPhase, rain);
@@ -165,6 +166,7 @@ public final class SkyPass {
                 if (rain > 0f) {
                     c = Colors.mix(c, grey, rain * 0.6f);
                 }
+                c = night(c, alt);
                 colors[r * (AZ + 1) + i] = c | 0xFF000000;
             }
         }
@@ -198,6 +200,40 @@ public final class SkyPass {
             c = Colors.mix(c, Colors.scale(Colors.mix(tk.fogColor, 0xFF8A9099, 0.5f), 0.85f), rain * 0.6f);
         }
         return c | 0xFF000000;
+    }
+
+    /**
+     * The night's touch on the dome (the lab's sky): a bright moon lifts the sky toward blue, more low down, and a
+     * blue, red or eclipsed moon tints the whole night.
+     */
+    private static int night(int c, float alt) {
+        float dark = NightSky.dark;
+        if (dark <= 0f) {
+            return c;
+        }
+        float r = Colors.r(c), g = Colors.g(c), b = Colors.b(c);
+        float lift = NightSky.moonSky * dark * (1f - Math.max(0f, alt) / 140f);
+        r += 9f * lift;
+        g += 15f * lift;
+        b += 30f * lift;
+        io.github.georgwav.cosmetics.sol.sky.MoonLook lk = NightSky.look;
+        float tr = 1f, tg = 1f, tb = 1f;
+        if (lk.eclipse()) {
+            tr = 1.06f;
+            tg = 0.92f;
+            tb = 0.92f;
+        } else if ("blue".equals(lk.skyTint())) {
+            tr = 0.9f;
+            tb = 1.12f;
+        } else if ("red".equals(lk.skyTint())) {
+            tr = 1.14f;
+            tg = 0.9f;
+            tb = 0.84f;
+        }
+        r *= 1f + (tr - 1f) * dark;
+        g *= 1f + (tg - 1f) * dark;
+        b *= 1f + (tb - 1f) * dark;
+        return Colors.rgb(Math.min(255, Math.round(r)), Math.min(255, Math.round(g)), Math.min(255, Math.round(b)));
     }
 
     // ------------------------------------------------------------------ band

@@ -20,6 +20,7 @@ public final class SkyDraw {
     private static final float UNIT = D * T;
 
     private static SolTexture glow;
+    private static SolTexture softGlow;
     private static SolTexture strip;
     private static SolTexture ray;
     private static SolTexture ring;
@@ -40,6 +41,24 @@ public final class SkyDraw {
             glow = SolTexture.of("glow", 64, 64, true, Sprites.glow(0xFFFFFFFF).toArgb(null));
         }
         return glow;
+    }
+
+    /** The lab's soft glow: full in the middle, 0.45 at 45% of the way out, gone at the edge. */
+    public static SolTexture softGlow() {
+        if (softGlow == null || softGlow.released()) {
+            int n = 64;
+            int[] px = new int[n * n];
+            for (int j = 0; j < n; j++) {
+                for (int i = 0; i < n; i++) {
+                    float dx = (i + 0.5f) / n * 2f - 1f, dy = (j + 0.5f) / n * 2f - 1f;
+                    float d = Math.min(1f, (float) Math.sqrt(dx * dx + dy * dy));
+                    float k = d < 0.45f ? 1f - d / 0.45f * 0.55f : 0.45f * (1f - (d - 0.45f) / 0.55f);
+                    px[j * n + i] = (Math.round(k * 255f) << 24) | 0xFFFFFF;
+                }
+            }
+            softGlow = SolTexture.of("soft_glow", n, n, true, px);
+        }
+        return softGlow;
     }
 
     public static SolTexture strip() {
@@ -147,6 +166,15 @@ public final class SkyDraw {
         ux = b.x;
         uy = b.y;
         uz = b.z;
+    }
+
+    /** Which way world direction (x, y, z) points on the billboard: {@code out} = (right, up), unit length. */
+    public static void along(float x, float y, float z, float[] out) {
+        FrameInfo.view.transformDirection(a.set(x, y, z));
+        float px = a.x * rx + a.y * ry + a.z * rz, py = a.x * ux + a.y * uy + a.z * uz;
+        float m = (float) Math.sqrt(px * px + py * py);
+        out[0] = m > 1e-6f ? px / m : 0f;
+        out[1] = m > 1e-6f ? py / m : 1f;
     }
 
     /** One vertex at billboard point (x, y) in H units, y down as in the prototypes. */

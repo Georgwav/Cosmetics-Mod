@@ -21,8 +21,8 @@ import java.util.function.Consumer;
 /**
  * Every theme from every resource pack: {@code assets/<namespace>/atmospheres/<name>.json}. Read on startup and on
  * every resource reload (F3+T). The mod's own themes come first in their built-in order, then pack themes A–Z.
- * A theme file's {@code keyframes} hold its dawn, day, dusk and night versions, each merged over the file itself; the
- * file's own values are the version its {@code show.phase} names.
+ * A theme file's {@code keyframes} hold its versions for the eight times of day ({@link Phase}), each merged over the
+ * file itself; the file's own values are the version its {@code show.phase} names.
  */
 public final class ThemeRegistry {
     public static final String DIRECTORY = "atmospheres";
@@ -33,21 +33,55 @@ public final class ThemeRegistry {
             "ember", "ember_solstice", "firefly", "firefly_meadow", "maple", "maple_afternoon", "mono", "deep_field",
             "silver", "silver_night");
 
-    /** The four times of day a theme can describe. */
+    /**
+     * The eight times of day a theme describes, in the order the day runs: pre-dawn, sunrise, morning, noon,
+     * afternoon, sunset, blue hour and night. A file may also use the old names dawn (sunrise), day (noon) and dusk
+     * (sunset).
+     */
     public enum Phase {
-        DAWN, DAY, DUSK, NIGHT;
+        PREDAWN("predawn"), SUNRISE("sunrise"), MORNING("morning"), NOON("noon"), AFTERNOON("afternoon"),
+        SUNSET("sunset"), BLUEHOUR("bluehour"), NIGHT("night");
+
+        public final String key;
+
+        Phase(String key) {
+            this.key = key;
+        }
+
+        /** The old name a file may use for this time of day, or null. */
+        public String legacy() {
+            return switch (this) {
+                case SUNRISE -> "dawn";
+                case NOON -> "day";
+                case SUNSET -> "dusk";
+                default -> null;
+            };
+        }
+
+        /** The time of day a missing one takes after. */
+        Phase fallback() {
+            return switch (this) {
+                case PREDAWN, BLUEHOUR -> NIGHT;
+                case MORNING, AFTERNOON -> NOON;
+                default -> this;
+            };
+        }
 
         public static Phase of(String name) {
             return switch (name) {
-                case "dawn" -> DAWN;
-                case "dusk" -> DUSK;
+                case "predawn" -> PREDAWN;
+                case "sunrise", "dawn" -> SUNRISE;
+                case "morning" -> MORNING;
+                case "afternoon" -> AFTERNOON;
+                case "sunset", "dusk" -> SUNSET;
+                case "bluehour" -> BLUEHOUR;
                 case "night" -> NIGHT;
-                default -> DAY;
+                default -> NOON;
             };
         }
     }
 
-    /** One loaded theme: its own values, its four times of day, and how many particles each time of day has. */
+    /** One loaded theme: its own values, its eight times of day, and how many particles each time of day has. */
     public record Entry(String id, ThemeSpec base, ThemeSpec[] phases, float[] particleScale, boolean builtIn) {
         public ThemeSpec phase(Phase phase) {
             return phases[phase.ordinal()];
@@ -176,30 +210,52 @@ public final class ThemeRegistry {
         JsonObject own = json.deepCopy();
         own.remove("keyframes");
         ThemeSpec base = ThemeParser.parse(source.id(), own, ThemeParser.DEFAULTS, warn);
-        ThemeSpec[] phases = new ThemeSpec[4];
-        float[] scale = {1f, 1f, 1f, 1f};
+        ThemeSpec[] phases = new ThemeSpec[Phase.values().length];
+        float[] scale = new float[phases.length];
+        java.util.Arrays.fill(scale, Float.NaN);
         Phase show = Phase.of(base.show().phase());
         for (Phase phase : Phase.values()) {
-            String key = phase.name().toLowerCase(java.util.Locale.ROOT);
+            String key = phase.key;
             JsonElement frame = keyframes.get(key);
+            if (frame == null && phase.legacy() != null) {
+                key = phase.legacy();
+                frame = keyframes.get(key);
+            }
             if (phase == show || frame == null || !frame.isJsonObject()) {
                 if (frame != null && phase != show && !frame.isJsonObject()) {
                     warn.accept("keyframes." + key + " must be an object");
                 }
-                phases[phase.ordinal()] = base;
+                phases[phase.ordinal()] = phase == show ? base : null;
                 continue;
             }
+            String where = key;
             JsonObject over = frame.getAsJsonObject().deepCopy();
             if (over.has("particleScale")) {
                 try {
                     scale[phase.ordinal()] = Math.max(0f, Math.min(3f, over.get("particleScale").getAsFloat()));
                 } catch (RuntimeException e) {
-                    warn.accept("keyframes." + key + ".particleScale must be a number");
+                    warn.accept("keyframes." + where + ".particleScale must be a number");
                 }
                 over.remove("particleScale");
             }
             phases[phase.ordinal()] = ThemeParser.parse(source.id(), ThemeParser.merge(own, over), ThemeParser.DEFAULTS,
-                    message -> warn.accept("keyframes." + key + ": " + message));
+                    message -> warn.accept("keyframes." + where + ": " + message));
+        }
+        // A time of day the file leaves out takes after its neighbour (pre-dawn and blue hour after the night,
+        // morning and afternoon after noon), or the file itself.
+        for (Phase phase : Phase.values()) {
+            int i = phase.ordinal(), f = phase.fallback().ordinal();
+            if (phases[i] == null) {
+                phases[i] = phases[f] != null ? phases[f] : base;
+                if (Float.isNaN(scale[i])) {
+                    scale[i] = scale[f];
+                }
+            }
+        }
+        for (int i = 0; i < scale.length; i++) {
+            if (Float.isNaN(scale[i])) {
+                scale[i] = 1f;
+            }
         }
         return new Entry(source.id(), base, phases, scale, source.builtIn());
     }

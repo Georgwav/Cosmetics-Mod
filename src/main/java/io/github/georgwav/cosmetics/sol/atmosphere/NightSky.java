@@ -114,6 +114,7 @@ public final class NightSky {
             lat += theme.sun().orbitTilt();
         }
         lat = Math.max(-80.0, Math.min(80.0, lat));
+        io.github.georgwav.cosmetics.sol.theme.Keyframes.latitude = (float) lat;
         int year = at != null ? (int) Math.round(at.year.get()) : SkySphere.DEFAULT_YEAR;
         double days = Double.isNaN(daysOverride) ? FrameInfo.days : daysOverride;
         float tod = sunAngle / (float) (Math.PI * 2.0);

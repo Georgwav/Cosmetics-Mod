@@ -22,7 +22,8 @@ public final class ThemeParser {
     /** Particle types the atmosphere knows how to move and draw. */
     public static final Set<String> PARTICLE_TYPES = Set.of("petal", "blossom", "snow", "flake", "ember", "dust",
             "firefly", "sparkle", "rain", "leaf", "ash", "lens", "note");
-    public static final Set<String> PHASES = Set.of("dawn", "day", "dusk", "night");
+    public static final Set<String> PHASES = Set.of("predawn", "sunrise", "morning", "noon", "afternoon", "sunset", "bluehour",
+            "night", "dawn", "day", "dusk");
     public static final Set<String> STAR_PALETTES = Set.of("natural", "mono", "nebula", "teal", "silver", "gold", "warm");
     public static final Set<String> THROUGH = Set.of("clear", "cloudGaps", "fog");
 
@@ -274,7 +275,8 @@ public final class ThemeParser {
         }
         ThemeSpec.Night nightOut = new ThemeSpec.Night(night.string("moon", nb.moon()), night.color("light", nb.light()),
                 nightSky.length == 3 ? nightSky[0] : nb.top(), nightSky.length == 3 ? nightSky[1] : nb.middle(),
-                nightSky.length == 3 ? nightSky[2] : nb.horizon(), night.color("airglow", nb.airglow()));
+                nightSky.length == 3 ? nightSky[2] : nb.horizon(), night.color("airglow", nb.airglow()),
+                night.bool("clouds", nb.clouds()), night.color("haze", nb.haze()));
 
         Reader show = r.object("show");
         ThemeSpec.Show showOut = new ThemeSpec.Show(show.choice("phase", base.show().phase(), PHASES),

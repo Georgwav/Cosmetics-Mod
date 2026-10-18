@@ -86,8 +86,10 @@ public final class ParticleField {
         // Screen pixels per block at one block away: what decides a sprite's size on screen.
         pxPerBlock = FrameInfo.height / (2f * (float) Math.tan(Math.toRadians(Math.max(1f, FrameInfo.fovY)) / 2f));
         // The particles are lit by the theme's light (the sun, the rune, the moon...): tinted toward it, and glowing
-        // through when it's behind them; the theme's own light keeps them from going dark at night.
-        float light = 0.35f + 0.65f * Math.max(1f - tk.night, KeyLight.strength * 0.85f);
+        // through when it's behind them; the theme's own light and the moon keep them from going dark at night (the
+        // Night Sky lab's moonlit particles: a full moon high up lights them almost as the day does).
+        float moon = Math.min(1f, NightSky.moonLight * 1.4f);
+        float light = 0.35f + 0.65f * Math.max(Math.max(1f - tk.night, KeyLight.strength * 0.85f), moon);
         float sunUp = KeyLight.strength * Math.max(0.35f, KeyLight.visible);
         int sunTint = Colors.mix(0xFFFFFFFF, KeyLight.color, 0.45f * sunUp);
         int backColor = Colors.mix(KeyLight.color, 0xFFFFFFFF, 0.3f);

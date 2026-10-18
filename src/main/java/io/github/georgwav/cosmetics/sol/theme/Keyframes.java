@@ -4,37 +4,59 @@ import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.Ease;
 
 /**
- * Blends a theme's dawn, day, dusk and night versions by the sun's height, so the sky, fog, light and clouds follow
- * the world's time. The weights always add up to 1: night below −14°, twilight (dawn in the morning, dusk in the
- * evening) from −14° up to 24°, peaking from −2° to 10°, and day above 10°.
+ * Blends a theme's eight times of day by the sun's height on the sky sphere, so the sky, fog, light and clouds follow
+ * the world's time. The weights always add up to 1. Going down: noon above 30°, afternoon from 22° to 12°, sunset from
+ * 8° to −2°, blue hour from −5° to −12°, night below −17°; coming up: pre-dawn, sunrise and morning in their places.
+ * Between two times of day they blend smoothly.
  */
 public final class Keyframes {
     /** One day in the quanta the blend is computed at: a new blend at most every ~94 ticks. */
     public static final int QUANTA = 256;
+    /** The sky's latitude (the pole's height over the north), which the sun's height follows; set by the sky. */
+    public static volatile float latitude = 34f;
+    /** Each step's span of full weight, from night up to noon. */
+    private static final float[] LO = {-90f, -12f, -2f, 12f, 30f};
+    private static final float[] HI = {-17f, -5f, 8f, 22f, 90f};
+    private static final ThemeRegistry.Phase[] EVENING = {ThemeRegistry.Phase.NIGHT, ThemeRegistry.Phase.BLUEHOUR,
+            ThemeRegistry.Phase.SUNSET, ThemeRegistry.Phase.AFTERNOON, ThemeRegistry.Phase.NOON};
+    private static final ThemeRegistry.Phase[] MORNING = {ThemeRegistry.Phase.NIGHT, ThemeRegistry.Phase.PREDAWN,
+            ThemeRegistry.Phase.SUNRISE, ThemeRegistry.Phase.MORNING, ThemeRegistry.Phase.NOON};
 
     private Keyframes() {
     }
 
-    /**
-     * Weights for {dawn, day, dusk, night} from the sun's altitude in degrees and whether it is morning.
-     */
+    /** Weights for the eight times of day ({@link ThemeRegistry.Phase} order) from the sun's altitude in degrees. */
     public static void weights(float altitude, boolean morning, float[] out) {
-        float rise = Ease.smoothstep(-14f, -2f, altitude);
-        // A sun under 10° is still sunset: the day sky (brighter at the top) only comes in above that.
-        float high = Ease.smoothstep(10f, 24f, altitude);
-        float twilight = rise * (1f - high);
-        out[ThemeRegistry.Phase.DAWN.ordinal()] = morning ? twilight : 0f;
-        out[ThemeRegistry.Phase.DUSK.ordinal()] = morning ? 0f : twilight;
-        out[ThemeRegistry.Phase.DAY.ordinal()] = high;
-        out[ThemeRegistry.Phase.NIGHT.ordinal()] = 1f - rise;
+        java.util.Arrays.fill(out, 0f);
+        ThemeRegistry.Phase[] steps = morning ? MORNING : EVENING;
+        for (int i = 0; i < steps.length; i++) {
+            if (altitude >= LO[i] && altitude <= HI[i]) {
+                out[steps[i].ordinal()] = 1f;
+                return;
+            }
+            if (i + 1 < steps.length && altitude > HI[i] && altitude < LO[i + 1]) {
+                float t = Ease.smoothstep(HI[i], LO[i + 1], altitude);
+                out[steps[i].ordinal()] = 1f - t;
+                out[steps[i + 1].ordinal()] = t;
+                return;
+            }
+        }
+        out[ThemeRegistry.Phase.NOON.ordinal()] = 1f;
+    }
+
+    /** How much of the night-only sky shows for these weights: the night, and half of blue hour and pre-dawn. */
+    public static float night(float[] w) {
+        return w[ThemeRegistry.Phase.NIGHT.ordinal()]
+                + 0.5f * (w[ThemeRegistry.Phase.BLUEHOUR.ordinal()] + w[ThemeRegistry.Phase.PREDAWN.ordinal()]);
     }
 
     /**
      * The sun's altitude in degrees for a vanilla time of day fraction (0 = noon, 0.25 = sunset, 0.5 = midnight,
-     * 0.75 = sunrise), the game's own sun path.
+     * 0.75 = sunrise) on the sky sphere at the sky's latitude (at 0° it is the game's own path).
      */
     public static float altitude(float timeOfDay) {
-        return (float) Math.toDegrees(Math.asin(Math.cos(timeOfDay * Math.PI * 2.0)));
+        double c = Math.cos(Math.toRadians(latitude));
+        return (float) Math.toDegrees(Math.asin(c * Math.cos(timeOfDay * Math.PI * 2.0)));
     }
 
     /** Whether a time of day fraction is in the morning half (from midnight to noon). */
@@ -133,7 +155,7 @@ public final class Keyframes {
         out.cloudsLitBySun = base.clouds().litBySun();
         out.cloudsVisible = base.clouds().visible();
         out.particleScale = scale;
-        out.night = w[ThemeRegistry.Phase.NIGHT.ordinal()];
+        out.night = night(w);
         out.fogNear = fixed ? near : 0f;
         out.fogFar = fixed ? far : 0f;
         out.scatter = scatter;

@@ -25,7 +25,7 @@ public final class ThemeState {
     private static final Tokens current = new Tokens();
     private static final Tokens target = new Tokens();
     private static final Tokens from = new Tokens();
-    private static final float[] weights = new float[4];
+    private static final float[] weights = new float[ThemeRegistry.Phase.values().length];
     private static float lastTime = Float.NaN;
     private static long changeStart = -1L;
     private static int generation;

@@ -60,7 +60,7 @@ class ThemeParserTest {
     void keyframesDifferFromTheShowPhase() throws IOException {
         ThemeRegistry.load(bundled(), (id, msg) -> fail(id + ": " + msg));
         ThemeRegistry.Entry ember = ThemeRegistry.get("ember_solstice");
-        assertSame(ember.base(), ember.phase(ThemeRegistry.Phase.DUSK), "the show phase is the file itself");
+        assertSame(ember.base(), ember.phase(ThemeRegistry.Phase.SUNSET), "the show phase is the file itself");
         assertNotEquals(ember.base().sky().top(), ember.phase(ThemeRegistry.Phase.NIGHT).sky().top());
         assertEquals(0.8f, ember.particleScale()[ThemeRegistry.Phase.NIGHT.ordinal()], 1e-6);
         // A keyframe only overrides what it names.
