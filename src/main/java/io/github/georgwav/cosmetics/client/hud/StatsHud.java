@@ -51,6 +51,9 @@ public final class StatsHud extends TextHud {
     private final Map<Stat, Setting.Toggle> shown = new EnumMap<>(Stat.class);
     private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h")).group("look"));
     private final Setting.Choice layout = add(new Setting.Choice("layout", "row", List.of("row", "column")).group("look"));
+    /** Sol UI's look: the coloured dot before each value, and the label after it ("FPS", "ms"). */
+    private final Setting.Toggle dots = add(new Setting.Toggle("dots", true).group("look"));
+    private final Setting.Toggle labels = add(new Setting.Toggle("labels", true).group("look"));
     private final Map<Stat, RollingText> rolling = new EnumMap<>(Stat.class);
     private final Map<Stat, String> label = new EnumMap<>(Stat.class);
 
@@ -246,7 +249,7 @@ public final class StatsHud extends TextHud {
             }
             String v = value(mc, s);
             if (v != null) {
-                out.add(s == Stat.SERVER || s == Stat.PACK || s == Stat.CLOCK ? v : v + " " + label(s));
+                out.add(s == Stat.SERVER || s == Stat.PACK || s == Stat.CLOCK || !labels.get() ? v : v + " " + label(s));
             }
         }
         return out;
@@ -272,9 +275,9 @@ public final class StatsHud extends TextHud {
 
     private float chipWidth(Stat s, String v) {
         boolean text = s == Stat.SERVER || s == Stat.PACK;
-        float w = PAD + 3.5f + 3f + (text ? HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, v, scale())
+        float w = PAD + (dots.get() ? 3.5f + 3f : 0f) + (text ? HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, v, scale())
                 : HudKit.measure(SolFont.Family.MONO, HudKit.TEXT, "0", scale()) * v.length());
-        if (s != Stat.SERVER && s != Stat.PACK && s != Stat.CLOCK) {
+        if (labels.get() && s != Stat.SERVER && s != Stat.PACK && s != Stat.CLOCK) {
             w += 2.5f + HudKit.measure(SolFont.Family.MEDIUM, HudKit.SMALL, label(s), scale());
         }
         return w + PAD;
@@ -314,13 +317,16 @@ public final class StatsHud extends TextHud {
             HudKit.card(g, tk, cx, y, cw, CHIP_H, CHIP_H / 2f);
             int col = color(tk, s, v);
             float cy = y + CHIP_H / 2f;
-            HudKit.dot(g, col, cx + PAD, cy);
-            float tx = cx + PAD + 3.5f + 3f;
+            float tx = cx + PAD;
+            if (dots.get()) {
+                HudKit.dot(g, col, tx, cy);
+                tx += 3.5f + 3f;
+            }
             if (s == Stat.SERVER || s == Stat.PACK) {
                 g.textMid(text, v, tx, cy, 0xFFFFFFFF);
             } else {
                 tx += rolling.get(s).draw(g, mono, v, tx, cy, col == tk.accent ? 0xFFFFFFFF : col);
-                if (s != Stat.CLOCK) {
+                if (s != Stat.CLOCK && labels.get()) {
                     g.textMid(small, label(s), tx + 2.5f, cy, 0xA8FFFFFF);
                 }
             }

@@ -37,7 +37,7 @@ final class ModulesSection implements Section {
             case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "punchy", "crosshair", "nametags" -> "pvp";
             case "camera", "glint", "screen", "particles", "fullbright", "outline" -> "visual";
             case "atmosphere", "world_overlays", "time", "weather" -> "world";
-            case "sol_chat", "music", "social", "servers" -> "social";
+            case "sol_chat", "music", "lyrics", "social", "servers" -> "social";
             default -> switch (m.category) {
                 case HUD -> "hud";
                 case WORLD -> "world";

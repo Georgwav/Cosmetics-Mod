@@ -99,6 +99,11 @@ public abstract class HudModule extends Module {
         return scale.get().floatValue();
     }
 
+    /** Whether its text gets a shadow in Sol UI's look: when it has no background, so it reads over the sky. */
+    public boolean textShadow() {
+        return !backing.get();
+    }
+
     public void setScale(double value) {
         scale.set(value);
     }

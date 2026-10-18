@@ -89,14 +89,15 @@ public final class Modules {
     public static final Social SOCIAL = new Social();
     public static final GlintModule GLINT = new GlintModule();
     public static final io.github.georgwav.cosmetics.client.hud.MusicHud MUSIC = new io.github.georgwav.cosmetics.client.hud.MusicHud();
+    public static final io.github.georgwav.cosmetics.client.hud.LyricsHud LYRICS = new io.github.georgwav.cosmetics.client.hud.LyricsHud();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
 
     private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, LYRICS);
 
     private static boolean loading;
     private static boolean started;

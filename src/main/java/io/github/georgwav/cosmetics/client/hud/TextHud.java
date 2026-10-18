@@ -1,6 +1,7 @@
 package io.github.georgwav.cosmetics.client.hud;
 
 import io.github.georgwav.cosmetics.client.Setting;
+import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import io.github.georgwav.cosmetics.ui.GeistFont;
 import net.minecraft.client.Minecraft;
@@ -46,6 +47,12 @@ public abstract class TextHud extends HudModule {
     /** The text's colour, ARGB. */
     protected int textColor() {
         return color.argb();
+    }
+
+    /** Sol UI's look shadows the text when asked to, and always without a background. */
+    @Override
+    public boolean textShadow() {
+        return shadow.get() || super.textShadow();
     }
 
     private boolean geist() {
@@ -117,8 +124,9 @@ public abstract class TextHud extends HudModule {
         io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, 0f, 0f, w, h, io.github.georgwav.cosmetics.sol.hud.HudKit.CARD_R);
         var f = io.github.georgwav.cosmetics.sol.hud.HudKit.text(g);
         float y = SOL_PAD_Y + (SOL_LINE - 2f) / 2f;
+        int first = textColor(), rest = Colors.withAlpha(first, Colors.a(first) / 255f * 0.78f);
         for (int i = 0; i < lines.size(); i++) {
-            g.textMid(f, lines.get(i), SOL_PAD_X + iconRoom(), y, i == 0 ? 0xFFFFFFFF : 0xC8FFFFFF);
+            g.textMid(f, lines.get(i), SOL_PAD_X + iconRoom(), y, i == 0 ? first : rest);
             y += SOL_LINE;
         }
     }

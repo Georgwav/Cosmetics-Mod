@@ -728,6 +728,11 @@ public final class Gfx {
         return SolFont.of(family, size * d.u);
     }
 
+    /**
+     * While on, every text gets a soft dark shadow under it (a HUD element with no background, over a bright sky).
+     */
+    public boolean shadow;
+
     /** Text with its left at {@code x} and baseline at {@code baseline} (design pixels). */
     public void text(SolFont f, String s, float x, float baseline, int argb) {
         int c = a(argb);
@@ -735,6 +740,10 @@ public final class Gfx {
             return;
         }
         flush();
+        if (shadow) {
+            float o = Math.max(1f, Math.round(d.u * 0.5f));
+            f.draw(canvas, s, d.sx(x) + o, d.sy(baseline) + o, Math.round(Colors.a(c) * 0.75f) << 24);
+        }
         f.draw(canvas, s, d.sx(x), d.sy(baseline), c);
     }
 

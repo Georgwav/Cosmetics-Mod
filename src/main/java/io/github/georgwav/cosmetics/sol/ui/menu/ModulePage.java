@@ -69,9 +69,22 @@ public final class ModulePage implements Page {
     /** The preview's box in screen pixels, for the game's own drawing (the crosshair). */
     private int pvX0, pvY0, pvX1, pvY1;
 
+    /** Only these groups' settings (the HUD page shows Sol UI's settings part by part), or all of them when null. */
+    private final java.util.Set<String> only;
+
     ModulePage(Module module) {
+        this(module, null);
+    }
+
+    ModulePage(Module module, java.util.Set<String> only) {
         this.module = module;
+        this.only = only;
         this.knob = module.enabled() ? 1f : 0f;
+    }
+
+    /** Its settings column alone, in a box of a menu section (the HUD page's). */
+    void settings(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float top, float x1, float bottom) {
+        right(menu, g, ui, tk, x, top, x1, bottom);
     }
 
     public Module module() {
@@ -246,7 +259,7 @@ public final class ModulePage implements Page {
         Map<String, List<Setting<?>>> groups = new LinkedHashMap<>();
         List<Setting<?>> advanced = new ArrayList<>();
         for (Setting<?> st : module.settings()) {
-            if (!q.isEmpty() && !matches(st, q)) {
+            if (!q.isEmpty() && !matches(st, q) || only != null && !only.contains(st.group)) {
                 continue;
             }
             if (st.advanced) {
@@ -275,7 +288,7 @@ public final class ModulePage implements Page {
             shownAny = true;
         }
         KeyMapping toggle = module.toggleKey();
-        boolean toggleShown = toggle != null && (q.isEmpty() || SolMenu.tr("sol.menu.page.toggle_mod").toLowerCase(Locale.ROOT).contains(q));
+        boolean toggleShown = toggle != null && only == null && (q.isEmpty() || SolMenu.tr("sol.menu.page.toggle_mod").toLowerCase(Locale.ROOT).contains(q));
         int count = advanced.size() + (toggleShown ? 1 : 0);
         if (count > 0) {
             boolean open = advancedOpen || !q.isEmpty();

@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hands", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -648,6 +648,7 @@ public final class SolScenario {
         wearForWardrobe(wardrobe);
         serversForShot(what.equals("servers"));
         handsForShot(what);
+        stylesForShot(what.equals("hud_styles"));
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -1011,7 +1012,40 @@ public final class SolScenario {
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
         return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
-                || what.startsWith("hands");
+                || what.startsWith("hands") || what.equals("hud_styles");
+    }
+
+    /** The settings the HUD styles shot changed, to put back after it. */
+    private static java.util.List<io.github.georgwav.cosmetics.client.Setting<?>> stylesSet;
+
+    /**
+     * The HUD styles shot: the selected slot growing instead of lifting, the hotbar and bars a little bigger, the
+     * music with its big cover, Stats without a background.
+     */
+    @SuppressWarnings("unchecked")
+    private static void stylesForShot(boolean on) {
+        if (on && stylesSet == null) {
+            stylesSet = new java.util.ArrayList<>();
+            var ui = io.github.georgwav.cosmetics.client.Modules.SOL_UI;
+            ui.hotbarSelect.set("grow");
+            ui.bottomScale.set(115.0);
+            stylesSet.add(ui.hotbarSelect);
+            stylesSet.add(ui.bottomScale);
+            for (var m : java.util.List.of(io.github.georgwav.cosmetics.client.Modules.MUSIC, io.github.georgwav.cosmetics.client.Modules.STATS)) {
+                for (var st : m.settings()) {
+                    if (m == io.github.georgwav.cosmetics.client.Modules.MUSIC && st.id.equals("style")) {
+                        ((io.github.georgwav.cosmetics.client.Setting<String>) st).set("big_art");
+                        stylesSet.add(st);
+                    } else if (m == io.github.georgwav.cosmetics.client.Modules.STATS && st.id.equals("backing")) {
+                        ((io.github.georgwav.cosmetics.client.Setting<Boolean>) st).set(false);
+                        stylesSet.add(st);
+                    }
+                }
+            }
+        } else if (!on && stylesSet != null) {
+            stylesSet.forEach(io.github.georgwav.cosmetics.client.Setting::reset);
+            stylesSet = null;
+        }
     }
 
     /** Whether the Punchy module was on before the hands shot (null while it isn't on). */

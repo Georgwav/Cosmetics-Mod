@@ -36,6 +36,7 @@ public final class ModuleIcons {
             Map.entry("potion_effects", "potion"),
             Map.entry("keystrokes", "key"),
             Map.entry("music", "note"),
+            Map.entry("lyrics", "mic"),
             Map.entry("inventory", "chest"),
             Map.entry("performance", "bolt"),
             Map.entry("screenshots", "camera"),
