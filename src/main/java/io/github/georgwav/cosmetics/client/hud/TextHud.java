@@ -10,12 +10,12 @@ import java.util.List;
 /** A HUD module that shows a few lines of text. */
 public abstract class TextHud extends HudModule {
     private static final int PAD = 3;
-    protected final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false));
+    protected final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false).group("text"));
     /** The game's pixel font, or the client's own (Geist, sharp at any size). */
-    protected final Setting.Choice typeface = add(new Setting.Choice("font", "minecraft", List.of("minecraft", "geist")));
-    private static final List<String> COLORS = List.of("white", "grey", "yellow", "green", "cyan", "pink", "red");
-    private static final int[] RGB = {0xFFFFFF, 0xC8C8C8, 0xFFE040, 0x4CFF4C, 0x40E8FF, 0xFF60D0, 0xFF4040};
-    protected final Setting.Choice color = add(new Setting.Choice("color", "white", COLORS));
+    protected final Setting.Choice typeface = add(new Setting.Choice("font", "minecraft", List.of("minecraft", "geist")).group("text"));
+    protected final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).themed().names(java.util.Map.of(
+            "white", 0xFFFFFFFF, "grey", 0xFFC8C8C8, "yellow", 0xFFFFE040, "green", 0xFF4CFF4C, "cyan", 0xFF40E8FF,
+            "pink", 0xFFFF60D0, "red", 0xFFFF4040)).group("text"));
 
     protected TextHud(String id, String icon, float anchorX, float anchorY, float offsetX, float offsetY) {
         super(id, icon, anchorX, anchorY, offsetX, offsetY);
@@ -45,7 +45,7 @@ public abstract class TextHud extends HudModule {
 
     /** The text's colour, ARGB. */
     protected int textColor() {
-        return 0xFF000000 | RGB[Math.max(0, COLORS.indexOf(color.get()))];
+        return color.argb();
     }
 
     private boolean geist() {

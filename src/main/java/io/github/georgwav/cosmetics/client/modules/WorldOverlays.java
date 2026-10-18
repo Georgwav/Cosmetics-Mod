@@ -24,13 +24,13 @@ import java.util.Random;
  * strongholds…), which only the world's server knows of.
  */
 public final class WorldOverlays extends Module {
-    private final Setting.Toggle chunks = add(new Setting.Toggle("chunk_borders", true));
-    private final Setting.Toggle spawns = add(new Setting.Toggle("spawnable", true));
-    private final Setting.Toggle slime = add(new Setting.Toggle("slime_chunks", false));
+    private final Setting.Toggle chunks = add(new Setting.Toggle("chunk_borders", true).group("overlays"));
+    private final Setting.Toggle spawns = add(new Setting.Toggle("spawnable", true).group("overlays"));
+    private final Setting.Toggle slime = add(new Setting.Toggle("slime_chunks", false).group("slime"));
     /** The world's seed for slime chunks on a server (singleplayer knows its own). */
-    private final Setting.Text typedSeed = add(new Setting.Text("seed", "", 32));
-    private final Setting.Toggle beacons = add(new Setting.Toggle("beacon_range", false));
-    private final Setting.Toggle structures = add(new Setting.Toggle("structures", false));
+    private final Setting.Text typedSeed = add(new Setting.Text("seed", "", 32).group("slime"));
+    private final Setting.Toggle beacons = add(new Setting.Toggle("beacon_range", false).group("overlays"));
+    private final Setting.Toggle structures = add(new Setting.Toggle("structures", false).group("overlays"));
     /** Nearby beacons: centre x, z and their reach in blocks. */
     private final int[] bx = new int[16], bz = new int[16], reach = new int[16];
     private int beaconCount;

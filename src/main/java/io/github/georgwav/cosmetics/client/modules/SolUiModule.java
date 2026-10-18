@@ -17,17 +17,17 @@ import java.util.List;
 public final class SolUiModule extends Module {
     private static final java.util.function.DoubleFunction<String> PERCENT = v -> Math.round(v) + "%";
 
-    public final Setting.Choice tabPing = add(new Setting.Choice("tab_ping", "ms", List.of("bars", "ms")));
-    public final Setting.Toggle tabHeads = add(new Setting.Toggle("tab_heads", true));
-    public final Setting.Toggle tabCount = add(new Setting.Toggle("tab_count", true));
-    public final Setting.Slider tabScale = add(new Setting.Slider("tab_scale", 100, 50, 150, 5, PERCENT));
-    public final Setting.Toggle scoreboard = add(new Setting.Toggle("scoreboard", true));
-    public final Setting.Toggle scoreNumbers = add(new Setting.Toggle("score_numbers", true));
-    public final Setting.Slider scoreboardScale = add(new Setting.Slider("scoreboard_scale", 100, 50, 150, 5, PERCENT));
-    public final Setting.Toggle bossBars = add(new Setting.Toggle("boss_bars", true));
-    public final Setting.Slider bossScale = add(new Setting.Slider("boss_scale", 100, 50, 150, 5, PERCENT));
-    public final Setting.Toggle titles = add(new Setting.Toggle("titles", true));
-    public final Setting.Slider titleScale = add(new Setting.Slider("title_scale", 100, 25, 150, 5, PERCENT));
+    public final Setting.Choice tabPing = add(new Setting.Choice("tab_ping", "ms", List.of("bars", "ms")).group("tab_list"));
+    public final Setting.Toggle tabHeads = add(new Setting.Toggle("tab_heads", true).group("tab_list"));
+    public final Setting.Toggle tabCount = add(new Setting.Toggle("tab_count", true).group("tab_list"));
+    public final Setting.Slider tabScale = add(new Setting.Slider("tab_scale", 100, 50, 150, 5, PERCENT).group("tab_list"));
+    public final Setting.Toggle scoreboard = add(new Setting.Toggle("scoreboard", true).group("scoreboard"));
+    public final Setting.Toggle scoreNumbers = add(new Setting.Toggle("score_numbers", true).group("scoreboard"));
+    public final Setting.Slider scoreboardScale = add(new Setting.Slider("scoreboard_scale", 100, 50, 150, 5, PERCENT).group("scoreboard"));
+    public final Setting.Toggle bossBars = add(new Setting.Toggle("boss_bars", true).group("boss_bars"));
+    public final Setting.Slider bossScale = add(new Setting.Slider("boss_scale", 100, 50, 150, 5, PERCENT).group("boss_bars"));
+    public final Setting.Toggle titles = add(new Setting.Toggle("titles", true).group("titles"));
+    public final Setting.Slider titleScale = add(new Setting.Slider("title_scale", 100, 25, 150, 5, PERCENT).group("titles"));
 
     /** The module while Sol UI is on (its tweaks apply), else null. */
     public static SolUiModule tweaks() {

@@ -257,8 +257,19 @@ public final class ModulePage {
                 if (toggleShown) {
                     y = keyRow(g, ui, tk, toggle, x, w, y);
                 }
+                // In their groups too, each with a small heading when there's more than one.
+                Map<String, List<Setting<?>>> folded = new LinkedHashMap<>();
                 for (Setting<?> st : advanced) {
-                    y = row(menu, g, ui, tk, st, x, w, y);
+                    folded.computeIfAbsent(st.group, k -> new ArrayList<>()).add(st);
+                }
+                boolean headings = folded.size() > 1;
+                for (Map.Entry<String, List<Setting<?>>> e : folded.entrySet()) {
+                    if (headings) {
+                        y = subHeader(g, x, y, Module.groupName(e.getKey()));
+                    }
+                    for (Setting<?> st : e.getValue()) {
+                        y = row(menu, g, ui, tk, st, x, w, y);
+                    }
                 }
             }
             shownAny = true;
@@ -298,6 +309,13 @@ public final class ModulePage {
         }
         g.rect(x, y + 27f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         return y + 34f;
+    }
+
+    /** A group's small heading inside Advanced. */
+    private static float subHeader(Gfx g, float x, float y, String name) {
+        SolFont f = g.font(SolFont.Family.SEMIBOLD, 11f);
+        g.textMid(f, name, x, y + 20f, 0x73FFFFFF);
+        return y + 30f;
     }
 
     /** One setting: its name and hint on the left, its control on the right, and the way back if it's changed. */
@@ -350,13 +368,28 @@ public final class ModulePage {
                     picker = null;
                 } else {
                     picking = c;
-                    picker = new ColorPicker(() -> c.get() & 0xFFFFFF, rgb -> c.set((c.get() & 0xFF000000) | (rgb & 0xFFFFFF)));
+                    picker = new ColorPicker(() -> c.argb() & 0xFFFFFF, rgb -> c.set((c.argb() & 0xFF000000) | (rgb & 0xFFFFFF)));
                 }
             });
-            g.round(right - sw, cy - 12f, sw, 24f, 7f, c.get() | 0xFF000000);
+            g.round(right - sw, cy - 12f, sw, 24f, 7f, c.argb() | 0xFF000000);
             g.stroke(right - sw, cy - 12f, sw, 24f, 7f, Math.max(1f, g.d.u), open ? tk.accent : 0x40FFFFFF);
-            SolFont m = g.font(SolFont.Family.MONO, 11.5f);
-            g.textRight(m, String.format(Locale.ROOT, "#%06X", c.get() & 0xFFFFFF), right - sw - 10f, cy, 0xB3FFFFFF);
+            float tx = right - sw - 10f;
+            if (c.themed) {
+                // "Theme": the colour follows the theme's accent (lit while it does).
+                SolFont cf = g.font(SolFont.Family.MEDIUM, 11.5f);
+                String tl = SolMenu.tr("sol.menu.page.theme_colour");
+                float cw = g.width(cf, tl) + 18f, chipX = tx - cw;
+                boolean on = c.followsTheme();
+                ui.click(chipX, cy - 11f, cw, 22f, () -> c.set(on ? c.argb() : Setting.Color.THEME));
+                g.round(chipX, cy - 11f, cw, 22f, 11f, on ? Colors.withAlpha(tk.accent, 0.9f)
+                        : ui.over(chipX, cy - 11f, cw, 22f) ? 0x29FFFFFF : 0x12FFFFFF);
+                g.textMid(cf, tl, chipX + 9f, cy, on ? tk.onAccent : 0xB3FFFFFF);
+                tx = chipX - 10f;
+            }
+            if (!c.followsTheme()) {
+                SolFont m = g.font(SolFont.Family.MONO, 11.5f);
+                g.textRight(m, String.format(Locale.ROOT, "#%06X", c.get() & 0xFFFFFF), tx, cy, 0xB3FFFFFF);
+            }
             if (open && picker != null) {
                 List<Integer> presets = new ArrayList<>();
                 presets.add(tk.accent & 0xFFFFFF);
@@ -429,6 +462,12 @@ public final class ModulePage {
     }
 
     // ------------------------------------------------------------------ input
+
+    /** Opens Advanced and scrolls to it (the dev scenario's shot of the folded groups). */
+    public void showAdvanced() {
+        advancedOpen = true;
+        scroll.toEnd();
+    }
 
     boolean scroll(float amount) {
         return scroll.wheel(amount);

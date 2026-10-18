@@ -129,9 +129,15 @@ public final class SolMenu extends SolScreen {
             default -> {
                 if (state.startsWith("drawer_")) {
                     go("modules");
-                    Module m = io.github.georgwav.cosmetics.client.Modules.byId(state.substring("drawer_".length()));
+                    // "drawer_advanced_<id>": with Advanced open, scrolled to it.
+                    boolean advanced = state.startsWith("drawer_advanced_");
+                    Module m = io.github.georgwav.cosmetics.client.Modules.byId(state.substring(advanced ? "drawer_advanced_".length()
+                            : "drawer_".length()));
                     if (m != null) {
                         openDrawer(m);
+                        if (advanced && drawer() != null) {
+                            drawer().showAdvanced();
+                        }
                     }
                 } else {
                     go(state);

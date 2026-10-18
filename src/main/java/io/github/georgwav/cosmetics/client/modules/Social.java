@@ -11,10 +11,10 @@ import io.github.georgwav.cosmetics.client.Setting;
  * Sol Client's theme), through the player's own Discord application id (Settings › Discord; D9).
  */
 public final class Social extends Module {
-    private final Setting.Toggle streamer = add(new Setting.Toggle("streamer_mode", true));
-    private final Setting.Toggle discord = add(new Setting.Toggle("discord", true));
-    private final Setting.Toggle discordServer = add(new Setting.Toggle("discord_server", true));
-    private final Setting.Text discordApp = add(new Setting.Text("discord_app_id", "", 24));
+    private final Setting.Toggle streamer = add(new Setting.Toggle("streamer_mode", true).group("streamer"));
+    private final Setting.Toggle discord = add(new Setting.Toggle("discord", true).group("discord"));
+    private final Setting.Toggle discordServer = add(new Setting.Toggle("discord_server", true).group("discord"));
+    private final Setting.Text discordApp = add(new Setting.Text("discord_app_id", "", 24).group("discord"));
     private long joinedAt;
     private String lastPlace;
 

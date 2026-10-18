@@ -34,6 +34,12 @@ public final class Scroll {
         value = target = 0f;
     }
 
+    /** Eases to the end of the content (as far as the next layout allows). */
+    public void toEnd() {
+        target = Float.MAX_VALUE;
+        max = Float.MAX_VALUE;
+    }
+
     /** A thin scrollbar at the right of a view, when the content is taller. */
     public void bar(Gfx g, float right, float y, float h) {
         if (max <= 0f) {

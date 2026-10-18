@@ -40,7 +40,7 @@ public final class ModulesSelfTest {
         plantPyramid(mc, true);
         // Hitboxes in red at twice the game's width, on a pig in front of you.
         hitboxesWereOn = Modules.HITBOXES.enabled();
-        setting(Modules.HITBOXES, "color").set("red");
+        ModulesSelfTest.<Integer>setting(Modules.HITBOXES, "color").set(0xFFFF4D4D);
         setting(Modules.HITBOXES, "width").set(2.0);
         Modules.HITBOXES.setEnabled(true);
         hitboxLines = io.github.georgwav.cosmetics.render.HitboxLines.drawn;
@@ -258,7 +258,7 @@ public final class ModulesSelfTest {
      */
     public static void switchOnHud(Minecraft mc) {
         ModulesSelfTest.<String>setting(Modules.STATS, "font").set("geist");
-        ModulesSelfTest.<String>setting(Modules.STATS, "color").set("yellow");
+        ModulesSelfTest.<Integer>setting(Modules.STATS, "color").set(0xFFFFE040);
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").set(true);
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "clock").set(true);
         if (mc.player != null) {
@@ -266,7 +266,7 @@ public final class ModulesSelfTest {
             pitchBefore = mc.player.getXRot();
             mc.player.setXRot(30f);
         }
-        ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").set("red");
+        ModulesSelfTest.<Integer>setting(Modules.OUTLINE, "color").set(0xFFFF4040);
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").set(1.0);
         Modules.OUTLINE.setEnabled(true);
         for (Module m : Modules.hud()) {

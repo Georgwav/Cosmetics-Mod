@@ -13,15 +13,15 @@ import net.minecraft.world.entity.player.Player;
  * backing and text shadow, and players' health after their name.
  */
 public final class Nametags extends Module {
-    private final Setting.Toggle own = add(new Setting.Toggle("own", true));
-    private final Setting.Toggle others = add(new Setting.Toggle("others", true));
-    private final Setting.Slider size = add(new Setting.Slider("size", 100, 50, 200, 5, v -> Math.round(v) + "%"));
+    private final Setting.Toggle own = add(new Setting.Toggle("own", true).group("which"));
+    private final Setting.Toggle others = add(new Setting.Toggle("others", true).group("which"));
+    private final Setting.Slider size = add(new Setting.Slider("size", 100, 50, 200, 5, v -> Math.round(v) + "%").group("look"));
     /** The backing behind the text: the game's (from the accessibility option), or this dark. */
-    private final Setting.Choice backing = add(new Setting.Choice("backing", "game", java.util.List.of("game", "none", "light", "dark")));
+    private final Setting.Choice backing = add(new Setting.Choice("backing", "game", java.util.List.of("game", "none", "light", "dark")).group("look"));
     /** The name drawn with the game's text shadow. */
-    private final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false));
+    private final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false).group("look"));
     /** Players' health (with absorption) after their name, green to red as it drops. */
-    private final Setting.Toggle health = add(new Setting.Toggle("health", false));
+    private final Setting.Toggle health = add(new Setting.Toggle("health", false).group("which"));
 
     public Nametags() {
         super("nametags", Category.VIEW, "tag");

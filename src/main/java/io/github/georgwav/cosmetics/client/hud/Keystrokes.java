@@ -12,9 +12,12 @@ public final class Keystrokes extends HudModule {
     private static final int GAP = 2;
     private static final int WIDTH = KEY * 3 + GAP * 2;
     private static final int SPACE = 10;
-    private final Setting.Toggle mouse = add(new Setting.Toggle("mouse", true));
-    private final Setting.Toggle cps = add(new Setting.Toggle("cps", true));
-    private final Setting.Toggle space = add(new Setting.Toggle("space", true));
+    private final Setting.Toggle mouse = add(new Setting.Toggle("mouse", true).group("keys"));
+    private final Setting.Toggle cps = add(new Setting.Toggle("cps", true).group("keys"));
+    private final Setting.Toggle space = add(new Setting.Toggle("space", true).group("keys"));
+    /** A held key's colour (the theme's accent unless picked). */
+    private final Setting.Color pressed = add(new Setting.Color("pressed_color", Setting.Color.THEME).group("colours"));
+    private final Setting.Color text = add(new Setting.Color("text_color", 0xFFFFFFFF).themed().group("colours"));
 
     public Keystrokes() {
         super("keystrokes", "keys", 1f, 0f, -4f, 22f);
@@ -51,7 +54,7 @@ public final class Keystrokes extends HudModule {
         if (space.get()) {
             boolean down = mc.options.keyJump.isDown();
             box(g, 0, y, WIDTH, SPACE, down);
-            int line = down ? 0xFF000000 : 0xFFFFFFFF;
+            int line = down ? io.github.georgwav.cosmetics.sol.util.Colors.onColour(pressed.argb()) : text.argb();
             g.fill(WIDTH / 2 - 12, y + SPACE / 2, WIDTH / 2 + 12, y + SPACE / 2 + 1, line);
         }
     }
@@ -67,7 +70,7 @@ public final class Keystrokes extends HudModule {
         while (label.length() > 1 && mc.font.width(label) > w - 4) {
             label = label.substring(0, label.length() - 1);
         }
-        int color = down ? 0xFF000000 : 0xFFFFFFFF;
+        int color = down ? io.github.georgwav.cosmetics.sol.util.Colors.onColour(pressed.argb()) : text.argb();
         if (below == null) {
             g.text(mc.font, label, x + (w - mc.font.width(label)) / 2, y + (h - 8) / 2, color, false);
             return;
@@ -121,7 +124,8 @@ public final class Keystrokes extends HudModule {
         if (space.get()) {
             float k = light(6, mc.options.keyJump.isDown(), dt);
             solBox(g, tk, 0f, y, S_WIDTH, S_SPACE, k);
-            int line = io.github.georgwav.cosmetics.sol.util.Colors.mix(0xCCFFFFFF, tk.onAccent, k);
+            int line = io.github.georgwav.cosmetics.sol.util.Colors.mix(io.github.georgwav.cosmetics.sol.util.Colors.fade(text.argb(), 0.8f),
+                    io.github.georgwav.cosmetics.sol.util.Colors.onColour(pressed.argb()), k);
             g.round(S_WIDTH / 2f - 10f, y + S_SPACE / 2f - 0.5f, 20f, 1f, 0.5f, line);
         }
     }
@@ -142,7 +146,7 @@ public final class Keystrokes extends HudModule {
         solBox(g, tk, x, y, w, h, k);
         String label = fixed != null ? fixed : KeyBinds.name(mapping);
         label = g.fit(f, label, w - 3f);
-        int color = io.github.georgwav.cosmetics.sol.util.Colors.mix(0xFFFFFFFF, tk.onAccent, k);
+        int color = io.github.georgwav.cosmetics.sol.util.Colors.mix(text.argb(), io.github.georgwav.cosmetics.sol.util.Colors.onColour(pressed.argb()), k);
         if (below == null) {
             g.textCentre(f, label, x + w / 2f, y + h / 2f, color);
         } else {
@@ -152,23 +156,24 @@ public final class Keystrokes extends HudModule {
     }
 
     /** A glass key, filling with the accent and glowing as it's held. */
-    private static void solBox(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
-                               float x, float y, float w, float h, float k) {
+    private void solBox(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
+                        float x, float y, float w, float h, float k) {
+        int lit = pressed.argb();
         float r = Math.min(4.5f, h / 2f);
         if (k < 1f) {
             io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, x, y, w, h, r);
         }
         if (k > 0.01f) {
-            g.glow(x, y, w, h, r, 6f, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(tk.accent, 0.5f * k));
-            g.round(x, y, w, h, r, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(tk.accent, k));
+            g.glow(x, y, w, h, r, 6f, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, 0.5f * k));
+            g.round(x, y, w, h, r, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, k));
         }
     }
 
     private void box(Canvas g, int x, int y, int w, int h, boolean down) {
         if (down) {
-            g.fill(x, y, x + w, y + h, 0xD0FFFFFF);
+            g.fill(x, y, x + w, y + h, 0xD0000000 | (pressed.argb() & 0xFFFFFF));
         } else if (backing.get()) {
-            g.fill(x, y, x + w, y + h, 0x70000000);
+            g.fill(x, y, x + w, y + h, backingArgb());
         }
     }
 }

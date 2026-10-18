@@ -30,7 +30,17 @@ public final class PotionEffectsHud extends TextHud {
     private static final String[] LEVELS = {"", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"};
     private static final int ICON = 9;
 
-    private final Setting.Toggle icons = add(new Setting.Toggle("icons", true));
+    private final Setting.Toggle icons = add(new Setting.Toggle("icons", true).group("effects"));
+    private final Setting.Choice sort = add(new Setting.Choice("sort", "time", List.of("time", "name", "level")).group("effects"));
+    /** Not the ones from beacons and conduits. */
+    private final Setting.Toggle hideAmbient = add(new Setting.Toggle("hide_ambient", false).group("effects"));
+    /** Not the ones with no end (from commands, armour trims and the like). */
+    private final Setting.Toggle hideInfinite = add(new Setting.Toggle("hide_infinite", false).group("effects"));
+    private final Setting.Slider maxShown = add(new Setting.Slider("max_shown", 12, 1, 12, 1, v -> Integer.toString((int) Math.round(v)))
+            .group("effects"));
+    /** Warns (amber, pulsing) in an effect's last seconds. */
+    private final Setting.Slider warnAt = add(new Setting.Slider("warn_at", 10, 0, 30, 1, v -> v == 0 ? "–" : Math.round(v) + " s")
+            .group("effects"));
     /** The effect of each line last shown (lines() and sample() fill it as they make the lines). */
     private List<Holder<MobEffect>> shownEffects = List.of();
     /** The longest time left each effect has had (what its ring drains from). */
@@ -46,9 +56,21 @@ public final class PotionEffectsHud extends TextHud {
         if (mc.player == null) {
             return List.of();
         }
-        List<MobEffectInstance> effects = new ArrayList<>(mc.player.getActiveEffects());
-        effects.sort(Comparator.comparingInt(MobEffectInstance::getDuration).reversed());
-        return effects;
+        List<MobEffectInstance> effects = new ArrayList<>();
+        for (MobEffectInstance e : mc.player.getActiveEffects()) {
+            if (hideAmbient.get() && e.isAmbient() || hideInfinite.get() && e.isInfiniteDuration()) {
+                continue;
+            }
+            effects.add(e);
+        }
+        switch (sort.get()) {
+            case "name" -> effects.sort(Comparator.comparing(PotionEffectsHud::name));
+            case "level" -> effects.sort(Comparator.comparingInt(MobEffectInstance::getAmplifier).reversed()
+                    .thenComparing(Comparator.comparingInt(MobEffectInstance::getDuration).reversed()));
+            default -> effects.sort(Comparator.comparingInt(MobEffectInstance::getDuration).reversed());
+        }
+        int n = (int) Math.round(maxShown.get());
+        return effects.size() > n ? effects.subList(0, n) : effects;
     }
 
     private static String name(MobEffectInstance effect) {
@@ -114,7 +136,7 @@ public final class PotionEffectsHud extends TextHud {
             int most = Math.max(d, longest.getOrDefault(e.getEffect(), 0));
             longest.put(e.getEffect(), most);
             float left = e.isInfiniteDuration() ? 1f : most <= 0 ? 0f : (float) d / most;
-            out.add(new Chip(e.getEffect(), name(e), time(e), left, !e.isInfiniteDuration() && d < 200));
+            out.add(new Chip(e.getEffect(), name(e), time(e), left, !e.isInfiniteDuration() && d < warnAt.get() * 20.0));
         }
         if (mc.player != null && longest.size() > out.size() + 8) {
             longest.keySet().removeIf(k -> !mc.player.hasEffect(k));

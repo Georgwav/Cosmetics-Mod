@@ -16,8 +16,8 @@ import java.util.List;
  * the movement keys while you stand still.
  */
 public final class CameraTweaks extends Module {
-    private final Setting.Choice freelookMode = add(new Setting.Choice("freelook_mode", "hold", List.of("hold", "toggle")));
-    private final Setting.Toggle freelookThirdPerson = add(new Setting.Toggle("freelook_third_person", true));
+    private final Setting.Choice freelookMode = add(new Setting.Choice("freelook_mode", "hold", List.of("hold", "toggle")).group("freelook"));
+    private final Setting.Toggle freelookThirdPerson = add(new Setting.Toggle("freelook_third_person", true).group("freelook"));
 
     private boolean freelooking, freecam;
     private float yaw, pitch;

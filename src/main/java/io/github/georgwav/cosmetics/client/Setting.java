@@ -188,26 +188,70 @@ public abstract class Setting<T> {
         }
     }
 
-    /** A colour (ARGB), saved as {@code #RRGGBB}, or {@code #AARRGGBB} when it keeps its own opacity. */
+    /**
+     * A colour (ARGB), saved as {@code #RRGGBB}, or {@code #AARRGGBB} when it keeps its own opacity. A colour that
+     * can follow the theme ({@link #themed}) saves "theme" and is the theme's accent while it does.
+     */
     public static final class Color extends Setting<Integer> {
+        /** The value of a themed colour that follows the theme's accent (no real colour is fully see-through black). */
+        public static final int THEME = 0;
         public final boolean alpha;
+        /** Whether it can follow the theme's accent. */
+        public boolean themed;
+        /** Colour names saved by older versions (when it was a list of names), and what each is now. */
+        private java.util.Map<String, Integer> names = java.util.Map.of();
 
         public Color(String id, int def, boolean alpha) {
-            super(id, alpha ? def : def | 0xFF000000);
+            super(id, def == THEME ? THEME : alpha ? def : def | 0xFF000000);
             this.alpha = alpha;
+            this.themed = def == THEME;
         }
 
         public Color(String id, int def) {
             this(id, def, false);
         }
 
+        /** Lets it follow the theme's accent (the "Theme" choice by its picker). */
+        public Color themed() {
+            themed = true;
+            return this;
+        }
+
+        /** The colour names an older version saved, each read as this colour ({@link #THEME} for "accent"). */
+        public Color names(java.util.Map<String, Integer> legacy) {
+            names = legacy;
+            return this;
+        }
+
+        /** Whether it follows the theme now. */
+        public boolean followsTheme() {
+            return themed && value == THEME;
+        }
+
+        /** The colour to draw with, ARGB: the theme's accent while it follows the theme. */
+        public int argb() {
+            if (followsTheme()) {
+                return 0xFF000000 | io.github.georgwav.cosmetics.sol.theme.ThemeState.tokens().accent;
+            }
+            return value;
+        }
+
         @Override
         protected Integer clean(Integer v) {
-            return v == null ? def : alpha ? v : v | 0xFF000000;
+            if (v == null) {
+                return def;
+            }
+            if (themed && v == THEME) {
+                return THEME;
+            }
+            return alpha ? v : v | 0xFF000000;
         }
 
         @Override
         JsonElement save() {
+            if (followsTheme()) {
+                return new JsonPrimitive("theme");
+            }
             return new JsonPrimitive(alpha ? String.format(java.util.Locale.ROOT, "#%08X", value)
                     : String.format(java.util.Locale.ROOT, "#%06X", value & 0xFFFFFF));
         }
@@ -215,7 +259,17 @@ public abstract class Setting<T> {
         @Override
         void load(JsonElement json) {
             if (json.isJsonPrimitive() && json.getAsJsonPrimitive().isString()) {
-                String h = json.getAsString().startsWith("#") ? json.getAsString().substring(1) : json.getAsString();
+                String s = json.getAsString();
+                if (s.equals("theme") && themed) {
+                    value = THEME;
+                    return;
+                }
+                Integer named = names.get(s);
+                if (named != null) {
+                    value = clean(named);
+                    return;
+                }
+                String h = s.startsWith("#") ? s.substring(1) : s;
                 try {
                     if (h.length() == 6) {
                         value = clean((int) Long.parseLong(h, 16) | 0xFF000000);

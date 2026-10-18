@@ -172,6 +172,13 @@ public abstract class Module {
     protected void afterOptionsSave(Minecraft mc) {
     }
 
+    /**
+     * Moves values saved by an older version to where they are now, before the settings read them (a colour name
+     * that meant "no flash" becomes the flash switched off).
+     */
+    protected void migrate(JsonObject settings) {
+    }
+
     /** Extra state kept between sessions (Fullbright: your own brightness, to put back). */
     protected void saveState(JsonObject state) {
     }

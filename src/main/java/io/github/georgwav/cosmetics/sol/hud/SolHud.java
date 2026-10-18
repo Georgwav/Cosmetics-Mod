@@ -185,7 +185,12 @@ public final class SolHud {
         DRAWN[Part.MODULES.ordinal()]++;
         Guard.run(Feature.SOL_UI, () -> {
             Gfx g = begin(c, scale);
-            module.drawSolLook(g, ThemeState.tokens(), mc);
+            HudKit.glass = module.glass();
+            try {
+                module.drawSolLook(g, ThemeState.tokens(), mc);
+            } finally {
+                HudKit.glass = 1f;
+            }
             end(c);
         });
     }

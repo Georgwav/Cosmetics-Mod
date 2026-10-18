@@ -26,13 +26,13 @@ import java.util.List;
 public final class ArmourItemsHud extends HudModule {
     private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
     private static final int ROW = 18;
-    private final Setting.Toggle hands = add(new Setting.Toggle("hands", true));
-    private final Setting.Choice value = add(new Setting.Choice("value", "number", List.of("number", "percent")));
-    private final Setting.Toggle counter = add(new Setting.Toggle("counter", true));
-    private final Setting.Toggle cooldowns = add(new Setting.Toggle("cooldowns", true));
-    private final Setting.Toggle totems = add(new Setting.Toggle("totems", true));
+    private final Setting.Toggle hands = add(new Setting.Toggle("hands", true).group("shows"));
+    private final Setting.Choice value = add(new Setting.Choice("value", "number", List.of("number", "percent")).group("durability"));
+    private final Setting.Toggle counter = add(new Setting.Toggle("counter", true).group("shows"));
+    private final Setting.Toggle cooldowns = add(new Setting.Toggle("cooldowns", true).group("shows"));
+    private final Setting.Toggle totems = add(new Setting.Toggle("totems", true).group("shows"));
     /** A toast and a bell when something worn or held is about to break. */
-    private final Setting.Toggle warnings = add(new Setting.Toggle("durability_warnings", true));
+    private final Setting.Toggle warnings = add(new Setting.Toggle("durability_warnings", true).group("durability"));
     private static final EquipmentSlot[] WATCHED = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
             EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
     /** The item each watched slot was last warned about (null: none). */

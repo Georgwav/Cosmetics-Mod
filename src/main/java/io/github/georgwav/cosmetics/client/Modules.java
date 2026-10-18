@@ -229,6 +229,7 @@ public final class Modules {
 
     private static void loadSettings(Module m, JsonObject saved) {
         JsonObject values = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
+        m.migrate(values);
         for (Setting<?> s : m.settings) {
             JsonElement v = values.get(s.id);
             if (v != null) {

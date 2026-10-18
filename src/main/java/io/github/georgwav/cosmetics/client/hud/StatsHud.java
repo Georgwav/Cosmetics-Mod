@@ -49,8 +49,8 @@ public final class StatsHud extends TextHud {
     private static final DateTimeFormatter H24 = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT);
     private static final DateTimeFormatter H12 = DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT);
     private final Map<Stat, Setting.Toggle> shown = new EnumMap<>(Stat.class);
-    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h")));
-    private final Setting.Choice layout = add(new Setting.Choice("layout", "row", List.of("row", "column")));
+    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h")).group("look"));
+    private final Setting.Choice layout = add(new Setting.Choice("layout", "row", List.of("row", "column")).group("look"));
     private final Map<Stat, RollingText> rolling = new EnumMap<>(Stat.class);
     private final Map<Stat, String> label = new EnumMap<>(Stat.class);
 
@@ -71,7 +71,7 @@ public final class StatsHud extends TextHud {
     public StatsHud() {
         super("stats", "debug", 0f, 0f, 4f, 4f);
         for (Stat s : Stat.values()) {
-            shown.put(s, add(new Setting.Toggle(s.id(), s.on)));
+            shown.put(s, add(new Setting.Toggle(s.id(), s.on).group("lines")));
             rolling.put(s, new RollingText());
         }
         addKey("stopwatch");

@@ -24,14 +24,14 @@ public final class SolChat extends Module {
     private static final DateTimeFormatter H12 = DateTimeFormatter.ofPattern("h:mm", Locale.ROOT);
     private static final DateTimeFormatter SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
 
-    private final Setting.Toggle timestamps = add(new Setting.Toggle("timestamps", true));
-    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h", "seconds")));
+    private final Setting.Toggle timestamps = add(new Setting.Toggle("timestamps", true).group("timestamps"));
+    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h", "seconds")).group("timestamps"));
     /** Clicking a message's time copies the message. */
-    private final Setting.Toggle copy = add(new Setting.Toggle("copy", true));
-    private final Setting.Toggle compact = add(new Setting.Toggle("compact", true));
-    private final Setting.Toggle emoji = add(new Setting.Toggle("emoji", true));
+    private final Setting.Toggle copy = add(new Setting.Toggle("copy", true).group("timestamps"));
+    private final Setting.Toggle compact = add(new Setting.Toggle("compact", true).group("messages"));
+    private final Setting.Toggle emoji = add(new Setting.Toggle("emoji", true).group("messages"));
     /** How many messages the chat keeps (the game keeps 100). */
-    private final Setting.Slider history = add(new Setting.Slider("history", 1000, 100, 5000, 100, v -> Integer.toString((int) Math.round(v))));
+    private final Setting.Slider history = add(new Setting.Slider("history", 1000, 100, 5000, 100, v -> Integer.toString((int) Math.round(v))).group("messages"));
 
     private String lastRaw;
     private int repeats;

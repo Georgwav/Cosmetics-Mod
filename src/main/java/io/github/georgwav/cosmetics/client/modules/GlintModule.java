@@ -18,25 +18,25 @@ import java.util.Locale;
  * inventories and the hotbar get an outline or a glow in the glint's colour.
  */
 public final class GlintModule extends Module {
-    static final List<String> COLORS = List.of("purple", "red", "orange", "gold", "green", "cyan", "blue", "pink", "white");
-    private static final int[] RGB = {0xFF8040FF, 0xFFFF4040, 0xFFFF8A30, 0xFFFFD34A, 0xFF4CFF6A, 0xFF40E8FF, 0xFF4A7DFF,
-            0xFFFF60D0, 0xFFFFFFFF};
-    private final Setting.Choice mode = add(new Setting.Choice("mode", "theme", List.of("solid", "two", "rainbow", "theme")));
-    private final Setting.Choice color = add(new Setting.Choice("color", "cyan", COLORS));
-    private final Setting.Choice color2 = add(new Setting.Choice("color2", "pink", COLORS));
-    private final Setting.Slider strength = add(new Setting.Slider("strength", 100, 30, 200, 10, v -> Math.round(v) + "%"));
+    private static final java.util.Map<String, Integer> NAMES = java.util.Map.of("purple", 0xFF8040FF, "red", 0xFFFF4040,
+            "orange", 0xFFFF8A30, "gold", 0xFFFFD34A, "green", 0xFF4CFF6A, "cyan", 0xFF40E8FF, "blue", 0xFF4A7DFF,
+            "pink", 0xFFFF60D0, "white", 0xFFFFFFFF);
+    private final Setting.Choice mode = add(new Setting.Choice("mode", "theme", List.of("solid", "two", "rainbow", "theme")).group("colours"));
+    private final Setting.Color color = add(new Setting.Color("color", 0xFF40E8FF).names(NAMES).group("colours"));
+    private final Setting.Color color2 = add(new Setting.Color("color2", 0xFFFF60D0).names(NAMES).group("colours"));
+    private final Setting.Slider strength = add(new Setting.Slider("strength", 100, 30, 200, 10, v -> Math.round(v) + "%").group("colours"));
     /** Enchanted items in inventories and the hotbar: an outline in the glint's colour, or a soft glow round the slot. */
-    private final Setting.Choice gui = add(new Setting.Choice("gui", "outline", List.of("none", "outline", "glow")));
+    private final Setting.Choice gui = add(new Setting.Choice("gui", "outline", List.of("none", "outline", "glow")).group("inventory"));
     private final Setting.Slider speed = add(new Setting.Slider("speed", 1.0, 0.1, 3.0, 0.1,
-            v -> String.format(Locale.ROOT, "%.1f×", v)));
+            v -> String.format(Locale.ROOT, "%.1f×", v)).group("colours"));
     private String paintedKey = "";
 
     public GlintModule() {
         super("glint", Category.VIEW, "sparkle");
     }
 
-    private static int rgb(Setting.Choice c) {
-        return RGB[Math.max(0, COLORS.indexOf(c.get()))];
+    private static int rgb(Setting.Color c) {
+        return c.argb();
     }
 
     @Override

@@ -8,9 +8,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Hitboxes: only players' boxes when the module asks. Where the game decides an entity's box: the debug renderer's
- * showHitboxes from 1.21.11, the entity renderer filling its render state from 1.21.5, the entity render dispatcher's
- * renderHitbox before.
+ * Hitboxes: which entities get boxes, and which entity's box the game is making (for the target's colour). Where the
+ * game decides an entity's box: the debug renderer's showHitboxes from 1.21.11, the entity renderer filling its
+ * render state from 1.21.5, the entity render dispatcher's renderHitbox before.
  */
 //? if >=1.21.11 {
 @Mixin(net.minecraft.client.renderer.debug.EntityHitboxDebugRenderer.class)
@@ -29,6 +29,13 @@ abstract class HitboxFilterMixin {
     }
     //?} elif >=1.21.5 {
     /*@Inject(method = "extractHitboxes(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
+            at = @At("HEAD"), require = 0)
+    private void cosmeticsmod$current(Entity entity, net.minecraft.client.renderer.entity.state.EntityRenderState state, float partialTick,
+                                      CallbackInfo ci) {
+        Hitboxes.current(entity);
+    }
+
+    @Inject(method = "extractHitboxes(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
             at = @At("RETURN"), require = 0)
     private void cosmeticsmod$players(Entity entity, net.minecraft.client.renderer.entity.state.EntityRenderState state, float partialTick,
                                       CallbackInfo ci) {

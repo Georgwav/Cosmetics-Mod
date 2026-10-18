@@ -20,8 +20,10 @@ import java.util.List;
  * brief's coordinates and compass); the plain look writes lines.
  */
 public final class CoordinatesHud extends TextHud {
-    private final Setting.Toggle direction = add(new Setting.Toggle("direction", true));
-    private final Setting.Toggle compass = add(new Setting.Toggle("compass", true));
+    private final Setting.Toggle direction = add(new Setting.Toggle("direction", true).group("shows"));
+    private final Setting.Toggle compass = add(new Setting.Toggle("compass", true).group("shows"));
+    /** The same spot in the other dimension: the Nether's in the Overworld and the other way round. */
+    private final Setting.Toggle other = add(new Setting.Toggle("other_dimension", false).group("shows"));
 
     public CoordinatesHud() {
         super("coordinates", "pin", 0f, 0f, 4f, 40f);
@@ -37,7 +39,27 @@ public final class CoordinatesHud extends TextHud {
         if (direction.get()) {
             lines.add(facing(mc));
         }
+        String o = otherDimension(mc);
+        if (o != null) {
+            lines.add(o);
+        }
         return lines;
+    }
+
+    /** "Nether 16 -32" in the Overworld, "Overworld 128 -256" in the Nether; null elsewhere or when off. */
+    private String otherDimension(Minecraft mc) {
+        if (!other.get() || mc.player == null || mc.level == null) {
+            return null;
+        }
+        var dim = mc.level.dimension();
+        boolean nether = dim == net.minecraft.world.level.Level.NETHER;
+        if (!nether && dim != net.minecraft.world.level.Level.OVERWORLD) {
+            return null;
+        }
+        double k = nether ? 8.0 : 1.0 / 8.0;
+        int x = (int) Math.floor(mc.player.getX() * k), z = (int) Math.floor(mc.player.getZ() * k);
+        return Component.translatable(nether ? "cosmeticsmod.module.coordinates.overworld" : "cosmeticsmod.module.coordinates.nether")
+                .getString() + " " + x + " " + z;
     }
 
     private static String facing(Minecraft mc) {
@@ -69,7 +91,9 @@ public final class CoordinatesHud extends TextHud {
         if (mc.player == null) {
             return Component.translatable("cosmeticsmod.module.coordinates.facing.north").getString() + " (-Z)";
         }
-        return direction.get() ? facing(mc) : null;
+        String o = otherDimension(mc);
+        String f = direction.get() ? facing(mc) : null;
+        return f == null ? o : o == null ? f : f + "  ·  " + o;
     }
 
     private float cardWidth(Minecraft mc) {

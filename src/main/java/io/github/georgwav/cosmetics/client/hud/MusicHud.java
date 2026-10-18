@@ -29,17 +29,17 @@ import java.util.Locale;
  * (Settings: album colours for the UI, the album sky).
  */
 public final class MusicHud extends TextHud {
-    private final Setting.Toggle cider = add(new Setting.Toggle("cider", true));
-    private final Setting.Toggle spotify = add(new Setting.Toggle("spotify", true));
-    private final Setting.Toggle systemPlayer = add(new Setting.Toggle("system_player", true));
-    private final Setting.Toggle cover = add(new Setting.Toggle("cover", true));
-    private final Setting.Toggle progress = add(new Setting.Toggle("progress", true));
+    private final Setting.Toggle cider = add(new Setting.Toggle("cider", true).group("sources"));
+    private final Setting.Toggle spotify = add(new Setting.Toggle("spotify", true).group("sources"));
+    private final Setting.Toggle systemPlayer = add(new Setting.Toggle("system_player", true).group("sources"));
+    private final Setting.Toggle cover = add(new Setting.Toggle("cover", true).group("look"));
+    private final Setting.Toggle progress = add(new Setting.Toggle("progress", true).group("look"));
     /** The visualizers, one switch each (Settings › Music turns them all off). */
     private final java.util.Map<String, Setting.Toggle> viz = new java.util.LinkedHashMap<>();
 
     {
         for (String v : new String[]{"stars", "eq", "aurora", "rings", "album_sun", "notes", "breathe"}) {
-            viz.put(v, add(new Setting.Toggle("viz_" + v, true)));
+            viz.put(v, add(new Setting.Toggle("viz_" + v, true).group("visualizers")));
         }
     }
 
