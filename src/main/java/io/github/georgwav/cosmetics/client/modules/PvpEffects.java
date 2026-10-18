@@ -54,10 +54,10 @@ public final class PvpEffects extends Module {
                 if (!critsOnly.get() || crit(player)) {
                     float vol = (float) (hitVolume.get() / 100.0), pitch = (float) (hitPitch.get() / 100.0);
                     switch (hitSound.get()) {
-                        case "click" -> play(mc, SoundEvents.UI_BUTTON_CLICK.value(), 1.6f * pitch, 0.25f * vol);
-                        case "bell" -> play(mc, SoundEvents.NOTE_BLOCK_BELL.value(), 1.4f * pitch, 0.25f * vol);
-                        case "pling" -> play(mc, SoundEvents.NOTE_BLOCK_PLING.value(), 1.5f * pitch, 0.25f * vol);
-                        case "orb" -> play(mc, SoundEvents.EXPERIENCE_ORB_PICKUP, 1.3f * pitch, 0.25f * vol);
+                        case "click" -> play(mc, SoundEvents.UI_BUTTON_CLICK.value(), pitch(1.6f, pitch), 0.25f * vol);
+                        case "bell" -> play(mc, SoundEvents.NOTE_BLOCK_BELL.value(), pitch(1.4f, pitch), 0.25f * vol);
+                        case "pling" -> play(mc, SoundEvents.NOTE_BLOCK_PLING.value(), pitch(1.5f, pitch), 0.25f * vol);
+                        case "orb" -> play(mc, SoundEvents.EXPERIENCE_ORB_PICKUP, pitch(1.3f, pitch), 0.25f * vol);
                         default -> {
                         }
                     }
@@ -65,6 +65,14 @@ public final class PvpEffects extends Module {
             }
             return InteractionResult.PASS;
         });
+    }
+
+    /**
+     * The pitch for a sound whose own is {@code base}, at the slider's {@code k} (0.5 to 2): the slider's whole range
+     * spread over what the game plays (0.5 to 2), its middle the sound's own.
+     */
+    private static float pitch(float base, float k) {
+        return k >= 1f ? base + (2f - base) * (k - 1f) : 0.5f + (base - 0.5f) * (k - 0.5f) / 0.5f;
     }
 
     private static void play(Minecraft mc, net.minecraft.sounds.SoundEvent sound, float pitch, float volume) {

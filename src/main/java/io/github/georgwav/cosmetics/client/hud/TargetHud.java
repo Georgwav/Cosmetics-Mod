@@ -41,6 +41,11 @@ public final class TargetHud extends HudModule {
         });
     }
 
+    @Override
+    protected void onDisable(Minecraft mc) {
+        hit = null;
+    }
+
     /** The target now, or null. */
     private LivingEntity target(Minecraft mc) {
         if (mc.player == null) {
@@ -53,7 +58,11 @@ public final class TargetHud extends HudModule {
                 return l;
             }
         }
-        if (!w.equals("looking") && hit != null && System.currentTimeMillis() - hitAt < 5000L && ok(hit)) {
+        if (hit != null && (System.currentTimeMillis() - hitAt >= 5000L || hit.level() != mc.level)) {
+            // Let go of it, so an old world isn't kept in memory through it.
+            hit = null;
+        }
+        if (!w.equals("looking") && hit != null && ok(hit)) {
             return hit;
         }
         return null;

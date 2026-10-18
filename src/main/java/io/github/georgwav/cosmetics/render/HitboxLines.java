@@ -3,9 +3,9 @@ package io.github.georgwav.cosmetics.render;
 import io.github.georgwav.cosmetics.client.modules.Hitboxes;
 
 /**
- * The lines hitboxes are drawn with, at the width Hitboxes asks for: the game's lines render type when it's the
- * game's width, else a copy of it with that width (one per width, kept). From 1.21.11 the game draws hitboxes as
- * gizmos with their own stroke width (see HitboxWidthMixin), so this is for the versions before.
+ * The lines hitboxes (and Block Outline's lines) are drawn with, at the width asked for: the game's lines render
+ * type when it's the game's width, else a copy of it with that width (one per width, kept). From 1.21.11 the game
+ * draws hitboxes as gizmos with their own stroke width (see HitboxWidthMixin), so this is for the versions before.
  */
 public final class HitboxLines {
     /** Hitbox lines drawn at a width of the module's (for the self-test). */
@@ -20,10 +20,17 @@ public final class HitboxLines {
     //? if <1.21.11 {
     /*public static net.minecraft.client.renderer.RenderType lines() {
         float scale = Hitboxes.width();
+        if (scale != 1f) {
+            drawn++;
+        }
+        return lines(scale);
+    }
+
+    /^* The game's lines at {@code scale} times its width (Block Outline's lines too). ^/
+    public static net.minecraft.client.renderer.RenderType lines(float scale) {
         if (scale == 1f) {
             return net.minecraft.client.renderer.RenderType.lines();
         }
-        drawn++;
         // The game's own width: 2.5 pixels on a 1920-wide window, more on wider ones.
         float game = Math.max(2.5f, net.minecraft.client.Minecraft.getInstance().getWindow().getWidth() / 1920f * 2.5f);
         // A width of exactly 1 would leave the last one set, so the smallest is a hair over.

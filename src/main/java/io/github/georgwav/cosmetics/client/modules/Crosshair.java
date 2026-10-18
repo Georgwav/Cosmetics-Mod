@@ -19,7 +19,9 @@ public final class Crosshair extends Module {
     private final Setting.Slider gap = add(new Setting.Slider("gap", 3, 0, 16, 1, Crosshair::px).group("look"));
     private final Setting.Slider thickness = add(new Setting.Slider("thickness", 2, 1, 6, 1, Crosshair::px).group("look"));
     private final Setting.Toggle dot = add(new Setting.Toggle("dot", false).group("look"));
-    private final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).themed().group("colours"));
+    private final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).themed().names(java.util.Map.of(
+            "white", 0xFFFFFFFF, "green", 0xFF4CFF4C, "red", 0xFFFF4040, "cyan", 0xFF40E8FF, "yellow", 0xFFFFE040, "pink", 0xFFFF60D0))
+            .group("colours"));
     private final Setting.Slider opacity = add(new Setting.Slider("opacity", 1.0, 0.2, 1.0, 0.05,
             v -> Math.round(v * 100) + "%").group("colours"));
     private final Setting.Toggle outline = add(new Setting.Toggle("outline", true).group("colours"));

@@ -253,16 +253,16 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
             int r = rays != null ? rays : sun.rays();
             int coreRays = rays != null ? Math.round(sun.coreRays() * (sun.rays() == 0 ? 1f : (float) r / sun.rays())) : sun.coreRays();
             int core = colours.containsKey("sun_core") ? Colors.recolour(sun.core(), sr.core(), colours.get("sun_core")) : sun.core();
-            sun = new ThemeSpec.Sun(sun.texture(), sun.size() * sunSize, core, col("sun_halo", sun.halo(), sr.halo()), sun.haloRadius(),
-                    Math.min(1f, sun.haloAlpha() * amount("sun_glow")), r, coreRays, sun.rayLength() * amount("ray_length"), sun.plasma(),
+            sun = new ThemeSpec.Sun(sun.texture(), sun.size() * sunSize, core, col("sun_halo", sun.halo(), sr.halo()),
+                    sun.haloRadius() * spread(amount("sun_glow")), Math.min(1f, sun.haloAlpha() * amount("sun_glow")), r, coreRays, sun.rayLength() * amount("ray_length"), sun.plasma(),
                     sun.corona(), sun.sunDogs(), sun.pillar(), sun.shimmer(), sun.flare(), sun.glare(), sun.orbitTilt(), sun.x(), sun.y());
         }
         ThemeSpec.Moon moon = s.moon();
         if (moon != null) {
             ThemeSpec.Moon mr = ref.moon() != null ? ref.moon() : moon;
             int mc = colours.containsKey("moon") ? Colors.recolour(moon.color(), mr.color(), colours.get("moon")) : moon.color();
-            moon = new ThemeSpec.Moon(moon.size() * amount("moon_size"), mc, col("moon_halo", moon.halo(), mr.halo()), moon.haloRadius(),
-                    Math.min(1f, moon.haloAlpha() * amount("moon_glow")), moon.ring(), moon.dogs(), moon.x(), moon.y());
+            moon = new ThemeSpec.Moon(moon.size() * amount("moon_size"), mc, col("moon_halo", moon.halo(), mr.halo()),
+                    moon.haloRadius() * spread(amount("moon_glow")), Math.min(1f, moon.haloAlpha() * amount("moon_glow")), moon.ring(), moon.dogs(), moon.x(), moon.y());
         }
         ThemeSpec.Stars st = s.stars();
         if (stars != 1f || milkyWay != null || colours.containsKey("stars")) {
@@ -360,6 +360,11 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         return new ThemeSpec(s.id(), s.name(), s.line(), s.order(), ui, sky, fogSpec, light, sun, moon, st, pl, s.galaxy(), au,
                 nebula, eclipse, s.lightning(), s.sigil(), s.mist(), clouds, wind, emit, s.show(), s.noRidges(),
                 s.vanillaSun(), grade, nt);
+    }
+
+    /** A glow turned up past its own: as bright as it can be, then wider (so the top of the slider still does something). */
+    private static float spread(float k) {
+        return k > 1f ? 1f + (k - 1f) * 0.6f : 1f;
     }
 
     /** A colour of the theme's: recoloured where the player picked one for its part, else turned with the hue. */

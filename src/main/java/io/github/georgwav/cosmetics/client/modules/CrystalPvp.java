@@ -24,7 +24,7 @@ import java.util.UUID;
 /**
  * Crystal PvP, each part on its own switch: the crystal optimizer (an end crystal you hit is gone from your screen at
  * once when the hit will break it, instead of a moment later when the server says so, so the next one goes down
- * sooner); the crystals' size, spin and bounce; a line in chat when anyone near you pops a totem, with their count;
+ * sooner; one the server keeps comes back after a second and a half); the crystals' size, spin and bounce; a line in chat when anyone near you pops a totem, with their count;
  * a warning when your offhand has no totem but your inventory does; and a red pulse round the screen when your health
  * runs low. All on your side only: nothing is sent that the game doesn't send anyway.
  */
@@ -41,6 +41,15 @@ public final class CrystalPvp extends Module {
 
     /** Totems each player has popped since they last died (or since you saw them first). */
     private final Map<UUID, Integer> popped = new HashMap<>();
+    /**
+     * Crystals the optimizer took from view, by id, until the server removes them too. A hit the server turns down
+     * (out of reach, lag, a plugin) leaves its crystal there: after {@link #CONFIRM_MS} it's put back in view.
+     */
+    private final Map<Integer, Hidden> hidden = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long CONFIRM_MS = 1500L;
+
+    private record Hidden(long at, net.minecraft.client.multiplayer.ClientLevel level, double x, double y, double z, boolean bottom) {
+    }
     private boolean warned;
     private long warnedAt;
 
@@ -51,6 +60,8 @@ public final class CrystalPvp extends Module {
             if (enabled() && optimizer.get() && level.isClientSide() && player == mc.player && entity instanceof EndCrystal
                     && breaks(player, entity)) {
                 // The packet to attack it is still sent (by the game, after this); the crystal goes from view now.
+                hidden.put(entity.getId(), new Hidden(System.currentTimeMillis(), mc.level, entity.getX(), entity.getY(), entity.getZ(),
+                        ((EndCrystal) entity).showsBottom()));
                 entity.remove(Entity.RemovalReason.KILLED);
             }
             return InteractionResult.PASS;
@@ -91,6 +102,40 @@ public final class CrystalPvp extends Module {
 
     // ------------------------------------------------------------------ totems
 
+    /** The server removed these entities (CrystalRemovalMixin; on the network thread too). */
+    public static void serverRemoved(it.unimi.dsi.fastutil.ints.IntList ids) {
+        Map<Integer, Hidden> h = Modules.CRYSTAL_PVP.hidden;
+        if (!h.isEmpty()) {
+            for (int i = 0; i < ids.size(); i++) {
+                h.remove(ids.getInt(i));
+            }
+        }
+    }
+
+    /** Puts back in view the crystals the server kept (the hit didn't count). */
+    private void restoreKept(Minecraft mc) {
+        if (hidden.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        hidden.entrySet().removeIf(e -> {
+            Hidden h = e.getValue();
+            if (h.level() != mc.level) {
+                return true;
+            }
+            if (now - h.at() < CONFIRM_MS) {
+                return false;
+            }
+            if (mc.level.getEntity(e.getKey()) == null) {
+                EndCrystal back = new EndCrystal(mc.level, h.x(), h.y(), h.z());
+                back.setId(e.getKey());
+                back.setShowBottom(h.bottom());
+                mc.level.addEntity(back);
+            }
+            return true;
+        });
+    }
+
     /** Someone popped a totem (the game's entity event 35, TotemPopMixin). */
     public static void popped(LivingEntity entity) {
         CrystalPvp c = Modules.CRYSTAL_PVP;
@@ -118,9 +163,11 @@ public final class CrystalPvp extends Module {
     protected void tick(Minecraft mc) {
         if (mc.level == null || mc.player == null) {
             popped.clear();
+            hidden.clear();
             warned = false;
             return;
         }
+        restoreKept(mc);
         // Counts start again when someone dies or is gone.
         popped.keySet().removeIf(id -> {
             Player p = mc.level.getPlayerByUUID(id);
@@ -190,5 +237,11 @@ public final class CrystalPvp extends Module {
     protected void onDisable(Minecraft mc) {
         popped.clear();
         warned = false;
+        if (mc.level != null) {
+            // Back in view at once: nothing would watch for them any more.
+            hidden.replaceAll((id, h) -> new Hidden(0L, h.level(), h.x(), h.y(), h.z(), h.bottom()));
+            restoreKept(mc);
+        }
+        hidden.clear();
     }
 }

@@ -20,7 +20,8 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 
 /**
  * Crystal PvP's crystals: their size (round the middle of their box, so they stay where they are), how fast they
- * turn and bob, and whether they bob at all. Before 1.21.2 the turn comes from the crystal's age, read in its render.
+ * turn and bob, and whether they bob at all. From 1.21.2 the render state's age is scaled; before, each rotation by
+ * the age in the render and the bob's height.
  */
 @Mixin(EndCrystalRenderer.class)
 abstract class EndCrystalLookMixin {
@@ -46,14 +47,24 @@ abstract class EndCrystalLookMixin {
     private static void cosmeticsmod$still(EndCrystal crystal, float partialTick, CallbackInfoReturnable<Float> cir) {
         if (!CrystalPvp.crystalBounce()) {
             cir.setReturnValue(STILL_Y);
+            return;
+        }
+        float spin = CrystalPvp.crystalSpin();
+        if (spin != 1f) {
+            // The game's bob, at the crystals' speed.
+            float t = (crystal.time + partialTick) * spin;
+            float g = net.minecraft.util.Mth.sin(t * 0.2f) / 2f + 0.5f;
+            g = (g * g + g) * 0.4f;
+            cir.setReturnValue(g - 1.4f);
         }
     }
 
-    @org.spongepowered.asm.mixin.injection.Redirect(method = "render(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
-            at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;time:I"), require = 0)
-    private int cosmeticsmod$spin(EndCrystal crystal) {
+    /^* The turn: every rotation by the crystal's age, scaled (smooth at any speed, still at 0%). ^/
+    @org.spongepowered.asm.mixin.injection.ModifyArg(method = "render(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+            at = @At(value = "INVOKE", target = "Lcom/mojang/math/Axis;rotationDegrees(F)Lorg/joml/Quaternionf;"), require = 0)
+    private float cosmeticsmod$spin(float degrees) {
         io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SPIN.hit();
-        return Math.round(crystal.time * CrystalPvp.crystalSpin());
+        return degrees * CrystalPvp.crystalSpin();
     }
     *///?}
 

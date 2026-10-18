@@ -37,17 +37,21 @@ public final class ThemePage implements Page {
     private static final float LEFT_W = 360f, GAP = 28f, PAD = 20f;
     private static final int[] PRESETS = {0xFFFFFF, 0xFF4D4D, 0xFF9A3C, 0xFFD23F, 0x7CF27C, 0x3FD8C7, 0x4DA6FF, 0x8B6BFF,
             0xFF6EC7, 0xB0B0B8, 0x3A3A44, 0x000000};
-    /** How often the previews may be redrawn while something is being dragged. */
-    private static final long REDRAW_MS = 180L;
 
     private final Scroll scroll = new Scroll();
     /** The part whose colour is being picked (its picker open under its row), or null. */
     private String picking;
     private ColorPicker picker;
     private SolTexture day, night;
+    /** What the pictures show (the theme and its edits), and what the CPU thread is drawing now (null when idle). */
     private Customisation drawnWith;
     private String drawnFor;
-    private long drawnAt;
+    private Customisation drawingWith;
+    /** The two pictures the CPU thread finished, waiting to be uploaded on the render thread. */
+    private final java.util.concurrent.atomic.AtomicReference<Drawn> finished = new java.util.concurrent.atomic.AtomicReference<>();
+
+    private record Drawn(String themeId, Customisation with, int w, int h, int[] day, int[] night) {
+    }
     /** Whether the moon looks are open under their row. */
     private boolean choosingLook;
     /** Scroll to the night once the page knows where it is (opened from the Night sky page). */
@@ -135,32 +139,44 @@ public final class ThemePage implements Page {
         g.text(cap, caption, x + 12f, y + h - 10f, 0xB3FFFFFF);
     }
 
-    /** Redraws the two pictures when the theme or its edits changed (not more often than REDRAW_MS while dragging). */
+    /**
+     * Keeps the two pictures up to date with the theme and its edits: they're drawn on Sol's CPU thread (one at a
+     * time, the latest edits each time it's free) and uploaded here when ready, so dragging a slider never waits.
+     */
     private void redraw(ThemeRegistry.Entry base, int pw, int ph) {
+        Drawn done = finished.getAndSet(null);
+        if (done != null) {
+            drawingWith = null;
+            if (done.day() != null) {
+                release();
+                day = SolTexture.of("theme_day", done.w(), done.h(), true, done.day());
+                night = SolTexture.of("theme_night", done.w(), done.h(), true, done.night());
+            }
+            // A picture that couldn't be drawn counts as drawn for these edits: the next edit tries again.
+            drawnFor = done.themeId();
+            drawnWith = done.with();
+        }
         Customisation c = c();
-        boolean stale = day == null || day.released() || night == null || night.released() || !base.id().equals(drawnFor)
-                || !c.equals(drawnWith);
-        long now = System.currentTimeMillis();
-        if (!stale || now - drawnAt < REDRAW_MS && day != null && !day.released()) {
+        boolean stale = !base.id().equals(drawnFor) || !c.equals(drawnWith);
+        if (!stale || drawingWith != null) {
             return;
         }
-        drawnFor = base.id();
-        drawnWith = c;
-        drawnAt = now;
+        drawingWith = c;
         ThemeRegistry.Entry e = ThemeState.entry();
-        if (day != null) {
-            day.release();
-        }
-        if (night != null) {
-            night.release();
-        }
-        ThemeSpec showpiece = e.base();
-        boolean nightTheme = "night".equals(showpiece.show().phase());
-        // A night theme shows its night as its showpiece: its day is the time of day the game shows at noon.
-        ThemeSpec byDay = nightTheme ? e.phase(ThemeRegistry.Phase.NOON) : showpiece;
-        day = SolTexture.of("theme_day", pw, ph, true, MiniSky.render(byDay, e.id(), pw, ph, 2f).toArgb(null));
-        night = SolTexture.of("theme_night", pw, ph, true, MiniSky.render(nightView(e.phase(ThemeRegistry.Phase.NIGHT)), e.id(), pw, ph, 2f)
-                .toArgb(null));
+        String id = base.id();
+        io.github.georgwav.cosmetics.sol.util.SolExecutors.CPU.execute(() -> {
+            try {
+                ThemeSpec showpiece = e.base();
+                // A night theme shows its night as its showpiece: its day is the time of day the game shows at noon.
+                ThemeSpec byDay = "night".equals(showpiece.show().phase()) ? e.phase(ThemeRegistry.Phase.NOON) : showpiece;
+                int[] d = MiniSky.render(byDay, e.id(), pw, ph, 2f).toArgb(null);
+                int[] n = MiniSky.render(nightView(e.phase(ThemeRegistry.Phase.NIGHT)), e.id(), pw, ph, 2f).toArgb(null);
+                finished.set(new Drawn(id, c, pw, ph, d, n));
+            } catch (RuntimeException | LinkageError ex) {
+                io.github.georgwav.cosmetics.CosmeticsMod.LOGGER.warn("[Sol] Couldn't draw the theme page's pictures", ex);
+                finished.set(new Drawn(id, c, pw, ph, null, null));
+            }
+        });
     }
 
     /** The night time of day as a picture shows a night: the moon up (where the theme doesn't place it) and stars out. */

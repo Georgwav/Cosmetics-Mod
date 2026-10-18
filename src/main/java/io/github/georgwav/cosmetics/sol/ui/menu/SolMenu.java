@@ -685,6 +685,8 @@ public final class SolMenu extends SolScreen {
 
     @Override
     protected void closed() {
+        // A page still open (Esc or the menu key closes the menu over it): its pictures go too.
+        closeDrawer();
         logo.release();
         if (sunTex != null) {
             sunTex.release();

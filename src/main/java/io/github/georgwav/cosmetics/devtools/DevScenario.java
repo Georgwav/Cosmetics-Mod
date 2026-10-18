@@ -122,6 +122,7 @@ public final class DevScenario {
     private int hubFramesAtStart;
     private int hudFramesAtStart;
     private int outlineFramesAtStart;
+    private int outlineFillsAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -746,6 +747,7 @@ public final class DevScenario {
                     // The HUD modules, all on over the game, then in the HUD editor.
                     hudFramesAtStart = Hud.framesDrawn;
                     outlineFramesAtStart = OutlineHook.framesDrawn;
+                    outlineFillsAtStart = io.github.georgwav.cosmetics.client.OutlineFill.drawn;
                     ModulesSelfTest.switchOnHud(client);
                     enter(Phase.HUD_MODULES);
                     writeMarker("ui_hud");
@@ -762,6 +764,11 @@ public final class DevScenario {
                     phases.getAsJsonObject("settings_ui").addProperty("outline", outlines);
                     if (BlockOutline.supported() && outlines <= 0) {
                         failures.add("the block outline was never drawn");
+                    }
+                    int fills = io.github.georgwav.cosmetics.client.OutlineFill.drawn - outlineFillsAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("outline_fill", fills);
+                    if (BlockOutline.supported() && fills <= 0) {
+                        failures.add("the block outline's fill was never drawn");
                     }
                     hudFramesAtStart = HudEditor.framesRendered;
                     ScreenOpener.open(new HudEditor(null));

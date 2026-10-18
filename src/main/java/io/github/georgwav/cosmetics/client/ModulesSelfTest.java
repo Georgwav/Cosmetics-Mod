@@ -253,8 +253,8 @@ public final class ModulesSelfTest {
     private static float pitchBefore;
 
     /**
-     * The HUD modules all on, the crosshair, a raised hotbar, and a red block outline: the player looks down at the
-     * ground in front so there is a block to outline.
+     * The HUD modules all on, the crosshair, a raised hotbar, and a red block outline twice the game's width and
+     * filled: the player looks down at the ground in front so there is a block to outline.
      */
     public static void switchOnHud(Minecraft mc) {
         ModulesSelfTest.<String>setting(Modules.STATS, "font").set("geist");
@@ -268,6 +268,9 @@ public final class ModulesSelfTest {
         }
         ModulesSelfTest.<Integer>setting(Modules.OUTLINE, "color").set(0xFFFF4040);
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").set(1.0);
+        // Twice the game's width, and filled.
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "width").set(2.0);
+        ModulesSelfTest.<Boolean>setting(Modules.OUTLINE, "fill").set(true);
         Modules.OUTLINE.setEnabled(true);
         for (Module m : Modules.hud()) {
             m.setEnabled(true);
@@ -293,6 +296,8 @@ public final class ModulesSelfTest {
         Modules.OUTLINE.setEnabled(false);
         ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").reset();
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").reset();
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "width").reset();
+        ModulesSelfTest.<Boolean>setting(Modules.OUTLINE, "fill").reset();
         if (mc.player != null) {
             mc.player.setXRot(pitchBefore);
             mc.player.removeEffect(MobEffects.NIGHT_VISION);

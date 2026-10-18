@@ -59,9 +59,13 @@ public final class ModulePage implements Page {
     private Setting.Color picking;
     private ColorPicker picker;
     private Setting.Choice choosing;
+    /** Atmosphere's sky picture: the theme with its edits, drawn on Sol's CPU thread when either changes. */
     private SolTexture sky;
     private String skyFor;
-    private int skyGeneration = -1;
+    private io.github.georgwav.cosmetics.sol.theme.Customisation skyWith;
+    private boolean skyDrawing;
+    private final java.util.concurrent.atomic.AtomicReference<int[]> skyDone = new java.util.concurrent.atomic.AtomicReference<>();
+    private int skyW, skyH;
     /** The preview's box in screen pixels, for the game's own drawing (the crosshair). */
     private int pvX0, pvY0, pvX1, pvY1;
 
@@ -175,18 +179,37 @@ public final class ModulePage implements Page {
         SolFont cap = g.font(SolFont.Family.MONO, 10.5f);
         if (module == Atmosphere.INSTANCE) {
             var e = ThemeState.baseEntry();
-            if (sky == null || sky.released() || !e.id().equals(skyFor) || skyGeneration != ThemeState.tokens().generation) {
+            int[] px = skyDone.getAndSet(null);
+            if (px != null) {
                 if (sky != null) {
                     sky.release();
                 }
-                skyFor = e.id();
-                skyGeneration = ThemeState.tokens().generation;
-                int pw = Math.round(LEFT_W * 2), ph = Math.round(h * 2);
-                sky = SolTexture.of("page_sky", pw, ph, true, MiniSky.render(e.base(), e.id(), pw, ph, 2f).toArgb(null));
+                sky = SolTexture.of("page_sky", skyW, skyH, true, px);
+                skyDrawing = false;
             }
-            g.clip(x, y, x + w, y + h);
-            g.image(sky, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
-            g.endClip();
+            var c = ThemeState.customisation();
+            if (!skyDrawing && (!e.id().equals(skyFor) || !c.equals(skyWith))) {
+                skyFor = e.id();
+                skyWith = c;
+                skyDrawing = true;
+                skyW = Math.round(LEFT_W * 2);
+                skyH = Math.round(h * 2);
+                var spec = ThemeState.entry().base();
+                int pw = skyW, ph = skyH;
+                io.github.georgwav.cosmetics.sol.util.SolExecutors.CPU.execute(() -> {
+                    try {
+                        skyDone.set(MiniSky.render(spec, e.id(), pw, ph, 2f).toArgb(null));
+                    } catch (RuntimeException | LinkageError ex) {
+                        io.github.georgwav.cosmetics.CosmeticsMod.LOGGER.warn("[Sol] Couldn't draw the sky picture", ex);
+                        skyDone.set(new int[pw * ph]);
+                    }
+                });
+            }
+            if (sky != null && !sky.released()) {
+                g.clip(x, y, x + w, y + h);
+                g.image(sky, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+                g.endClip();
+            }
             g.text(cap, Widgets.themeName(e), x + 12f, y + h - 10f, 0x8CFFFFFF);
         } else if (module.previewHeight() > 0f) {
             // Drawn by the game itself, as it will look (see game()).

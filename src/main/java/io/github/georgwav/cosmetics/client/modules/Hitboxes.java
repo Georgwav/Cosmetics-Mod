@@ -112,6 +112,8 @@ public final class Hitboxes extends Module {
 
     @Override
     protected void tick(Minecraft mc) {
+        // Only meant for the box being made: not kept past the frame's boxes (nor its world).
+        current = null;
         if (!shown(mc)) {
             show(mc, true);
         }
