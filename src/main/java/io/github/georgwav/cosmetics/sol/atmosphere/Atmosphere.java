@@ -41,6 +41,15 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
     public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
     public final Setting.Toggle planets = add(new Setting.Toggle("planets", true).advanced());
+    // The night sky (the Night Sky lab's layers).
+    public final Setting.Choice constellations = add(new Setting.Choice("constellations", "always", List.of("off", "look", "always")).advanced());
+    public final Setting.Toggle names = add(new Setting.Toggle("names", true).advanced());
+    public final Setting.Toggle milkyWay = add(new Setting.Toggle("milky_way", true).advanced());
+    public final Setting.Toggle nebulae = add(new Setting.Toggle("nebulae", true).advanced());
+    /** How high the celestial pole stands over the north (0° is the game's straight east-to-west path). */
+    public final Setting.Slider latitude = add(new Setting.Slider("latitude", 34, 0, 60, 1, v -> Math.round(v) + "°").advanced());
+    /** Days in the sky's year: the stars at a given hour turn once round through it. */
+    public final Setting.Slider year = add(new Setting.Slider("year", 96, 8, 384, 8, v -> Math.round(v) + "d").advanced());
     public final Setting.Toggle ambience = add(new Setting.Toggle("ambience", false).advanced());
     // Advanced: time and weather, as the Time and Weather modules had them.
     public final Setting.Toggle lockTime = add(new Setting.Toggle("lock_time", false).advanced());

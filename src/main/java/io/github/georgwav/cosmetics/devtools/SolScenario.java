@@ -142,6 +142,18 @@ public final class SolScenario {
     }
 
     private void planAll() {
+        if ("night".equals(SHOTS)) {
+            // The night sky on its own (-Dcosmeticsmod.solShots=night): Maple's night, which keeps the world's time.
+            // Day 4 is the new moon, day 0 the full moon; 18,000 is midnight, 15,000 is 21:00.
+            long newMoon = 4 * 24000L;
+            shots.add(new Shot("sol_night_south", "maple_afternoon", 0f, false, 0f, -40f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_core", "maple_afternoon", 0f, false, 45f, -18f, newMoon + 15000L));
+            shots.add(new Shot("sol_night_north", "maple_afternoon", 0f, false, 180f, -30f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_zenith", "maple_afternoon", 0f, false, 0f, -88f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_full", "maple_afternoon", 0f, false, 0f, -40f, 18000L));
+            shots.add(new Shot("sol_night_dusk", "maple_afternoon", 0f, false, 90f, -20f, newMoon + 13300L));
+            return;
+        }
         if ("bench".equals(MODE)) {
             // The light pass's cost on the Ember frame: Low (no pass), Medium, High.
             String[] q = {"low", "medium", "high"};
@@ -468,6 +480,10 @@ public final class SolScenario {
                 io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = storm ? 0.32f : Float.NaN;
             }
             lockedTime = s.time() >= 0 ? s.time() : dayTimeFor(s.altitude(), s.morning());
+            // The sky's season from the shot's time, not the test world's age, so every run shows the same stars. The
+            // night sky's shots keep the lab's autumn whatever the moon's day.
+            io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride =
+                    (s.name().startsWith("sol_night_") ? lockedTime % 24000L : lockedTime) / 24000.0;
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.clear();
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.putAll(s.tune());
             Float quality = s.tune().get("quality");
@@ -1023,6 +1039,7 @@ public final class SolScenario {
         spyglass(mc, false);
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride = Double.NaN;
         crosshairOnly = false;
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());

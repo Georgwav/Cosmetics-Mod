@@ -204,6 +204,9 @@ account, only when they differ from what Sol last sent.
 
 The client's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/geist-ofl.txt`, Geist Mono included).
 
+The night sky's stars come from the HYG Database v4.1 by David Nash (CC BY-SA 4.0), and its constellation lines and
+names from d3-celestial by Olaf Frohn (BSD 3-clause); see `assets/cosmeticsmod/sky/CREDITS.txt`.
+
 ### Cosmetics
 
 - **Bundled**:

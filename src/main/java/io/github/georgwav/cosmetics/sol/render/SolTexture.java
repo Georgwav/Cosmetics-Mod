@@ -101,6 +101,14 @@ public final class SolTexture {
 
     /** Copies an ARGB picture in and uploads it. */
     public void upload(int[] argb) {
+        upload(argb, width, height);
+    }
+
+    /**
+     * Copies a {@code w} x {@code h} ARGB picture (rows {@code w} long) into the top left corner and uploads the
+     * texture; the rest keeps what it had.
+     */
+    public void upload(int[] argb, int w, int h) {
         if (released) {
             return;
         }
@@ -108,9 +116,9 @@ public final class SolTexture {
         if (pixels == null) {
             return;
         }
-        int i = 0;
-        for (int py = 0; py < height; py++) {
-            for (int px = 0; px < width; px++) {
+        for (int py = 0; py < Math.min(h, height); py++) {
+            int i = py * w;
+            for (int px = 0; px < Math.min(w, width); px++) {
                 int c = argb[i++];
                 //? if >=1.21.2 {
                 pixels.setPixel(px, py, c);

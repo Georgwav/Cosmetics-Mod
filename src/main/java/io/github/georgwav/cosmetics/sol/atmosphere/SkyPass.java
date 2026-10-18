@@ -87,17 +87,11 @@ public final class SkyPass {
         float t = FrameInfo.time;
         float rain = Ease.clamp01(1f - rainBrightness);
 
-        // Sun direction: the game's path, tilted by the theme's orbit tilt.
-        float sx = -(float) Math.sin(sunAngle);
-        float sy = (float) Math.cos(sunAngle);
-        float sz = 0f;
-        float tilt = theme.sun() != null ? (float) Math.toRadians(theme.sun().orbitTilt()) : 0f;
-        if (tilt != 0f) {
-            float y2 = sy * (float) Math.cos(tilt);
-            float z2 = sy * (float) Math.sin(tilt);
-            sy = y2;
-            sz = z2;
-        }
+        // The sun on the one sky sphere, with the moon and the stars.
+        NightSky.turn(theme, sunAngle, moonPhase);
+        float sx = NightSky.SPHERE.sun[0];
+        float sy = NightSky.SPHERE.sun[1];
+        float sz = NightSky.SPHERE.sun[2];
         sunX = sx;
         sunY = sy;
         sunZ = sz;
@@ -108,7 +102,9 @@ public final class SkyPass {
         float sunAz = (float) Math.toDegrees(Math.atan2(-sx, sz));
 
         dome(tk, sunAz, q, rain);
+        NightSky.render(theme, at, t, rain);
         Stellar.render(theme, tk, at, sunAngle, t, rain);
+        SkyLabels.draw();
         StarText.render(tk, sunAz, t, rain);
         Extras.renderBehind(theme, tk, t, rain);
         moon(theme, tk, sunAngle, moonPhase, rain);
@@ -182,6 +178,22 @@ public final class SkyPass {
         WorldDraw.end();
     }
 
+    /** The dome's colour at an altitude (degrees), without the glow toward the sun: what is behind a planet. */
+    static int skyAt(Tokens tk, float alt, float rain) {
+        int c;
+        if (alt <= 22f) {
+            c = Colors.mix(tk.skyHorizon, tk.skyMiddle, Math.max(0f, alt) / 22f);
+        } else if (alt <= 46f) {
+            c = Colors.mix(tk.skyMiddle, tk.skyTop, (alt - 22f) / 24f);
+        } else {
+            c = Colors.mix(tk.skyTop, Colors.scale(tk.skyTop, 0.9f), (alt - 46f) / 44f);
+        }
+        if (rain > 0f) {
+            c = Colors.mix(c, Colors.scale(Colors.mix(tk.fogColor, 0xFF8A9099, 0.5f), 0.85f), rain * 0.6f);
+        }
+        return c | 0xFF000000;
+    }
+
     // ------------------------------------------------------------------ band
 
     /** The horizon glow: clear at +10°, the glow at .75 on the horizon, clear again at −4° (the prototype's band). */
@@ -251,8 +263,10 @@ public final class SkyPass {
         if (m == null) {
             return;
         }
-        float x = (float) Math.sin(sunAngle);
-        float y = -(float) Math.cos(sunAngle);
+        // Where its phase puts it on the sky sphere.
+        float x = NightSky.SPHERE.moon[0];
+        float y = NightSky.SPHERE.moon[1];
+        float z = NightSky.SPHERE.moon[2];
         if (y < -0.12f) {
             return;
         }
@@ -261,7 +275,7 @@ public final class SkyPass {
         if (alpha <= 0.01f) {
             return;
         }
-        SkyDraw.billboard(x, y, 0f);
+        SkyDraw.billboard(x, y, z);
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
         float hr = m.haloRadius();
         SkyDraw.glowAt(0f, 0f, hr, hr, Colors.withAlpha(m.halo(), m.haloAlpha() * alpha * (0.4f + 0.6f * tk.night)));

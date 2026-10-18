@@ -23,6 +23,7 @@ public final class SkyDraw {
     private static SolTexture strip;
     private static SolTexture ray;
     private static SolTexture ring;
+    private static SolTexture disc;
     /** Where the soft ring's light peaks, as a fraction of its sprite's half-size. */
     private static final float RING_AT = 0.8f;
 
@@ -53,6 +54,23 @@ public final class SkyDraw {
             ray = SolTexture.of("ray", 256, 64, true, Sprites.ray(0xFFFFFFFF).toArgb(null));
         }
         return ray;
+    }
+
+    /** A filled round disc (its edge softened by a texel), for what hides the sky behind a planet or the moon. */
+    public static SolTexture disc() {
+        if (disc == null || disc.released()) {
+            int n = 64;
+            int[] px = new int[n * n];
+            for (int j = 0; j < n; j++) {
+                for (int i = 0; i < n; i++) {
+                    float dx = (i + 0.5f) / n * 2f - 1f, dy = (j + 0.5f) / n * 2f - 1f;
+                    float k = Math.max(0f, Math.min(1f, (1f - (float) Math.sqrt(dx * dx + dy * dy)) * n / 2f));
+                    px[j * n + i] = (Math.round(k * 255f) << 24) | 0xFFFFFF;
+                }
+            }
+            disc = SolTexture.of("disc", n, n, true, px);
+        }
+        return disc;
     }
 
     /**

@@ -145,7 +145,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | `rays`, `coreRays` | 14, 9 | Rays in the two counter-rotating fans (0 for none). |
 | `rayLength` | 1 | Ray length scale. |
 | `plasma`, `corona`, `sunDogs`, `pillar`, `shimmer`, `flare`, `glare` | true | The Sun lab's layers. Each also has a player switch in Atmosphere. |
-| `orbitTilt` | 0 | Tilt of the sun's path in degrees. |
+| `orbitTilt` | 0 | Degrees added to the player's Sky latitude: how high the sky's pole stands over the north, which tilts the paths of the sun, the moon and the stars. |
 | `x`, `y` | 0.74, 0.24 | Position in the showpiece view. |
 
 ## `moon`
