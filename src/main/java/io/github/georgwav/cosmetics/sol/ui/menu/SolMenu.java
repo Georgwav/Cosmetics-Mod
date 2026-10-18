@@ -119,10 +119,6 @@ public final class SolMenu extends SolScreen {
                 go("music");
                 ((MusicSection) sections.get("music")).stage("lyrics");
             }
-            case "wardrobe_outfits" -> {
-                go("wardrobe");
-                ((WardrobeSection) sections.get("wardrobe")).tab("outfits");
-            }
             default -> {
                 if (state.startsWith("drawer_")) {
                     go("modules");
@@ -148,6 +144,7 @@ public final class SolMenu extends SolScreen {
         if (id.equals(section) || indexOf(id) < 0) {
             return;
         }
+        sections.get(section).left();
         section = id;
         sectionT = 0f;
         closeDrawer();
@@ -523,6 +520,13 @@ public final class SolMenu extends SolScreen {
         }
         var info = minecraft.getConnection().getPlayerInfo(minecraft.player.getUUID());
         return info == null ? "" : info.getLatency() + " ms";
+    }
+
+    @Override
+    protected void game(io.github.georgwav.cosmetics.ui.Canvas canvas, int mouseX, int mouseY) {
+        if (palette == null && !popover) {
+            sections.get(section).game(this, canvas, mouseX, mouseY, dt);
+        }
     }
 
     // ------------------------------------------------------------------ input

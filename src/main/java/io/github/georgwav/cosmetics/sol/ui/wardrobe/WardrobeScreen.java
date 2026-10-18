@@ -47,10 +47,10 @@ import java.util.Locale;
  */
 public final class WardrobeScreen extends SolScreen {
     /** The rail's views, in the Cosmetics screen's order, then outfits, emotes, skins and the settings. */
-    enum View {
+    public enum View {
         WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, OUTFITS, EMOTES, SKINS, SETTINGS;
 
-        boolean includes(BakedCosmetic c, List<String> wearing) {
+        public boolean includes(BakedCosmetic c, List<String> wearing) {
             return switch (this) {
                 case WEARING -> wearing.contains(c.id());
                 case ALL -> true;
@@ -68,11 +68,11 @@ public final class WardrobeScreen extends SolScreen {
             };
         }
 
-        boolean lists() {
+        public boolean lists() {
             return ordinal() <= LIMBS.ordinal();
         }
 
-        String icon() {
+        public String icon() {
             return switch (this) {
                 case WEARING -> "check";
                 case ALL -> "grid4";
@@ -93,7 +93,7 @@ public final class WardrobeScreen extends SolScreen {
             };
         }
 
-        String label() {
+        public String label() {
             return switch (this) {
                 case SKINS -> Component.translatable("sol.wardrobe.view.skins").getString();
                 case SETTINGS -> Component.translatable("sol.wardrobe.view.settings").getString();
@@ -229,7 +229,7 @@ public final class WardrobeScreen extends SolScreen {
     // ------------------------------------------------------------------ what the Wardrobe lists
 
     /** The cosmetics the Wardrobe lists: all but emote props (they come with their emotes), from the source shown. */
-    static List<BakedCosmetic> wardrobe() {
+    public static List<BakedCosmetic> wardrobe() {
         if (source != Source.ALL && !sources().contains(source)) {
             source = Source.ALL; // that pack is gone
         }
@@ -250,7 +250,7 @@ public final class WardrobeScreen extends SolScreen {
         return out;
     }
 
-    static void setEquipped(String id, boolean on) {
+    public static void setEquipped(String id, boolean on) {
         CosmeticsConfig config = CosmeticsConfig.get();
         CosmeticsConfig.wear(config.localEquipped(), id, on, other -> {
             BakedCosmetic c = CosmeticRegistry.get(other);
