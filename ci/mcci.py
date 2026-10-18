@@ -885,7 +885,9 @@ def cmd_look(args):
     mc = args.release or info["test"][-1]
     jar = mod_jar_for(args.node, args.jars)
     inst = Instance(mc, java_for(info["java"]), args.cache)
-    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout)
+    # MCCI_EXTRA_MODS: a folder of other mods' jars to run alongside (a look at Sol with them installed).
+    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout,
+                       extra_mods_dir=os.environ.get("MCCI_EXTRA_MODS") or None)
     return 0 if summary["passed"] else 1
 
 

@@ -135,6 +135,17 @@ Players' names move up above their hats, halos and other head cosmetics, so they
 Changes apply immediately and are saved when the Wardrobe closes. Reset settings restores the defaults but keeps
 what you wear, your outfits and how each cosmetic looks; each cosmetic's page has its own reset.
 
+### HUD tab
+
+The menu's HUD section lists every element of the HUD: yours (Stats, Coordinates, Music, Lyrics, ...) and the game's
+own parts (hotbar, hearts, hunger, boss bars, scoreboard, ...), each with its switch. Beside the list is a live
+picture of the layout with the picked element lit (click a box to pick it), and that element's settings:
+- **Your elements:** their look, size, text (shadow, font, colour) and background, which can go fully off (the text
+  then gets a shadow in Sol's look).
+- **The game's parts:** Sol UI's settings for them. The hotbar's selected slot lifts, grows in place or is only
+  ringed; slot numbers, its light sweep and its glass (down to none) are switches; the hotbar and the bars over it can
+  be sized; the hearts' and experience bar's glow can go.
+
 ### HUD editor
 
 Open it from the menu's HUD section (Edit layout) or Ctrl+K. It works over the game as it is.
@@ -157,7 +168,7 @@ on or off.
 
 ### Modules
 
-The module grid has 29 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 31 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -173,6 +184,7 @@ account, only when they differ from what Sol last sent.
 | PvP Effects | Hit sounds, and a kill effect (lightning, a burst or a sound) only you see. |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
 | Held Items | A lower shield and a smaller totem pop. |
+| Punchy | Switches the [Punchy](https://modrinth.com/mod/punchy-fpa) mod's first-person animations on and off when it's installed (off with the module). Sol arms (on): your arms and what they hold a little smaller, farther away and closer to the middle. PvP mode (off): calmer animations and even smaller arms. A glow round your hands and held item, in the theme's colours (or the item's, a rainbow or yours), fading out, breathing, with lines of light rising through it. The arms and glow work without Punchy too. |
 | Nametags | Health above heads; your own tag, size, backing and text shadow. |
 | Screen | Switch off the pumpkin mask, powder snow frost, vignette, portal swirl, nausea, the underwater overlay and the darkening behind inventories; motion blur (not on 1.21.2 to 1.21.5). |
 | Particles | A multiplier for hit particles, sharpness sparks on every hit, and fewer block, explosion and weather particles. |
@@ -181,8 +193,8 @@ account, only when they differ from what Sol last sent.
 | Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
 | Block outline | The outline round the block you look at, in your colour and opacity. |
 | Movement | Toggle sprint and sneak. |
-| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
-| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music | HUD modules. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing with live lyrics. |
+| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the hotbar (selected slot lifts, grows or is ringed; numbers, light sweep, glass), the size of the hotbar and bars, the hearts' and experience glow, the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
+| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it; Lyrics the line being sung on its own, anywhere. |
 | Sol Chat | Timestamps (click to copy a message), stacked repeats, up to 5,000 messages kept, emoji shortcodes and an emoji picker. |
 | World Overlays | Chunk borders, where mobs can spawn, beacon range, slime chunks (from the world's seed in singleplayer, `/seed` for operators, or a seed you type) and structure outlines in singleplayer. |
 | Inventory | Durability as numbers on items. |
