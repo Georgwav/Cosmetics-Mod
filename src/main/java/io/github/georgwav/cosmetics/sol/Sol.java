@@ -50,6 +50,7 @@ public final class Sol {
     public static void onResourceReload(ResourceManager manager) {
         try {
             ThemeRegistry.reload(manager);
+            ThemeRegistry.reloadMoonLooks(manager);
         } catch (RuntimeException | LinkageError e) {
             CosmeticsMod.LOGGER.error("[Sol] Couldn't load themes", e);
         }

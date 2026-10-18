@@ -1,0 +1,16 @@
+{
+  "name": "Blue moon",
+  "tint": [
+    0.8,
+    0.9,
+    1.12
+  ],
+  "lightColor": "#a8d0ff",
+  "skyTint": "blue",
+  "chance": 0.06,
+  "minNightsBetween": 24,
+  "validPhases": [
+    "full_moon"
+  ],
+  "elongation": 176
+}

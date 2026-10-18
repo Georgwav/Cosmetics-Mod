@@ -5,6 +5,8 @@ import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.sky.MilkyWayBake;
+import io.github.georgwav.cosmetics.sol.sky.MoonLook;
+import io.github.georgwav.cosmetics.sol.sky.MoonLooks;
 import io.github.georgwav.cosmetics.sol.sky.SkySphere;
 import io.github.georgwav.cosmetics.sol.sky.StarCatalog;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
@@ -31,8 +33,10 @@ public final class NightSky {
     public static final SkySphere SPHERE = new SkySphere();
     /** Days the sky has turned through instead of the world's (the test scenario's), or NaN. */
     public static volatile double daysOverride = Double.NaN;
+    /** A moon look to show instead of tonight's (the test scenario's), or null. */
+    public static volatile String lookOverride;
     /** The lab's default moon glow (45%): how far the moon's light spreads into the sky. */
-    private static final float MOON_GLOW = 0.45f;
+    static final float MOON_GLOW = 0.45f;
     private static final int LINE = 0xFFACC0FF;
 
     private static volatile StarCatalog catalog;
@@ -52,6 +56,13 @@ public final class NightSky {
     // This frame.
     /** 0 by day, 1 in full dark (the sun 17° down), the moon's light in the sky, the faintest star showing. */
     public static float dark, moonSky, limit;
+    /** Tonight's moon look, whether there's a moon, its light on the world (0..1.25) and colour, and its glow. */
+    public static MoonLook look = MoonLook.SILVER;
+    public static boolean hasMoon;
+    public static float moonLight, glowK = 1f;
+    public static int moonColor = 0xFFB8CCFF;
+    /** The colour the night lifts the world's shadows to: blue-violet, never flat black (light pass). */
+    public static int floorColor = 0xFF1A2040;
     private static float mwVis, moonOn;
     /** The view's half-extents (tangents), the screen in pixels, and the sky's pixel (2 at 1080p). */
     static float tanX, tanY, sw, sh, pixel;
@@ -105,17 +116,50 @@ public final class NightSky {
         lat = Math.max(-80.0, Math.min(80.0, lat));
         int year = at != null ? (int) Math.round(at.year.get()) : SkySphere.DEFAULT_YEAR;
         double days = Double.isNaN(daysOverride) ? FrameInfo.days : daysOverride;
-        SPHERE.update(days, sunAngle / (float) (Math.PI * 2.0), moonPhase, lat, year);
+        float tod = sunAngle / (float) (Math.PI * 2.0);
+        SPHERE.update(days, tod, moonPhase, lat, year);
+        // Tonight's moon look: a special moon on its night, or the theme's own. A theme holding its showpiece night
+        // holds its moon's phase too.
+        String forced = lookOverride;
+        look = forced != null ? MoonLooks.find(forced) : MoonLooks.tonight(SPHERE.night, moonPhase, theme.night().moon());
+        if (theme.show().hold()) {
+            SPHERE.update(days, tod, moonPhase, lat, year, look.elongation());
+        }
         // The lab's envOf: how dark, how much moonlight is in the sky, and the faintest star that shows.
         dark = Ease.smoothstep(-4f, -17f, SPHERE.sunAlt);
-        boolean hasMoon = SPHERE.elong > 8f && SPHERE.elong < 352f;
-        float glowK = 0.35f + 1.3f * MOON_GLOW;
-        float moonLight = hasMoon ? (float) Math.pow(SPHERE.illum, 1.6) * Ease.smoothstep(-1.5f, 12f, SPHERE.moonAlt) : 0f;
+        hasMoon = SPHERE.elong > 8f && SPHERE.elong < 352f && !look.hidden();
+        glowK = (0.35f + 1.3f * MOON_GLOW) * look.glow();
+        moonLight = hasMoon ? (float) Math.pow(SPHERE.illum, 1.6) * Ease.smoothstep(-1.5f, 12f, SPHERE.moonAlt) * look.light()
+                * Math.min(1.25f, look.size()) : 0f;
         moonSky = moonLight * (0.45f + 0.55f * Math.min(1.4f, glowK));
         moonOn = hasMoon && SPHERE.moonAlt > -5f ? moonSky : 0f;
-        limit = Ease.lerp(1.1f, 6.5f, dark) - 1.15f * moonSky;
-        mwVis = Ease.smoothstep(-9f, -18f, SPHERE.sunAlt) * (1f - 0.62f * Math.min(1f, moonSky));
+        limit = Ease.lerp(1.1f, 6.5f, dark) - 1.15f * moonSky + (look.eclipse() ? 0.3f : 0f);
+        mwVis = Ease.smoothstep(-9f, -18f, SPHERE.sunAlt) * (1f - 0.62f * Math.min(1f, moonSky)) * look.milkyWay();
+        // The moonlight's colour: an eclipse's copper, a harvest moon's orange low down, else the look's or the theme's.
+        if (look.lightColor() != null) {
+            moonColor = look.lightColor();
+        } else if (look.harvest() && SPHERE.moonAlt < 15f) {
+            moonColor = Colors.mix(0xFFFFB873, 0xFFB8CCFF, Ease.smoothstep(2f, 15f, SPHERE.moonAlt));
+        } else {
+            moonColor = theme.night().light();
+        }
+        // The shadows' floor: the theme's night sky's middle, a little bluer and brighter, and more under a bright moon.
+        int base = theme.night().hasSky() ? theme.night().middle() : 0xFF19213B;
+        floorColor = Colors.scale(Colors.mix(base, 0xFF34407A, 0.4f), 0.55f + 0.35f * Math.min(1f, moonLight));
         frame();
+    }
+
+    /**
+     * Where the moon is (world direction into {@code out}) for a theme at a moment, with a look: what the test
+     * scenario aims at.
+     */
+    public static void moonAt(ThemeSpec theme, double days, float timeOfDay, int moonPhase, String lookId, float[] out) {
+        SkySphere s = new SkySphere();
+        s.update(days, timeOfDay, moonPhase, SkySphere.DEFAULT_LATITUDE, SkySphere.DEFAULT_YEAR);
+        if (theme.show().hold()) {
+            s.update(days, timeOfDay, moonPhase, SkySphere.DEFAULT_LATITUDE, SkySphere.DEFAULT_YEAR, MoonLooks.find(lookId).elongation());
+        }
+        System.arraycopy(s.moon, 0, out, 0, 3);
     }
 
     /** Draws the night sky (the sky pass, after the dome). */

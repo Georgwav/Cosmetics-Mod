@@ -164,5 +164,15 @@
     "bloom": 0.9,
     "threshold": 0.6,
     "vignette": 0.12
+  },
+  "night": {
+    "moon": "ember",
+    "light": "#ff9e6b",
+    "sky": [
+      "#14070a",
+      "#2c0e10",
+      "#64210f"
+    ],
+    "airglow": "#963e1e"
   }
 }

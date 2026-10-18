@@ -43,7 +43,8 @@ public final class ThemeParser {
             List.of(),
             new ThemeSpec.Show("day", 0f),
             false, false,
-            new ThemeSpec.Grade(0xFFFFF4E6, 0xFF1E2230, 1f, 1f, 0xFFFFFFFF, 0.35f, 0.72f, 0.18f, null));
+            new ThemeSpec.Grade(0xFFFFF4E6, 0xFF1E2230, 1f, 1f, 0xFFFFFFFF, 0.35f, 0.72f, 0.18f, null),
+            ThemeSpec.Night.DEFAULT);
 
     private ThemeParser() {
     }
@@ -68,7 +69,7 @@ public final class ThemeParser {
     private static ThemeSpec withId(ThemeSpec s, String id) {
         return new ThemeSpec(id, s.name(), s.line(), s.order(), s.ui(), s.sky(), s.fog(), s.light(), s.sun(), s.moon(),
                 s.stars(), s.planets(), s.galaxy(), s.aurora(), s.nebula(), s.eclipse(), s.lightning(), s.sigil(),
-                s.mist(), s.clouds(), s.wind(), s.particles(), s.show(), s.noRidges(), s.vanillaSun(), s.grade());
+                s.mist(), s.clouds(), s.wind(), s.particles(), s.show(), s.noRidges(), s.vanillaSun(), s.grade(), s.night());
     }
 
     public static ThemeSpec parse(String id, JsonObject json, ThemeSpec base, Consumer<String> warn) {
@@ -265,6 +266,16 @@ public final class ThemeParser {
             particles = List.copyOf(particles);
         }
 
+        Reader night = r.object("night");
+        ThemeSpec.Night nb = base.night();
+        int[] nightSky = night.has("sky") ? night.colors("sky") : new int[0];
+        if (nightSky.length != 0 && nightSky.length != 3) {
+            warn.accept("night.sky should be three colours (top, middle, horizon)");
+        }
+        ThemeSpec.Night nightOut = new ThemeSpec.Night(night.string("moon", nb.moon()), night.color("light", nb.light()),
+                nightSky.length == 3 ? nightSky[0] : nb.top(), nightSky.length == 3 ? nightSky[1] : nb.middle(),
+                nightSky.length == 3 ? nightSky[2] : nb.horizon(), night.color("airglow", nb.airglow()));
+
         Reader show = r.object("show");
         ThemeSpec.Show showOut = new ThemeSpec.Show(show.choice("phase", base.show().phase(), PHASES),
                 show.number("azimuth", base.show().azimuth(), -360f, 360f), show.bool("hold", base.show().hold()),
@@ -274,7 +285,7 @@ public final class ThemeParser {
         return new ThemeSpec(id, name, line, order, new ThemeSpec.Ui(accent, panel, rim), skyOut, fogOut, lightOut, sunOut,
                 moonOut, starsOut, planetsOut, galaxyOut, auroraOut, nebulaOut, eclipseOut,
                 r.bool("lightning", base.lightning()), sigilOut, mistOut, cloudsOut, wind, particles, showOut,
-                flags.bool("noRidges", base.noRidges()), flags.bool("vanillaSun", base.vanillaSun()), gradeOut);
+                flags.bool("noRidges", base.noRidges()), flags.bool("vanillaSun", base.vanillaSun()), gradeOut, nightOut);
     }
 
     /** The fog's end (fraction of render distance) for a density: thicker fog ends closer. */

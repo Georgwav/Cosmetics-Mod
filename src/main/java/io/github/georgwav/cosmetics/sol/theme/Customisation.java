@@ -186,7 +186,7 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         }
         return new ThemeSpec(s.id(), s.name(), s.line(), s.order(), ui, sky, fogSpec, light, sun, moon, st, pl, s.galaxy(), au,
                 nebula, eclipse, s.lightning(), s.sigil(), s.mist(), clouds, s.wind(), emit, s.show(), s.noRidges(),
-                s.vanillaSun(), s.grade());
+                s.vanillaSun(), s.grade(), s.night());
     }
 
     private int f(int color) {

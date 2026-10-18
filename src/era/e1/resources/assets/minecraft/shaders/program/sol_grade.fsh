@@ -10,7 +10,7 @@ in vec2 texCoord;
 
 out vec4 fragColor;
 
-// Sol's per-frame values: 64 floats, each one's IEEE bits in a texel's bytes (r = lowest).
+// Sol's per-frame values: 128 floats, each one's IEEE bits in a texel's bytes (r = lowest).
 float P(int i) {
     vec4 t = texelFetch(ParamsSampler, ivec2(i, 0), 0);
     int b0 = int(t.r * 255.0 + 0.5);

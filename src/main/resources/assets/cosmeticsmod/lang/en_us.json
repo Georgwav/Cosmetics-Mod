@@ -435,6 +435,8 @@
   "cosmeticsmod.module.atmosphere.names": "Sky names",
   "cosmeticsmod.module.atmosphere.milky_way": "Milky Way",
   "cosmeticsmod.module.atmosphere.nebulae": "Nebulae",
+  "cosmeticsmod.module.atmosphere.airglow": "Airglow",
+  "cosmeticsmod.module.atmosphere.airglow.hint": "A faint glowing band round the horizon on dark nights, and the zodiacal light after dusk and before dawn",
   "cosmeticsmod.module.atmosphere.latitude": "Sky latitude",
   "cosmeticsmod.module.atmosphere.latitude.hint": "How high the pole star stands over the north. 0° is the game's straight east-to-west path.",
   "cosmeticsmod.module.atmosphere.year": "Sky year",

@@ -36,7 +36,8 @@ public record ThemeSpec(
         Show show,
         boolean noRidges,
         boolean vanillaSun,
-        Grade grade) {
+        Grade grade,
+        Night night) {
 
     /** UI colours: accent, the glass panel (with its alpha, how dark the glass is) and the rim light. */
     public record Ui(int accent, int panel, int rim) {
@@ -84,6 +85,19 @@ public record ThemeSpec(
     public record Sun(String texture, float size, int core, int halo, float haloRadius, float haloAlpha, int rays,
                       int coreRays, float rayLength, boolean plasma, boolean corona, boolean sunDogs, boolean pillar,
                       boolean shimmer, boolean flare, boolean glare, float orbitTilt, float x, float y) {
+    }
+
+    /**
+     * The theme's night (the Night Sky lab's theme table): its moon look (a {@code moon_looks} file), the colour of
+     * its moonlight, its night sky (top, middle, horizon; 0 to keep the keyframes'), blended in as the sun goes down,
+     * and the colour of its airglow along the horizon.
+     */
+    public record Night(String moon, int light, int top, int middle, int horizon, int airglow) {
+        public static final Night DEFAULT = new Night("silver", 0xFFB8CCFF, 0, 0, 0, 0xFF3C9660);
+
+        public boolean hasSky() {
+            return top != 0;
+        }
     }
 
     /** The square moon. */

@@ -1,0 +1,12 @@
+{
+  "name": "Carian moon",
+  "size": 1.7,
+  "body": "carian",
+  "tint": [
+    0.84,
+    0.95,
+    1.18
+  ],
+  "glow": 1.15,
+  "elongation": 178
+}

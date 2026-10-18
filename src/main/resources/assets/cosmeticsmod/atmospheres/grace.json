@@ -169,5 +169,15 @@
     "bloom": 1.1,
     "threshold": 0.5,
     "vignette": 0.2
+  },
+  "night": {
+    "moon": "carian",
+    "light": "#bfd8ff",
+    "sky": [
+      "#03110f",
+      "#0a2621",
+      "#17443b"
+    ],
+    "airglow": "#50aa7d"
   }
 }

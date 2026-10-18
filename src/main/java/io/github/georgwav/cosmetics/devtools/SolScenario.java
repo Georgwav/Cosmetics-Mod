@@ -156,6 +156,20 @@ public final class SolScenario {
             shots.add(new Shot("sol_night_dusk", "maple_afternoon", 0f, false, 90f, -20f, newMoon + 13300L));
             // A waxing crescent low in the west after sunset, its dark part lit by earthshine.
             shots.add(new Shot("sol_night_crescent", "maple_afternoon", 0f, false, 90f, -10f, 5 * 24000L + 13300L));
+            // Twilight: the Earth's shadow and the Belt of Venus opposite the set sun, the glow where it went down,
+            // the zodiacal light after dusk, the airglow round the horizon at midnight.
+            shots.add(new Shot("sol_night_belt", "maple_afternoon", 0f, false, -90f, -8f, newMoon + sphereTime(-3f, false)));
+            shots.add(new Shot("sol_night_afterglow", "maple_afternoon", 0f, false, 90f, -10f, newMoon + sphereTime(-8f, false)));
+            shots.add(new Shot("sol_night_zodiacal", "maple_afternoon", 0f, false, 90f, -22f, newMoon + sphereTime(-17f, false)));
+            shots.add(new Shot("sol_night_airglow", "maple_afternoon", 0f, false, 180f, -6f, newMoon + 18000L));
+            // The moon looks, each facing the moon: a harvest moon rising at dusk, a halo night, a pink moon in its
+            // corona, the blood moon, the supermoon, the Carian moon.
+            moonShot("harvest", "maple_afternoon", sphereTime(-2f, false));
+            moonShot("halo", "frost_morning", 18000L);
+            moonShot("pink", "sakura_dusk", 18000L);
+            moonShot("blood", "maple_afternoon", 18000L);
+            moonShot("supermoon", "silver_night", 18000L);
+            moonShot("carian", "grace", 18000L);
             // Through a spyglass on Saturn and on Jupiter.
             for (String id : new String[]{"saturn", "jupiter"}) {
                 float[] aim = aimAt(id, 0.75, 0.5f);
@@ -493,6 +507,8 @@ public final class SolScenario {
             // night sky's shots keep the lab's autumn whatever the moon's day.
             io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride =
                     (s.name().startsWith("sol_night_") ? lockedTime % 24000L : lockedTime) / 24000.0;
+            io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride =
+                    s.name().startsWith("sol_night_look_") ? s.name().substring("sol_night_look_".length()) : null;
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.clear();
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.putAll(s.tune());
             Float quality = s.tune().get("quality");
@@ -1008,6 +1024,39 @@ public final class SolScenario {
     }
 
     /** A spyglass into your hand (used while the shot holds the use key), or out of it again. */
+    /** A shot facing the moon in a look, on the full moon's night (day 0) at a day time. */
+    private void moonShot(String look, String theme, long dayTime) {
+        ThemeRegistry.Entry e = ThemeRegistry.find(theme);
+        if (e == null) {
+            return;
+        }
+        float tod = celestial(dayTime);
+        // A theme holding its showpiece shows its own time.
+        if (e.base().show().hold()) {
+            tod = e.base().show().heldTime();
+        }
+        float[] m = new float[3];
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.moonAt(e.base(), (dayTime % 24000L) / 24000.0, tod, 0, look, m);
+        float yaw = (float) Math.toDegrees(Math.atan2(-m[0], m[2])), alt = (float) Math.toDegrees(Math.asin(m[1]));
+        shots.add(new Shot("sol_night_look_" + look, theme, 0f, false, yaw, -Math.max(4f, alt - 8f), dayTime));
+    }
+
+    /** The game's sun angle (0 noon) for a day time, as the game eases it. */
+    private static float celestial(long dayTime) {
+        double d = dayTime / 24000.0 - 0.25;
+        d -= Math.floor(d);
+        double e = 0.5 - Math.cos(d * Math.PI) / 2.0;
+        return (float) ((d * 2.0 + e) / 3.0);
+    }
+
+    /** The day time the sky sphere's sun stands at an altitude (at the default sky latitude). */
+    private static long sphereTime(float sunAlt, boolean morning) {
+        double c = Math.sin(Math.toRadians(sunAlt)) / Math.cos(Math.toRadians(io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE));
+        double hourAngle = Math.toDegrees(Math.acos(Math.max(-1, Math.min(1, c))));
+        // The game's own path puts its sun at 90° less the hour angle.
+        return dayTimeFor((float) (90.0 - hourAngle), morning);
+    }
+
     private static boolean spyglassShot(String name) {
         return name.equals(SPYGLASS) || name.startsWith(ZOOM);
     }
@@ -1065,6 +1114,7 @@ public final class SolScenario {
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
         io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride = Double.NaN;
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride = null;
         crosshairOnly = false;
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());

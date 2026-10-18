@@ -115,5 +115,15 @@
     "bloom": 0.55,
     "threshold": 0.7,
     "vignette": 0.16
+  },
+  "night": {
+    "moon": "corona",
+    "light": "#c2d8ff",
+    "sky": [
+      "#070b13",
+      "#111925",
+      "#1d2938"
+    ],
+    "airglow": "#3c5a78"
   }
 }

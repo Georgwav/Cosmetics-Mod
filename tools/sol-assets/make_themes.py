@@ -245,6 +245,31 @@ for id,o in T:
         for sec, vals in extra.items():
             k.setdefault(sec, {}).update(vals)
 
+# Each theme's night (the Night Sky lab's THEMES): its moon look, its moonlight's colour, its night sky (top,
+# middle, horizon, blended in as the sun goes down) and its airglow.
+def hexc(r, g, b): return "#%02x%02x%02x" % (round(r), round(g), round(b))
+def light(r, g, b):
+    m = max(r, g, b)
+    return hexc(r / m * 255, g / m * 255, b / m * 255)
+NIGHT = {
+    "ember_solstice":  ("ember",     light(1, .62, .42),   ["#14070a", "#2c0e10", "#64210f"], hexc(150, 62, 30)),
+    "sakura_dusk":     ("pink",      light(.96, .8, .98),  ["#140c27", "#2d1a3d", "#58304f"], hexc(150, 80, 140)),
+    "maple_afternoon": ("harvest",   light(.72, .8, 1),    ["#0d0c1f", "#211b33", "#42302e"], hexc(130, 96, 60)),
+    "firefly_meadow":  ("honey",     light(1, .94, .7),    ["#06110e", "#0f2219", "#1e3b28"], hexc(70, 150, 80)),
+    "frost_morning":   ("halo",      light(.74, .88, 1.12), ["#081528", "#142a4c", "#2c4c72"], hexc(90, 150, 210)),
+    "monsoon":         ("corona",    light(.7, .78, .92),  ["#070b13", "#111925", "#1d2938"], hexc(60, 90, 120)),
+    "aurora":          ("silver",    light(.66, .92, .98), ["#04101b", "#082333", "#0f3545"], hexc(60, 200, 140)),
+    "nebula":          ("blue",      light(.8, .74, 1.12), ["#0f0622", "#210d3b", "#3a1c56"], hexc(150, 80, 210)),
+    "deep_field":      ("newmoon",   light(.8, .8, .8),    ["#020203", "#06060a", "#121218"], hexc(100, 100, 100)),
+    "silver_night":    ("supermoon", light(.8, .86, 1.06), ["#0a0e1c", "#19213b", "#30405f"], hexc(120, 140, 190)),
+    "eclipse":         ("blood",     light(1, .42, .3),    ["#0b0406", "#1d080a", "#561409"], hexc(170, 40, 30)),
+    "grace":           ("carian",    light(.84, .95, 1.12), ["#03110f", "#0a2621", "#17443b"], hexc(80, 170, 125)),
+}
+for id,o in T:
+    if id in NIGHT:
+        moon, ml, nsky, air = NIGHT[id]
+        o["night"] = {"moon": moon, "light": ml, "sky": nsky, "airglow": air}
+
 os.makedirs(OUT, exist_ok=True)
 for id,o in T:
     if o.get("sun", 1) is None: o["sun"] = None

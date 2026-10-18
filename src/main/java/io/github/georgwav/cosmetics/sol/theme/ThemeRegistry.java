@@ -110,6 +110,35 @@ public final class ThemeRegistry {
         load(sources, (id, message) -> LogOnce.warn("theme:" + id + ":" + message, "Theme {}: {}", id, message));
     }
 
+    /**
+     * Reads every moon look from the resource packs ({@code assets/<namespace>/moon_looks/<name>.json}; a look from
+     * another pack is named {@code namespace:name}).
+     */
+    public static void reloadMoonLooks(ResourceManager manager) {
+        String dir = "moon_looks";
+        Map<String, String> files = new LinkedHashMap<>();
+        for (Map.Entry<?, Resource> e : manager.listResources(dir, location -> location.getPath().endsWith(".json")).entrySet()) {
+            String key = e.getKey().toString();
+            int colon = key.indexOf(':');
+            String namespace = key.substring(0, colon);
+            String path = key.substring(colon + 1 + dir.length() + 1, key.length() - ".json".length());
+            String id = CosmeticsMod.MOD_ID.equals(namespace) ? path : namespace + ":" + path;
+            try (Reader reader = e.getValue().openAsReader()) {
+                StringBuilder text = new StringBuilder();
+                char[] buffer = new char[4096];
+                int n;
+                while ((n = reader.read(buffer)) > 0) {
+                    text.append(buffer, 0, n);
+                }
+                files.put(id, text.toString());
+            } catch (IOException | RuntimeException ex) {
+                LogOnce.warn("moon-look-read:" + id, "Couldn't read the moon look {}: {}", id, ex.toString());
+            }
+        }
+        io.github.georgwav.cosmetics.sol.sky.MoonLooks.load(files,
+                (id, message) -> LogOnce.warn("moon-look:" + id + ":" + message, "Moon look {}: {}", id, message));
+    }
+
     /** Replaces the loaded themes with these files. Bad values are reported through {@code warn} (id, message). */
     public static void load(List<Source> sources, BiConsumer<String, String> warn) {
         List<Entry> entries = new ArrayList<>();

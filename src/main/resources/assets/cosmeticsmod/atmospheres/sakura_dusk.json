@@ -170,5 +170,15 @@
     "bloom": 0.88,
     "threshold": 0.6,
     "vignette": 0.14
+  },
+  "night": {
+    "moon": "pink",
+    "light": "#fad0ff",
+    "sky": [
+      "#140c27",
+      "#2d1a3d",
+      "#58304f"
+    ],
+    "airglow": "#96508c"
   }
 }

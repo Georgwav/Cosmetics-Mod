@@ -24,7 +24,7 @@ ERAS = ["e1", "e2", "e3", "e4", "e5", "e6"]
 # ---------------------------------------------------------------------------------------------------- GLSL bodies
 
 PARAMS = r"""
-// Sol's per-frame values: 64 floats, each one's IEEE bits in a texel's bytes (r = lowest).
+// Sol's per-frame values: 128 floats, each one's IEEE bits in a texel's bytes (r = lowest).
 float P(int i) {
     vec4 t = texelFetch(ParamsSampler, ivec2(i, 0), 0);
     int b0 = int(t.r * 255.0 + 0.5);
@@ -189,6 +189,24 @@ void main() {
         float graze = pow(1.0 - abs(dot(n, dir)), 2.5);
         col += lightCol * facing * graze * P(47) * 0.55 * (1.0 - fogged * 0.7) * smoothstep(0.0, 0.3, P(12));
         flashGain = 0.3 + 0.7 * facing;
+        // A second light where the theme's own is something else (the moon under the rune, the aurora, the
+        // galaxy): silver on the faces turned toward it, a little everywhere.
+        if (P(70) > 0.0) {
+            float xk = (max(0.0, dot(n, normalize(P3(64)))) * 0.72 + 0.07) * P(70);
+            col += col * P3(67) * xk * 1.4 * (1.0 - fogged);
+        }
+    } else if (P(70) > 0.0) {
+        col += col * P3(67) * P(70) * 0.25 * (1.0 - fogged);
+    }
+    // Day for night: the dim world turns blue, its shadows lifted to a blue-violet floor (never flat black), the
+    // nearest blocks the most so you can still play; warm lights (torches, lava, windows) keep their colour.
+    float nk = P(71);
+    if (nk > 0.0) {
+        float l = luma(col);
+        float warm = clamp((col.r - col.b) * 3.0, 0.0, 1.0) * smoothstep(0.2, 0.55, l);
+        col = mix(col, l * vec3(0.78, 0.9, 1.22), nk * 0.55 * (1.0 - smoothstep(0.12, 0.7, l)) * (1.0 - warm));
+        float near = 1.0 - smoothstep(4.0, 36.0, dist);
+        col += P3(72) * nk * (0.35 + 0.65 * near) * (1.0 - smoothstep(0.0, 0.3, l)) * (1.0 - fogged * 0.6);
     }
     // A lightning flash lights the whole world for a moment, the faces toward the bolt the most.
     // It lifts the midtones (the dark world comes up, bright sand doesn't clip into a white sheet).
@@ -210,6 +228,8 @@ void main() {
     vec3 c = (texture(InSampler, texCoord + vec2(-h.x, -h.y)).rgb + texture(InSampler, texCoord + vec2(h.x, -h.y)).rgb
             + texture(InSampler, texCoord + vec2(-h.x, h.y)).rgb + texture(InSampler, texCoord + vec2(h.x, h.y)).rgb) * 0.25;
     float t = P(19);
+    // At night warm lights (torches, lanterns, lava, windows) bloom against the cold.
+    t = mix(t, t * 0.6, P(75) * clamp((c.r - c.b) * 2.5, 0.0, 1.0));
     float knee = t * 0.35 + 1e-4;
     float l = luma(c);
     float soft = clamp(l - t + knee, 0.0, 2.0 * knee);
@@ -286,7 +306,7 @@ void main() {
 # ---------------------------------------------------------------------------------------------------- the chains
 
 IDENTITY = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
-PARAMS_TEX = ("sol_params", 64, 1, False)
+PARAMS_TEX = ("sol_params", 128, 1, False)
 LUT_TEX = ("sol_lut", 1024, 32, True)
 BLACK_TEX = ("sol_black", 1, 1, False)
 BLUR_TEX = ("sol_blur", 1, 1, False)

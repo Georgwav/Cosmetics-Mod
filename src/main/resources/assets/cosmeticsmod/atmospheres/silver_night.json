@@ -149,5 +149,15 @@
     "bloom": 0.9,
     "threshold": 0.55,
     "vignette": 0.18
+  },
+  "night": {
+    "moon": "supermoon",
+    "light": "#c0cfff",
+    "sky": [
+      "#0a0e1c",
+      "#19213b",
+      "#30405f"
+    ],
+    "airglow": "#788cbe"
   }
 }

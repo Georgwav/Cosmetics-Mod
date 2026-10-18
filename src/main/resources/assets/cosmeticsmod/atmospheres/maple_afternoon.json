@@ -163,5 +163,15 @@
     "bloom": 0.88,
     "threshold": 0.6,
     "vignette": 0.12
+  },
+  "night": {
+    "moon": "harvest",
+    "light": "#b8ccff",
+    "sky": [
+      "#0d0c1f",
+      "#211b33",
+      "#42302e"
+    ],
+    "airglow": "#82603c"
   }
 }

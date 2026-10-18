@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.sky.Bodies;
 import io.github.georgwav.cosmetics.sol.sky.BodyMaps;
 import io.github.georgwav.cosmetics.sol.sky.BodyRender;
+import io.github.georgwav.cosmetics.sol.sky.MoonLook;
 import io.github.georgwav.cosmetics.sol.sky.SkySphere;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
@@ -314,18 +315,29 @@ final class Planets {
 
     // ------------------------------------------------------------------ the moon
 
+    private static final float[][] HALO_RINGS = {{.975f, 0xFFFF9678, .14f, .022f}, {1f, 0xFFF0F0FF, .16f, .03f}, {1.03f, 0xFF96BEFF, .08f, .04f}};
+    private static final float[] CORONA_AT = {0f, .16f, .27f, .38f, .5f, .62f, .76f, 1f};
+    private static final int[] CORONA_PASTEL = {0xFFFFFAEB, 0xFFFFE2B4, 0xFFFFB08C, 0xFF96C8FF, 0xFFAAEBCD, 0xFFFFAAD6, 0xFF96BEFF, 0};
+    private static final float[] CORONA_PASTEL_A = {.34f, .2f, .1f, .12f, .08f, .07f, .04f, 0f};
+    private static final float[] CORONA_PINK_AT = {0f, .16f, .3f, .42f, .56f, .72f, 1f};
+    private static final int[] CORONA_PINK = {0xFFFFECF5, 0xFFFFBED7, 0xFFE696D2, 0xFFBEAAFF, 0xFFFFB4DC, 0xFFC8AAFF, 0};
+    private static final float[] CORONA_PINK_A = {.34f, .22f, .12f, .1f, .07f, .04f, 0f};
+    private static SolTexture coronaPastel, coronaPink;
+
     /**
      * The moon as a pixel sphere showing its real near side: its seas, Tycho's rays, the phase from where it is
-     * against the sun, a slow wobble, earthshine on a thin crescent, and two glows kept small so the sky shows round it.
+     * against the sun, a slow wobble, earthshine on a crescent once it's dark and two glows kept small so the sky
+     * shows round it; dressed in tonight's look (the lab's {@code LOOKS}): a harvest moon big, flattened and orange as
+     * it rises, an eclipse's copper shadow, a 22° halo with moon dogs and a pillar, a pastel corona, another map.
      */
     static void moon(ThemeSpec theme, Tokens tk, float t, float rain) {
         SkySphere sp = NightSky.SPHERE;
-        boolean hasMoon = sp.elong > 8f && sp.elong < 352f;
-        if (theme.moon() == null || !hasMoon || sp.moonAlt < -6f) {
+        MoonLook lk = NightSky.look;
+        if (theme.moon() == null || !NightSky.hasMoon || sp.moonAlt < -6f) {
             return;
         }
         startMaps();
-        float[] map = MAPS.get("moon");
+        float[] map = MAPS.get(lk.body());
         double[] me = sp.moonEq;
         eq[0] = me[0];
         eq[1] = me[1];
@@ -335,18 +347,24 @@ final class Planets {
         }
         float px = NightSky.screen[0], py = NightSky.screen[1];
         float fp = NightSky.sh / 2f / NightSky.tanY;
-        float diam = 2f * fp * (float) Math.tan(Math.toRadians(Bodies.MOON.size()) / 2.0) / NightSky.depth;
+        float harvest = lk.harvest() ? Ease.lerp(1.22f, 1f, Ease.smoothstep(0f, 22f, sp.moonAlt)) : 1f;
+        float size = (float) Bodies.MOON.size() * lk.size() * harvest;
+        float diam = 2f * fp * (float) Math.tan(Math.toRadians(size) / 2.0) / NightSky.depth;
         if (px < -diam * 6f || px > NightSky.sw + diam * 6f || py < -diam * 6f || py > NightSky.sh + diam * 6f) {
             return;
         }
-        float glowK = 0.35f + 1.3f * MOON_GLOW, ill = sp.illum;
+        float glowK = NightSky.glowK, ill = sp.illum;
         float vis = Ease.smoothstep(-4f, 1f, sp.moonAlt) * (1f - rain * 0.9f);
-        int tc = 0xFFC7D0F0;
+        float[] tb = lk.tint();
+        int tc = lk.eclipse() ? 0xFFC84632 : lk.harvest() && sp.moonAlt < 18f
+                ? Colors.mix(0xFFFFAA5A, 0xFFD2DCFF, Ease.smoothstep(2f, 18f, sp.moonAlt))
+                : Colors.rgb(Math.min(255, Math.round(tb[0] * 205)), Math.min(255, Math.round(tb[1] * 212)), Math.min(255, Math.round(tb[2] * 235)));
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
         float r = diam * 1.9f;
-        NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(tc, Math.min(0.6f, 0.26f * glowK * (float) Math.sqrt(ill)) * vis));
+        NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(tc,
+                Math.min(0.6f, 0.26f * glowK * (float) Math.sqrt(ill)) * vis * (lk.eclipse() ? 0.5f : 1f)));
         r = diam * 0.95f;
-        NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(tc, Math.min(0.7f, 0.35f * glowK * ill) * vis));
+        NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(tc, Math.min(0.7f, 0.35f * glowK * ill) * vis * (lk.eclipse() ? 0.3f : 1f)));
         WorldDraw.end();
         if (map == null) {
             return;
@@ -359,7 +377,7 @@ final class Planets {
         screenDir(POLE, dir);
         float ndx = dir[0], ndy = dir[1];
         int n = Math.max(10, Math.min(160, Math.round(diam / (NightSky.pixel * 1.1f))));
-        Slot slot = slot(Bodies.MOON);
+        Slot slot = slot(Bodies.find(lk.body()));
         if (!slot.pending && (n != slot.askedN || t - slot.askedAt > 0.1f || t < slot.askedAt)) {
             BodyRender.Light l = slot.light;
             double ps = Math.toRadians(sp.phaseAngle);
@@ -369,13 +387,15 @@ final class Planets {
             l.pa = Math.atan2(-ndx, ndy);
             l.tilt = 0;
             l.spin = Math.sin(t * .07) * .08;
-            double k = 0.82 + 0.28 * MOON_GLOW;
-            l.tr = .97 * k;
-            l.tg = .98 * k;
-            l.tb = 1.02 * k;
+            double k = 0.82 + 0.28 * NightSky.MOON_GLOW, low = lk.harvest() ? Ease.smoothstep(1f, 20f, sp.moonAlt) : 1f;
+            l.tr = (1.12 + (tb[0] - 1.12) * low) * k;
+            l.tg = (.72 + (tb[1] - .72) * low) * k;
+            l.tb = (.42 + (tb[2] - .42) * low) * k;
             // Earthshine on a crescent's dark part, which the twilight sky drowns until it's dark.
-            l.earthshine = .45 * Ease.smoothstep(80f, 150f, sp.phaseAngle) * .24 * NightSky.dark;
-            l.er = 0;
+            l.earthshine = lk.earthshine() * Ease.smoothstep(80f, 150f, sp.phaseAngle) * .24 * NightSky.dark;
+            l.ex = .3;
+            l.ey = -.18;
+            l.er = lk.eclipse() ? 2.6 : 0;
             l.glow = 1;
             l.t = t;
             ask(slot, n, map, t);
@@ -384,15 +404,144 @@ final class Planets {
         if (slot.tex == null) {
             return;
         }
-        // The dark sky behind it hides the stars by night; by day and in twilight the sky stays in front of the
-        // unlit part, so it isn't there.
-        if (NightSky.dark > 0.01f) {
+        // A harvest moon on the horizon is squashed flat by the air.
+        float squash = lk.harvest() ? 1f - .13f * (1f - Ease.smoothstep(0f, 6f, sp.moonAlt)) : 1f;
+        // The dark sky behind it hides the stars by night. In twilight a bright moon still stands solid against the
+        // sky (a harvest moon rising orange), while a thin crescent's unlit part is lost in it.
+        float solid = Math.max(NightSky.dark, Math.min(1f, ill * 1.2f));
+        if (solid > 0.01f) {
             WorldDraw.begin(WorldDraw.SKY_ALPHA, SkyDraw.disc());
-            r = diam / 2f * 0.97f;
+            float rx = diam / 2f * 0.97f, ry = rx * squash;
             int sky = Colors.scale(SkyPass.skyAt(tk, sp.moonAlt, rain), 0.55f);
-            NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(sky, vis * NightSky.dark));
+            NightSky.box(px - rx, py - ry, px + rx, py + ry, Colors.withAlpha(sky, vis * solid));
             WorldDraw.end();
         }
-        sprite(slot, px, py, diam, vis);
+        float side = diam * slot.s / slot.n, half = side / 2f;
+        float x0 = Math.round(px - half), y0 = Math.round(py - half * squash);
+        float uv = (float) slot.s / slot.texSize;
+        WorldDraw.begin(WorldDraw.SKY_ADD, slot.tex);
+        NightSky.box(x0, y0, x0 + side, y0 + side * squash, 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, vis));
+        WorldDraw.end();
+        if (lk.halo()) {
+            halo(px, py, diam, tc, glowK, vis);
+        }
+        if (!"none".equals(lk.corona())) {
+            corona("pink".equals(lk.corona()), px, py, diam, vis, t);
+        }
+    }
+
+    /** A frosty night: a 22° ring in three colours, a moon dog either side, and a pillar when the moon is low. */
+    private static void halo(float px, float py, float diam, int tc, float glowK, float vis) {
+        SkySphere sp = NightSky.SPHERE;
+        float[] m = sp.moon;
+        // A point 22° straight above the moon, for the ring's size on the screen.
+        float ux = -m[0] * m[1], uy = 1f - m[1] * m[1], uz = -m[2] * m[1], ul = (float) Math.sqrt(ux * ux + uy * uy + uz * uz);
+        if (ul < 1e-4f) {
+            return;
+        }
+        float c22 = (float) Math.cos(Math.toRadians(22)), s22 = (float) Math.sin(Math.toRadians(22));
+        float rr = worldToScreenDistance(m[0] * c22 + ux / ul * s22, m[1] * c22 + uy / ul * s22, m[2] * c22 + uz / ul * s22, px, py);
+        if (rr <= 0f) {
+            return;
+        }
+        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
+        for (float[] ring : HALO_RINGS) {
+            float h = rr * ring[0] / 0.8f;
+            NightSky.box(px - h, py - h, px + h, py + h, Colors.withAlpha((int) ring[1], ring[2] * vis));
+        }
+        WorldDraw.end();
+        // The moon dogs, 22° either side at the moon's height.
+        double sh = Math.sin(Math.toRadians(sp.moonAlt)), ch2 = Math.pow(Math.cos(Math.toRadians(sp.moonAlt)), 2);
+        double dA = Math.acos(Math.max(-1, Math.min(1, (c22 - sh * sh) / Math.max(.05, ch2))));
+        double az = Math.atan2(m[0], m[2]);
+        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
+        for (int sgn = -1; sgn <= 1; sgn += 2) {
+            double a = az + sgn * dA, ca = Math.cos(Math.toRadians(sp.moonAlt));
+            float dx = (float) (Math.sin(a) * ca), dy = (float) sh, dz = (float) (Math.cos(a) * ca);
+            if (!projectWorld(dx, dy, dz)) {
+                continue;
+            }
+            float qx = NightSky.screen[0], qy = NightSky.screen[1], r2 = diam * .55f;
+            NightSky.box(qx - r2, qy - r2 * .8f, qx + r2, qy + r2 * .8f, Colors.withAlpha(0xFFFFDCC8, .4f * vis));
+            float cx = qx + sgn * r2 * .3f;
+            NightSky.box(cx - r2 * .6f, qy - r2 * .6f, cx + r2 * .6f, qy + r2 * .6f, Colors.withAlpha(0xFFAAC8FF, .25f * vis));
+        }
+        // A pillar of light over a low moon.
+        if (sp.moonAlt < 10f && sp.moonAlt > -2f) {
+            float a = .11f * (1f - sp.moonAlt / 10f) * Math.min(1.3f, glowK) * vis;
+            NightSky.box(px - diam * .18f, py - diam * 2.6f, px + diam * .18f, py + diam * 1.4f, Colors.withAlpha(tc, a));
+        }
+        WorldDraw.end();
+    }
+
+    /** Thin cloud passing over the moon: pastel rings round it. */
+    private static void corona(boolean pink, float px, float py, float diam, float vis, float t) {
+        SolTexture tex = coronaTexture(pink);
+        float rc = diam * 3f;
+        WorldDraw.begin(WorldDraw.SKY_ADD, tex);
+        NightSky.box(px - rc, py - rc, px + rc, py + rc, Colors.withAlpha(0xFFFFFFFF, vis));
+        WorldDraw.end();
+        // The cloud drifting across.
+        WorldDraw.begin(WorldDraw.SKY_ALPHA, SkyDraw.glow());
+        for (int i = 0; i < 7; i++) {
+            float ox = (float) (((t * 4 + i * 90) % 600 + 600) % 600 - 300) * diam / 60f;
+            float oy = (float) Math.sin(i * 2.3) * diam * 1.4f, r2 = diam * (1.4f + (i % 3) * .5f);
+            NightSky.box(px + ox - r2, py + oy - r2 * .5f, px + ox + r2, py + oy + r2 * .5f, Colors.withAlpha(0xFF96A0BE, .1f * vis));
+        }
+        WorldDraw.end();
+    }
+
+    /** The corona's rings as a picture: the lab's radial gradient from inside the moon's edge outward. */
+    private static SolTexture coronaTexture(boolean pink) {
+        SolTexture have = pink ? coronaPink : coronaPastel;
+        if (have != null && !have.released()) {
+            return have;
+        }
+        float[] at = pink ? CORONA_PINK_AT : CORONA_AT;
+        int[] cols = pink ? CORONA_PINK : CORONA_PASTEL;
+        float[] as = pink ? CORONA_PINK_A : CORONA_PASTEL_A;
+        int n = 128;
+        int[] px = new int[n * n];
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                float dx = (i + .5f) / n * 2f - 1f, dy = (j + .5f) / n * 2f - 1f;
+                // From .15 of the radius (inside the moon, which is a third of it) to its edge.
+                float d = ((float) Math.sqrt(dx * dx + dy * dy) - .15f) / .85f;
+                if (d < 0f || d >= 1f) {
+                    continue;
+                }
+                int k = 0;
+                while (k + 2 < at.length && d >= at[k + 1]) {
+                    k++;
+                }
+                float f = (d - at[k]) / (at[k + 1] - at[k]);
+                int c = cols[k + 1] == 0 ? cols[k] : Colors.mix(cols[k], cols[k + 1], f);
+                float a = as[k] + (as[k + 1] - as[k]) * f;
+                px[j * n + i] = Colors.withAlpha(c, a);
+            }
+        }
+        SolTexture tex = SolTexture.of(pink ? "moon_corona_pink" : "moon_corona", n, n, true, px);
+        if (pink) {
+            coronaPink = tex;
+        } else {
+            coronaPastel = tex;
+        }
+        return tex;
+    }
+
+    /** Projects a world direction; the screen point into {@link NightSky#screen}. */
+    private static boolean projectWorld(float wx, float wy, float wz) {
+        // World to equatorial: the sphere's matrix is a rotation, so its transpose.
+        float[] m = NightSky.SPHERE.m;
+        return NightSky.project(m[0] * wx + m[3] * wy + m[6] * wz, m[1] * wx + m[4] * wy + m[7] * wz, m[2] * wx + m[5] * wy + m[8] * wz);
+    }
+
+    /** How far on the screen a world direction is from (px, py), or 0 if it's behind. */
+    private static float worldToScreenDistance(float wx, float wy, float wz, float px, float py) {
+        if (!projectWorld(wx, wy, wz)) {
+            return 0f;
+        }
+        float dx = NightSky.screen[0] - px, dy = NightSky.screen[1] - py;
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 }

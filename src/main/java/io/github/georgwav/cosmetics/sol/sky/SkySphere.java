@@ -40,6 +40,8 @@ public final class SkySphere {
     public float elong, phaseAngle, illum;
     /** Altitudes (degrees). */
     public float sunAlt, moonAlt;
+    /** Which night it is, counted from the world's start: it changes at sunrise. */
+    public long night;
 
 
     /**
@@ -51,6 +53,11 @@ public final class SkySphere {
      *                  (0 at sunrise), so the moon moves on smoothly from night to night
      */
     public void update(double days, float timeOfDay, int moonPhase, double latitudeDeg, int yearDays) {
+        update(days, timeOfDay, moonPhase, latitudeDeg, yearDays, Double.NaN);
+    }
+
+    /** As {@link #update}, with the moon held at an angle from the sun (degrees) instead, unless NaN. */
+    public void update(double days, float timeOfDay, int moonPhase, double latitudeDeg, int yearDays, double heldElong) {
         this.days = days;
         this.latitude = latitudeDeg;
         double tod = timeOfDay - Math.floor(timeOfDay);
@@ -76,8 +83,9 @@ public final class SkySphere {
         sunAlt = altitude(sun);
         // The moon: its phase from the game's, centred on midnight and moving on through the day.
         double dayFraction = tod + 0.25 - Math.floor(tod + 0.25);
-        elong = (float) wrap360(180.0 + 45.0 * (moonPhase + dayFraction - 0.75));
-        ecl(lamSun + elong, 1.5, moonEq);
+        elong = (float) (Double.isNaN(heldElong) ? wrap360(180.0 + 45.0 * (moonPhase + dayFraction - 0.75)) : wrap360(heldElong));
+        night = (long) Math.floor(days - dayFraction + 1e-6);
+        ecl(lamSun + elong, elong > 170f && elong < 190f ? 0.0 : 1.5, moonEq);
         toWorld(moonEq[0], moonEq[1], moonEq[2], moon);
         moonAlt = altitude(moon);
         double cosPsi = -(sun[0] * moon[0] + sun[1] * moon[1] + sun[2] * moon[2]);

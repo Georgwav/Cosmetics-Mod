@@ -1,0 +1,10 @@
+{
+  "name": "Pink moon",
+  "tint": [
+    1.1,
+    0.86,
+    0.98
+  ],
+  "corona": "pink",
+  "elongation": 165
+}

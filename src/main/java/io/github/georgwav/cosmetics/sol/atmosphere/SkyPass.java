@@ -102,6 +102,7 @@ public final class SkyPass {
         float sunAz = (float) Math.toDegrees(Math.atan2(-sx, sz));
 
         dome(tk, sunAz, q, rain);
+        Twilight.render(theme, at, rain);
         NightSky.render(theme, at, t, rain);
         Planets.render(tk, at, t, rain);
         if (at != null && at.squareMoon.get()) {

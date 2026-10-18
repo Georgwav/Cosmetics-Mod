@@ -19,7 +19,7 @@
         {
           "sampler_name": "Params",
           "location": "cosmeticsmod:sol_params",
-          "width": 64,
+          "width": 128,
           "height": 1,
           "bilinear": false
         },

@@ -165,5 +165,15 @@
     "bloom": 1.0,
     "threshold": 0.52,
     "vignette": 0.18
+  },
+  "night": {
+    "moon": "blue",
+    "light": "#b6a8ff",
+    "sky": [
+      "#0f0622",
+      "#210d3b",
+      "#3a1c56"
+    ],
+    "airglow": "#9650d2"
   }
 }

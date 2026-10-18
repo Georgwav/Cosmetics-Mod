@@ -54,7 +54,7 @@ import java.util.Map;
  */
 public final class LightPass {
     public static final int OFF = 0, MEDIUM = 1, HIGH = 2;
-    private static final int PARAMS = 64;
+    private static final int PARAMS = 128;
     private static final int LUT_W = 1024, LUT_H = 32;
 
     private static final float[] values = new float[PARAMS];
@@ -381,6 +381,19 @@ public final class LightPass {
         // game's brightness curve lifts a dimmed lightmap most of the way back.
         float dim = 0.35f + 0.65f * Math.min(1f, tk.lightBoost);
         v[58] = Ease.lerp(1f, dim, in);
+        // A second light (the moon where the theme's own light is something else), in view space.
+        float ex = KeyLight.extraX, ey = KeyLight.extraY, ez = KeyLight.extraZ;
+        v[64] = view.m00() * ex + view.m10() * ey + view.m20() * ez;
+        v[65] = view.m01() * ex + view.m11() * ey + view.m21() * ez;
+        v[66] = view.m02() * ex + view.m12() * ey + view.m22() * ez;
+        rgb(v, 67, KeyLight.extraColor);
+        v[70] = KeyLight.extraStrength * in * open;
+        // Day for night: how far the world turns to the night's blue with its shadows lifted, and the floor's colour;
+        // and how much warm lights bloom against the cold.
+        float night = io.github.georgwav.cosmetics.sol.atmosphere.NightSky.dark * (1f - 0.3f * rain);
+        v[71] = night * in * open;
+        rgb(v, 72, io.github.georgwav.cosmetics.sol.atmosphere.NightSky.floorColor);
+        v[75] = night * in;
         for (int i = 0; i < PARAMS; i++) {
             int bits = Float.floatToRawIntBits(v[i]);
             int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;

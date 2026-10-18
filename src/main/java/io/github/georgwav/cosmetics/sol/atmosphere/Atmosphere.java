@@ -50,6 +50,8 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle names = add(new Setting.Toggle("names", true).advanced());
     public final Setting.Toggle milkyWay = add(new Setting.Toggle("milky_way", true).advanced());
     public final Setting.Toggle nebulae = add(new Setting.Toggle("nebulae", true).advanced());
+    /** The faint airglow band round the horizon on dark nights, and the zodiacal light. */
+    public final Setting.Toggle airglow = add(new Setting.Toggle("airglow", true).advanced());
     /** How high the celestial pole stands over the north (0° is the game's straight east-to-west path). */
     public final Setting.Slider latitude = add(new Setting.Slider("latitude", 34, 0, 60, 1, v -> Math.round(v) + "°").advanced());
     /** Days in the sky's year: the stars at a given hour turn once round through it. */
