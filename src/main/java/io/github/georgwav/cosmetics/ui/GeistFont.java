@@ -36,10 +36,12 @@ public final class GeistFont {
     /** The size in screen pixels. */
     final int px;
     private final Style style;
+    private final boolean semibold;
 
     private GeistFont(Font font, int index, boolean semibold) {
         this.font = font;
         this.px = SIZES[index];
+        this.semibold = semibold;
         Style[] styles = semibold ? SEMIBOLD : MEDIUM;
         if (styles[index] == null) {
             styles[index] = Style.EMPTY.withFont(font((semibold ? "geist_semibold_" : "geist_") + px));
@@ -73,7 +75,7 @@ public final class GeistFont {
     *///?}
 
     Component component(String text) {
-        return Component.literal(text).withStyle(style);
+        return GeistGlyphs.styled(text, style, semibold ? "geist-semibold.ttf" : "geist-medium.ttf");
     }
 
     /** Width in screen pixels. */

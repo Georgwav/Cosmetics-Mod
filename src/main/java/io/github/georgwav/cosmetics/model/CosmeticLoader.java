@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.model;
 
 import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.config.CosmeticsConfig;
+import io.github.georgwav.cosmetics.emote.Emote;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import net.minecraft.server.packs.resources.Resource;
@@ -49,7 +50,22 @@ public final class CosmeticLoader {
     private CosmeticLoader() {
     }
 
+    /** What a reload read, ready to put in place on the game's thread. */
+    public record Prepared(Map<String, BakedCosmetic> loaded, List<String> failures, List<String> outdated,
+                           Map<String, Emote> emotes, long millis) {
+    }
+
+    /** Reads and bakes everything now and puts it in place: for a caller already off the game's thread, or a test. */
     public static void reload(ResourceManager manager) {
+        apply(prepare(manager));
+    }
+
+    /**
+     * Reads and bakes every cosmetic and emote: the slow part of a reload, which touches nothing the game is using,
+     * so a resource reload runs it with the other loading work off the game's thread and the loading screen keeps
+     * moving (with thousands of cosmetics in one pack it took long enough for Windows to call the game frozen).
+     */
+    public static Prepared prepare(ResourceManager manager) {
         // Model files by id ("namespace:name" for cosmetic_models/name.geo.json or name.json).
         Map<String, Resource> modelFiles = new HashMap<>();
         for (var entry : manager.listResources(MODEL_DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet()) {
@@ -113,20 +129,26 @@ public final class CosmeticLoader {
                 loaded.put(ids[i], baked[i]);
             }
         }
-        CosmeticRegistry.replace(loaded);
         List<String> failedList = new ArrayList<>();
         for (String f : failed) {
             if (f != null) {
                 failedList.add(f);
             }
         }
-        failures = List.copyOf(failedList);
-        outdatedImports = outdated(manager, ids);
+        long millis = (System.nanoTime() - start) / 1_000_000;
+        return new Prepared(loaded, List.copyOf(failedList), outdated(manager, ids), Emotes.prepare(manager), millis);
+    }
+
+    /** Puts what {@link #prepare} read in place; on the game's thread. */
+    public static void apply(Prepared prepared) {
+        CosmeticRegistry.replace(prepared.loaded());
+        failures = prepared.failures();
+        outdatedImports = prepared.outdated();
         RenderGuard.reset();
         io.github.georgwav.cosmetics.render.RecoloredTextures.clear();
         io.github.georgwav.cosmetics.render.CapeElytra.clear();
-        CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s) in {} ms", loaded.size(), (System.nanoTime() - start) / 1_000_000);
-        Emotes.reload(manager);
+        CosmeticsMod.LOGGER.info("Loaded {} cosmetic(s) in {} ms", prepared.loaded().size(), prepared.millis());
+        Emotes.apply(prepared.emotes());
     }
 
     /** Cosmetics the last resource reload couldn't load (the Wardrobe lists them), as "id: why". */

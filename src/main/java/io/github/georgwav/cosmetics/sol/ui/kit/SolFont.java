@@ -28,12 +28,16 @@ import java.util.Map;
  */
 public final class SolFont {
     public enum Family {
-        MEDIUM("geist_"), SEMIBOLD("geist_semibold_"), MONO("geist_mono_");
+        MEDIUM("geist_", "geist-medium.ttf"), SEMIBOLD("geist_semibold_", "geist-semibold.ttf"),
+        MONO("geist_mono_", "geist-mono-medium.ttf");
 
         final String prefix;
+        /** The font file, for which characters it has. */
+        final String ttf;
 
-        Family(String prefix) {
+        Family(String prefix, String ttf) {
             this.prefix = prefix;
+            this.ttf = ttf;
         }
     }
 
@@ -108,7 +112,7 @@ public final class SolFont {
             if (components.size() > CACHE) {
                 components.clear();
             }
-            c = Component.literal(text).withStyle(style);
+            c = io.github.georgwav.cosmetics.ui.GeistGlyphs.styled(text, style, family.ttf);
             components.put(text, c);
         }
         return c;

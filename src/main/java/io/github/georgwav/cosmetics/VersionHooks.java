@@ -1,22 +1,20 @@
 package io.github.georgwav.cosmetics;
 
-import io.github.georgwav.cosmetics.model.CosmeticLoader;
+import io.github.georgwav.cosmetics.model.CosmeticReload;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
 import io.github.georgwav.cosmetics.render.CosmeticsLayer;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.Entity;
 //? if <1.21.9 {
 /*import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.resources.ResourceLocation;
 *///?} else {
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 //?}
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier;
@@ -143,39 +141,22 @@ final class VersionHooks {
     static void registerReloadListener() {
         //? if <1.21.9 {
         /*ResourceLocation id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+        final class Listener extends CosmeticReload implements IdentifiableResourceReloadListener {
             @Override
             public ResourceLocation getFabricId() {
                 return id;
             }
-
-            @Override
-            public void onResourceManagerReload(ResourceManager manager) {
-                CosmeticLoader.reload(manager);
-                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
-            }
-        });
+        }
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new Listener());
         *///?} elif <1.21.11 {
         /*ResourceLocation id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, new CosmeticReload());
         *///?} elif <26.1 {
         Identifier id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, new CosmeticReload());
         //?} else {
         /*Identifier id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(id, new CosmeticReload());
         *///?}
     }
-
-    //? if >=1.21.9 {
-    private static ResourceManagerReloadListener reloadListener() {
-        return new ResourceManagerReloadListener() {
-            @Override
-            public void onResourceManagerReload(ResourceManager manager) {
-                CosmeticLoader.reload(manager);
-                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
-            }
-        };
-    }
-    //?}
 }

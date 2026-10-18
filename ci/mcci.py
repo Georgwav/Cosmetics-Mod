@@ -473,9 +473,20 @@ def xwd_to_rgb(data):
     byte_order, bits_per_pixel, bytes_per_line = h[7], h[11], h[12]
     red_mask, green_mask, blue_mask, ncolors = h[14], h[15], h[16], h[19]
     offset = header_size + ncolors * 12
-    if bits_per_pixel != 32:
+    if bits_per_pixel not in (24, 32):
         raise ValueError(f"unsupported xwd depth {bits_per_pixel}")
     rows = []
+    if bits_per_pixel == 24 and byte_order == 0 and (red_mask, green_mask, blue_mask) == (0xFF0000, 0xFF00, 0xFF):
+        # Packed B, G, R (seen after the game resized its window on Xvfb).
+        for y in range(height):
+            base = offset + y * bytes_per_line
+            px = data[base:base + width * 3]
+            row = bytearray(width * 3)
+            row[0::3], row[1::3], row[2::3] = px[2::3], px[1::3], px[0::3]
+            rows.append(bytes(row))
+        return width, height, rows
+    if bits_per_pixel == 24:
+        raise ValueError("unsupported 24-bit xwd layout")
     if byte_order == 0 and (red_mask, green_mask, blue_mask) == (0xFF0000, 0xFF00, 0xFF):
         # The usual Xvfb layout: bytes B, G, R, X per pixel. Reorder with slices (fast).
         for y in range(height):
@@ -601,6 +612,8 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
                 jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
+    # Local profiling, e.g. MCCI_JVM_EXTRA="-XX:StartFlightRecording=filename=/tmp/load.jfr,settings=profile".
+    jvm += os.environ.get("MCCI_JVM_EXTRA", "").split()
     # The Sol scenario's music shots: a mock Cider (REST, Socket.IO, Apple lyrics, a cover) and LRCLIB on Cider's port.
     mock = None
     if mode == "sol":
@@ -620,7 +633,11 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         "--username", "CosmeticsCI", "--version", inst.mc, "--gameDir", str(game_dir),
         "--assetsDir", str(inst.assets_dir), "--assetIndex", inst.asset_index,
         "--uuid", uuid.uuid3(uuid.NAMESPACE_DNS, "cosmetics-ci").hex, "--accessToken", "0",
-        "--userType", "msa", "--versionType", "release", "--width", "1280", "--height", "720",
+        "--userType", "msa", "--versionType", "release",
+        # MCCI_WINDOW=WxH: start at another size (854x480 is the game's own), with MCCI_JVM_EXTRA's
+        # -Dcosmeticsmod.resizeTo=WxH to change it in the world.
+        "--width", os.environ.get("MCCI_WINDOW", "1280x720").split("x")[0],
+        "--height", os.environ.get("MCCI_WINDOW", "1280x720").split("x")[1],
         "--quickPlaySingleplayer", "smoke",
     ]
     cmd = [inst.java, *jvm, "-cp", os.pathsep.join(inst.classpath), inst.fabric["mainClass"], *game]

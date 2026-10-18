@@ -228,16 +228,33 @@ public final class WardrobeScreen extends SolScreen {
 
     // ------------------------------------------------------------------ what the Wardrobe lists
 
+    // With thousands of cosmetics loaded, the lists are worked out once per change, not every frame.
+    private static List<BakedCosmetic> wardrobeList = List.of();
+    private static int wardrobeGeneration = -1;
+    private static Source wardrobeSource;
+    private static List<Source> sourceList = List.of();
+    private static int sourceGeneration = -1;
+
     /** The cosmetics the Wardrobe lists: all but emote props (they come with their emotes), from the source shown. */
     public static List<BakedCosmetic> wardrobe() {
         if (source != Source.ALL && !sources().contains(source)) {
             source = Source.ALL; // that pack is gone
         }
-        return CosmeticRegistry.all().stream().filter(c -> !c.definition().prop() && source.includes(c)).toList();
+        int gen = CosmeticRegistry.generation();
+        if (gen != wardrobeGeneration || source != wardrobeSource) {
+            wardrobeList = CosmeticRegistry.all().stream().filter(c -> !c.definition().prop() && source.includes(c)).toList();
+            wardrobeGeneration = gen;
+            wardrobeSource = source;
+        }
+        return wardrobeList;
     }
 
     /** ALL, then each source some loaded cosmetic comes from. */
     static List<Source> sources() {
+        int gen = CosmeticRegistry.generation();
+        if (gen == sourceGeneration) {
+            return sourceList;
+        }
         EnumSet<Source> present = EnumSet.noneOf(Source.class);
         for (BakedCosmetic c : CosmeticRegistry.all()) {
             if (!c.definition().prop()) {
@@ -247,7 +264,9 @@ public final class WardrobeScreen extends SolScreen {
         List<Source> out = new ArrayList<>();
         out.add(Source.ALL);
         out.addAll(present);
-        return out;
+        sourceList = List.copyOf(out);
+        sourceGeneration = gen;
+        return sourceList;
     }
 
     public static void setEquipped(String id, boolean on) {
@@ -352,6 +371,30 @@ public final class WardrobeScreen extends SolScreen {
 
     // ------------------------------------------------------------------ the rail
 
+    private int[] countCache = new int[0];
+    private String countKey = "";
+
+    /** How many of the listed cosmetics each view has (worked out again when the list or what you wear changes). */
+    private int[] counts(List<String> wearing) {
+        List<BakedCosmetic> all = wardrobe();
+        String key = CosmeticRegistry.generation() + "|" + source + "|" + wearing.hashCode() + "|" + wearing.size();
+        if (!key.equals(countKey)) {
+            int[] out = new int[View.values().length];
+            for (View v : View.values()) {
+                int n = 0;
+                for (BakedCosmetic c : all) {
+                    if (v.includes(c, wearing)) {
+                        n++;
+                    }
+                }
+                out[v.ordinal()] = n;
+            }
+            countCache = out;
+            countKey = key;
+        }
+        return countCache;
+    }
+
     private void rail(Gfx g, Tokens tk) {
         float y = TOP;
         List<Source> sources = sources();
@@ -365,7 +408,7 @@ public final class WardrobeScreen extends SolScreen {
             y += 34f;
         }
         List<String> wearing = CosmeticsConfig.get().localEquipped();
-        List<BakedCosmetic> all = wardrobe();
+        int[] counts = counts(wearing);
         for (View v : View.values()) {
             if (v == View.OUTFITS || v == View.SETTINGS) {
                 y += 10f;
@@ -376,7 +419,7 @@ public final class WardrobeScreen extends SolScreen {
                 case EMOTES -> Emotes.all().size();
                 case SKINS, SETTINGS -> -1;
                 case WEARING -> wearing.size();
-                default -> (int) all.stream().filter(c -> v.includes(c, wearing)).count();
+                default -> counts[v.ordinal()];
             };
             boolean on = v == view && cosmeticPage == null && outfitPageView == null || v == view;
             float h = 26f;
@@ -406,6 +449,9 @@ public final class WardrobeScreen extends SolScreen {
     /** The view and search the order was taken for, and what you wore then (it sorts first). */
     private String orderKey;
     private java.util.Set<String> orderWorn = java.util.Set.of();
+    /** The view's cosmetics in order, and what they were worked out for. */
+    private List<BakedCosmetic> shownList = List.of();
+    private String shownKey = "";
 
     /** The view's cosmetics as tiles with the notices above them; returns the cosmetic pointed at. */
     private String grid(Gfx g, Tokens tk, float top, float h) {
@@ -413,7 +459,7 @@ public final class WardrobeScreen extends SolScreen {
         tileShown = false;
         gearShown = false;
         CosmeticsConfig config = CosmeticsConfig.get();
-        List<BakedCosmetic> all = new ArrayList<>(wardrobe());
+        List<BakedCosmetic> all = wardrobe();
         List<String> wearing = config.localEquipped();
         g.clip(MAIN_X - 4f, top - 4f, MAIN_X + MAIN_W + 6f, top + h);
         float y = top - scroll.value();
@@ -432,9 +478,16 @@ public final class WardrobeScreen extends SolScreen {
                 orderWorn = java.util.Set.copyOf(wearing);
             }
             java.util.Set<String> worn = orderWorn;
-            all.sort(Comparator.comparing((BakedCosmetic c) -> !worn.contains(c.id()))
-                    .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
-            List<BakedCosmetic> shown = all.stream().filter(c -> view.includes(c, wearing) && matches(c, needle)).toList();
+            String shownFor = key + "|" + CosmeticRegistry.generation() + "|" + source + "|" + worn.hashCode() + "|"
+                    + wearing.hashCode() + "|" + wearing.size();
+            if (!shownFor.equals(shownKey)) {
+                List<BakedCosmetic> sorted = new ArrayList<>(all);
+                sorted.sort(Comparator.comparing((BakedCosmetic c) -> !worn.contains(c.id()))
+                        .thenComparing(BakedCosmetic::name, String.CASE_INSENSITIVE_ORDER));
+                shownList = sorted.stream().filter(c -> view.includes(c, wearing) && matches(c, needle)).toList();
+                shownKey = shownFor;
+            }
+            List<BakedCosmetic> shown = shownList;
             if (shown.isEmpty()) {
                 g.text(g.font(SolFont.Family.MEDIUM, 13f), needle.isEmpty() ? t("wardrobe.empty_view")
                         : t("wardrobe.no_match", search.text().trim()), MAIN_X, y + 18f, 0x99FFFFFF);

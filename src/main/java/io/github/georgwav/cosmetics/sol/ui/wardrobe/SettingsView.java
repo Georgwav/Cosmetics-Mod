@@ -183,8 +183,13 @@ final class SettingsView {
                 rows.info(label, n == 0 ? WardrobeScreen.t("errors.none") : String.valueOf(n), n == 0 ? tk.accent : Tokens.AMBER);
             }
             case "reload" -> rows.button(label, null, label, false, () -> {
-                CosmeticLoader.reload(Minecraft.getInstance().getResourceManager());
-                EquippedCosmetics.invalidate();
+                // Read off the game's thread (thousands of cosmetics take a while), put in place on it.
+                var manager = Minecraft.getInstance().getResourceManager();
+                java.util.concurrent.CompletableFuture.supplyAsync(() -> CosmeticLoader.prepare(manager))
+                        .thenAcceptAsync(prepared -> {
+                            CosmeticLoader.apply(prepared);
+                            EquippedCosmetics.invalidate();
+                        }, Minecraft.getInstance());
             });
             case "reset_settings" -> rows.button(label, WardrobeScreen.tr("sol.wardrobe.reset_note"), label, false, () -> {
                 // Every setting back to its default; what you wear, your outfits and each cosmetic's settings stay.
