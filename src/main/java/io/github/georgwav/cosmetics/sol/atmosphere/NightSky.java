@@ -38,6 +38,8 @@ public final class NightSky {
     /** The lab's default moon glow (45%): how far the moon's light spreads into the sky. */
     static final float MOON_GLOW = 0.45f;
     private static final int LINE = 0xFFACC0FF;
+    /** The constellations' line strength: always on, and the one being looked at. */
+    private static final float LINE_FAINT = 0.13f, LINE_FOCUS = 0.9f;
 
     private static volatile StarCatalog catalog;
     private static volatile boolean loading;
@@ -540,7 +542,7 @@ public final class NightSky {
 
     /**
      * Which constellation you're holding your view on: the nearest name within 26° of the middle of the view, while
-     * the view is still (under 10° a second). It brightens over about half a second, and fades faster when you move on.
+     * the view is still (under 10° a second). It brightens in about a quarter of a second, and fades when you move on.
      */
     private static void focus(StarCatalog cat, float dt) {
         float fx = FrameInfo.forward.x, fy = FrameInfo.forward.y, fz = FrameInfo.forward.z;
@@ -579,7 +581,7 @@ public final class NightSky {
         int held = speed < 10f ? best : -1;
         for (int k = 0; k < focus.length; k++) {
             float target = k == held ? 1f : 0f;
-            focus[k] = Ease.clamp01(focus[k] + (target - focus[k]) * Math.min(1f, dt * (target > 0f ? 1.8f : 3f)));
+            focus[k] = Ease.clamp01(focus[k] + (target - focus[k]) * Math.min(1f, dt * (target > 0f ? 4f : 3f)));
         }
     }
 
@@ -595,7 +597,8 @@ public final class NightSky {
         for (int k = 0; k < list.size(); k++) {
             StarCatalog.Constellation c = list.get(k);
             float f = focus[k];
-            float a = ((always ? 0.2f : 0f) + f * 0.5f) * dim;
+            // Faint when not looked at, and the one you hold your view on stands out at nearly full strength.
+            float a = ((always ? LINE_FAINT : 0f) + f * (LINE_FOCUS - (always ? LINE_FAINT : 0f))) * dim;
             if (a >= 0.01f) {
                 int col = Colors.withAlpha(LINE, Math.min(1f, a));
                 float[] l = c.lines();

@@ -122,6 +122,9 @@ void main() {
         edge = max(edge, isSky(dD) ? 1.0 : 0.0);
         // Only the land's skyline: clouds (far above the eye) keep plain edges.
         edge *= 1.0 - smoothstep(24.0, 48.0, dot(pos, P3(24)));
+        // And only at the end of the world: a hill, a player or a tree in front of farther land (Distant Horizons'
+        // or Voxy's, which the depth buffer doesn't hold) or of the sky keeps a plain edge.
+        edge *= smoothstep(0.82, 0.94, dist / max(16.0, P(30)));
         col += mix(P3(41), sunCol, 0.35) * edge * P(23) * smoothstep(0.7, 0.99, cosS) * P(2) * (1.0 - fogged * 0.5);
         // At night the light's glow lines every skyline (the prototypes' lit horizon edges).
         col += mix(P3(41), sunCol, 0.5) * edge * P(50) * 0.55;
@@ -158,7 +161,9 @@ void main() {
     // Night thins the scattering, unless the theme's own light (the rune, the moon) is lighting the fog.
     float amount = (1.0 - exp(-dist / fogFar * 2.0)) * P(16) * (0.12 + phase) * 0.6 * (1.0 - 0.5 * P(29) * (1.0 - P(12)));
     float h = dot(pos, P3(24));
-    float haze = P(17) * exp(-max(0.0, h + 1.62) / 2.5) * (1.0 - exp(-dist / 18.0));
+    // Haze lies low over the land: thickest near sea level, thinning over some 20 blocks of height in the world,
+    // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
+    float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
     col = mix(col, scat, clamp(amount + haze * 0.4, 0.0, 0.85));
     fragColor = vec4(col + shafts, 1.0);
 }

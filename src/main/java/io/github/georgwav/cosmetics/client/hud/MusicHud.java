@@ -128,7 +128,7 @@ public final class MusicHud extends TextHud {
         }
         AlbumTheme.Palette p = c.palette();
         boolean sky = cfg.albumSky;
-        ThemeState.setAlbum(c.key() + (sky ? "|sky" : ""), spec -> AlbumTheme.apply(spec, p, sky), true);
+        ThemeState.setAlbum(c.key() + (sky ? "|sky" : ""), e -> AlbumTheme.apply(e, p, sky), true);
     }
 
     private static NowPlaying song() {

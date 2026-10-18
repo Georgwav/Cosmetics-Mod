@@ -16,7 +16,7 @@ public final class ThemeState {
     private static Customisation custom = Customisation.NONE;
     private static Integer accent;
     private static String albumKey;
-    private static java.util.function.UnaryOperator<ThemeSpec> album;
+    private static java.util.function.UnaryOperator<ThemeRegistry.Entry> album;
 
     private static ThemeRegistry.Entry entry;
     private static int entryGeneration = -1;
@@ -102,7 +102,7 @@ public final class ThemeState {
      * The album's colours (from the playing song's cover), laid over the theme while they're on, or null.
      * {@code key} names the overlay (the album), so setting the same one again does nothing.
      */
-    public static void setAlbum(String key, java.util.function.UnaryOperator<ThemeSpec> overlay, boolean animate) {
+    public static void setAlbum(String key, java.util.function.UnaryOperator<ThemeRegistry.Entry> overlay, boolean animate) {
         if (overlay == null) {
             key = null;
         }
@@ -133,7 +133,7 @@ public final class ThemeState {
         ThemeRegistry.Entry base = ThemeRegistry.get(themeId);
         entry = custom.isNone() ? base : customised(base, custom);
         if (album != null) {
-            entry = entry.map(album);
+            entry = album.apply(entry);
         }
         entryGeneration = gen;
     }

@@ -120,6 +120,7 @@ public final class Gfx {
         this.canvas = canvas;
         alpha = 1f;
         open = false;
+        io.github.georgwav.cosmetics.sol.render.GuiDraw.newFrame();
     }
 
     public Canvas canvas() {

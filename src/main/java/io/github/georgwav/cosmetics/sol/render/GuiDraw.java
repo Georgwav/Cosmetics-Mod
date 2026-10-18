@@ -220,6 +220,21 @@ public final class GuiDraw {
         submit(g, tex, additive, count);
     }
 
+    /**
+     * The game sorts the shapes of a stratum by pipeline and texture before drawing them, so two batches with other
+     * textures could swap places: a picture behind a button drawn over it, sometimes (the order follows the
+     * textures' hashes). From 1.21.6 a batch unlike the one before starts a new stratum, so everything is drawn in
+     * order.
+     */
+    private static Object lastPipeline;
+    private static SolTexture lastTexture;
+
+    /** A new frame of Sol GUI: its first batch starts a stratum of its own (over whatever the game drew before). */
+    public static void newFrame() {
+        lastPipeline = null;
+        lastTexture = null;
+    }
+
     //? if >=1.21.6 {
     /** One batch as a GUI element: its own copy of the vertices, reused round-robin from a pool. */
     private static final class Element implements GuiElementRenderState {
@@ -300,6 +315,11 @@ public final class GuiDraw {
         e.bounds = e.scissor != null ? e.scissor.intersection(box) : box;
         if (e.bounds == null) {
             return;
+        }
+        if (e.pipeline != lastPipeline || tex != lastTexture) {
+            g.raw.nextStratum();
+            lastPipeline = e.pipeline;
+            lastTexture = tex;
         }
         //? if >=26.1 {
         /*g.raw.guiRenderState.addGuiElement(e);

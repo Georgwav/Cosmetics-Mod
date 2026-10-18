@@ -55,6 +55,7 @@ import java.util.Map;
 public final class LightPass {
     public static final int OFF = 0, MEDIUM = 1, HIGH = 2;
     private static final int PARAMS = 128;
+    private static final float SEA_LEVEL = 63f;
     private static final int LUT_W = 1024, LUT_H = 32;
 
     private static final float[] values = new float[PARAMS];
@@ -333,6 +334,10 @@ public final class LightPass {
         v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun")) * in * open;
         v[14] = FogControl.start(100000f);
         v[15] = FogControl.end(100000f);
+        // Where the game's own land ends (the skyline rim is drawn only there).
+        v[30] = FrameInfo.renderDistance;
+        // The eye's height above sea level (the low haze is measured from there).
+        v[31] = (float) FrameInfo.camY - SEA_LEVEL;
         float rain = FrameInfo.rain;
         v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in * open;
         v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in) * open;
