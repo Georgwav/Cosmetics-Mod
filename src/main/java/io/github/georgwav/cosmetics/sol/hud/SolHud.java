@@ -314,9 +314,12 @@ public final class SolHud {
             c.scale(1f / k, (k + 1f) / 2f);
             c.translate(-(x + 8), -(y + 12));
             c.item(stack, x, y);
+            io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
             c.pop();
         } else {
             c.item(stack, x, y);
+            // Sol's hotbar draws its own counts and bars, so Glint's outline goes on here.
+            io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
         }
     }
 

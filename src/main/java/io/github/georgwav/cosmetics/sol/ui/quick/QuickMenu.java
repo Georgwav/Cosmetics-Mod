@@ -1113,16 +1113,19 @@ public final class QuickMenu extends SolScreen {
             int text = hot || it.current ? 0xFFFFFFFF : 0xD9FFFFFF;
             if (wheel == Wheel.EMOTES) {
                 if (it.emote != null) {
-                    int px = Math.round(46f * s * g.d.u);
-                    pictures.draw(g.game(), it.emote, Math.round(g.d.sx(x)) - px / 2, Math.round(g.d.sy(y - 8f)) - px / 2, px);
+                    int px = Math.round(58f * s * g.d.u);
+                    pictures.draw(g.game(), it.emote, Math.round(g.d.sx(x)) - px / 2, Math.round(g.d.sy(y - 7f)) - px / 2, px);
                     g.layer();
-                    g.textCentre(small, g.fit(small, it.title, room), x, y + 24f, text);
+                    g.textCentre(small, g.fit(small, it.title, room), x, y + 29f, text);
                 } else {
                     plus(g, x, y - 6f, 16f, hot ? tk.accent : 0x80FFFFFF);
                     g.textCentre(small, it.title, x, y + 14f, hot ? 0xFFFFFFFF : 0x80FFFFFF);
                 }
+                // The slot's number in its first corner, clear of the picture and the name.
+                double tn = Math.toRadians(it.a0 + 5f);
+                float rn = it.r1 * s - 12f;
                 g.textCentre(mono, Integer.toString(it.slot % CosmeticsConfig.WHEEL_SLOTS + 1),
-                        CX + (it.r0 * s + 10f) * (float) Math.cos(t), CY + (it.r0 * s + 10f) * (float) Math.sin(t), 0x66FFFFFF);
+                        CX + rn * (float) Math.cos(tn), CY + rn * (float) Math.sin(tn), 0x66FFFFFF);
             } else if (it.icon != null) {
                 plus(g, x, y - 9f, 12f, hot ? tk.accent : 0xB3FFFFFF);
                 lines(g, name, it.title, x, y + 8f, room, text);
