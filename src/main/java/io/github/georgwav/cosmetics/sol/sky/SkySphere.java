@@ -32,6 +32,8 @@ public final class SkySphere {
      * this times its equatorial unit vector.
      */
     public final float[] m = new float[9];
+    /** The moon's equatorial unit vector. */
+    public final double[] moonEq = new double[3];
     /** The sun, the moon and the celestial north pole, as world unit directions. */
     public final float[] sun = new float[3], moon = new float[3], pole = new float[3];
     /** The moon's angle from the sun (elongation, degrees), the sun-moon angle seen from the moon, lit fraction. */
@@ -39,7 +41,6 @@ public final class SkySphere {
     /** Altitudes (degrees). */
     public float sunAlt, moonAlt;
 
-    private final double[] tmp = new double[3];
 
     /**
      * Turns the sphere to a moment.
@@ -76,8 +77,8 @@ public final class SkySphere {
         // The moon: its phase from the game's, centred on midnight and moving on through the day.
         double dayFraction = tod + 0.25 - Math.floor(tod + 0.25);
         elong = (float) wrap360(180.0 + 45.0 * (moonPhase + dayFraction - 0.75));
-        ecl(lamSun + elong, 1.5, tmp);
-        toWorld(tmp[0], tmp[1], tmp[2], moon);
+        ecl(lamSun + elong, 1.5, moonEq);
+        toWorld(moonEq[0], moonEq[1], moonEq[2], moon);
         moonAlt = altitude(moon);
         double cosPsi = -(sun[0] * moon[0] + sun[1] * moon[1] + sun[2] * moon[2]);
         phaseAngle = (float) Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, cosPsi))));

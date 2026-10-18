@@ -49,6 +49,8 @@ public final class SolScenario {
     /** One frame: a theme at a sun height (or a fixed day time, when {@code time} isn't -1), facing yaw/pitch. */
     /** The shot through a spyglass (a narrow field of view, as Zoomify's). */
     private static final String SPYGLASS = "sol_spyglass";
+    /** Night sky shots through the spyglass, on a planet. */
+    private static final String ZOOM = "sol_night_zoom_";
     private static boolean holdingSpyglass;
     /** The shot from inside a closed room (built in the air above the beach, taken away after). */
     private static final String UNDERGROUND = "sol_ember_underground";
@@ -152,6 +154,13 @@ public final class SolScenario {
             shots.add(new Shot("sol_night_zenith", "maple_afternoon", 0f, false, 0f, -88f, newMoon + 18000L));
             shots.add(new Shot("sol_night_full", "maple_afternoon", 0f, false, 0f, -40f, 18000L));
             shots.add(new Shot("sol_night_dusk", "maple_afternoon", 0f, false, 90f, -20f, newMoon + 13300L));
+            // A waxing crescent low in the west after sunset, its dark part lit by earthshine.
+            shots.add(new Shot("sol_night_crescent", "maple_afternoon", 0f, false, 90f, -10f, 5 * 24000L + 13300L));
+            // Through a spyglass on Saturn and on Jupiter.
+            for (String id : new String[]{"saturn", "jupiter"}) {
+                float[] aim = aimAt(id, 0.75, 0.5f);
+                shots.add(new Shot(ZOOM + id, "maple_afternoon", 0f, false, aim[0], aim[1], newMoon + 18000L));
+            }
             return;
         }
         if ("bench".equals(MODE)) {
@@ -357,7 +366,7 @@ public final class SolScenario {
             }
             // The tab list shot holds the player list key.
             mc.options.keyPlayerList.setDown(s.name().equals("ui_tab"));
-            mc.options.keyUse.setDown(s.name().equals(SPYGLASS) && phaseTick > 4);
+            mc.options.keyUse.setDown(spyglassShot(s.name()) && phaseTick > 4);
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
             }
@@ -429,7 +438,7 @@ public final class SolScenario {
                     problems.add(s.name() + ": the Sol sky didn't draw");
                 }
                 float fov = io.github.georgwav.cosmetics.sol.render.FrameInfo.fovY;
-                float want = s.name().equals(SPYGLASS) ? 7f : 70f;
+                float want = spyglassShot(s.name()) ? 7f : 70f;
                 if (Math.abs(fov - want) > Math.max(1f, want * 0.06f)) {
                     problems.add(s.name() + ": the field of view read from the game is " + fov + "°, not " + want + "°");
                 }
@@ -460,7 +469,7 @@ public final class SolScenario {
             Shot s = shots.get(index);
             room(mc, s.name().equals(UNDERGROUND));
             stageUi(s.name());
-            spyglass(mc, s.name().equals(SPYGLASS));
+            spyglass(mc, spyglassShot(s.name()));
             motionBlur(s.name().equals("sol_motion_blur"));
             ThemeState.setTheme(s.theme(), false);
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
@@ -999,6 +1008,22 @@ public final class SolScenario {
     }
 
     /** A spyglass into your hand (used while the shot holds the use key), or out of it again. */
+    private static boolean spyglassShot(String name) {
+        return name.equals(SPYGLASS) || name.startsWith(ZOOM);
+    }
+
+    /** The view (yaw, pitch) onto a planet on a day of the sky's year at a time of day (0 noon). */
+    private static float[] aimAt(String id, double days, float timeOfDay) {
+        io.github.georgwav.cosmetics.sol.sky.SkySphere sky = new io.github.georgwav.cosmetics.sol.sky.SkySphere();
+        sky.update(days, timeOfDay, 0, io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE,
+                io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_YEAR);
+        double[] eq = io.github.georgwav.cosmetics.sol.sky.Bodies.place(io.github.georgwav.cosmetics.sol.sky.Bodies.find(id),
+                sky.lamSun, new double[3]);
+        float[] w = new float[3];
+        sky.toWorld(eq[0], eq[1], eq[2], w);
+        return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1]))};
+    }
+
     private static void spyglass(Minecraft mc, boolean in) {
         if (in == holdingSpyglass) {
             return;

@@ -103,11 +103,16 @@ public final class SkyPass {
 
         dome(tk, sunAz, q, rain);
         NightSky.render(theme, at, t, rain);
+        Planets.render(tk, at, t, rain);
+        if (at != null && at.squareMoon.get()) {
+            moon(theme, tk, sunAngle, moonPhase, rain);
+        } else {
+            Planets.moon(theme, tk, t, rain);
+        }
         Stellar.render(theme, tk, at, sunAngle, t, rain);
         SkyLabels.draw();
         StarText.render(tk, sunAz, t, rain);
         Extras.renderBehind(theme, tk, t, rain);
-        moon(theme, tk, sunAngle, moonPhase, rain);
         if (theme.eclipse() != null) {
             eclipse(theme, tk, rain);
         } else if (theme.sun() != null && Guard.on(Feature.SUN)) {

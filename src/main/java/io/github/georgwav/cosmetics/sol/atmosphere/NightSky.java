@@ -481,7 +481,9 @@ public final class NightSky {
 
     private static void constellations(StarCatalog cat, boolean always, boolean names, float clear) {
         List<StarCatalog.Constellation> list = cat.constellations;
-        float p = pixel, dim = dark * (1f - 0.3f * moonSky) * clear;
+        // Drawn once the sky is properly dark, not over the twilight.
+        float night = Ease.smoothstep(-7f, -16f, SPHERE.sunAlt);
+        float p = pixel, dim = night * (1f - 0.3f * moonSky) * clear;
         if (dim <= 0.004f) {
             return;
         }
@@ -508,7 +510,7 @@ public final class NightSky {
             if (f > 0.15f || names && always) {
                 if (project(c.lx(), c.ly(), c.lz()) && world[1] > 0.07f) {
                     // Faded toward the horizon, like the stars round it.
-                    float la = Math.max(f, names ? 0.5f : 0f) * dark * clear * Ease.smoothstep(0.07f, 0.25f, world[1]);
+                    float la = Math.max(f, names ? 0.5f : 0f) * night * clear * Ease.smoothstep(0.07f, 0.25f, world[1]);
                     SkyLabels.add(screen[0], screen[1], c.name(), SkyLabels.CONSTELLATION, la);
                 }
             }

@@ -41,6 +41,10 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
     public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
     public final Setting.Toggle planets = add(new Setting.Toggle("planets", true).advanced());
+    /** Worlds from films and games among the planets: Gargantua, Halo, the Death Star and more. */
+    public final Setting.Toggle wildWorlds = add(new Setting.Toggle("wild_worlds", true).advanced());
+    /** The game's square moon instead of the round pixel moon. */
+    public final Setting.Toggle squareMoon = add(new Setting.Toggle("square_moon", false).advanced());
     // The night sky (the Night Sky lab's layers).
     public final Setting.Choice constellations = add(new Setting.Choice("constellations", "always", List.of("off", "look", "always")).advanced());
     public final Setting.Toggle names = add(new Setting.Toggle("names", true).advanced());
