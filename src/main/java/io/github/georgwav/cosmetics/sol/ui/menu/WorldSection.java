@@ -144,8 +144,6 @@ final class WorldSection implements Section {
         SolProfiles.setAccent(null);
         ThemeState.setTheme(e.id(), true);
         SolProfiles.setTheme(e.id());
-        menu.toast(empty ? SolMenu.tr("sol.notify.preset_empty")
-                : SolMenu.tr("sol.notify.preset", Widgets.themeName(e), SolProfiles.active()));
     }
 
     @Override

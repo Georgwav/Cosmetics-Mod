@@ -3,6 +3,7 @@ package io.github.georgwav.cosmetics.sol.ui.quick;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
+import io.github.georgwav.cosmetics.config.CosmeticsConfig;
 import io.github.georgwav.cosmetics.emote.Emote;
 import io.github.georgwav.cosmetics.emote.EmotePlayer;
 import io.github.georgwav.cosmetics.emote.Emotes;
@@ -11,6 +12,7 @@ import io.github.georgwav.cosmetics.sol.config.SolConfig;
 import io.github.georgwav.cosmetics.sol.config.SolProfiles;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.theme.ThemeRegistry;
+import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
@@ -20,13 +22,16 @@ import io.github.georgwav.cosmetics.sol.ui.kit.Notifications;
 import io.github.georgwav.cosmetics.sol.ui.kit.PlayerFace;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
+import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
 import io.github.georgwav.cosmetics.sol.ui.kit.Widgets;
 import io.github.georgwav.cosmetics.sol.ui.menu.SolMenu;
+import io.github.georgwav.cosmetics.sol.ui.screens.EmotePicker;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.Mulberry32;
 import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
 import io.github.georgwav.cosmetics.sol.util.Spring;
 import io.github.georgwav.cosmetics.sol.util.SunCpu;
+import io.github.georgwav.cosmetics.ui.EmotePictures;
 import io.github.georgwav.cosmetics.ui.KeyBinds;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -41,6 +46,8 @@ import java.util.List;
  * with a pixel corona; click to open presets, emotes and wardrobe inside it, click again to let the sun out. A
  * section expands into the full menu on that screen. A port of the Sol menu prototype's quick menu: its geometry,
  * its light keys, its springs.
+ * Presets and Emotes open a wheel round you in place of the petals: the presets on a ring (your own profiles and
+ * the packs' themes on a second and third ring outside it), or the emote wheel with its pages, to play from or edit.
  */
 public final class QuickMenu extends SolScreen {
     /** Frames drawn (the in-game check). */
@@ -58,7 +65,16 @@ public final class QuickMenu extends SolScreen {
     static final Place[] ME = {new Place("presets", "sun", -90f), new Place("emotes", "run", 30f),
             new Place("wardrobe", "shirt", 150f)};
 
-    enum Tray { PINS, PRESETS, EMOTES }
+    enum Tray { PINS, PRESETS }
+
+    /** A wheel open round you inside your ring. */
+    enum Wheel { NONE, PRESETS, EMOTES }
+
+    /** Ring radii: the built-in presets, your own (two rings), and the emote slots (their hits reach their buttons). */
+    static final float W1A = 118f, W1B = 178f, W2A = 186f, W2B = 236f, W3A = 244f, W3B = 292f;
+    static final float EA = 118f, EB = 202f, EHIT = 226f;
+    /** Your own presets per ring before the next one starts. */
+    static final int OWN_PER_RING = 10;
 
     private boolean meRing;
     private Tray tray = Tray.PINS;
@@ -86,6 +102,54 @@ public final class QuickMenu extends SolScreen {
     private final List<Hit> hits = new ArrayList<>();
     private float presetScroll = Float.NaN;
     private final PresetThumbs thumbs = new PresetThumbs();
+    private Wheel wheel = Wheel.NONE;
+    private float wheelT;
+    /** The wheel's items this frame, and the one pointed at (-1 none). */
+    private final List<Item> items = new ArrayList<>();
+    private int wheelHot = -1;
+    private boolean elytraWheel;
+    private int emotePage;
+    private EmotePicker picker;
+    private final EmotePictures pictures = new EmotePictures();
+    private final Ui ui = new Ui();
+    private final Band band = new Band();
+
+    /** One item on a wheel: a ring's sector between two angles (degrees, clockwise from the right). */
+    private static final class Item {
+        float r0, r1, hitR, a0, a1;
+        String title, sub, icon;
+        int inner, outer;
+        boolean current;
+        ThemeRegistry.Entry theme;
+        Emote emote;
+        int slot = -1;
+        Runnable action, alt;
+
+        float mid() {
+            return (a0 + a1) / 2f;
+        }
+
+        boolean contains(float x, float y) {
+            float dx = x - CX, dy = y - CY, d = (float) Math.hypot(dx, dy);
+            if (d < r0 || d > hitR) {
+                return false;
+            }
+            float a = (float) Math.toDegrees(Math.atan2(dy, dx));
+            return Math.abs(QuickLight.norm(a - mid())) <= (a1 - a0) / 2f;
+        }
+    }
+
+    /** A colour from a ring's inner edge to its outer one (screen pixels round the dial's middle). */
+    private static final class Band implements Gfx.Paint {
+        float cx, cy, r0, r1;
+        int c0, c1;
+
+        @Override
+        public int at(float x, float y) {
+            float d = (float) Math.hypot(x - cx, y - cy);
+            return Colors.mix(c0, c1, Math.max(0f, Math.min(1f, (d - r0) / Math.max(1f, r1 - r0))));
+        }
+    }
 
     /** A clickable thing drawn this frame (tray items, the search pill), for the pointer and the keyboard. */
     private record Hit(float x, float y, float w, float h, Runnable action) {
@@ -117,7 +181,8 @@ public final class QuickMenu extends SolScreen {
 
     /**
      * For the dev scenario: one of the states the prototype's reference shots show. A main section's id points at
-     * it; "eclipse" points at you; "presets" opens your ring; "emotes" its emotes; "back" points at you from there.
+     * it; "eclipse" points at you; "presets" and "emotes" open their wheels in your ring ("emote_picker" with its
+     * picker); "back" points at you from your ring.
      */
     public QuickMenu stage(String state) {
         switch (state) {
@@ -125,19 +190,23 @@ public final class QuickMenu extends SolScreen {
                 meHover = true;
                 meFresh = false;
             }
-            case "presets" -> {
+            case "presets", "emotes", "emote_picker" -> {
                 if (!meRing) {
                     toggleMe();
                 }
                 meHover = false;
+                setHot(state.startsWith("emote") ? "emotes" : "presets");
+                openWheel(state.startsWith("emote") ? Wheel.EMOTES : Wheel.PRESETS);
+                if (state.equals("emote_picker")) {
+                    picker = new EmotePicker(elytraWheel, 0);
+                }
             }
-            case "emotes", "back" -> {
+            case "back" -> {
                 if (!meRing) {
                     toggleMe();
                 }
                 setHot("emotes");
-                tray = Tray.EMOTES;
-                meHover = "back".equals(state);
+                meHover = true;
                 meFresh = false;
             }
             default -> setHot(state);
@@ -207,9 +276,26 @@ public final class QuickMenu extends SolScreen {
         flare = 1f;
         switch (id) {
             case "wardrobe" -> expand("wardrobe");
-            case "emotes" -> tray = Tray.EMOTES;
-            default -> tray = Tray.PRESETS;
+            case "emotes" -> openWheel(Wheel.EMOTES);
+            default -> openWheel(Wheel.PRESETS);
         }
+    }
+
+    private void openWheel(Wheel w) {
+        wheel = w;
+        wheelT = 0f;
+        wheelHot = -1;
+        focus = -1;
+        emotePage = Math.max(0, Math.min(emotePage, Emotes.pages(elytraWheel) - 1));
+    }
+
+    /** Back from a wheel to your three petals. */
+    private void closeWheel() {
+        wheel = Wheel.NONE;
+        picker = null;
+        wheelHot = -1;
+        ringT = 0f;
+        meFresh = true;
     }
 
     private void expand(String section) {
@@ -229,6 +315,8 @@ public final class QuickMenu extends SolScreen {
         meFocus = false;
         if (meRing) {
             meRing = false;
+            wheel = Wheel.NONE;
+            picker = null;
             tray = Tray.PINS;
             setRing(mainHot);
         } else {
@@ -247,6 +335,8 @@ public final class QuickMenu extends SolScreen {
         Tokens tk = ThemeState.tokens();
         openT += dt;
         ringT += dt;
+        wheelT += dt;
+        ui.begin(g, mx, my);
         boolean eclWas = ecl.target() > 0.5f;
         ecl.setTarget(eclTarget());
         if (!eclWas && ecl.target() > 0.5f) {
@@ -291,10 +381,23 @@ public final class QuickMenu extends SolScreen {
         dial(g, tk, ec, ringScale);
         sun(g, sx, sy, ec, (float) Math.sin(a), tk);
         coronaLayer(g, ec);
-        places(g, tk, ec, ringScale);
+        if (wheel != Wheel.NONE) {
+            wheelLayer(g, tk);
+        } else {
+            places(g, tk, ec, ringScale);
+        }
         me(g, tk, ec);
         label(g, tk);
         g.alpha = fade * (expand >= 0f ? Math.max(0f, 1f - expand * 3f) : 1f);
+        if (wheel != Wheel.NONE) {
+            wheelExtras(g, tk);
+            if (picker != null) {
+                g.rectScreen(g.d.left(), g.d.top(), g.d.right(), g.d.bottom(), 0x8C04050A, 0x8C04050A);
+                picker.draw(g, ui, tk, CX, 360f, my, pictures, () -> picker = null);
+            }
+            g.alpha = 1f;
+            return;
+        }
         trayLayer(g, tk);
         search(g, tk);
         if (tray == Tray.PINS) {
@@ -357,6 +460,9 @@ public final class QuickMenu extends SolScreen {
         int[] cols = {Colors.withAlpha(hc, 0f), Colors.withAlpha(hc, light.hpk * 0.35f), Colors.withAlpha(hc, light.hpk),
                 Colors.withAlpha(hc, light.hpk * 0.35f), Colors.withAlpha(hc, 0f)};
         g.hgradient(0f, CY - 1f, 1280f, 2f, at, cols, 5);
+        if (wheel != Wheel.NONE) {
+            return;
+        }
         Gfx.Radial lit = litPaint(g);
         // Track and ticks.
         int n = 96;
@@ -655,19 +761,33 @@ public final class QuickMenu extends SolScreen {
     /** What you're pointing at, under you. */
     private void label(Gfx g, Tokens tk) {
         String title, sub;
-        if (meOn()) {
+        if (wheel != Wheel.NONE && !meOn()) {
+            Item it = wheelHot >= 0 && wheelHot < items.size() ? items.get(wheelHot) : null;
+            if (it != null) {
+                title = it.title;
+                sub = it.sub;
+            } else if (wheel == Wheel.PRESETS) {
+                title = tr("sol.section.presets");
+                sub = tr("sol.quick.wheel.presets_sub");
+            } else {
+                title = tr(elytraWheel ? "sol.quick.wheel.elytra" : "sol.section.emotes");
+                sub = tr("sol.quick.wheel.emotes_sub", emotePage + 1, Emotes.pages(elytraWheel));
+            }
+        } else if (meOn()) {
             title = meRing ? tr("sol.quick.back") : tr("sol.quick.me", SolProfiles.active());
-            sub = meRing ? tr("sol.quick.back_sub") : tr("sol.quick.me_sub");
+            sub = wheel != Wheel.NONE ? tr("sol.quick.wheel.back_sub") : meRing ? tr("sol.quick.back_sub") : tr("sol.quick.me_sub");
         } else {
             title = tr("sol.section." + hot);
             sub = detail(hot);
         }
         SolFont b = g.font(SolFont.Family.SEMIBOLD, 14f), s = g.font(SolFont.Family.MEDIUM, 11.5f);
-        g.textCentre(b, title, CX + 0.5f, 395.5f, 0xCC000000);
-        g.textCentre(b, title, CX, 395f, 0xFFFFFFFF);
+        // Under you, or under a wheel's rings (they fill the space round you).
+        float ty = wheel != Wheel.NONE ? labelY() : 395f;
+        g.textCentre(b, title, CX + 0.5f, ty + 0.5f, 0xCC000000);
+        g.textCentre(b, title, CX, ty, 0xFFFFFFFF);
         int subC = Colors.mix(tk.accent, 0xFFFFFFFF, 0.38f);
-        g.textCentre(s, sub, CX + 0.5f, 412.5f, 0xCC000000);
-        g.textCentre(s, sub, CX, 412f, subC);
+        g.textCentre(s, sub, CX + 0.5f, ty + 17.5f, 0xCC000000);
+        g.textCentre(s, sub, CX, ty + 17f, subC);
     }
 
     private String detail(String id) {
@@ -701,7 +821,6 @@ public final class QuickMenu extends SolScreen {
         float y = 560f;
         String heading = switch (tray) {
             case PRESETS -> tr("sol.quick.tray.presets");
-            case EMOTES -> tr("sol.quick.tray.emotes", keyName(KeyBinds.emotes));
             default -> tr("sol.quick.tray.pins");
         };
         g.textSpaced(head, heading.toUpperCase(java.util.Locale.ROOT), CX - g.width(head, heading.toUpperCase(java.util.Locale.ROOT), 1.26f) / 2f,
@@ -709,7 +828,6 @@ public final class QuickMenu extends SolScreen {
         y += 20f;
         switch (tray) {
             case PRESETS -> presets(g, tk, y);
-            case EMOTES -> emotes(g, tk, y);
             default -> pins(g, tk, y);
         }
     }
@@ -727,23 +845,6 @@ public final class QuickMenu extends SolScreen {
             }));
         }
         chips.add(Widgets.Chip.button(tr("sol.quick.all_modules"), () -> expand("modules")));
-        rowOfChips(g, tk, chips, y);
-    }
-
-    private void emotes(Gfx g, Tokens tk, float y) {
-        List<Widgets.Chip> chips = new ArrayList<>();
-        Emote playing = EmotePlayer.playing();
-        for (Emote e : Emotes.all()) {
-            if (e.elytra()) {
-                continue;
-            }
-            boolean cur = playing != null && playing.id().equals(e.id());
-            chips.add(Widgets.Chip.toggle(Emotes.name(e), cur, () -> {
-                EmotePlayer.play(e);
-                Notifications.post(tr("sol.notify.emote", Emotes.name(e)));
-            }));
-        }
-        chips.add(Widgets.Chip.button(tr("sol.quick.edit_wheel"), () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(false))));
         rowOfChips(g, tk, chips, y);
     }
 
@@ -867,8 +968,310 @@ public final class QuickMenu extends SolScreen {
         SolProfiles.setAccent(null);
         ThemeState.setTheme(id, true);
         SolProfiles.setTheme(id);
-        Notifications.post(empty ? tr("sol.notify.preset_empty")
-                : tr("sol.notify.preset", Widgets.themeName(e), SolProfiles.active()));
+    }
+
+    // ------------------------------------------------------------------ the wheels
+
+    /** This frame's items: the presets' rings, or the emote wheel's page. */
+    private void buildWheel() {
+        items.clear();
+        if (wheel == Wheel.PRESETS) {
+            List<ThemeRegistry.Entry> builtIn = new ArrayList<>();
+            List<Item> own = new ArrayList<>();
+            String current = ThemeState.themeId();
+            for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+                if (e.builtIn()) {
+                    builtIn.add(e);
+                } else {
+                    Item it = themeItem(e, current);
+                    it.sub = tr("sol.quick.wheel.pack_sub");
+                    own.add(it);
+                }
+            }
+            for (int i = 0; i < builtIn.size(); i++) {
+                place(themeItem(builtIn.get(i), current), i, builtIn.size(), W1A, W1B);
+            }
+            // Your own: your profiles (the theme each one wears), then saving what you have as a new one.
+            String active = SolProfiles.active();
+            for (String name : SolProfiles.names()) {
+                Item it = new Item();
+                ThemeRegistry.Entry t = ThemeRegistry.get(SolProfiles.themeOf(name));
+                it.title = name;
+                it.sub = tr("sol.quick.wheel.profile_sub", Widgets.themeName(t));
+                ThemeSpec.Sky k = t != null ? t.base().sky() : null;
+                it.inner = k != null ? Colors.mix(k.horizon(), 0xFF0C0E14, 0.45f) : 0xFF1A1C24;
+                it.outer = k != null ? Colors.mix(k.top(), 0xFF0C0E14, 0.45f) : 0xFF0C0E14;
+                it.current = name.equals(active);
+                it.action = () -> SolProfiles.switchTo(name);
+                own.add(it);
+            }
+            Item save = new Item();
+            save.title = tr("sol.quick.wheel.save");
+            save.sub = tr("sol.quick.wheel.save_sub");
+            save.icon = "plus";
+            save.inner = 0xFF14161E;
+            save.outer = 0xFF0C0E14;
+            save.action = () -> {
+                String saved = SolProfiles.saveAs(SolProfiles.newName());
+                if (saved != null) {
+                    Notifications.post(tr("sol.notify.profile_saved", saved));
+                }
+            };
+            own.add(save);
+            int second = Math.min(own.size(), own.size() > OWN_PER_RING + 2 ? OWN_PER_RING : own.size());
+            for (int i = 0; i < own.size(); i++) {
+                if (i < second) {
+                    place(own.get(i), i, second, W2A, W2B);
+                } else {
+                    place(own.get(i), i - second, own.size() - second, W3A, W3B);
+                }
+            }
+        } else if (wheel == Wheel.EMOTES) {
+            int per = CosmeticsConfig.WHEEL_SLOTS;
+            Emote playing = EmotePlayer.playing();
+            for (int i = 0; i < per; i++) {
+                int slot = emotePage * per + i;
+                Emote e = Emotes.at(elytraWheel, slot);
+                Item it = new Item();
+                it.slot = slot;
+                it.emote = e;
+                it.title = e != null ? Emotes.name(e) : tr("sol.quick.wheel.empty_slot");
+                it.sub = tr(e != null ? "sol.quick.wheel.emote_sub" : "sol.quick.wheel.empty_sub");
+                it.inner = 0xFF181A22;
+                it.outer = 0xFF0C0E14;
+                it.current = e != null && e == playing;
+                it.alt = () -> picker = new EmotePicker(elytraWheel, slot);
+                it.action = e == null ? it.alt : () -> {
+                    EmotePlayer.play(e, elytraWheel);
+                    onClose();
+                };
+                place(it, i, per, EA, EB);
+                it.hitR = EHIT;
+            }
+        }
+    }
+
+    private Item themeItem(ThemeRegistry.Entry e, String current) {
+        Item it = new Item();
+        it.theme = e;
+        it.title = Widgets.themeName(e);
+        String line = Widgets.themeLine(e);
+        it.sub = line == null || line.isBlank() ? tr("sol.quick.wheel.preset_sub") : line;
+        ThemeSpec.Sky k = e.base().sky();
+        it.inner = Colors.mix(k.horizon(), k.glow(), 0.25f);
+        it.outer = Colors.mix(k.top(), 0xFF000000, 0.2f);
+        it.current = e.id().equals(current);
+        String id = e.id();
+        it.action = () -> applyPreset(id);
+        return it;
+    }
+
+    /** Puts {@code it} at {@code i} of {@code n} round a ring from r0 to r1, the first at the top. */
+    private void place(Item it, int i, int n, float r0, float r1) {
+        float span = 360f / Math.max(1, n), gap = Math.min(1.6f, span * 0.08f);
+        float mid = -90f + i * span;
+        it.r0 = r0;
+        it.r1 = r1;
+        it.hitR = r1;
+        it.a0 = mid - span / 2f + gap;
+        it.a1 = mid + span / 2f - gap;
+        items.add(it);
+    }
+
+    private void wheelLayer(Gfx g, Tokens tk) {
+        buildWheel();
+        if (wheelHot >= items.size()) {
+            wheelHot = -1;
+        }
+        SolFont name = g.font(SolFont.Family.SEMIBOLD, 10.5f), small = g.font(SolFont.Family.MEDIUM, 10f),
+                mono = g.font(SolFont.Family.MONO, 10f);
+        float base = g.alpha;
+        for (int i = 0; i < items.size(); i++) {
+            Item it = items.get(i);
+            float in = calm() ? 1f : Math.max(0f, Math.min(1f, (wheelT - i * 0.012f) / 0.32f));
+            if (in <= 0f) {
+                continue;
+            }
+            boolean hot = i == wheelHot;
+            float s = 0.86f + 0.14f * pop(in);
+            g.alpha = base * Math.min(1f, in * 1.6f);
+            band.cx = g.d.sx(CX);
+            band.cy = g.d.sy(CY);
+            band.r0 = it.r0 * s * g.d.u;
+            band.r1 = it.r1 * s * g.d.u;
+            band.c0 = Colors.withAlpha(hot ? Colors.mix(it.inner, 0xFFFFFFFF, 0.14f) : it.inner, 0.9f);
+            band.c1 = Colors.withAlpha(hot ? Colors.mix(it.outer, 0xFFFFFFFF, 0.1f) : it.outer, 0.92f);
+            int edge = it.current ? tk.accent : hot ? Colors.withAlpha(light.lightRgb, 0.9f) : 0x38FFFFFF;
+            sector(g, it.r0 * s, it.r1 * s, it.a0, it.a1, band, edge, it.current || hot ? 1.5f : 1f);
+            float rm = (it.r0 + it.r1) / 2f * s;
+            double t = Math.toRadians(it.mid());
+            float x = CX + rm * (float) Math.cos(t), y = CY + rm * (float) Math.sin(t);
+            if (hot || it.current) {
+                g.glowSprite(x, y, 60f, 60f, Colors.withAlpha(it.current ? tk.glow : light.lightRgb, hot ? 0.28f : 0.16f));
+            }
+            float room = Math.min(110f, (float) Math.toRadians(it.a1 - it.a0) * rm - 8f);
+            int text = hot || it.current ? 0xFFFFFFFF : 0xD9FFFFFF;
+            if (wheel == Wheel.EMOTES) {
+                if (it.emote != null) {
+                    int px = Math.round(46f * s * g.d.u);
+                    pictures.draw(g.game(), it.emote, Math.round(g.d.sx(x)) - px / 2, Math.round(g.d.sy(y - 8f)) - px / 2, px);
+                    g.layer();
+                    g.textCentre(small, g.fit(small, it.title, room), x, y + 24f, text);
+                } else {
+                    plus(g, x, y - 6f, 16f, hot ? tk.accent : 0x80FFFFFF);
+                    g.textCentre(small, it.title, x, y + 14f, hot ? 0xFFFFFFFF : 0x80FFFFFF);
+                }
+                g.textCentre(mono, Integer.toString(it.slot % CosmeticsConfig.WHEEL_SLOTS + 1),
+                        CX + (it.r0 * s + 10f) * (float) Math.cos(t), CY + (it.r0 * s + 10f) * (float) Math.sin(t), 0x66FFFFFF);
+            } else if (it.icon != null) {
+                plus(g, x, y - 9f, 12f, hot ? tk.accent : 0xB3FFFFFF);
+                lines(g, name, it.title, x, y + 8f, room, text);
+            } else {
+                lines(g, name, it.title, x, y, room, text);
+            }
+        }
+        g.alpha = base;
+        // The slot pointed at: change it, or empty it, just outside the ring.
+        Item hot = wheelHot >= 0 ? items.get(wheelHot) : null;
+        if (wheel == Wheel.EMOTES && hot != null && hot.emote != null && picker == null) {
+            slotButton(g, tk, hot, -9f, "gear", hot.alt, false);
+            final int slot = hot.slot;
+            slotButton(g, tk, hot, 9f, "close", () -> {
+                Emotes.assign(elytraWheel, slot, "");
+                CosmeticsConfig.save();
+            }, true);
+        }
+    }
+
+    /** One of the round buttons by the slot pointed at. */
+    private void slotButton(Gfx g, Tokens tk, Item it, float da, String icon, Runnable action, boolean red) {
+        double t = Math.toRadians(it.mid() + da);
+        float r = 214f, x = CX + r * (float) Math.cos(t), y = CY + r * (float) Math.sin(t), h = 11f;
+        boolean over = Math.hypot(mx - x, my - y) <= h + 1f;
+        int fill = red ? Colors.withAlpha(Tokens.RED, over ? 0.95f : 0.75f) : over ? 0xE62A2A33 : 0xD90A0A0E;
+        g.disc(x, y, h, g.flat(fill));
+        g.ring(g.d.sx(x), g.d.sy(y), h * g.d.u, Math.max(1f, g.d.u), over ? tk.accent : 0x40FFFFFF);
+        Icons.draw(g, icon, x - 6f, y - 6f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+        hits.add(new Hit(x - h, y - h, h * 2f, h * 2f, action));
+    }
+
+    /** A name in up to two centred lines (split at a space) that fit {@code room}. */
+    private void lines(Gfx g, SolFont f, String text, float x, float y, float room, int argb) {
+        if (g.width(f, text) <= room || text.indexOf(' ') < 0) {
+            g.textCentre(f, g.fit(f, text, room), x, y, argb);
+            return;
+        }
+        int cut = text.lastIndexOf(' ', Math.max(1, text.length() / 2 + 2));
+        if (cut <= 0) {
+            cut = text.indexOf(' ');
+        }
+        g.textCentre(f, g.fit(f, text.substring(0, cut), room), x, y - 6.5f, argb);
+        g.textCentre(f, g.fit(f, text.substring(cut + 1), room), x, y + 6.5f, argb);
+    }
+
+    /** A ring's sector from r0 to r1 between two angles, filled with {@code fill}, its edge in {@code edge}. */
+    private void sector(Gfx g, float r0, float r1, float a0, float a1, Gfx.Paint fill, int edge, float width) {
+        int n = Math.max(6, Math.round((a1 - a0) / 2.5f));
+        float[] ix = new float[n + 1], iy = new float[n + 1], ox = new float[n + 1], oy = new float[n + 1];
+        for (int i = 0; i <= n; i++) {
+            double t = Math.toRadians(a0 + (a1 - a0) * i / n);
+            float c = (float) Math.cos(t), sn = (float) Math.sin(t);
+            ix[i] = g.d.sx(CX + r0 * c);
+            iy[i] = g.d.sy(CY + r0 * sn);
+            ox[i] = g.d.sx(CX + r1 * c);
+            oy[i] = g.d.sy(CY + r1 * sn);
+        }
+        g.fillBetween(ix, iy, ox, oy, n + 1, fill);
+        float[] px = new float[(n + 1) * 2], py = new float[(n + 1) * 2];
+        for (int i = 0; i <= n; i++) {
+            px[i] = ox[i];
+            py[i] = oy[i];
+            px[n + 1 + i] = ix[n - i];
+            py[n + 1 + i] = iy[n - i];
+        }
+        g.strokePath(px, py, (n + 1) * 2, true, width * g.d.u, g.flat(edge));
+    }
+
+    /** Under a wheel: the preset pointed at as a picture, or the emote wheel's pages. */
+    private void wheelExtras(Gfx g, Tokens tk) {
+        if (wheel == Wheel.PRESETS) {
+            Item hot = wheelHot >= 0 ? items.get(wheelHot) : null;
+            ThemeRegistry.Entry e = hot != null && hot.theme != null ? hot.theme : null;
+            float w = 146f, h = 60f, x = CX - w / 2f, y = labelY() + 32f;
+            if (e != null && y + h <= 716f) {
+                SolTexture thumb = thumbs.get(e);
+                g.round(x, y, w, h, 10f, tk.panel);
+                if (thumb != null) {
+                    g.clip(x, y, x + w, y + h);
+                    g.image(thumb, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+                    g.endClip();
+                }
+                g.stroke(x, y, w, h, 10f, Math.max(1f, g.d.u), 0x33FFFFFF);
+            }
+            return;
+        }
+        int pages = Emotes.pages(elytraWheel);
+        boolean empty = true;
+        for (int i = 0; i < CosmeticsConfig.WHEEL_SLOTS; i++) {
+            empty &= Emotes.at(elytraWheel, emotePage * CosmeticsConfig.WHEEL_SLOTS + i) == null;
+        }
+        List<Widgets.Chip> chips = new ArrayList<>();
+        if (pages > 1) {
+            chips.add(Widgets.Chip.button("‹", () -> turnPage(-1)));
+            chips.add(Widgets.Chip.button(tr("sol.quick.wheel.page", emotePage + 1, pages), () -> turnPage(1)));
+            chips.add(Widgets.Chip.button("›", () -> turnPage(1)));
+        }
+        chips.add(Widgets.Chip.button(tr("sol.quick.wheel.add_page"), () -> {
+            if (Emotes.addPage(elytraWheel)) {
+                emotePage = Emotes.pages(elytraWheel) - 1;
+                CosmeticsConfig.save();
+            }
+        }));
+        if (pages > 1 && empty) {
+            chips.add(Widgets.Chip.button(tr("sol.quick.wheel.remove_page"), () -> {
+                Emotes.removePage(elytraWheel, emotePage);
+                emotePage = Math.max(0, emotePage - 1);
+                CosmeticsConfig.save();
+            }));
+        }
+        chips.add(Widgets.Chip.toggle(tr("sol.quick.wheel.elytra"), elytraWheel, () -> {
+            elytraWheel = !elytraWheel;
+            emotePage = 0;
+        }));
+        if (EmotePlayer.playing() != null) {
+            chips.add(Widgets.Chip.button(tr("sol.quick.wheel.stop"), EmotePlayer::stop));
+        }
+        rowOfChips(g, tk, chips, labelY() + 40f);
+    }
+
+    private void turnPage(int by) {
+        emotePage = Math.floorMod(emotePage + by, Emotes.pages(elytraWheel));
+    }
+
+    /** Where a wheel's label goes: just under its outermost ring. */
+    private float labelY() {
+        float outer = wheel == Wheel.EMOTES ? EB : W1B;
+        for (Item it : items) {
+            outer = Math.max(outer, it.r1);
+        }
+        return CY + outer + 24f;
+    }
+
+    /** A plus sign centred on (x, y). */
+    private static void plus(Gfx g, float x, float y, float size, int argb) {
+        float bar = Math.max(2f, size / 6f);
+        g.round(x - size / 2f, y - bar / 2f, size, bar, bar / 2f, argb);
+        g.round(x - bar / 2f, y - size / 2f, bar, size, bar / 2f, argb);
+    }
+
+    /** The wheel item under a design point, or -1. */
+    private int itemAt(float x, float y) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).contains(x, y)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** The search pill at the top. */
@@ -891,7 +1294,6 @@ public final class QuickMenu extends SolScreen {
     private int trayCount() {
         return switch (tray) {
             case PRESETS -> ThemeRegistry.all().size() + SolProfiles.names().size() + 1;
-            case EMOTES -> (int) Emotes.all().stream().filter(e -> !e.elytra()).count() + 1;
             default -> (int) SolProfiles.pinned().stream().map(Modules::byId).filter(m -> m != null && m.available()).count() + 1;
         };
     }
@@ -927,6 +1329,17 @@ public final class QuickMenu extends SolScreen {
                 meFresh = false;
             }
         }
+        if (picker != null) {
+            return;
+        }
+        if (wheel != Wheel.NONE) {
+            int i = over ? -1 : itemAt(x, y);
+            // The slot's own buttons sit just outside it: pointing at them keeps it pointed at.
+            if (i >= 0 || !over && !overHit(x, y)) {
+                wheelHot = i;
+            }
+            return;
+        }
         if (!over) {
             Place p = pick(x, y);
             if (p != null && !p.id().equals(hot)) {
@@ -935,13 +1348,40 @@ public final class QuickMenu extends SolScreen {
         }
     }
 
+    private boolean overHit(float x, float y) {
+        for (Hit h : hits) {
+            if (h.contains(x, y)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected boolean press(float x, float y, int button) {
-        if (button != 0 || expand >= 0f) {
+        if (expand >= 0f) {
+            return false;
+        }
+        if (picker != null) {
+            return ui.press(x, y);
+        }
+        if (wheel != Wheel.NONE && button == 1) {
+            int i = itemAt(x, y);
+            if (i >= 0 && items.get(i).alt != null) {
+                items.get(i).alt.run();
+                return true;
+            }
+            return false;
+        }
+        if (button != 0) {
             return false;
         }
         if (overMe(x, y)) {
-            toggleMe();
+            if (wheel != Wheel.NONE) {
+                closeWheel();
+            } else {
+                toggleMe();
+            }
             return true;
         }
         for (Hit h : hits) {
@@ -949,6 +1389,15 @@ public final class QuickMenu extends SolScreen {
                 h.action().run();
                 return true;
             }
+        }
+        if (wheel != Wheel.NONE) {
+            int i = itemAt(x, y);
+            if (i >= 0) {
+                flare = 1f;
+                items.get(i).action.run();
+                return true;
+            }
+            return false;
         }
         Place p = pick(x, y);
         if (p != null) {
@@ -959,7 +1408,25 @@ public final class QuickMenu extends SolScreen {
     }
 
     @Override
+    protected boolean release(float x, float y, int button) {
+        return picker != null && ui.release();
+    }
+
+    @Override
     protected boolean scroll(float x, float y, float amount) {
+        if (picker != null) {
+            picker.scroll(amount);
+            return true;
+        }
+        if (wheel == Wheel.EMOTES) {
+            if (amount != 0f && Emotes.pages(elytraWheel) > 1) {
+                turnPage(amount > 0 ? -1 : 1);
+            }
+            return true;
+        }
+        if (wheel != Wheel.NONE) {
+            return false;
+        }
         if (tray == Tray.PRESETS && y >= 576f && y <= 650f) {
             float total = ThemeRegistry.all().size() * 120f - 8f;
             presetScroll = Math.max(0f, Math.min(Math.max(0f, total - 1000f), (Float.isNaN(presetScroll) ? 0f : presetScroll) - amount * 60f));
@@ -980,6 +1447,29 @@ public final class QuickMenu extends SolScreen {
         if (ctrl && key == InputConstants.KEY_K) {
             SolMenu.openSearch(parent, "");
             return true;
+        }
+        if (picker != null) {
+            return false;
+        }
+        if (wheel != Wheel.NONE && !items.isEmpty()) {
+            switch (key) {
+                case InputConstants.KEY_LEFT, InputConstants.KEY_RIGHT, InputConstants.KEY_TAB -> {
+                    boolean back = key == InputConstants.KEY_LEFT || key == InputConstants.KEY_TAB && shift;
+                    wheelHot = wheelHot < 0 ? 0 : Math.floorMod(wheelHot + (back ? -1 : 1), items.size());
+                    return true;
+                }
+                case InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER, InputConstants.KEY_SPACE -> {
+                    if (wheelHot >= 0) {
+                        items.get(wheelHot).action.run();
+                    } else {
+                        closeWheel();
+                    }
+                    return true;
+                }
+                default -> {
+                    return false;
+                }
+            }
         }
         Place[] list = places();
         switch (key) {
@@ -1029,6 +1519,14 @@ public final class QuickMenu extends SolScreen {
 
     @Override
     protected boolean back() {
+        if (picker != null) {
+            picker = null;
+            return true;
+        }
+        if (wheel != Wheel.NONE) {
+            closeWheel();
+            return true;
+        }
         if (meRing) {
             toggleMe();
             meFresh = false;
@@ -1055,6 +1553,7 @@ public final class QuickMenu extends SolScreen {
             sunTex.release();
         }
         thumbs.release();
+        pictures.close();
     }
 
     // ------------------------------------------------------------------ motion helpers

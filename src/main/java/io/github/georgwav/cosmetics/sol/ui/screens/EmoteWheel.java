@@ -23,9 +23,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.client.input.KeyEvent;
 //?}
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * The emote wheel (B by default), in the Sol style: eight glass slots in a ring round a glass disc, each with its
@@ -41,7 +38,6 @@ public final class EmoteWheel extends SolScreen {
     /** Letting go of the key this soon after it opened the wheel was a tap: the wheel stays open for clicking. */
     private static final long TAP_NANOS = 300_000_000L;
     private static final float CX = 640f, CY = 352f, RING = 205f, SLOT = 92f, HUB = 74f;
-    private static final float TILE = 84f, TILE_GAP = 12f;
     /** Remembered between openings. */
     private static int lastPage;
     /** Frames drawn (read by the in-game test). */
@@ -57,9 +53,8 @@ public final class EmoteWheel extends SolScreen {
     private int page;
     /** The slot pointed at this frame (its index), or -1. */
     private int pointed = -1;
-    /** The slot an emote is being picked for, or -1 while the wheel shows. */
-    private int picking = -1;
-    private float pickerScroll;
+    /** Picking the emote for a slot, or null while the wheel shows. */
+    private EmotePicker picker;
 
     public EmoteWheel(boolean elytra) {
         super(Component.translatable(elytra ? "cosmeticsmod.emotes.elytra_title" : "cosmeticsmod.emotes.title"), null, Feature.MENU);
@@ -114,7 +109,7 @@ public final class EmoteWheel extends SolScreen {
     /** For the scenario: "picker" shows the picker for the first slot. */
     public EmoteWheel stage(String state) {
         if (state.equals("picker")) {
-            picking = page * PER_PAGE;
+            startPicking(page * PER_PAGE);
         }
         return this;
     }
@@ -128,8 +123,8 @@ public final class EmoteWheel extends SolScreen {
         ui.begin(g, mx, my);
         // A light dim, darker round the wheel, so you still see yourself and the world.
         g.rectScreen(g.d.left(), g.d.top(), g.d.right(), g.d.bottom(), 0x5004050A, 0x8004050A);
-        if (picking >= 0) {
-            picker(g, tk);
+        if (picker != null) {
+            picker.draw(g, ui, tk, CX, 360f, my, pictures, () -> picker = null);
         } else {
             wheel(g, tk);
         }
@@ -251,73 +246,7 @@ public final class EmoteWheel extends SolScreen {
     }
 
     private void startPicking(int slot) {
-        picking = slot;
-        pickerScroll = 0f;
-    }
-
-    /** Every emote as a tile to pick from, made for this wheel first, scrolled with the mouse wheel. */
-    private void picker(Gfx g, Tokens tk) {
-        float pw = 720f, ph = 520f, px = CX - pw / 2f, py = 360f - ph / 2f;
-        g.glow(px, py, pw, ph, 20f, 34f, Colors.withAlpha(tk.glow, 0.16f));
-        g.round(px, py, pw, ph, 20f, Colors.withAlpha(tk.panel, 0.94f));
-        g.stroke(px, py, pw, ph, 20f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(px, py, pw, ph, 20f, 0x2EFFFFFF);
-        ui.area(px, py, pw, ph, () -> { });
-        SolFont h = g.font(SolFont.Family.SEMIBOLD, 17f), small = g.font(SolFont.Family.MEDIUM, 12f);
-        g.textMid(h, t("pick_title", picking % PER_PAGE + 1), px + 22f, py + 30f, 0xFFFFFFFF);
-        List<Emote> all = new ArrayList<>(Emotes.all());
-        all.sort(Comparator.comparing((Emote e) -> e.elytra() != elytra));
-        float gx = px + 22f, gy = py + 58f, gw = pw - 44f, gh = ph - 58f - 60f;
-        int cols = Math.max(1, (int) ((gw + TILE_GAP) / (TILE + TILE_GAP)));
-        float left = gx + (gw - (cols * (TILE + TILE_GAP) - TILE_GAP)) / 2f;
-        float rowH = TILE + 26f;
-        int rows = (all.size() + cols - 1) / cols;
-        float maxScroll = Math.max(0f, rows * rowH - gh);
-        pickerScroll = Math.max(0f, Math.min(maxScroll, pickerScroll));
-        g.clip(gx - 4f, gy - 4f, gx + gw + 4f, gy + gh);
-        Emote current = Emotes.at(elytra, picking);
-        for (int i = 0; i < all.size(); i++) {
-            Emote e = all.get(i);
-            float tx = left + (i % cols) * (TILE + TILE_GAP), ty = gy + (i / cols) * rowH - pickerScroll;
-            if (ty + rowH < gy || ty > gy + gh) {
-                continue;
-            }
-            boolean hover = ui.over(tx, ty, TILE, TILE) && my >= gy && my <= gy + gh;
-            ui.click(tx, ty, TILE, TILE, () -> pick(e));
-            g.round(tx, ty, TILE, TILE, 14f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.1f) : 0x14FFFFFF);
-            g.stroke(tx, ty, TILE, TILE, 14f, Math.max(1f, g.d.u), hover ? tk.accent : e == current ? tk.rim : 0x1FFFFFFF);
-            Canvas c = g.game();
-            int s = Math.round((TILE - 8f) * g.d.u);
-            pictures.draw(c, e, Math.round(g.d.sx(tx + TILE / 2f)) - s / 2, Math.round(g.d.sy(ty + TILE / 2f)) - s / 2, s);
-            g.layer();
-            g.textCentre(small, g.fit(small, Emotes.name(e), TILE + TILE_GAP - 2f), tx + TILE / 2f, ty + TILE + 12f,
-                    hover ? 0xFFFFFFFF : 0x99FFFFFF);
-        }
-        g.endClip();
-        if (all.isEmpty()) {
-            g.textCentre(small, t("none"), CX, 360f, 0x99FFFFFF);
-        }
-        float by = py + ph - 30f;
-        ui.button(tk, px + pw - 22f, by, t("back"), false, () -> picking = -1);
-        if (current != null) {
-            ui.button(tk, px + 22f + g.width(small, t("empty_slot")) + 28f, by, t("empty_slot"), false, () -> {
-                Emotes.assign(elytra, picking, "");
-                CosmeticsConfig.save();
-                picking = -1;
-            });
-        }
-    }
-
-    /** Puts {@code emote} in the slot being filled; an emote is on a wheel once, so it leaves its old slot. */
-    private void pick(Emote emote) {
-        for (int i = 0; i < Emotes.slots(elytra).size(); i++) {
-            if (i != picking && Emotes.slots(elytra).get(i).equals(emote.id())) {
-                Emotes.assign(elytra, i, "");
-            }
-        }
-        Emotes.assign(elytra, picking, emote.id());
-        CosmeticsConfig.save();
-        picking = -1;
+        picker = new EmotePicker(elytra, slot);
     }
 
     // ------------------------------------------------------------------ input
@@ -337,8 +266,8 @@ public final class EmoteWheel extends SolScreen {
         if (amount == 0f) {
             return false;
         }
-        if (picking >= 0) {
-            pickerScroll -= amount * 60f;
+        if (picker != null) {
+            picker.scroll(amount);
             return true;
         }
         if (pages() > 1) {
@@ -351,8 +280,8 @@ public final class EmoteWheel extends SolScreen {
     /** Escape in the picker goes back to the wheel; otherwise it closes the wheel. */
     @Override
     protected boolean back() {
-        if (picking >= 0) {
-            picking = -1;
+        if (picker != null) {
+            picker = null;
             return true;
         }
         return false;
@@ -366,7 +295,7 @@ public final class EmoteWheel extends SolScreen {
     // Letting go of the wheel key: plays the emote pointed at; held a while and pointing at nothing closes the wheel.
     // While picking, the key does nothing.
     private boolean wheelKeyReleased() {
-        if (picking >= 0) {
+        if (picker != null) {
             return true;
         }
         Emote emote = pointed >= 0 ? Emotes.at(elytra, pointed) : null;

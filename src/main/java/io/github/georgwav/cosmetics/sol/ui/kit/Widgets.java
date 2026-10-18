@@ -139,6 +139,15 @@ public final class Widgets {
         return has(key) ? I18n.get(key) : e.base().name();
     }
 
+    /** The theme's one line ("Cherry blossom at golden hour"), translated where the language has it. */
+    public static String themeLine(ThemeRegistry.Entry e) {
+        if (e == null) {
+            return "";
+        }
+        String key = "sol.theme." + e.id() + ".line";
+        return has(key) ? I18n.get(key) : e.base().line();
+    }
+
     /** Whether the language has this key (26.2 removed I18n.exists; a missing key translates to itself). */
     public static boolean has(String key) {
         return !net.minecraft.network.chat.Component.translatable(key).getString().equals(key);
