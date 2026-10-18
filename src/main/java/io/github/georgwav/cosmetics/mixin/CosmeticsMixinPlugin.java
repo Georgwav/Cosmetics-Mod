@@ -70,6 +70,10 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ParticleTweaksMixin");
         all.add("ScreenshotMixin");
         all.add("ItemDecorationsMixin");
+        all.add("GlintFoilMixin");
+        //? if <1.21.4 {
+        /*all.add("GlintGuiContextMixin");
+        *///?}
         all.add("DisconnectedScreenMixin");
         all.add("ServerEntryMixin");
         all.add("ServerEntryCountMixin");

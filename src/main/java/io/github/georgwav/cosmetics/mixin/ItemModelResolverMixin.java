@@ -21,11 +21,13 @@ abstract class ItemModelResolverMixin {
     private void cosmeticsmod$enter(ItemStackRenderState state, ItemStack stack, ItemDisplayContext context, Level level,
                                     ItemOwner owner, int seed, CallbackInfo ci) {
         HeldItems.enter(owner, context);
+        io.github.georgwav.cosmetics.client.modules.GlintModule.drawing(context == ItemDisplayContext.GUI);
     }
 
     @Inject(method = "appendItemLayers", at = @At("RETURN"))
     private void cosmeticsmod$exit(CallbackInfo ci) {
         HeldItems.exit();
+        io.github.georgwav.cosmetics.client.modules.GlintModule.drawing(false);
     }
 }
 //?} elif >=1.21.4 {
@@ -47,11 +49,13 @@ abstract class ItemModelResolverMixin {
     private void cosmeticsmod$enter(ItemStackRenderState state, ItemStack stack, ItemDisplayContext context, Level level,
                                     LivingEntity owner, int seed, CallbackInfo ci) {
         HeldItems.enter(owner, context);
+        io.github.georgwav.cosmetics.client.modules.GlintModule.drawing(context == ItemDisplayContext.GUI);
     }
 
     @Inject(method = "appendItemLayers", at = @At("RETURN"))
     private void cosmeticsmod$exit(CallbackInfo ci) {
         HeldItems.exit();
+        io.github.georgwav.cosmetics.client.modules.GlintModule.drawing(false);
     }
 }
 *///?}

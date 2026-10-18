@@ -34,7 +34,7 @@ public final class SolScenario {
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
-            "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
+            "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
@@ -396,6 +396,12 @@ public final class SolScenario {
         }
         if (!built) {
             built = true;
+            // A window that changes size after the game started (a launcher maximising it): -Dcosmeticsmod.resizeTo=WxH.
+            String resize = System.getProperty("cosmeticsmod.resizeTo", "");
+            if (resize.matches("\\d+x\\d+")) {
+                String[] wh = resize.split("x");
+                mc.getWindow().setWindowed(Integer.parseInt(wh[0]), Integer.parseInt(wh[1]));
+            }
             buildScene(mc);
             if (Atmosphere.INSTANCE != null && !Atmosphere.INSTANCE.enabled()) {
                 Atmosphere.INSTANCE.setEnabled(true);
@@ -648,7 +654,7 @@ public final class SolScenario {
             }
             return;
         }
-        if (what.startsWith("emote_")) {
+        if (what.startsWith("emote_") || what.startsWith("quick_emote")) {
             // The wheel with emotes on it (a fresh config has none yet).
             for (boolean elytra : new boolean[]{false, true}) {
                 java.util.List<io.github.georgwav.cosmetics.emote.Emote> all = new java.util.ArrayList<>(
@@ -660,6 +666,8 @@ public final class SolScenario {
                     }
                 }
             }
+        }
+        if (what.startsWith("emote_")) {
             var wheel = new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(what.equals("emote_wheel_elytra"));
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
             return;
@@ -1051,7 +1059,10 @@ public final class SolScenario {
         }
         if (on) {
             cfg.solUi = !vanilla;
+            // The enchanted bow and chestplate show Glint's outline round their shape too.
+            glintInventory("both");
         } else if (modeBefore != null) {
+            glintInventory("glint");
             cfg.solUi = solUiBefore;
             asPlayer(mc, List.of("clear @s", "effect clear @s", "xp set @s 0 levels", "xp set @s 0 points",
                     "bossbar remove cosmeticsmod:show", "scoreboard objectives remove solshow",
@@ -1059,6 +1070,15 @@ public final class SolScenario {
                     "difficulty " + difficultyBefore,
                     "effect give @s minecraft:instant_health 1 10 true", "gamemode " + modeBefore.getName() + " @s"));
             modeBefore = null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void glintInventory(String how) {
+        for (io.github.georgwav.cosmetics.client.Setting<?> st : io.github.georgwav.cosmetics.client.Modules.GLINT.settings()) {
+            if (st.id.equals("inventory")) {
+                ((io.github.georgwav.cosmetics.client.Setting<String>) st).set(how);
+            }
         }
     }
 

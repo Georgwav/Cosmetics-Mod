@@ -185,6 +185,8 @@ public final class CosmeticControls {
             new OwnSpecial("pet", "pet_position", "petPosition", new Gate(null, "pet"), "pet_position"),
             new OwnToggle("elytra", "elytra", "elytra", new Gate(null, "cape"), o -> o.elytra, (o, v) -> o.elytra = v),
             new OwnSpecial("elytra", "preview_elytra", null, new Gate(null, "cape"), "preview_elytra"),
+            // The setting for every shield cosmetic, on the shield's own page too, where you look for it.
+            new OwnSpecial("shield", "shield_item_icon", null, new Gate(null, "shield"), "shield_item_icon"),
             new OwnSpecial("color", "color", "color", new Gate(CosmeticOption.TINT, null), "color"),
             new OwnSpecial("color", "follow_theme", "themeColor", new Gate(CosmeticOption.TINT, null), "follow_theme"),
             new OwnToggle("color", "rainbow", "rainbow", new Gate(CosmeticOption.RAINBOW, null), o -> o.rainbow, (o, v) -> o.rainbow = v),

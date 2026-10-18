@@ -75,6 +75,7 @@ final class CosmeticPage {
             case "styles" -> cosmetic.styles().length > 1;
             case "pet" -> cosmetic.slot() == CosmeticSlot.PET;
             case "cape" -> cosmetic.slot() == CosmeticSlot.CAPE;
+            case "shield" -> cosmetic.slot() == CosmeticSlot.SHIELD;
             case "rainbow_on" -> config.options(id).rainbow;
             case "tint_or_rainbow" -> config.allows(cosmetic, CosmeticOption.TINT) || config.allows(cosmetic, CosmeticOption.RAINBOW);
             case "palette" -> palette.length > 0;
@@ -200,6 +201,13 @@ final class CosmeticPage {
             }
             case "preview_elytra" -> rows.toggle(label, null, WardrobeScreen.previewElytra,
                     () -> WardrobeScreen.previewElytra = !WardrobeScreen.previewElytra);
+            case "shield_item_icon" -> {
+                rows.toggle(label, null, config.shieldItemIcons, () -> {
+                    config.shieldItemIcons = !config.shieldItemIcons;
+                    CosmeticsConfig.save();
+                });
+                rows.text(WardrobeScreen.t("shield_item_icon.hint"), 0x8CFFFFFF);
+            }
             case "color" -> {
                 float top = rows.block(label, ColorPicker.HEIGHT + 30f);
                 if (!Float.isNaN(top)) {

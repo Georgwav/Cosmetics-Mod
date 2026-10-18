@@ -14,8 +14,8 @@ import java.util.Locale;
 /**
  * Glint: the enchantment shimmer in a colour of yours: one colour, two drifting into each other, a rainbow sweeping
  * across, or following the theme's accent; brighter or softer. Everywhere the game draws glint (items in hand, in
- * the inventory, on the ground, armour), because the pack's own glint textures are recoloured. Enchanted items in
- * inventories and the hotbar get an outline or a glow in the glint's colour.
+ * the inventory, on the ground, armour), because the pack's own glint textures are recoloured. In inventories and the
+ * hotbar an enchanted item can have the glint, an outline round its shape in the glint's colour, or both.
  */
 public final class GlintModule extends Module {
     private static final java.util.Map<String, Integer> NAMES = java.util.Map.of("purple", 0xFF8040FF, "red", 0xFFFF4040,
@@ -25,8 +25,10 @@ public final class GlintModule extends Module {
     private final Setting.Color color = add(new Setting.Color("color", 0xFF40E8FF).names(NAMES).group("colours"));
     private final Setting.Color color2 = add(new Setting.Color("color2", 0xFFFF60D0).names(NAMES).group("colours"));
     private final Setting.Slider strength = add(new Setting.Slider("strength", 100, 30, 200, 10, v -> Math.round(v) + "%").group("colours"));
-    /** Enchanted items in inventories and the hotbar: an outline in the glint's colour, or a soft glow round the slot. */
-    private final Setting.Choice gui = add(new Setting.Choice("gui", "outline", List.of("none", "outline", "glow")).group("inventory"));
+    /** Enchanted items in inventories and the hotbar: the glint, an outline round the item in its colour, or both. */
+    private final Setting.Choice gui = add(new Setting.Choice("inventory", "glint", List.of("glint", "outline", "both")).group("inventory"));
+    /** Whether the game is working out (or drawing) an item's inventory picture right now. */
+    private static boolean drawingGui;
     private final Setting.Slider speed = add(new Setting.Slider("speed", 1.0, 0.1, 3.0, 0.1,
             v -> String.format(Locale.ROOT, "%.1f×", v)).group("colours"));
     private String paintedKey = "";
@@ -81,25 +83,28 @@ public final class GlintModule extends Module {
         };
     }
 
-    /** After an item's decorations in the GUI: an enchanted item's outline (or glow), in the glint's colour. */
+    /** Set while an inventory picture's look is worked out (the mixins), so "Outline only" can leave its glint off. */
+    public static void drawing(boolean gui) {
+        drawingGui = gui;
+    }
+
+    /** Whether an item worked out now goes without its glint: an inventory picture, with "Outline only". */
+    public static boolean hidesFoil() {
+        GlintModule g = Modules.GLINT;
+        return drawingGui && g != null && g.enabled() && g.gui.get().equals("outline");
+    }
+
+    /** After an item's decorations in the GUI: an enchanted item's outline round its shape, in the glint's colour. */
     public static void decorate(io.github.georgwav.cosmetics.ui.Canvas c, net.minecraft.world.item.ItemStack stack, int x, int y) {
         GlintModule g = Modules.GLINT;
-        if (!g.enabled() || stack.isEmpty() || !stack.hasFoil() || g.gui.get().equals("none")) {
+        if (!g.enabled() || stack.isEmpty() || g.gui.get().equals("glint") || !stack.hasFoil()) {
             return;
         }
-        int col = g.outlineColour();
-        if (g.gui.get().equals("glow")) {
-            for (int i = 1; i <= 3; i++) {
-                int a = (int) (0x30 / (float) i);
-                int argb = (a << 24) | (col & 0xFFFFFF);
-                c.fill(x - i, y - i, x + 16 + i, y - i + 1, argb);
-                c.fill(x - i, y + 15 + i, x + 16 + i, y + 16 + i, argb);
-                c.fill(x - i, y - i + 1, x - i + 1, y + 15 + i, argb);
-                c.fill(x + 15 + i, y - i + 1, x + 16 + i, y + 15 + i, argb);
-            }
+        int col = 0xFF000000 | g.outlineColour();
+        if (io.github.georgwav.cosmetics.sol.glint.GlintOutline.draw(c, stack, x, y, col)) {
             return;
         }
-        // A one-pixel frame with soft corners just inside the slot.
+        // An item without a flat picture of its own (a block, a shield): a one-pixel frame round the slot.
         int argb = 0xC0000000 | (col & 0xFFFFFF);
         c.fill(x + 1, y - 1, x + 15, y, argb);
         c.fill(x + 1, y + 16, x + 15, y + 17, argb);
@@ -110,6 +115,7 @@ public final class GlintModule extends Module {
     /** After a resource reload the game has its own glint back: paint again on the next tick. */
     public static void reloaded() {
         GlintColors.reload();
+        io.github.georgwav.cosmetics.sol.glint.GlintOutline.clear();
         Modules.GLINT.paintedKey = "";
     }
 }

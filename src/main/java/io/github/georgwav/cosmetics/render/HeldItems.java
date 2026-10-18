@@ -86,8 +86,11 @@ public final class HeldItems {
 
     //? if >=1.21.4 {
     // A shield's components, with the shield cosmetic that replaces it. Reads exactly like the components.
+    // `look` is what the picture depends on besides these (its settings; the time while it changes by itself): from
+    // 1.21.6 the game keeps an inventory icon until something in here differs, so without it the icon kept the
+    // shield's first colours and only showed your own while you blocked.
     public record ShieldArgument(DataComponentMap components, String cosmetic, boolean local, UUID holder,
-                                 boolean firstPerson, boolean blocking) implements DataComponentMap {
+                                 boolean firstPerson, boolean blocking, long look) implements DataComponentMap {
         @Override
         public <T> T get(DataComponentType<? extends T> type) {
             return components.get(type);
@@ -103,7 +106,17 @@ public final class HeldItems {
     public static DataComponentMap tag(DataComponentMap components) {
         BakedCosmetic shield = shield();
         return shield == null || components instanceof ShieldArgument ? components
-                : new ShieldArgument(components, shield.id(), holderLocal, holder, holderFirstPerson, holderBlocking);
+                : new ShieldArgument(components, shield.id(), holderLocal, holder, holderFirstPerson, holderBlocking, look(shield));
+    }
+
+    private static long look(BakedCosmetic shield) {
+        CosmeticsConfig.CosmeticOptions o = CosmeticsConfig.get().options(shield.id());
+        long look = o.lookHash();
+        if (o.rainbow || o.themeColor != null || shield.hasAnimation()) {
+            // Rainbow, a theme's colour or an animation: a new picture every game tick.
+            look = look * 31 + System.nanoTime() / 50_000_000L;
+        }
+        return look;
     }
     //?}
 

@@ -175,7 +175,7 @@ account, only when they differ from what Sol last sent.
 | Nametags | Health above heads; your own tag, size, backing and text shadow. |
 | Screen | Switch off the pumpkin mask, powder snow frost, vignette, portal swirl, nausea, the underwater overlay and the darkening behind inventories; motion blur (not on 1.21.2 to 1.21.5). |
 | Particles | A multiplier for hit particles, sharpness sparks on every hit, and fewer block, explosion and weather particles. |
-| Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's, and an outline or glow in inventories. |
+| Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's; in inventories the shimmer, an outline round the item's shape, or both. |
 | Fullbright | Brightness (G), with night vision so it works with shaders. |
 | Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
 | Block outline | The outline round the block you look at, in your colour and opacity. |

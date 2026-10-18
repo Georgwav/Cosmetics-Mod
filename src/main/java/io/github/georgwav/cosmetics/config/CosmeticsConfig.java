@@ -284,6 +284,18 @@ public final class CosmeticsConfig {
             return GSON.fromJson(GSON.toJsonTree(this), CosmeticOptions.class);
         }
 
+        /** A fingerprint of how it looks (colours, shape, style, glow, animation): changes when any of them does. */
+        public int lookHash() {
+            int swapHash = 0;
+            if (swaps != null) {
+                for (ColorSwap s : swaps) {
+                    swapHash = swapHash * 31 + s.from * 17 + s.to;
+                }
+            }
+            return java.util.Objects.hash(color, rainbow, rainbowSpeed, saturation, hue, brightness, scale, offsetX, offsetY,
+                    offsetZ, glow, animate, animationSpeed, style, turned, upsideDown, colorStyle, themeColor, swapHash);
+        }
+
         /** Whether every setting is the same as {@code other}'s. */
         public boolean sameAs(CosmeticOptions other) {
             return GSON.toJsonTree(this).equals(GSON.toJsonTree(other));
