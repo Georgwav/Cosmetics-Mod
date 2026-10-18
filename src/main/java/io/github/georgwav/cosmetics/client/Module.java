@@ -78,6 +78,18 @@ public abstract class Module {
         return Component.translatable(settingKey(setting.id)).getString();
     }
 
+    /** A setting's hint (one line under its name), or "" when it has none. */
+    public String settingHint(Setting<?> setting) {
+        String key = settingKey(setting.id) + ".hint";
+        String text = Component.translatable(key).getString();
+        return text.equals(key) ? "" : text;
+    }
+
+    /** A group's name on the module's page. */
+    public static String groupName(String group) {
+        return Component.translatable("cosmeticsmod.group." + group).getString();
+    }
+
     /** One option of a choice setting. */
     public String optionName(Setting<?> setting, String option) {
         return Component.translatable(settingKey(setting.id) + "." + option).getString();

@@ -13,18 +13,15 @@ import java.util.List;
  * at any GUI scale. The game's attack indicator isn't drawn while it is on.
  */
 public final class Crosshair extends Module {
-    private static final List<String> COLORS = List.of("white", "green", "red", "cyan", "yellow", "pink");
-    private static final int[] RGB = {0xFFFFFF, 0x4CFF4C, 0xFF4040, 0x40E8FF, 0xFFE040, 0xFF60D0};
-
-    private final Setting.Choice style = add(new Setting.Choice("style", "cross", List.of("cross", "t", "circle", "dot")));
-    private final Setting.Slider length = add(new Setting.Slider("length", 7, 1, 24, 1, Crosshair::px));
-    private final Setting.Slider gap = add(new Setting.Slider("gap", 3, 0, 16, 1, Crosshair::px));
-    private final Setting.Slider thickness = add(new Setting.Slider("thickness", 2, 1, 6, 1, Crosshair::px));
-    private final Setting.Toggle dot = add(new Setting.Toggle("dot", false));
-    private final Setting.Choice color = add(new Setting.Choice("color", "white", COLORS));
+    private final Setting.Choice style = add(new Setting.Choice("style", "cross", List.of("cross", "t", "circle", "dot")).group("look"));
+    private final Setting.Slider length = add(new Setting.Slider("length", 7, 1, 24, 1, Crosshair::px).group("look"));
+    private final Setting.Slider gap = add(new Setting.Slider("gap", 3, 0, 16, 1, Crosshair::px).group("look"));
+    private final Setting.Slider thickness = add(new Setting.Slider("thickness", 2, 1, 6, 1, Crosshair::px).group("look"));
+    private final Setting.Toggle dot = add(new Setting.Toggle("dot", false).group("look"));
+    private final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).group("colours"));
     private final Setting.Slider opacity = add(new Setting.Slider("opacity", 1.0, 0.2, 1.0, 0.05,
-            v -> Math.round(v * 100) + "%"));
-    private final Setting.Toggle outline = add(new Setting.Toggle("outline", true));
+            v -> Math.round(v * 100) + "%").group("colours"));
+    private final Setting.Toggle outline = add(new Setting.Toggle("outline", true).group("colours"));
 
     public Crosshair() {
         super("crosshair", Category.VIEW, "target");
@@ -66,7 +63,7 @@ public final class Crosshair extends Module {
      * Mods page shows it enlarged).
      */
     public void draw(Canvas g, int cx, int cy, int pixel) {
-        int argb = Math.round(opacity.get().floatValue() * 255) << 24 | RGB[Math.max(0, COLORS.indexOf(color.get()))];
+        int argb = Math.round(opacity.get().floatValue() * 255) << 24 | (color.get() & 0xFFFFFF);
         int shadow = Math.round(opacity.get().floatValue() * 200) << 24;
         if (outline.get()) {
             shapes(g, cx, cy, pixel, 1, shadow);

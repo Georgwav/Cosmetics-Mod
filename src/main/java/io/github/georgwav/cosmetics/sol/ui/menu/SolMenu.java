@@ -46,7 +46,6 @@ public final class SolMenu extends SolScreen {
     static final float[] TS = {0.1f, 0.233f, 0.367f, 0.5f, 0.633f, 0.767f, 0.9f};
     /** The content area under the horizon (the prototype's .content). */
     static final float CONTENT_X = 40f, CONTENT_Y = 294f, CONTENT_BOTTOM = 676f;
-    static final float DRAWER_W = 404f;
 
     private String section;
     private final boolean fromQuick;
@@ -55,7 +54,7 @@ public final class SolMenu extends SolScreen {
     private final Spring sunT;
     private float sunRise;
     private float openT, sectionT;
-    private ModuleDrawer drawer;
+    private ModulePage drawer;
     private float drawerK;
     private CommandBar palette;
     private boolean popover;
@@ -168,15 +167,22 @@ public final class SolMenu extends SolScreen {
         }
     }
 
+    /** Opens a module's settings page over the menu. */
     public void openDrawer(Module m) {
-        drawer = new ModuleDrawer(m);
+        if (drawer != null) {
+            drawer.release();
+        }
+        drawer = new ModulePage(m);
     }
 
     public void closeDrawer() {
+        if (drawer != null) {
+            drawer.release();
+        }
         drawer = null;
     }
 
-    public ModuleDrawer drawer() {
+    public ModulePage drawer() {
         return drawer;
     }
 
@@ -259,7 +265,7 @@ public final class SolMenu extends SolScreen {
         profile(g, tk);
 
         // The section, rising in under the horizon.
-        float rightEdge = 1280f - 40f - (DRAWER_W + 16f) * drawerK;
+        float rightEdge = 1280f - 40f;
         float rise = calm() ? 1f : Math.max(0f, Math.min(1f, (Math.min(openT, sectionT) - 0.05f) / 0.45f));
         float riseEase = 1f - (1f - rise) * (1f - rise) * (1f - rise);
         g.alpha = open * Math.min(1f, rise * 1.6f);
@@ -267,13 +273,12 @@ public final class SolMenu extends SolScreen {
         Section s = sections.get(section);
         s.draw(this, g, ui, tk, CONTENT_X, cy, rightEdge - CONTENT_X, CONTENT_BOTTOM - CONTENT_Y);
         g.alpha = open;
-        if (drawer != null || drawerK > 0.01f) {
-            if (drawer != null) {
-                float slide = 40f * (1f - drawerK);
-                g.alpha = open * drawerK;
-                drawer.draw(this, g, ui, tk, 1280f - 40f - DRAWER_W + slide, CONTENT_Y, DRAWER_W, CONTENT_BOTTOM - CONTENT_Y);
-                g.alpha = open;
-            }
+        if (drawer != null) {
+            // The module's page over the whole menu, the menu dimmed behind it.
+            g.alpha = open * drawerK;
+            g.rect(g.d.left(), g.d.top(), g.d.right() - g.d.left(), g.d.bottom() - g.d.top(), 0xB804050A);
+            drawer.draw(this, g, ui, tk);
+            g.alpha = open;
         }
         status(g, tk);
         if (popover) {
@@ -533,7 +538,11 @@ public final class SolMenu extends SolScreen {
     @Override
     protected void game(io.github.georgwav.cosmetics.ui.Canvas canvas, int mouseX, int mouseY) {
         if (palette == null && !popover) {
-            sections.get(section).game(this, canvas, mouseX, mouseY, dt);
+            if (drawer != null) {
+                drawer.game(canvas);
+            } else {
+                sections.get(section).game(this, canvas, mouseX, mouseY, dt);
+            }
         }
     }
 
@@ -570,7 +579,7 @@ public final class SolMenu extends SolScreen {
         if (palette != null) {
             return palette.scroll(amount);
         }
-        if (drawer != null && x >= 1280f - 40f - DRAWER_W) {
+        if (drawer != null) {
             return drawer.scroll(amount);
         }
         return sections.get(section).scroll(amount);
@@ -589,10 +598,10 @@ public final class SolMenu extends SolScreen {
             openPalette("");
             return true;
         }
-        if (sections.get(section).key(key, ctrl)) {
+        if (drawer != null && drawer.key(key, ctrl)) {
             return true;
         }
-        if (drawer != null && drawer.key(key, ctrl)) {
+        if (drawer == null && sections.get(section).key(key, ctrl)) {
             return true;
         }
         switch (key) {
@@ -614,7 +623,7 @@ public final class SolMenu extends SolScreen {
         if (palette != null) {
             return palette.typed(text);
         }
-        if (sections.get(section).typed(text) || drawer != null && drawer.typed(text)) {
+        if (drawer != null ? drawer.typed(text) : sections.get(section).typed(text)) {
             return true;
         }
         if (!io.github.georgwav.cosmetics.sol.config.SolConfig.get().searchNeedsCtrl && !text.isBlank()) {
@@ -635,7 +644,7 @@ public final class SolMenu extends SolScreen {
             return true;
         }
         if (drawer != null) {
-            drawer = null;
+            closeDrawer();
             return true;
         }
         if (fromQuick) {
