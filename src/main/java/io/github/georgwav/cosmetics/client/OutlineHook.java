@@ -5,9 +5,10 @@ package io.github.georgwav.cosmetics.client;
 // the game's own. Up to 1.21.8 it hands over the block and a line buffer; from 1.21.9 the outline's render state, and
 // the game may ask once for each of its passes, so each frame's outline (a new render state) is drawn once, as wide as
 // the game draws its own (2.5 pixels on a 1080p window, wider on bigger ones) times the module's width. framesDrawn
-// counts the frames the client drew it in, for the in-game test; available says the event was there to hook (some
-// Fabric API builds for 1.21.9 lack it). 26.x has no such event: LevelRendererOutlineMixin gives the game's own
-// outline the colour and width there (color(); the high-contrast black border under it stays black) and adds the fill.
+// counts the frames the client drew it in, for the in-game test; available says it can be drawn: by the event, or on
+// 1.21.9 (whose Fabric API has no such event) by OutlineFallbackMixin changing the game's own. 26.x has no such
+// event: LevelRendererOutlineMixin gives the game's own outline the colour and width there (color(); the
+// high-contrast black border under it stays black) and adds the fill.
 //? if >=26.1 {
 /*public final class OutlineHook {
     public static int framesDrawn;
@@ -85,6 +86,8 @@ import net.minecraft.world.phys.Vec3;
 public final class OutlineHook {
     public static int framesDrawn;
     public static boolean available;
+    /^* Whether Fabric's event draws it; without it (1.21.9's Fabric API) OutlineFallbackMixin changes the game's own. ^/
+    private static boolean event;
     private static BlockOutlineRenderState drawn;
 
     private OutlineHook() {
@@ -112,7 +115,27 @@ public final class OutlineHook {
             }
             return false;
         });
+        event = true;
         available = true;
+    }
+
+    /^* OutlineFallbackMixin is in place: without the event, the game's own outline takes the module's look. ^/
+    public static void fallbackReady() {
+        available = true;
+    }
+
+    /^* Whether the fallback changes the game's outline now (no event, the module on). ^/
+    public static boolean fallback() {
+        return !event && Modules.OUTLINE.enabled();
+    }
+
+    /^* The fallback's colour for the game's outline (its high-contrast black border stays black). ^/
+    public static int color(int vanilla) {
+        if (!fallback() || vanilla == 0xFF000000) {
+            return vanilla;
+        }
+        framesDrawn++;
+        return Modules.OUTLINE.argb();
     }
 }
 *///?} else {

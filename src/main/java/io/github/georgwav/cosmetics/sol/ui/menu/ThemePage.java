@@ -290,7 +290,7 @@ public final class ThemePage implements Page {
             y = colour(menu, g, ui, tk, e, x, w, y, p);
         }
         y = moonLook(g, ui, tk, b, x, w, y);
-        for (String p : List.of("moon", "moonlight", "airglow")) {
+        for (String p : List.of("moon", "moon_halo", "moonlight", "airglow")) {
             y = colour(menu, g, ui, tk, e, x, w, y, p);
         }
         y = amount(g, ui, tk, x, w, y, "moon_size");

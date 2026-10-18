@@ -389,6 +389,11 @@ final class Planets {
         int tc = lk.eclipse() ? 0xFFC84632 : lk.harvest() && sp.moonAlt < 18f
                 ? Colors.mix(0xFFFFAA5A, 0xFFD2DCFF, Ease.smoothstep(2f, 18f, sp.moonAlt))
                 : Colors.rgb(Math.min(255, Math.round(tb[0] * 205)), Math.min(255, Math.round(tb[1] * 212)), Math.min(255, Math.round(tb[2] * 235)));
+        // The glow's colour picked on the theme page, over tonight's look's.
+        Integer picked = io.github.georgwav.cosmetics.sol.theme.ThemeState.customisation().colour("moon_halo");
+        if (picked != null) {
+            tc = 0xFF000000 | picked;
+        }
         WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
         float r = diam * 1.9f;
         NightSky.box(px - r, py - r, px + r, py + r, Colors.withAlpha(tc,

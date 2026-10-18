@@ -53,6 +53,9 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TotemPopMixin");
         all.add("EndCrystalLookMixin");
         all.add("CrystalRemovalMixin");
+        //? if >=1.21.9 && <1.21.11 {
+        /*all.add("OutlineFallbackMixin");
+        *///?}
         all.add("SolChatMixin");
         all.add("ChatSendMixin");
         all.add("ChatEmojiMixin");

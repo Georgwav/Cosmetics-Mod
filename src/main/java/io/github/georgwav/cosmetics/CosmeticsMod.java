@@ -48,9 +48,9 @@ public final class CosmeticsMod implements ClientModInitializer {
         try {
             OutlineHook.register();
         } catch (LinkageError e) {
-            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: the outline stays the game's
-            // and Block Outline shows as unsupported. Expected there, so info rather than a warning.
-            LOGGER.info("No block outline event in this Fabric API, the outline colour is off: {}", e.toString());
+            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: there Block Outline changes the
+            // game's own outline (OutlineFallbackMixin). Expected there, so info rather than a warning.
+            LOGGER.info("No block outline event in this Fabric API, Block Outline changes the game's own outline: {}", e.toString());
         }
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
                 client -> io.github.georgwav.cosmetics.client.Modules.flush());
