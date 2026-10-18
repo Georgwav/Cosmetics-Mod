@@ -161,6 +161,8 @@ public final class KeyLight {
             sunOrMoon(theme, tk, rain);
         }
         strength = Ease.clamp01(strength);
+        // A fireball lights the world for a moment, as a lightning flash does.
+        flash = Math.max(flash, 0.45f * SkyEvents.fireball());
         if (bands <= 0f) {
             color2 = color;
         }

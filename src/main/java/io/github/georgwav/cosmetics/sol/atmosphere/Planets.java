@@ -93,11 +93,15 @@ final class Planets {
 
     // ------------------------------------------------------------------ planets
 
+    /** The Death Star on the screen this frame (pixels; its diameter; how visible, 0 when it isn't up), for its superlaser. */
+    static float deathX, deathY, deathD, deathA;
+
     /** Draws the planets and the wild worlds (sky pass, after the stars). */
     static void render(Tokens tk, Atmosphere at, float t, float rain) {
         boolean planets = at == null || at.planets.get(), wild = at == null || at.wildWorlds.get();
         float clear = 1f - rain;
         seenCount = 0;
+        deathA = 0f;
         if (!planets && !wild || clear <= 0.01f) {
             return;
         }
@@ -170,6 +174,12 @@ final class Planets {
             seenNx[k] = ndx;
             seenNy[k] = ndy;
             seenSky[k] = Colors.scale(SkyPass.skyAt(tk, alt, rain), 0.55f);
+            if ("deathstar".equals(b.id())) {
+                deathX = px;
+                deathY = py;
+                deathD = diam;
+                deathA = a;
+            }
             if (names && alt > 2f) {
                 SkyLabels.add(px + diam * (float) b.box() / 2f, py, b.name(), SkyLabels.PLANET, a);
             }

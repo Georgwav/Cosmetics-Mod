@@ -60,6 +60,7 @@ public final class SkyPass {
      */
     public static boolean render(float sunAngle, int moonPhase, float rainBrightness) {
         drewThisFrame = false;
+        LookAround.frame();
         if (!Atmosphere.active() || !Guard.on(Feature.SKY)) {
             KeyLight.none();
             return false;
@@ -111,7 +112,7 @@ public final class SkyPass {
         } else {
             Planets.moon(theme, tk, t, rain);
         }
-        Stellar.render(theme, tk, at, sunAngle, t, rain);
+        SkyEvents.render(theme, at, t, rain);
         SkyLabels.draw();
         StarText.render(tk, sunAz, t, rain);
         Extras.renderBehind(theme, tk, t, rain);

@@ -51,6 +51,7 @@ public final class SolScenario {
     private static final String SPYGLASS = "sol_spyglass";
     /** Night sky shots through the spyglass, on a planet. */
     private static final String ZOOM = "sol_night_zoom_";
+    private static final String EVENTS = "sol_night_events_";
     private static boolean holdingSpyglass;
     /** The shot from inside a closed room (built in the air above the beach, taken away after). */
     private static final String UNDERGROUND = "sol_ember_underground";
@@ -176,6 +177,15 @@ public final class SolScenario {
                 shots.add(new Shot(ZOOM + id, "maple_afternoon", 0f, false, aim[0], aim[1], newMoon + 18000L));
             }
             themeNights();
+            // The sky's events, each a frozen moment: a burst of meteors with a fireball, its train and an
+            // earthgrazer; the two-tailed comet after dusk; a satellite flaring, ships jumping and the superlaser
+            // round the Death Star.
+            shots.add(new Shot(EVENTS + "meteors", "maple_afternoon", 0f, false, 20f, -40f, newMoon + 18000L));
+            long dusk = sphereTime(-16f, false);
+            float[] comet = aimAtComet(dusk / 24000.0, celestial(dusk));
+            shots.add(new Shot(EVENTS + "comet", "maple_afternoon", 0f, false, comet[0], comet[1], newMoon + dusk));
+            float[] death = aimAt("deathstar", 0.75, 0.5f);
+            shots.add(new Shot(EVENTS + "ships", "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
             return;
         }
         if ("timelapse".equals(SHOTS)) {
@@ -514,6 +524,8 @@ public final class SolScenario {
             // night sky's shots keep the lab's autumn whatever the moon's day.
             io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride =
                     (s.name().startsWith("sol_night_") ? lockedTime % 24000L : lockedTime) / 24000.0;
+            // The sky's events held still, so every run shows the same frame; the event shots set up their scene.
+            io.github.georgwav.cosmetics.sol.atmosphere.SkyEvents.stage(s.name().startsWith(EVENTS) ? s.name().substring(EVENTS.length()) : "");
             io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride =
                     s.name().startsWith("sol_night_look_") ? s.name().substring("sol_night_look_".length()) : null;
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.clear();
@@ -1111,6 +1123,18 @@ public final class SolScenario {
 
     private static boolean spyglassShot(String name) {
         return name.equals(SPYGLASS) || name.startsWith(ZOOM);
+    }
+
+    /** The view (yaw, pitch) onto the comet (44° east of the sun along the ecliptic, 11° above it). */
+    private static float[] aimAtComet(double days, float timeOfDay) {
+        io.github.georgwav.cosmetics.sol.sky.SkySphere sky = new io.github.georgwav.cosmetics.sol.sky.SkySphere();
+        sky.update(days, timeOfDay, 0, io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE,
+                io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_YEAR);
+        double[] eq = io.github.georgwav.cosmetics.sol.sky.SkySphere.ecl(sky.lamSun + 44, 11, new double[3]);
+        float[] w = new float[3];
+        sky.toWorld(eq[0], eq[1], eq[2], w);
+        // A little above it, so the tails rising away from the set sun are in the frame.
+        return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1])) - 8f};
     }
 
     /** The view (yaw, pitch) onto a planet on a day of the sky's year at a time of day (0 noon). */

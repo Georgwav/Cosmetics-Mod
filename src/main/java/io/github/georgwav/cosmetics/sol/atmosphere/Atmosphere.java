@@ -52,6 +52,14 @@ public final class Atmosphere extends Module {
     public final Setting.Toggle nebulae = add(new Setting.Toggle("nebulae", true).advanced());
     /** The faint airglow band round the horizon on dark nights, and the zodiacal light. */
     public final Setting.Toggle airglow = add(new Setting.Toggle("airglow", true).advanced());
+    /** Meteors all night, bursts, fireballs and earthgrazers. */
+    public final Setting.Toggle meteors = add(new Setting.Toggle("meteors", true).advanced());
+    /** Shower nights: more meteors, most from the season's radiant. */
+    public final Setting.Toggle showers = add(new Setting.Toggle("showers", true).advanced());
+    /** The two-tailed comet in the evening sky. */
+    public final Setting.Toggle comet = add(new Setting.Toggle("comet", true).advanced());
+    /** Satellites, ships jumping to hyperspace and the Death Star's superlaser. */
+    public final Setting.Toggle ships = add(new Setting.Toggle("ships", true).advanced());
     /** How high the celestial pole stands over the north (0° is the game's straight east-to-west path). */
     public final Setting.Slider latitude = add(new Setting.Slider("latitude", 34, 0, 60, 1, v -> Math.round(v) + "°").advanced());
     /** Days in the sky's year: the stars at a given hour turn once round through it. */

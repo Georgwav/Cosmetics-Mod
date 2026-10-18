@@ -67,6 +67,8 @@ public final class NightSky {
     /** The view's half-extents (tangents), the screen in pixels, and the sky's pixel (2 at 1080p). */
     static float tanX, tanY, sw, sh, pixel;
     private static final float[] v = new float[9];
+    /** The world-to-view rotation this frame, by rows. */
+    private static final float[] vw = new float[9];
     /** The last {@link #project}ed point: world direction, screen pixels, and its depth (cosine off the view's axis). */
     static final float[] world = new float[3];
     static final float[] screen = new float[2];
@@ -202,6 +204,15 @@ public final class NightSky {
         rows(0, view.m00(), view.m10(), view.m20(), m);
         rows(1, view.m01(), view.m11(), view.m21(), m);
         rows(2, view.m02(), view.m12(), view.m22(), m);
+        vw[0] = view.m00();
+        vw[1] = view.m10();
+        vw[2] = view.m20();
+        vw[3] = view.m01();
+        vw[4] = view.m11();
+        vw[5] = view.m21();
+        vw[6] = view.m02();
+        vw[7] = view.m12();
+        vw[8] = view.m22();
         float m00 = FrameInfo.projection.m00(), m11 = FrameInfo.projection.m11();
         sw = Math.max(1, FrameInfo.width);
         sh = Math.max(1, FrameInfo.height);
@@ -223,7 +234,7 @@ public final class NightSky {
     }
 
     /** A vertex at screen point (x, y) in pixels, on the sky. */
-    private static void vertex(float x, float y, float u, float w, int argb) {
+    static void vertex(float x, float y, float u, float w, int argb) {
         float d = SkyDraw.D;
         WorldDraw.vertex((x / sw * 2f - 1f) * tanX * d, (1f - y / sh * 2f) * tanY * d, -d, u, w, argb);
     }
@@ -252,6 +263,22 @@ public final class NightSky {
             return false;
         }
         float vx = v[0] * ex + v[1] * ey + v[2] * ez, vy = v[3] * ex + v[4] * ey + v[5] * ez;
+        depth = -vz;
+        screen[0] = (vx / -vz / tanX * 0.5f + 0.5f) * sw;
+        screen[1] = (0.5f - vy / -vz / tanY * 0.5f) * sh;
+        return true;
+    }
+
+    /** Projects a world unit direction (x east, y up, z south) to screen pixels into {@link #screen}. */
+    static boolean projectWorld(float wx, float wy, float wz) {
+        world[0] = wx;
+        world[1] = wy;
+        world[2] = wz;
+        float vz = vw[6] * wx + vw[7] * wy + vw[8] * wz;
+        if (vz > -0.03f) {
+            return false;
+        }
+        float vx = vw[0] * wx + vw[1] * wy + vw[2] * wz, vy = vw[3] * wx + vw[4] * wy + vw[5] * wz;
         depth = -vz;
         screen[0] = (vx / -vz / tanX * 0.5f + 0.5f) * sw;
         screen[1] = (0.5f - vy / -vz / tanY * 0.5f) * sh;
