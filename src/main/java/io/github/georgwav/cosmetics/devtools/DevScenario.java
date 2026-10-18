@@ -73,7 +73,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, SOL_NIGHT, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -122,6 +122,7 @@ public final class DevScenario {
     private int hubFramesAtStart;
     private int hudFramesAtStart;
     private int outlineFramesAtStart;
+    private int outlineFillsAtStart;
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
@@ -135,7 +136,6 @@ public final class DevScenario {
     private int wheelFramesAtStart;
     private boolean finished;
     private boolean cameraWasOn;
-    private boolean snowballThrown;
     private net.minecraft.world.phys.Vec3 freecamFrom;
 
     private DevScenario(boolean smoke, boolean benchmark) {
@@ -349,6 +349,14 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("sol_all");
                     SolBench.check(phases.getAsJsonObject("sol_all"), failures);
+                    SolBench.night(client);
+                    enter(Phase.SOL_NIGHT);
+                }
+            }
+            case SOL_NIGHT -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_night");
+                    SolBench.checkNight(phases.getAsJsonObject("sol_night"), failures);
                     SolBench.tearDown();
                     restoreLoad();
                     enter(Phase.DONE);
@@ -596,6 +604,9 @@ public final class DevScenario {
                 }
             }
             case SETTINGS_UI -> {
+                if (uiTab == 0 && ticks == UI_TAB_TICKS - 30 && uiScreen != null && !uiScreen.testClickTile()) {
+                    failures.add("the Wardrobe's first tile took no click");
+                }
                 if (ticks >= UI_TAB_TICKS * (uiTab + 1)) {
                     String name = WardrobeScreen.TEST_PAGES[uiTab];
                     int frames = WardrobeScreen.framesRendered - uiFramesAtTabStart;
@@ -623,6 +634,12 @@ public final class DevScenario {
                     // Every page opens at the top of its list.
                     if (uiScreen != null && !uiScreen.listAtTop()) {
                         failures.add("Wardrobe page '" + name + "' didn't start at the top of its list");
+                    }
+                    if (uiTab == 0 && uiScreen != null) {
+                        // A click on a tile wears it (or takes it off) where it is; a click on its gear opens its page.
+                        List<String> clicks = uiScreen.testCheckTileAndGear();
+                        ui.addProperty("tile_clicks", clicks.isEmpty() ? "ok" : String.join("; ", clicks));
+                        failures.addAll(clicks);
                     }
                     uiTab++;
                     if (uiTab < WardrobeScreen.TEST_PAGES.length) {
@@ -695,9 +712,6 @@ public final class DevScenario {
                 }
             }
             case WORLD_MODULES -> {
-                if (ticks == 20) {
-                    ModulesSelfTest.midway(client);
-                }
                 if (ticks >= UI_TAB_TICKS) {
                     List<String> problems = ModulesSelfTest.checkAndSwitchOff(client);
                     phases.getAsJsonObject("settings_ui").addProperty("world_modules", problems.isEmpty() ? "ok" : String.join("; ", problems));
@@ -714,19 +728,7 @@ public final class DevScenario {
                 }
             }
             case FREECAM -> {
-                // And projectile trails: a snowball thrown from where you stand. Given once the hotbar rows check's
-                // swaps have reached the server (they'd swap it out of your hand), thrown once it's there.
-                if (ticks == 8) {
-                    ModulesSelfTest.trailsOn(client);
-                }
-                if (!snowballThrown && ticks > 8) {
-                    snowballThrown = ModulesSelfTest.throwSnowball(client);
-                }
                 if (ticks >= UI_TAB_TICKS) {
-                    List<String> trailProblems = ModulesSelfTest.trailsCheckAndOff(client);
-                    phases.getAsJsonObject("settings_ui").addProperty("trails",
-                            io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade);
-                    failures.addAll(trailProblems);
                     var camera = io.github.georgwav.cosmetics.client.modules.CameraTweaks.freecamPosition(1f);
                     double flown = camera.distanceTo(client.player.getEyePosition(1f));
                     double walked = client.player.position().distanceTo(freecamFrom);
@@ -745,6 +747,7 @@ public final class DevScenario {
                     // The HUD modules, all on over the game, then in the HUD editor.
                     hudFramesAtStart = Hud.framesDrawn;
                     outlineFramesAtStart = OutlineHook.framesDrawn;
+                    outlineFillsAtStart = io.github.georgwav.cosmetics.client.OutlineFill.drawn;
                     ModulesSelfTest.switchOnHud(client);
                     enter(Phase.HUD_MODULES);
                     writeMarker("ui_hud");
@@ -761,6 +764,11 @@ public final class DevScenario {
                     phases.getAsJsonObject("settings_ui").addProperty("outline", outlines);
                     if (BlockOutline.supported() && outlines <= 0) {
                         failures.add("the block outline was never drawn");
+                    }
+                    int fills = io.github.georgwav.cosmetics.client.OutlineFill.drawn - outlineFillsAtStart;
+                    phases.getAsJsonObject("settings_ui").addProperty("outline_fill", fills);
+                    if (BlockOutline.supported() && fills <= 0) {
+                        failures.add("the block outline's fill was never drawn");
                     }
                     hudFramesAtStart = HudEditor.framesRendered;
                     ScreenOpener.open(new HudEditor(null));

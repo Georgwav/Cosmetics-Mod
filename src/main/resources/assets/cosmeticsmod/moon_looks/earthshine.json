@@ -1,0 +1,11 @@
+{
+  "name": "Earthshine",
+  "earthshine": 1.0,
+  "chance": 0.35,
+  "minNightsBetween": 4,
+  "validPhases": [
+    "waxing_crescent",
+    "waning_crescent"
+  ],
+  "elongation": 44
+}

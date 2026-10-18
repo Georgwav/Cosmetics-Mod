@@ -13,10 +13,12 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 
 /**
  * Servers: auto reconnect. When a server drops you, the disconnect screen counts down and joins it again (its
- * button reconnects at once, or stops the countdown). The server list's look is a page of its own.
+ * button reconnects at once, or stops the countdown). And the server list upgrade (ServerListUpgrade): pings in
+ * milliseconds, players online, folders.
  */
 public final class Servers extends Module {
     private final Setting.Slider delay = add(new Setting.Slider("reconnect_delay", 5, 1, 30, 1, v -> Math.round(v) + " s"));
+    private final Setting.Toggle serverList = add(new Setting.Toggle("server_list", true));
     private ServerData last;
     private int countdown = -1;
     private Object countingFor;
@@ -62,6 +64,12 @@ public final class Servers extends Module {
     public static int secondsLeft() {
         Servers s = Modules.SERVERS;
         return s.enabled() && s.countdown > 0 ? (s.countdown + 19) / 20 : -1;
+    }
+
+    /** Whether the server list upgrade is on. */
+    public static boolean serverList() {
+        Servers s = Modules.SERVERS;
+        return s.enabled() && s.serverList.get();
     }
 
     /** Whether there is a server to reconnect to. */

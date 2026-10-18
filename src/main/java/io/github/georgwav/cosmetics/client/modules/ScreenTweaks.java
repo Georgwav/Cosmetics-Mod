@@ -6,20 +6,21 @@ import io.github.georgwav.cosmetics.client.Setting;
 
 /**
  * Screen: the overlays that cover the view, each one you can switch off: the pumpkin's mask, the powder snow frost,
- * the dark vignette at the screen's edges, the nether portal's swirl, nausea's wobble and the underwater overlay;
- * and motion blur (not on 1.21.2 to 1.21.5, whose post effects can't keep the last frame).
+ * the dark vignette at the screen's edges, the nether portal's swirl, nausea's wobble, the underwater overlay and the
+ * darkening (and blur) behind inventories; and motion blur (not on 1.21.2 to 1.21.5, whose post effects can't keep the last frame).
  */
 public final class ScreenTweaks extends Module {
-    private final Setting.Toggle pumpkin = add(new Setting.Toggle("pumpkin", false));
-    private final Setting.Toggle powderSnow = add(new Setting.Toggle("powder_snow", false));
-    private final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false));
-    private final Setting.Toggle portal = add(new Setting.Toggle("portal", true));
-    private final Setting.Toggle nausea = add(new Setting.Toggle("nausea", true));
-    private final Setting.Toggle water = add(new Setting.Toggle("water", true));
+    private final Setting.Toggle pumpkin = add(new Setting.Toggle("pumpkin", false).group("overlays"));
+    private final Setting.Toggle powderSnow = add(new Setting.Toggle("powder_snow", false).group("overlays"));
+    private final Setting.Toggle vignette = add(new Setting.Toggle("vignette", false).group("overlays"));
+    private final Setting.Toggle portal = add(new Setting.Toggle("portal", true).group("overlays"));
+    private final Setting.Toggle nausea = add(new Setting.Toggle("nausea", true).group("overlays"));
+    private final Setting.Toggle water = add(new Setting.Toggle("water", true).group("overlays"));
+    private final Setting.Toggle inventoryDim = add(new Setting.Toggle("inventory_dim", false).group("menus"));
     //? if <1.21.2 || >=1.21.6 {
     /** Motion blur: how much of a frame is left after 1/60 s (0 = none). */
     private final Setting.Slider motionBlur = add(new Setting.Slider("motion_blur", 0, 0, 90, 5,
-            v -> v <= 0 ? net.minecraft.network.chat.Component.translatable("options.off").getString() : Math.round(v) + "%"));
+            v -> v <= 0 ? net.minecraft.network.chat.Component.translatable("options.off").getString() : Math.round(v) + "%").group("motion"));
     //?}
 
     public ScreenTweaks() {
@@ -56,6 +57,18 @@ public final class ScreenTweaks extends Module {
 
     public static boolean hidesWater() {
         return hides(io.github.georgwav.cosmetics.client.Modules.SCREEN.water);
+    }
+
+    /** Darkenings left out behind inventories (for the self-test). */
+    public static int undimmed;
+
+    /** Whether inventories (and other container screens) leave the world behind them undarkened and sharp. */
+    public static boolean hidesInventoryDim() {
+        boolean hides = hides(Modules.SCREEN.inventoryDim);
+        if (hides) {
+            undimmed++;
+        }
+        return hides;
     }
 
     public static boolean hidesNausea() {

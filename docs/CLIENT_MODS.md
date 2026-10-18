@@ -29,6 +29,14 @@ never bundled into our jar. They are listed under `suggests` in `fabric.mod.json
 Mods section only lists installed mods. A row's gear opens the mod's own settings through Mod Menu
 (`ModScreens.openSettings`). Screenshot Viewer has its own screen opener.
 
+**Performance pack (Georg's pick):** Lithium (`lithium`), FerriteCore (`ferritecore`), ImmediatelyFast
+(`immediatelyfast`), Entity Culling (`entityculling`) and ModernFix (`modernfix`) are in `suggests` too. The Mods
+page offers whichever are missing through the mod browser.
+
+**Not suggested any more:** Freelook and Chat Patches (Sol's Camera and Sol Chat do their jobs). Zoomify, Chat Heads,
+Shulker Box Tooltip, Controlling and Screenshot Viewer stay: Sol has no zoom, chat faces, shulker previews, key
+search or screenshot gallery of its own.
+
 Fabric Loader does nothing with `suggests` (it is informational only). Threadrinth has to turn each mod id into a
 Modrinth project, and for most of these mods the id is **not** the slug (`chat_heads` → `chat-heads`). The table
 below gives the mapping.
@@ -42,13 +50,11 @@ its row has a gear calling Mod Menu's `getConfigScreen(modId, menu)`. "Targets" 
 | # | Mod | Fabric mod id | Modrinth | What it gives the client | Hub integration today | Our 10 targets | Its own deps |
 |---|---|---|---|---|---|---|---|
 | 1 | Zoomify | `zoomify` | [zoomify](https://modrinth.com/mod/zoomify) | Zoom | modules / `zoom`; gear → Mod Menu config | All 10 (1.21.x frozen at 2.15.2) | Fabric API, YACL, Fabric Language Kotlin; Mod Menu optional |
-| 2 | Freelook (Celibistrial) | `freelook` | [freelook](https://modrinth.com/mod/freelook) | Look around without turning | modules / `eye`; gear (see notes) | 26.1.x, 26.2, 26.3 yes; 1.21.x mostly (see notes) | Fabric API |
 | 5 | Mouse Tweaks | `mousetweaks` | [mouse-tweaks](https://modrinth.com/mod/mouse-tweaks) | Drag and scroll items | inventory / `mouse`; gear | All 10 (1.21.2 unverified) | Fabric API |
 | 6 | AppleSkin | `appleskin` | [appleskin](https://modrinth.com/mod/appleskin) | Hunger and saturation | inventory / `apple`; gear needs Cloth Config | All 10 (1.21.2 unverified) | Fabric API; Cloth Config for its settings |
 | 7 | Shulker Box Tooltip | `shulkerboxtooltip` | [shulkerboxtooltip](https://modrinth.com/mod/shulkerboxtooltip) | Shulker box contents | inventory / `box`; gear | All 10 (1.21.2 unverified) | Fabric API; Mod Menu optional |
 | 8 | Inventory Profiles Next | `inventoryprofilesnext` | [inventory-profiles-next](https://modrinth.com/mod/inventory-profiles-next) | Sorting, refill, locked slots | inventory / `sort`; gear | Project lists 1.21–1.21.1, 1.21.3–1.21.11, 26.1.x, 26.2, 26.3; per-target files unverified | Fabric API, Fabric Language Kotlin, libIPN |
 | 13 | Jade | `jade` | [jade](https://modrinth.com/mod/jade) | What you're looking at | tools / `target`; gear | All 10 | Fabric API |
-| 14 | Chat Patches | `chatpatches` | [chatpatches](https://modrinth.com/mod/chatpatches) | Chat history, timestamps | chat / `chat`; gear | 1.21.1, 1.21.11, 26.1.x, 26.2, 26.3; 1.21.5–1.21.10 alpha only; 1.21.2–1.21.4 unknown | Fabric API, YACL; Mod Menu optional |
 | 15 | Chat Heads | `chat_heads` | [chat-heads](https://modrinth.com/mod/chat-heads) | Faces next to chat lines | chat / `users`; gear needs Cloth Config | All 10 | None required (not even Fabric API); Cloth Config for settings |
 | 16 | No Chat Reports | `nochatreports` | [no-chat-reports](https://modrinth.com/mod/no-chat-reports) | Chat privacy | chat / `shield`; gear needs Cloth Config | All 10 (1.21.2, 1.21.8 builds unverified) | Fabric API; Cloth Config for settings |
 | 17 | Screenshot Viewer | `screenshot_viewer` | [screenshot-viewer](https://modrinth.com/mod/screenshot-viewer) | Screenshot browser | **Main** sphere "Screenshots" orb (`camera`, only when installed), opens its screen directly | 1.21–1.21.4, 1.21.11, 26.1.x, 26.2; **none found for 1.21.5–1.21.10 or 26.3** | Fabric API on ≤1.21.11 builds; none on 26.x |
@@ -79,13 +85,8 @@ Chat `9eGKb6K1`, Xaero's Minimap `1bokaNcj`.
   1.21.2–1.21.5, 1.21.6–1.21.8, 1.21.9–1.21.10, 1.21.11. 26.x is on 2.16.3/2.17.0. There is no public API, but
   state can be read by reflection: `dev.isxander.zoomify.Zoomify.INSTANCE.getZooming()` and
   `getZoomDivisor(float)` (it is a Kotlin object).
-- **Freelook:** Several mods share this name. Ours is Celibistrial's, id `freelook`
-  (github.com/Celibistrial/freelook). Others such as Perspektive and Freelook++ use different ids and won't
-  light the orb. It is held with Left Alt; per-perspective keys are unbound. **Caveat:** its Mod Menu factory is
-  `parent -> new FreelookScreen()`, which ignores the parent screen, so closing its settings returns to the game
-  instead of the hub. Builds: v1.4.4 for 26.3, v1.4.3 for 26.2, and a 26.1.2 build. On 1.21.x, Modrinth shows
-  1.2.5 (1.21.4–1.21.8) and 1.2.8 (1.21.11), and the project page listed 1.21–1.21.10. Files for 1.21.1–1.21.3 and
-  1.21.9–1.21.10 are unverified.
+- **Freelook:** No longer suggested: Sol's Camera module has freelook (Left Alt). If Freelook (Celibistrial's,
+  id `freelook`) or Perspective is installed anyway, its row on the Mods page decides who does it (Sol or the mod).
 - **Mouse Tweaks:** Mouse only, no keys. Its git history shows ports for 1.21.6, 1.21.9, 1.21.11, 26.1, 26.2 and
   26.3, plus a 1.21.1 branch, and Modrinth lists 1.21.3–1.21.11.
 - **AppleSkin:** No keys. Its settings screen exists only with Cloth Config; otherwise its factory throws, and our
@@ -106,9 +107,8 @@ Chat `9eGKb6K1`, Xaero's Minimap `1bokaNcj`.
   `IWailaClientRegistration` has before/after-render and tooltip-collected callbacks. Each target has its own
   branch: 1.21 (15.x), 1.21.2 (16.x, 1.21.2–1.21.3), 1.21.4, 1.21.5, 1.21.6 (1.21.6–1.21.8), 1.21.9, 1.21.11,
   26.1, 26.2, 26.3.
-- **Chat Patches:** v8 source targets 1.20.1, 1.21.1 (1.21–1.21.1), 1.21.11, 26.1–26.1.2, 26.2, 26.3 and 26.4. The
-  1.21.5–1.21.10 builds are 8.0-alpha and frozen (8.0-alpha.11 is "the last for 1.21.5–10"). It declares itself
-  incompatible with More Chat History. Its settings screen is YACL, which it requires.
+- **Chat Patches:** No longer suggested: Sol Chat has the timestamps, copy, stacked repeats and longer history
+  Georg picked.
 - **Chat Heads:** It has no Fabric API dependency. Without Cloth Config its gear opens a "Cloth Config missing"
   screen. Builds: 0.15.x for 1.21–1.21.1, 1.21.2–1.21.3, 1.21.4, 1.21.5 and 1.21.6–1.21.8; 1.3.2 for 1.21.9+,
   1.21.11, 26.1–26.2 and 26.3.

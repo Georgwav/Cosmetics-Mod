@@ -6,14 +6,14 @@ import io.github.georgwav.cosmetics.sol.render.WorldDraw;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
-import io.github.georgwav.cosmetics.sol.util.Ease;
 import io.github.georgwav.cosmetics.sol.util.PixelCanvas;
 import io.github.georgwav.cosmetics.sol.util.Sprites;
 
 /**
- * The themes' extras in the sky: aurora ribbons, nebula clouds, the Deep Field galaxy, the Grace rune with its lit
- * cloud and mist, and Monsoon's lightning. Each is placed where the theme's showpiece frame has it: the prototype
- * frame is a 70° tall view facing {@code show.azimuth}, tipped up so the horizon sits at 64% of its height.
+ * The themes' extras in the sky: the aurora ({@link Aurora}), the nebulae ({@link Nebula}), the Deep Field galaxy,
+ * the Grace rune with its lit cloud and mist, and Monsoon's lightning. Each is placed where the theme's showpiece
+ * frame has it: the prototype frame is a 70° tall view facing {@code show.azimuth}, tipped up so the horizon sits at
+ * 64% of its height.
  */
 public final class Extras {
     /** How far the prototype frame looks up: the horizon at 64% of a 70° view. */
@@ -100,36 +100,32 @@ public final class Extras {
 
     // ------------------------------------------------------------------ layers
 
-    /** Behind the moon and sun: nebula, galaxy, aurora. */
-    static void renderBehind(ThemeSpec theme, Tokens tk, float t, float rain) {
-        float night = tk.night * (1f - rain);
-        if (night <= 0.01f) {
-            updateLightning(theme, t);
-            return;
-        }
-        float az = theme.show().azimuth();
+    /**
+     * Right after the stars, before the planets and the moon: the nebulae (their dust over the stars), the aurora and
+     * Monsoon's broken cloud.
+     */
+    static void renderNight(ThemeSpec theme, float t, float rain) {
         if (!theme.nebula().isEmpty()) {
-            WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
-            for (ThemeSpec.Nebula n : theme.nebula()) {
-                direction(n.x(), n.y(), az, skyTurn(), out);
-                SkyDraw.billboard(out[0], out[1], out[2]);
-                float a = (0.38f + 0.06f * (float) Math.sin(t * 0.3f + n.x() * 9f)) * night;
-                float r = n.r() * ASPECT;
-                SkyDraw.glowAt(0f, 0f, r, r * 0.7f, Colors.withAlpha(n.color(), a));
-            }
-            WorldDraw.end();
-        }
-        if (theme.galaxy() != null) {
-            galaxy(theme.galaxy(), az, t, night);
+            Nebula.render(rain);
         }
         if (theme.aurora() != null && theme.aurora().length > 0) {
-            aurora(theme.aurora(), az, t, night);
+            Aurora.render(theme.aurora(), theme.show().azimuth(), t, rain);
+        }
+        NightClouds.clouds(theme, t, rain);
+    }
+
+    /** Behind the sun: the galaxy. */
+    static void renderBehind(ThemeSpec theme, Tokens tk, float t, float rain) {
+        float night = tk.night * (1f - rain);
+        if (night > 0.01f && theme.galaxy() != null) {
+            galaxy(theme.galaxy(), theme.show().azimuth(), t, night);
         }
         updateLightning(theme, t);
     }
 
-    /** After the horizon band: the Grace rune and Monsoon's bolt (terrain then covers its foot). */
+    /** After the horizon band: the haze, the Grace rune and Monsoon's bolt (terrain then covers its foot). */
     static void renderFront(ThemeSpec theme, Tokens tk, float t, float rain) {
+        NightClouds.haze(theme, rain);
         if (theme.sigil() != null) {
             rune(theme, t, rain);
         }
@@ -171,66 +167,6 @@ public final class Extras {
         float x2 = x * c2 - y * s2;
         float y2 = (x * s2 + y * c2) * tilt;
         SkyDraw.point(x2 * c1 - y2 * s1, x2 * s1 + y2 * c1, u, v, color);
-    }
-
-    // ------------------------------------------------------------------ aurora
-
-    /**
-     * Two curtains across 170° of sky, in the prototype's wave: each a row of columns of the strip texture with a
-     * bright lower edge fading upward, fine rays shimmering along it, and a faint glow skirt below it that colours
-     * the sky down to the horizon.
-     */
-    private static void aurora(int[] colors, float az, float t, float night) {
-        int columns = 320;
-        float span = 170f;
-        float amp = 1f + MusicSky.auroraBoost();
-        float aA = Math.min(2.2f, 1f + MusicSky.auroraBoost() * 0.75f);
-        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.strip());
-        for (int pass = 0; pass < 2; pass++) {
-            for (int ri = 0; ri < colors.length; ri++) {
-                for (int i = 0; i < columns; i++) {
-                    float u0 = i / (float) columns;
-                    float u1 = (i + 1) / (float) columns;
-                    float b0 = curtainEdge(u0, ri, t, amp), b1 = curtainEdge(u1, ri, t, amp);
-                    float len = 18f + 6f * (float) Math.sin(u0 * 9 + t * 0.35f + ri);
-                    float a = aA * 0.42f * (0.6f + 0.4f * (float) Math.sin(u0 * 21 + t * 0.8f + ri)) * night;
-                    // Fade the ends of the arc instead of cutting them.
-                    a *= Ease.smoothstep(0f, 0.12f, u0) * Ease.smoothstep(1f, 0.88f, u0);
-                    float top0, top1, bot0, bot1;
-                    if (pass == 0) {
-                        a *= 0.2f;
-                        top0 = b0 + len * 0.2f;
-                        top1 = b1 + len * 0.2f;
-                        bot0 = bot1 = 0.5f;
-                    } else {
-                        // Fine rays, about a degree apart, drifting along the curtain.
-                        a *= 0.7f + 0.3f * (float) (Math.sin(u0 * 640 + t * 1.1f + ri * 3) * Math.sin(u0 * 230 - t * 0.7f));
-                        top0 = b0 + len;
-                        top1 = b1 + len;
-                        bot0 = b0 - len * 0.15f;
-                        bot1 = b1 - len * 0.15f;
-                    }
-                    if (a <= 0.004f) {
-                        continue;
-                    }
-                    int c = Colors.withAlpha(colors[ri], Math.min(1f, a));
-                    float z0 = az - span / 2f + u0 * span;
-                    float z1 = az - span / 2f + u1 * span;
-                    // The top of the strip texture at the top: its brightest band (70% down) is the lower edge.
-                    SkyDraw.altAz(top0, z0, 0f, 0f, c);
-                    SkyDraw.altAz(bot0, z0, 0f, 1f, c);
-                    SkyDraw.altAz(bot1, z1, 1f, 1f, c);
-                    SkyDraw.altAz(top1, z1, 1f, 0f, c);
-                }
-            }
-        }
-        WorldDraw.end();
-    }
-
-    /** A curtain's lower edge (altitude in degrees) along the arc: the prototype's two waves. */
-    private static float curtainEdge(float u, int ri, float t, float amp) {
-        return 8f + 5f * ri + 4f * amp * (float) Math.sin(u * 6 + t * 0.25f + ri * 2)
-                + 1.4f * (float) Math.sin(u * 14 + t * 0.45f);
     }
 
     // ------------------------------------------------------------------ lightning

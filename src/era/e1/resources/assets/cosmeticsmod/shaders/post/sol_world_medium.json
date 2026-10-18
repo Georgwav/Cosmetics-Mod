@@ -16,7 +16,7 @@
         {
           "name": "ParamsSampler",
           "id": "sol_params",
-          "width": 64,
+          "width": 128,
           "height": 1,
           "bilinear": false
         },

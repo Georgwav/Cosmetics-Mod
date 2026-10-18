@@ -145,7 +145,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | `rays`, `coreRays` | 14, 9 | Rays in the two counter-rotating fans (0 for none). |
 | `rayLength` | 1 | Ray length scale. |
 | `plasma`, `corona`, `sunDogs`, `pillar`, `shimmer`, `flare`, `glare` | true | The Sun lab's layers. Each also has a player switch in Atmosphere. |
-| `orbitTilt` | 0 | Tilt of the sun's path in degrees. |
+| `orbitTilt` | 0 | Degrees added to the player's Sky latitude: how high the sky's pole stands over the north, which tilts the paths of the sun, the moon and the stars. |
 | `x`, `y` | 0.74, 0.24 | Position in the showpiece view. |
 
 ## `moon`
@@ -171,7 +171,7 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | `stars.meteorNights` | 7 | Every n-th night is a meteor shower (0: never). |
 | `stars.comets` | true | A comet now and then, staying three nights. |
 | `stars.through` | `clear` | `clear`, `cloudGaps` (Monsoon) or `fog` (Grace). |
-| `planets.enabled` | true | Saturn, Jupiter, Mars and Venus on a tilted path; Zoom swaps in the detailed sprites. |
+| `planets.enabled` | true | Saturn, Jupiter, Mars and Venus on a tilted path; a narrow view (Zoomify, a spyglass) swaps in the detailed sprites. |
 | `planets.style` | `natural` | Sprite style, e.g. `mono` for Deep Field's white-ringed Saturn. |
 | `planets.tint` | none | |
 | `planets.daytime` | `["venus"]` | Planets that show by day near sunset. |
@@ -181,8 +181,8 @@ The Sol light pass's colour grade and bloom. Not used while an Iris shader pack 
 | Key | Shape | Meaning |
 |---|---|---|
 | `galaxy` | `{x, y, r, tilt}` | Deep Field's two-arm galaxy. |
-| `aurora` | `["#colour", …]` | One ribbon per colour. |
-| `nebula` | `[{x, y, r, color}]` or `[[x, y, r, "#colour"]]` | Nebula glows. |
+| `aurora` | `["#colour", …]` | Three folding curtains of rays across the sky the theme faces: the first colour at their bright lower edge, rising into the second (or a pink of the first) and a pink-red top. |
+| `nebula` | `[{x, y, r, color}]` or `[[x, y, r, "#colour"]]` | One cloud of glowing gas painted across a third of the sky: each entry is a region of it in its colour, with billows, filaments, dust lanes, a hot core and young stars twinkling inside. |
 | `eclipse` | `{x, y, size, corona}` | The black square sun with its burning ring. |
 | `sigil` | `{x, y, r, color, halo}` | Grace's rune, with bloom, crackle, pillar and lit cloud. |
 | `mist` | `{color, warm, bands, alpha}` | Mist bands drifting over the horizon. |
@@ -212,6 +212,8 @@ A list of streams. Each is an object, or the prototype's `["type", count, ["#col
 - **Glowing types** are smooth additive light: a bright core and a wide halo, brighter than white. Ones near the
   camera turn into soft bokeh.
 - **Shaped types** have smooth edges. They are lit by the sun and glow through when backlit.
+- **Petals and blossoms** are 3D: a petal is a cupped, curled surface that tumbles as it falls, a blossom five of
+  them round a centre of stamens, both with a detailed texture and lit on the side facing the light.
 - **None of them** shows a square or hard edges; they fade near blocks.
 
 ## `show`
@@ -228,7 +230,7 @@ A list of streams. Each is an object, or the prototype's `["type", count, ["#col
 - **Night themes:** their own showpiece light:
   - `sigil`: the rune;
   - `eclipse`: the burning ring;
-  - `aurora`: the ribbons, two colours sweeping over the ground;
+  - `aurora`: the curtains, two colours sweeping over the ground;
   - `nebula`: pink and violet from above;
   - `galaxy`: cold silver;
   - a night `moon`: moonlight.

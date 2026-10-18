@@ -28,6 +28,8 @@ public final class FrameInfo {
     /** Vanilla's time of day fraction (0 = noon, 0.25 = sunset) and the day number (the moon's phase). */
     public static float timeOfDay;
     public static long day;
+    /** Days the world has run (its game time, never turned back by /time or sleep), with the fraction. */
+    public static double days;
     /** The game's sun angle in radians (0 at noon), the moon phase (0 full .. 7) and 1 − rain, as the sky uses them. */
     public static float sunAngle;
     public static int moonPhase;

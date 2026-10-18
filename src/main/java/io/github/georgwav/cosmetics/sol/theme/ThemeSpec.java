@@ -36,7 +36,8 @@ public record ThemeSpec(
         Show show,
         boolean noRidges,
         boolean vanillaSun,
-        Grade grade) {
+        Grade grade,
+        Night night) {
 
     /** UI colours: accent, the glass panel (with its alpha, how dark the glass is) and the rim light. */
     public record Ui(int accent, int panel, int rim) {
@@ -84,6 +85,20 @@ public record ThemeSpec(
     public record Sun(String texture, float size, int core, int halo, float haloRadius, float haloAlpha, int rays,
                       int coreRays, float rayLength, boolean plasma, boolean corona, boolean sunDogs, boolean pillar,
                       boolean shimmer, boolean flare, boolean glare, float orbitTilt, float x, float y) {
+    }
+
+    /**
+     * The theme's night (the Night Sky lab's theme table): its moon look (a {@code moon_looks} file), the colour of
+     * its moonlight, its night sky (top, middle, horizon; 0 to keep the keyframes'), blended in as the sun goes down,
+     * the colour of its airglow along the horizon, whether broken dark cloud drifts over its stars (Monsoon), and the
+     * colour of a haze lying along its horizon (Silver Night; 0 for none).
+     */
+    public record Night(String moon, int light, int top, int middle, int horizon, int airglow, boolean clouds, int haze) {
+        public static final Night DEFAULT = new Night("silver", 0xFFB8CCFF, 0, 0, 0, 0xFF3C9660, false, 0);
+
+        public boolean hasSky() {
+            return top != 0;
+        }
     }
 
     /** The square moon. */
@@ -153,8 +168,12 @@ public record ThemeSpec(
             }
             return switch (phase) {
                 case "night" -> 0.42f;
-                case "dusk" -> 0.235f;
-                case "dawn" -> 0.765f;
+                case "bluehour" -> 0.29f;
+                case "predawn" -> 0.71f;
+                case "sunset", "dusk" -> 0.235f;
+                case "sunrise", "dawn" -> 0.765f;
+                case "morning" -> 0.88f;
+                case "afternoon" -> 0.13f;
                 default -> 0.08f;
             };
         }

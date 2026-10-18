@@ -153,14 +153,6 @@ public final class EmoteWheel extends SolScreen {
                 hoveredName = emote != null ? Emotes.name(emote) : t("add");
             }
             boolean playing = emote != null && EmotePlayer.playing() == emote;
-            // The gear and the cross first, so a click on them isn't a click on the slot.
-            if (emote != null && hover) {
-                ui.tool(tk, sx + SLOT - 30f, sy + 4f, "gear", false, () -> startPicking(index));
-                ui.tool(tk, sx + SLOT - 30f, sy + SLOT - 30f, "close", false, () -> {
-                    Emotes.assign(elytra, index, "");
-                    CosmeticsConfig.save();
-                });
-            }
             int fi = ui.click(sx, sy, SLOT, SLOT, () -> {
                 if (emote == null) {
                     startPicking(index);
@@ -168,6 +160,15 @@ public final class EmoteWheel extends SolScreen {
                     play(emote);
                 }
             });
+            // The gear and the cross after the slot, so their hits are on top: a click on them isn't a click on it.
+            int gearFocus = -1, crossFocus = -1;
+            if (emote != null && hover) {
+                gearFocus = ui.click(sx + SLOT - 30f, sy + 4f, 26f, 26f, () -> startPicking(index));
+                crossFocus = ui.click(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f, () -> {
+                    Emotes.assign(elytra, index, "");
+                    CosmeticsConfig.save();
+                });
+            }
             if (hover || playing) {
                 g.glow(sx, sy, SLOT, SLOT, 20f, 26f, Colors.withAlpha(tk.glow, hover ? 0.35f : 0.22f));
             }
@@ -187,10 +188,16 @@ public final class EmoteWheel extends SolScreen {
                 g.layer();
                 g.text(mono, Integer.toString(i + 1), sx + 9f, sy + 16f, 0x80FFFFFF);
                 if (hover) {
-                    g.round(sx + SLOT - 30f, sy + 4f, 26f, 26f, 7f, 0xB30A0A0E);
-                    Icons.draw(g, "gear", sx + SLOT - 23f, sy + 11f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
-                    g.round(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f, 7f, Colors.withAlpha(Tokens.RED, 0.75f));
+                    boolean onGear = ui.over(sx + SLOT - 30f, sy + 4f, 26f, 26f);
+                    boolean onCross = ui.over(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f);
+                    g.round(sx + SLOT - 30f, sy + 4f, 26f, 26f, 7f, onGear ? 0xE62A2A33 : 0xB30A0A0E);
+                    Icons.draw(g, "gear", sx + SLOT - 23f, sy + 11f, 12f, onGear ? tk.accent : 0xFFFFFFFF, Icons.FILL, 0);
+                    g.round(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f, 7f, Colors.withAlpha(Tokens.RED, onCross ? 0.95f : 0.75f));
                     Icons.draw(g, "close", sx + SLOT - 23f, sy + SLOT - 23f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+                    if (ui.focused(gearFocus) || ui.focused(crossFocus)) {
+                        float fy = ui.focused(gearFocus) ? sy + 4f : sy + SLOT - 30f;
+                        g.stroke(sx + SLOT - 32f, fy - 2f, 30f, 30f, 9f, 2f * g.d.u, tk.accent);
+                    }
                 }
                 // The name under the slot.
                 g.textCentre(small, g.fit(small, Emotes.name(emote), SLOT + 28f), sx + SLOT / 2f, sy + SLOT + 13f,

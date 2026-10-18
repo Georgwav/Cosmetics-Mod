@@ -24,7 +24,7 @@ ERAS = ["e1", "e2", "e3", "e4", "e5", "e6"]
 # ---------------------------------------------------------------------------------------------------- GLSL bodies
 
 PARAMS = r"""
-// Sol's per-frame values: 64 floats, each one's IEEE bits in a texel's bytes (r = lowest).
+// Sol's per-frame values: 128 floats, each one's IEEE bits in a texel's bytes (r = lowest).
 float P(int i) {
     vec4 t = texelFetch(ParamsSampler, ivec2(i, 0), 0);
     int b0 = int(t.r * 255.0 + 0.5);
@@ -110,10 +110,7 @@ void main() {
     vec3 col = texture(InSampler, texCoord).rgb;
     float depth = texture(DepthSampler, texCoord).r;
     vec3 sunCol = P3(32);
-    // Pixel light reads the quarter-size shafts texel by texel: light in visible steps.
-    vec2 ss = vec2(textureSize(ShaftsSampler, 0));
-    vec2 suv = P(30) > 0.5 ? (floor(texCoord * ss) + 0.5) / ss : texCoord;
-    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, suv).rgb * sunCol * P(21) : vec3(0.0);
+    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, texCoord).rgb * sunCol * P(21) : vec3(0.0);
     if (isSky(depth)) {
         // A lightning flash lights the clouds from inside.
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
@@ -192,6 +189,24 @@ void main() {
         float graze = pow(1.0 - abs(dot(n, dir)), 2.5);
         col += lightCol * facing * graze * P(47) * 0.55 * (1.0 - fogged * 0.7) * smoothstep(0.0, 0.3, P(12));
         flashGain = 0.3 + 0.7 * facing;
+        // A second light where the theme's own is something else (the moon under the rune, the aurora, the
+        // galaxy): silver on the faces turned toward it, a little everywhere.
+        if (P(70) > 0.0) {
+            float xk = (max(0.0, dot(n, normalize(P3(64)))) * 0.72 + 0.07) * P(70);
+            col += col * P3(67) * xk * 1.4 * (1.0 - fogged);
+        }
+    } else if (P(70) > 0.0) {
+        col += col * P3(67) * P(70) * 0.25 * (1.0 - fogged);
+    }
+    // Day for night: the dim world turns blue, its shadows lifted to a blue-violet floor (never flat black), the
+    // nearest blocks the most so you can still play; warm lights (torches, lava, windows) keep their colour.
+    float nk = P(71);
+    if (nk > 0.0) {
+        float l = luma(col);
+        float warm = clamp((col.r - col.b) * 3.0, 0.0, 1.0) * smoothstep(0.2, 0.55, l);
+        col = mix(col, l * vec3(0.78, 0.9, 1.22), nk * 0.55 * (1.0 - smoothstep(0.12, 0.7, l)) * (1.0 - warm));
+        float near = 1.0 - smoothstep(4.0, 36.0, dist);
+        col += P3(72) * nk * (0.35 + 0.65 * near) * (1.0 - smoothstep(0.0, 0.3, l)) * (1.0 - fogged * 0.6);
     }
     // A lightning flash lights the whole world for a moment, the faces toward the bolt the most.
     // It lifts the midtones (the dark world comes up, bright sand doesn't clip into a white sheet).
@@ -213,6 +228,8 @@ void main() {
     vec3 c = (texture(InSampler, texCoord + vec2(-h.x, -h.y)).rgb + texture(InSampler, texCoord + vec2(h.x, -h.y)).rgb
             + texture(InSampler, texCoord + vec2(-h.x, h.y)).rgb + texture(InSampler, texCoord + vec2(h.x, h.y)).rgb) * 0.25;
     float t = P(19);
+    // At night warm lights (torches, lanterns, lava, windows) bloom against the cold.
+    t = mix(t, t * 0.6, P(75) * clamp((c.r - c.b) * 2.5, 0.0, 1.0));
     float knee = t * 0.35 + 1e-4;
     float l = luma(c);
     float soft = clamp(l - t + knee, 0.0, 2.0 * knee);
@@ -246,10 +263,6 @@ void main() {
     # The finished frame: bloom added in the theme's tint, the theme's grade, the vignette, a dither.
     "sol_grade": (["In", "Bloom", "Params", "Lut"], PARAMS + r"""
 vec3 grade(vec3 c) {
-    // Pixel light: the grade in its own 32 steps, so smooth skies fall into visible bands of colour.
-    if (P(30) > 0.5) {
-        c = floor(c * 31.0 + 0.5) / 31.0;
-    }
     float b = c.b * 31.0;
     float b0 = floor(b);
     float b1 = min(b0 + 1.0, 31.0);
@@ -262,9 +275,7 @@ vec3 grade(vec3 c) {
 
 void main() {
     vec3 c = texture(InSampler, texCoord).rgb;
-    // Pixel light reads the bloom texel by texel, as the game did on 1.21.1 when Sol first ran there.
-    vec2 bs = vec2(textureSize(BloomSampler, 0));
-    vec3 bloom = texture(BloomSampler, P(30) > 0.5 ? (floor(texCoord * bs) + 0.5) / bs : texCoord).rgb;
+    vec3 bloom = texture(BloomSampler, texCoord).rgb;
     c += bloom * P3(44) * P(18);
     c = grade(clamp(c, 0.0, 1.0));
     vec2 d = (texCoord - 0.5) * vec2(P(28), 1.0) / max(1.0, P(28) * 0.75);
@@ -295,7 +306,7 @@ void main() {
 # ---------------------------------------------------------------------------------------------------- the chains
 
 IDENTITY = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
-PARAMS_TEX = ("sol_params", 64, 1, False)
+PARAMS_TEX = ("sol_params", 128, 1, False)
 LUT_TEX = ("sol_lut", 1024, 32, True)
 BLACK_TEX = ("sol_black", 1, 1, False)
 BLUR_TEX = ("sol_blur", 1, 1, False)
@@ -476,7 +487,6 @@ def era_files(era):
                 p["output"] = "minecraft:main" if out == "main" else out
                 plist.append(p)
             write(os.path.join(ns, "post_effect", name + ".json"), json.dumps({"targets": tmap, "passes": plist}, indent=2) + "\n")
-    crisp_shader(era, base)
     if era == "e1":
         # 1.21.1 asks the resources for a chain's textures before using the one Sol registered under that name.
         for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX):
@@ -527,40 +537,6 @@ void main() {
     fragColor = color * ColorModulator;
 }
 """)
-
-
-def crisp_shader(era, base):
-    """The crisp fragment shader of the Pixel light style: the game's textured, coloured shader, but light under
-    10% alpha is dropped, so a glow ends in a clean edge (what 1.21.1's own shader does, so e1 has none)."""
-    if era == "e1":
-        return
-    core = os.path.join(base, "cosmeticsmod", "shaders", "core")
-    if era == "e2":
-        write(os.path.join(core, "sol_crisp.json"), json.dumps({
-            "vertex": "minecraft:core/position_tex_color", "fragment": "cosmeticsmod:core/sol_crisp",
-            "samplers": [{"name": "Sampler0"}],
-            "uniforms": [{"name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": IDENTITY},
-                         {"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": IDENTITY},
-                         {"name": "ColorModulator", "type": "float", "count": 4, "values": [1.0, 1.0, 1.0, 1.0]}]},
-            indent=2) + "\n")
-    # 1.21.2-1.21.5 pass the colour modulator as a plain uniform; from 1.21.6 it sits in a block only the vertex
-    # shader declares, and Sol never changes it, so the fragment shader leaves it out.
-    plain = era in ("e2", "e3")
-    head = "#version 330\n#extension GL_ARB_separate_shader_objects : require\n" if era == "e6" else \
-        "#version 330\n" if era == "e5" else "#version 150\n"
-    ins = ("layout(location = 0) in vec2 texCoord0;\nlayout(location = 1) in vec4 vertexColor;\n" if era == "e6"
-           else "in vec2 texCoord0;\nin vec4 vertexColor;\n")
-    out = "layout(location = 0) out vec4 fragColor;\n" if era == "e6" else "out vec4 fragColor;\n"
-    text = head + "\nuniform sampler2D Sampler0;\n" + ("uniform vec4 ColorModulator;\n" if plain else "") + "\n" + ins + "\n" + out + """
-void main() {
-    vec4 color = texture(Sampler0, texCoord0) * vertexColor;
-    if (color.a < 0.1) {
-        discard;
-    }
-    fragColor = color""" + (" * ColorModulator" if plain else "") + """;
-}
-"""
-    write(os.path.join(core, "sol_crisp.fsh"), text)
 
 
 if __name__ == "__main__":

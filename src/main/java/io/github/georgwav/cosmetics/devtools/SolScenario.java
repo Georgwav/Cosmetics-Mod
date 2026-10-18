@@ -35,18 +35,31 @@ public final class SolScenario {
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_wardrobe", "menu_wardrobe_outfits", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
-            "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "keys", "gallery", "crash", "mods_browse", "quickplay", "wardrobe_grid", "wardrobe_drawer",
+            "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "menu_settings_about",
+            "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
     private static final int BENCH_HOLD = 400;
 
     /** One frame: a theme at a sun height (or a fixed day time, when {@code time} isn't -1), facing yaw/pitch. */
+    /** The shot through a spyglass (a narrow field of view, as Zoomify's). */
+    private static final String SPYGLASS = "sol_spyglass";
+    /** Night sky shots through the spyglass, on a planet. */
+    private static final String ZOOM = "sol_night_zoom_";
+    private static final String EVENTS = "sol_night_events_";
+    private static boolean holdingSpyglass;
+    /** The shot from inside a closed room (built in the air above the beach, taken away after). */
+    private static final String UNDERGROUND = "sol_ember_underground";
+    private static boolean inRoom;
+    private static int flaresBefore;
+
     private record Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time,
                         java.util.Map<String, Float> tune) {
         Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch, long time) {
@@ -56,6 +69,22 @@ public final class SolScenario {
         Shot(String name, String theme, float altitude, boolean morning, float yaw, float pitch) {
             this(name, theme, altitude, morning, yaw, pitch, -1L);
         }
+    }
+
+    /** The theme page's edits for a "custom" shot: none for a theme's own look. */
+    private static io.github.georgwav.cosmetics.sol.theme.Customisation edits(String shot) {
+        var c = io.github.georgwav.cosmetics.sol.theme.Customisation.NONE;
+        if (shot.endsWith("_blue")) {
+            c = c.withColour("sky_top", 0xFF0E2A6E).withColour("sky_middle", 0xFF2456B8).withColour("sky_horizon", 0xFF7DB4FF)
+                    .withColour("sky_glow", 0xFF8FE0FF).withColour("corona", 0xFF5FE6FF).withColour("fog", 0xFF35558F)
+                    .withColour("light", 0xFFA8C8FF).withColour("accent", 0xFF5FB4FF).withColour("night_top", 0xFF050B22)
+                    .withColour("night_middle", 0xFF0A1A44).withColour("night_horizon", 0xFF1F3F7A).withColour("moon", 0xFFCFE6FF)
+                    .withColour("moon_halo", 0xFF6FA8FF).withColour("airglow", 0xFF2F6FB0).withColour("particles", 0xFF7FD0FF).withMoonLook("silver");
+        } else if (shot.endsWith("_more")) {
+            c = c.withSunSize(1.4f).withRays(24).withDensity(2f).withAmount("sun_glow", 1.6f).withAmount("bloom", 2f)
+                    .withAmount("particle_size", 1.6f).withAmount("ray_length", 1.5f);
+        }
+        return c;
     }
 
     /** The reference frames' moment: the sun just above the western horizon. */
@@ -110,6 +139,8 @@ public final class SolScenario {
     private static boolean musicWasOn = true;
     private static boolean albumUiWas = true;
     private static boolean albumSkyWas;
+    /** The visualizer switches as they were, put back at the end. */
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Setting.Toggle, Boolean> vizWas = new java.util.HashMap<>();
 
     private void plan() {
         if (MOCK_CIDER) {
@@ -117,6 +148,11 @@ public final class SolScenario {
             musicWasOn = io.github.georgwav.cosmetics.client.Modules.MUSIC.enabled();
             albumUiWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi;
             albumSkyWas = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky;
+            for (var setting : io.github.georgwav.cosmetics.client.Modules.MUSIC.settings()) {
+                if (setting instanceof io.github.georgwav.cosmetics.client.Setting.Toggle t && t.id.startsWith("viz_")) {
+                    vizWas.put(t, t.get());
+                }
+            }
             io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(true);
         }
         planAll();
@@ -127,6 +163,72 @@ public final class SolScenario {
     }
 
     private void planAll() {
+        if ("night".equals(SHOTS)) {
+            // The night sky on its own (-Dcosmeticsmod.solShots=night): Maple's night, which keeps the world's time.
+            // Day 4 is the new moon, day 0 the full moon; 18,000 is midnight, 15,000 is 21:00.
+            long newMoon = 4 * 24000L;
+            shots.add(new Shot("sol_night_south", "maple_afternoon", 0f, false, 0f, -40f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_core", "maple_afternoon", 0f, false, 45f, -18f, newMoon + 15000L));
+            shots.add(new Shot("sol_night_north", "maple_afternoon", 0f, false, 180f, -30f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_zenith", "maple_afternoon", 0f, false, 0f, -88f, newMoon + 18000L));
+            shots.add(new Shot("sol_night_full", "maple_afternoon", 0f, false, 0f, -40f, 18000L));
+            shots.add(new Shot("sol_night_dusk", "maple_afternoon", 0f, false, 90f, -20f, newMoon + 13300L));
+            // A waxing crescent low in the west after sunset, its dark part lit by earthshine.
+            shots.add(new Shot("sol_night_crescent", "maple_afternoon", 0f, false, 90f, -10f, 5 * 24000L + 13300L));
+            // Twilight: the Earth's shadow and the Belt of Venus opposite the set sun, the glow where it went down,
+            // the zodiacal light after dusk, the airglow round the horizon at midnight.
+            shots.add(new Shot("sol_night_belt", "maple_afternoon", 0f, false, -90f, -8f, newMoon + sphereTime(-3f, false)));
+            shots.add(new Shot("sol_night_afterglow", "maple_afternoon", 0f, false, 90f, -10f, newMoon + sphereTime(-8f, false)));
+            shots.add(new Shot("sol_night_zodiacal", "maple_afternoon", 0f, false, 90f, -22f, newMoon + sphereTime(-17f, false)));
+            shots.add(new Shot("sol_night_airglow", "maple_afternoon", 0f, false, 180f, -6f, newMoon + 18000L));
+            // The moon looks, each facing the moon: a harvest moon rising at dusk, a halo night, a pink moon in its
+            // corona, the blood moon, the supermoon, the Carian moon.
+            moonShot("harvest", "maple_afternoon", sphereTime(-2f, false));
+            moonShot("halo", "frost_morning", 18000L);
+            moonShot("pink", "sakura_dusk", 18000L);
+            moonShot("blood", "maple_afternoon", 18000L);
+            moonShot("supermoon", "silver_night", 18000L);
+            moonShot("carian", "grace", 18000L);
+            // Through a spyglass on Saturn and on Jupiter.
+            for (String id : new String[]{"saturn", "jupiter"}) {
+                float[] aim = aimAt(id, 0.75, 0.5f);
+                shots.add(new Shot(ZOOM + id, "maple_afternoon", 0f, false, aim[0], aim[1], newMoon + 18000L));
+            }
+            themeNights();
+            // The sky's events, each a frozen moment: a burst of meteors with a fireball, its train and an
+            // earthgrazer; the two-tailed comet after dusk; a satellite flaring, ships jumping and the superlaser
+            // round the Death Star.
+            shots.add(new Shot(EVENTS + "meteors", "maple_afternoon", 0f, false, 20f, -40f, newMoon + 18000L));
+            long dusk = sphereTime(-16f, false);
+            float[] comet = aimAtComet(dusk / 24000.0, celestial(dusk));
+            shots.add(new Shot(EVENTS + "comet", "maple_afternoon", 0f, false, comet[0], comet[1], newMoon + dusk));
+            float[] death = aimAt("deathstar", 0.75, 0.5f);
+            shots.add(new Shot(EVENTS + "ships", "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            if ("clip".equals(System.getProperty("cosmeticsmod.solEvents", ""))) {
+                // The events clip: sixteen frames a fifth of a second apart, round the Death Star.
+                for (int k = 0; k < 16; k++) {
+                    shots.add(new Shot(EVENTS + "clip" + k, "maple_afternoon", 0f, false, death[0], death[1] + 12f, newMoon + 18000L));
+                }
+            }
+            return;
+        }
+        if ("timelapse".equals(SHOTS)) {
+            timelapse();
+            return;
+        }
+        if ("custom".equals(SHOTS)) {
+            // A theme's own look and the same theme recoloured on the theme page (-Dcosmeticsmod.solShots=custom):
+            // Eclipse as it comes and in blue, by day and at midnight; Ember at sunset with its effects turned up.
+            ThemeRegistry.Entry ec = ThemeRegistry.find("eclipse");
+            float yaw = ec == null ? 90f : ec.base().show().azimuth();
+            shots.add(new Shot("sol_custom_eclipse_own", "eclipse", 30f, false, yaw, -Extras.SHOW_PITCH));
+            shots.add(new Shot("sol_custom_eclipse_blue", "eclipse", 30f, false, yaw, -Extras.SHOW_PITCH));
+            shots.add(new Shot("sol_custom_eclipse_night_own", "eclipse", 0f, false, 0f, -30f, 18000L));
+            shots.add(new Shot("sol_custom_eclipse_night_blue", "eclipse", 0f, false, 0f, -30f, 18000L));
+            shots.add(new Shot("sol_custom_ember_own", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+            shots.add(new Shot("sol_custom_ember_more", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+            return;
+        }
         if ("bench".equals(MODE)) {
             // The light pass's cost on the Ember frame: Low (no pass), Medium, High.
             String[] q = {"low", "medium", "high"};
@@ -137,9 +239,10 @@ public final class SolScenario {
             return;
         }
         if (!"sheet".equals(SHOTS) && !"ui".equals(SHOTS)) {
-            // Zoom at 8x on Deep Field's galaxy: the field of view narrows (and the sky's planets swap sprites).
+            // Through a spyglass on Deep Field's galaxy: the field of view narrows tenfold, as a zoom mod's does (Sol
+            // leaves zooming to Zoomify), and the sky's planets swap to their sharper sprites.
             ThemeRegistry.Entry deepZoom = ThemeRegistry.find("deep_field");
-            shots.add(new Shot("sol_zoom_8x", "deep_field", -60f, false, deepZoom == null ? 180f : deepZoom.base().show().azimuth(),
+            shots.add(new Shot(SPYGLASS, "deep_field", -60f, false, deepZoom == null ? 180f : deepZoom.base().show().azimuth(),
                     -Extras.SHOW_PITCH));
         }
         if (!"world".equals(SHOTS) && !"sheet".equals(SHOTS)) {
@@ -188,10 +291,10 @@ public final class SolScenario {
             }
             switch (phase) {
                 case "night" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), -60f, false, yaw, -Extras.SHOW_PITCH));
-                case "dusk" -> shots.add("ember_solstice".equals(e.id())
+                case "sunset", "dusk" -> shots.add("ember_solstice".equals(e.id())
                         ? new Shot("sol_" + e.id() + "_show", e.id(), 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK)
                         : new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), false, 90f, -Extras.SHOW_PITCH));
-                case "dawn" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), true, -90f,
+                case "sunrise", "dawn" -> shots.add(new Shot("sol_" + e.id() + "_show", e.id(), showAltitude(e.id()), true, -90f,
                         -Extras.SHOW_PITCH));
                 default -> {
                     float alt = showAltitude(e.id());
@@ -204,6 +307,8 @@ public final class SolScenario {
         // The Sun lab's framing: Ember with the sun just above the horizon (tick 12,300 puts it at about 7.7°,
         // e ≈ .2), every layer on, facing west into it.
         shots.add(0, new Shot("sol_ember_sunlab", "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
+        // The same sunset from inside a closed stone room: none of the sun's light may reach the screen.
+        shots.add(1, new Shot(UNDERGROUND, "ember_solstice", 0f, false, 90f, -Extras.SHOW_PITCH, EMBER_TICK));
         // Tuning (-Dcosmeticsmod.solTune=name:bloom=0.5,scatter=0.8;name2:...): the Sun lab frame again for each
         // set of light-pass strengths, to compare them side by side.
         String tuneSpec = System.getProperty("cosmeticsmod.solTune", "");
@@ -327,8 +432,36 @@ public final class SolScenario {
             }
             // The tab list shot holds the player list key.
             mc.options.keyPlayerList.setDown(s.name().equals("ui_tab"));
+            mc.options.keyUse.setDown(spyglassShot(s.name()) && phaseTick > 4);
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
+            }
+            if (phaseTick == SETTLE - 20 && s.name().equals("ui_packs") && io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
+                // Typing in the pack screen's search (Sol's before 1.21.9, the game's after).
+                for (var child : io.github.georgwav.cosmetics.ui.ScreenOpener.current().children()) {
+                    if (child instanceof net.minecraft.client.gui.components.EditBox box) {
+                        box.setValue("default");
+                    }
+                }
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_inventory") && io.github.georgwav.cosmetics.client.modules.ScreenTweaks.undimmed == 0) {
+                problems.add(s.name() + ": the inventory darkened the world behind it with Screen's darkening off");
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_packs")) {
+                if (io.github.georgwav.cosmetics.sol.client.PackPreview.previews == 0) {
+                    problems.add(s.name() + ": the pack screen didn't preview a pack");
+                }
+                //? if <1.21.9 {
+                /*if (io.github.georgwav.cosmetics.sol.client.PackPreview.searchBoxes == 0 || io.github.georgwav.cosmetics.sol.client.PackPreview.searched == 0) {
+                    problems.add(s.name() + ": Sol's pack search wasn't there or didn't search");
+                }
+                *///?}
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_whats_new") && io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew.shown == 0) {
+                problems.add(s.name() + ": the what's new screen didn't draw");
+            }
+            if (phaseTick == SETTLE && s.name().equals("ui_servers") && io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.filtered == 0) {
+                problems.add(s.name() + ": the server list didn't show its Survival folder");
             }
             if (phaseTick == SETTLE && MOCK_CIDER && (s.name().equals("ui_hud_sol") || s.name().startsWith("ui_menu_music"))) {
                 checkMusic(s.name());
@@ -352,6 +485,18 @@ public final class SolScenario {
                     problems.add(s.name() + ": the horizon EQ isn't on");
                 }
             }
+            if (s.name().equals(UNDERGROUND) && phaseTick == SETTLE - 20) {
+                flaresBefore = io.github.georgwav.cosmetics.sol.atmosphere.LensFlare.drawn;
+            }
+            if (s.name().equals(UNDERGROUND) && phaseTick == SETTLE) {
+                float open = io.github.georgwav.cosmetics.sol.atmosphere.SkyOpen.get();
+                if (open > 0.05f) {
+                    problems.add(s.name() + ": the sky still reaches the camera in a closed room (" + open + ")");
+                }
+                if (io.github.georgwav.cosmetics.sol.atmosphere.LensFlare.drawn != flaresBefore) {
+                    problems.add(s.name() + ": the sun's flare or glare was drawn in a closed room");
+                }
+            }
             if (phaseTick == SETTLE) {
                 // Empty is the game's own sky: nothing of Sol's draws there.
                 if (!SkyPass.drewThisFrame && !"sol_ember_sunlab".equals(s.name()) && !"empty".equals(s.theme())
@@ -359,7 +504,7 @@ public final class SolScenario {
                     problems.add(s.name() + ": the Sol sky didn't draw");
                 }
                 float fov = io.github.georgwav.cosmetics.sol.render.FrameInfo.fovY;
-                float want = s.name().equals("sol_zoom_8x") ? 70f / 8f : 70f;
+                float want = spyglassShot(s.name()) ? 7f : 70f;
                 if (Math.abs(fov - want) > Math.max(1f, want * 0.06f)) {
                     problems.add(s.name() + ": the field of view read from the game is " + fov + "°, not " + want + "°");
                 }
@@ -388,25 +533,41 @@ public final class SolScenario {
                 return;
             }
             Shot s = shots.get(index);
+            room(mc, s.name().equals(UNDERGROUND));
             stageUi(s.name());
-            io.github.georgwav.cosmetics.client.modules.Zoom.hold(s.name().equals("sol_zoom_8x") ? 8.0 : 0.0);
+            spyglass(mc, spyglassShot(s.name()));
             motionBlur(s.name().equals("sol_motion_blur"));
             ThemeState.setTheme(s.theme(), false);
+            if ("custom".equals(SHOTS)) {
+                ThemeState.setCustomisation(edits(s.name()));
+            }
             // The Sun lab shows every layer; the showpieces use the hero frames' layers (no flare or glare).
             // Glare is a setting for playing into the sun, not part of the reference frames.
             boolean lab = s.name().endsWith("sunlab");
+            boolean room = s.name().equals(UNDERGROUND);
             Atmosphere at = Atmosphere.INSTANCE;
             if (at != null) {
-                at.flare.set(lab);
-                at.glare.set(false);
+                // In the closed room both are on: neither may show.
+                at.flare.set(lab || room);
+                at.glare.set(room);
                 // Monsoon's showpiece is a thunderstorm, its frame taken in a lightning flash; every other frame
                 // has a clear sky.
-                boolean storm = "monsoon".equals(s.theme());
+                boolean storm = "monsoon".equals(s.theme()) && !s.name().startsWith("sol_night_") && !s.name().startsWith("sol_tl_");
                 at.lockWeather.set(true);
                 at.weather.set(storm ? "thunder" : "clear");
-                io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = storm ? 0.32f : Float.NaN;
+                // At night no flash, as the lab's frame: the broken cloud with the stars in its gaps.
+                io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = !"monsoon".equals(s.theme()) ? Float.NaN
+                        : s.name().startsWith("sol_night_") ? 0f : 0.32f;
             }
             lockedTime = s.time() >= 0 ? s.time() : dayTimeFor(s.altitude(), s.morning());
+            // The sky's season from the shot's time, not the test world's age, so every run shows the same stars. The
+            // night sky's shots keep the lab's autumn whatever the moon's day.
+            io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride =
+                    (s.name().startsWith("sol_night_") ? lockedTime % 24000L : lockedTime) / 24000.0;
+            // The sky's events held still, so every run shows the same frame; the event shots set up their scene.
+            io.github.georgwav.cosmetics.sol.atmosphere.SkyEvents.stage(s.name().startsWith(EVENTS) ? s.name().substring(EVENTS.length()) : "");
+            io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride =
+                    s.name().startsWith("sol_night_look_") ? s.name().substring("sol_night_look_".length()) : null;
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.clear();
             io.github.georgwav.cosmetics.sol.render.LightPass.tune.putAll(s.tune());
             Float quality = s.tune().get("quality");
@@ -468,12 +629,18 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
                     || name.equals("sol_music_stars");
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = name.equals("sol_music_stars");
+            // The visualizers (album sun, horizon EQ, beat rings…) only in the music sky shots, likewise.
+            boolean viz = name.equals("sol_music_viz") || name.equals("sol_music_stars");
+            for (var t : vizWas.keySet()) {
+                t.set(viz);
+            }
         }
         java.util.Arrays.fill(io.github.georgwav.cosmetics.sol.hud.SolHud.DRAWN, 0);
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!name.equals("ui_toast") && !name.equals("ui_hud_editor") && !hud);
         hudInPlay(hud, what.equals("hud_off"));
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
+        serversForShot(what.equals("servers"));
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -495,6 +662,23 @@ public final class SolScenario {
             }
             var wheel = new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(what.equals("emote_wheel_elytra"));
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
+            return;
+        }
+        screenForShot(what.equals("inventory"));
+        if (what.equals("inventory")) {
+            // Your inventory over the world, which Screen leaves undarkened.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.inventory.InventoryScreen(
+                    Minecraft.getInstance().player));
+            return;
+        }
+        if (what.equals("chat")) {
+            // The chat screen with Sol Chat's emoji picker open over it.
+            //? if >=1.21.9 {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.ChatScreen("gg :heart: ", false));
+            //?} else {
+            /*io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.ChatScreen("gg :heart: "));
+            *///?}
+            io.github.georgwav.cosmetics.sol.chat.EmojiPicker.openForShot();
             return;
         }
         if (hud) {
@@ -531,28 +715,33 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(w);
             return;
         }
+        if (what.equals("servers")) {
+            // The server list showing its Survival folder (the servers are made up; nothing answers them).
+            io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show("Survival", serversShown);
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen(
+                    new net.minecraft.client.gui.screens.TitleScreen()));
+            return;
+        }
+        io.github.georgwav.cosmetics.sol.client.PackPreview.forShot = what.equals("packs");
+        if (what.equals("packs")) {
+            // The resource pack screen with a pack's preview (and, before 1.21.9, Sol's search over the lists).
+            Minecraft mc = Minecraft.getInstance();
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.packs.PackSelectionScreen(
+                    mc.getResourcePackRepository(), repo -> { }, mc.getResourcePackDirectory(),
+                    net.minecraft.network.chat.Component.translatable("resourcePack.title")));
+            return;
+        }
+        if (what.equals("whats_new")) {
+            // A release's notes as GitHub gives them, before installing it.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew(null, "0.2.0",
+                    "## Atmosphere\n- **More ambience**: leaf bits under trees, rain splashes, fireflies at night\n"
+                            + "- Underwater view up to 4x the game's\n\n## Servers\n- Pings in milliseconds and players online\n"
+                            + "- Folders: name a server `PvP/Hypixel` to put it in [PvP](https://example.invalid)\n\n"
+                            + "## Social\n- Streamer mode hides your name, skin, the server and private messages\n", true));
+            return;
+        }
         if (what.equals("mods_browse")) {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(null, ""));
-            return;
-        }
-        if (what.equals("keys")) {
-            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(null));
-            return;
-        }
-        if (what.equals("quickplay")) {
-            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.QuickplayScreen(null));
-            return;
-        }
-        if (what.equals("gallery")) {
-            sampleScreenshots();
-            io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(null));
-            return;
-        }
-        if (what.equals("crash")) {
-            var crash = sampleCrash();
-            if (crash != null) {
-                io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.CrashHelperScreen(null, crash));
-            }
             return;
         }
         if (what.equals("title")) {
@@ -610,57 +799,6 @@ public final class SolScenario {
         }
     }
 
-    /** The gallery shot's pictures: a few themes' frames as screenshots, when the folder has none. */
-    private static void sampleScreenshots() {
-        java.nio.file.Path dir = io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery.folder();
-        try {
-            java.nio.file.Files.createDirectories(dir);
-            try (var files = java.nio.file.Files.list(dir)) {
-                if (files.anyMatch(p -> p.toString().endsWith(".png"))) {
-                    return;
-                }
-            }
-            int i = 0;
-            for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
-                if (!e.builtIn() || i >= 10) {
-                    continue;
-                }
-                int[] px = io.github.georgwav.cosmetics.sol.util.MiniSky.render(e.base(), e.id(), 480, 270, 3f + i).toArgb(null);
-                java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(480, 270, java.awt.image.BufferedImage.TYPE_INT_RGB);
-                img.setRGB(0, 0, 480, 270, px, 0, 480);
-                java.nio.file.Path f = dir.resolve(String.format(java.util.Locale.ROOT, "2026-10-14_21.%02d.00.png", 10 + i));
-                javax.imageio.ImageIO.write(img, "png", f.toFile());
-                f.toFile().setLastModified(System.currentTimeMillis() - (10 - i) * 3_600_000L);
-                i++;
-            }
-        } catch (java.io.IOException | RuntimeException e) {
-            CosmeticsMod.LOGGER.warn("[Sol] Couldn't write the gallery's sample screenshots", e);
-        }
-    }
-
-    /** The crash helper shot's report: a made-up crash in a made-up mod. */
-    private static io.github.georgwav.cosmetics.sol.client.CrashHelper.Crash sampleCrash() {
-        try {
-            java.nio.file.Path dir = io.github.georgwav.cosmetics.sol.client.CrashHelper.folder();
-            java.nio.file.Files.createDirectories(dir);
-            java.nio.file.Path f = dir.resolve("crash-2026-10-14_21.03.11-client.txt");
-            java.nio.file.Files.writeString(f, String.join("\n", "---- Minecraft Crash Report ----", "// Oops.", "",
-                    "Time: 2026-10-14 21:03:11", "Description: Rendering screen", "",
-                    "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"label\" is null",
-                    "\tat com.example.fancymenu.Widgets.label(Widgets.java:42)",
-                    "\tat net.minecraft.client.gui.screens.TitleScreen.handler$zza000$fancymenu$onRender(TitleScreen.java:9001)",
-                    "\tat net.minecraft.client.gui.screens.TitleScreen.render(TitleScreen.java:300)", ""));
-            io.github.georgwav.cosmetics.sol.config.SolConfig.get().lastCrashSeen = 0L;
-            var crash = io.github.georgwav.cosmetics.sol.client.CrashHelper.unseen();
-            // Read: gone again, so the run's own crash check doesn't take it for a real one.
-            java.nio.file.Files.deleteIfExists(f);
-            return crash;
-        } catch (java.io.IOException | RuntimeException e) {
-            CosmeticsMod.LOGGER.warn("[Sol] Couldn't write the crash helper's sample report", e);
-            return null;
-        }
-    }
-
     /** What you wore before the Wardrobe shots (null while they aren't on). */
     private static java.util.List<String> wornBefore;
 
@@ -668,6 +806,69 @@ public final class SolScenario {
      * The Wardrobe shots show you wearing a few things (the world shots wear nothing): a cape, a hat, wings and an
      * aura when there are some. Back to what you wore after them.
      */
+    private static Boolean screenOnBeforeInventory;
+
+    /** Screen on, with the darkening behind inventories off, for the inventory shot; as it was after. */
+    private static void screenForShot(boolean on) {
+        var screen = io.github.georgwav.cosmetics.client.Modules.SCREEN;
+        if (on == (screenOnBeforeInventory != null)) {
+            return;
+        }
+        for (var setting : screen.settings()) {
+            if (setting.id.equals("inventory_dim")) {
+                if (on) {
+                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(false);
+                } else {
+                    setting.reset();
+                }
+            }
+        }
+        if (on) {
+            screenOnBeforeInventory = screen.enabled();
+            screen.setEnabled(true);
+        } else {
+            screen.setEnabled(screenOnBeforeInventory);
+            screenOnBeforeInventory = null;
+        }
+    }
+
+    private static net.minecraft.client.multiplayer.ServerList serversShown;
+    private static final List<net.minecraft.client.multiplayer.ServerData> SHOT_SERVERS = new java.util.ArrayList<>();
+    private static boolean serversModuleWasOn;
+
+    /** Made-up servers in the list for the server list shot, two in a Survival folder; taken out after. */
+    private static void serversForShot(boolean on) {
+        Minecraft mc = Minecraft.getInstance();
+        if (on && serversShown == null) {
+            serversModuleWasOn = io.github.georgwav.cosmetics.client.Modules.SERVERS.enabled();
+            io.github.georgwav.cosmetics.client.Modules.SERVERS.setEnabled(true);
+            serversShown = new net.minecraft.client.multiplayer.ServerList(mc);
+            serversShown.load();
+            String[][] made = {{"Survival/Home", "127.0.0.1:1"}, {"Survival/Creative world", "127.0.0.1:2"},
+                    {"PvP/Arena", "127.0.0.1:3"}, {"Lobby", "127.0.0.1:4"}};
+            for (String[] m : made) {
+                var data = new net.minecraft.client.multiplayer.ServerData(m[0], m[1], net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                SHOT_SERVERS.add(data);
+                serversShown.add(data, false);
+            }
+            serversShown.save();
+        } else if (!on && serversShown != null) {
+            var list = new net.minecraft.client.multiplayer.ServerList(mc);
+            list.load();
+            for (int i = list.size() - 1; i >= 0; i--) {
+                var d = list.get(i);
+                if (SHOT_SERVERS.stream().anyMatch(m -> m.ip.equals(d.ip) && m.name.equals(d.name))) {
+                    list.remove(d);
+                }
+            }
+            list.save();
+            SHOT_SERVERS.clear();
+            serversShown = null;
+            io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.show(null, list);
+            io.github.georgwav.cosmetics.client.Modules.SERVERS.setEnabled(serversModuleWasOn);
+        }
+    }
+
     private static void wearForWardrobe(boolean on) {
         var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
         java.util.List<String> worn = config.localEquipped();
@@ -712,15 +913,9 @@ public final class SolScenario {
                 io.github.georgwav.cosmetics.client.Modules.SOL_CHAT.setEnabled(true);
                 hudShown.add(io.github.georgwav.cosmetics.client.Modules.SOL_CHAT);
             }
-            // Stats with a few lines, Coordinates with the biome.
+            // Stats with a few lines.
             for (var setting : io.github.georgwav.cosmetics.client.Modules.STATS.settings()) {
                 if (java.util.Set.of("cps", "ping", "clock").contains(setting.id) && Boolean.FALSE.equals(setting.get())) {
-                    ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
-                    statsShown.add(setting);
-                }
-            }
-            for (var setting : io.github.georgwav.cosmetics.client.Modules.COORDINATES.settings()) {
-                if (setting.id.equals("biome") && Boolean.FALSE.equals(setting.get())) {
                     ((io.github.georgwav.cosmetics.client.Setting.Toggle) setting).set(true);
                     statsShown.add(setting);
                 }
@@ -751,6 +946,12 @@ public final class SolScenario {
             if (drawn[p.ordinal()] == 0) {
                 problems.add(name + ": Sol UI's " + p.id + " didn't draw");
             }
+        }
+        if (name.equals("ui_chat") && io.github.georgwav.cosmetics.sol.chat.EmojiPicker.gridsDrawn == 0) {
+            problems.add(name + ": Sol Chat's emoji picker didn't draw on the chat screen");
+        }
+        if (name.equals("ui_tab") && io.github.georgwav.cosmetics.sol.hud.HudTweaks.pingsWritten == 0) {
+            problems.add(name + ": the tab list's ping wasn't written in milliseconds");
         }
         if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
             problems.add(name + ": Glint didn't recolour any glint texture");
@@ -797,7 +998,7 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab");
+        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory");
     }
 
     /** The game mode before the HUD shots (null while they aren't on). */
@@ -844,10 +1045,9 @@ public final class SolScenario {
                     "scoreboard objectives setdisplay sidebar solshow", "scoreboard objectives setdisplay list solshow",
                     "scoreboard players set @s solshow 23", "scoreboard players set Kills solshow 12",
                     "scoreboard players set Deaths solshow 3", "scoreboard players set Coins solshow 450",
-                    // Chat: a repeat that stacks, a mention of you, an emoji.
+                    // Chat: a repeat that stacks, an emoji.
                     "tellraw @a \"[Sol] Welcome to the showcase\"", "tellraw @a \"[Sol] Welcome to the showcase\"",
-                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\"",
-                    "tellraw @a \"<@s> the sunset is on\""));
+                    "tellraw @a \"<Alex> nice sky, @s! \u2764\"", "tellraw @a \"<Sam> gg\""));
         }
         if (on) {
             cfg.solUi = !vanilla;
@@ -882,19 +1082,155 @@ public final class SolScenario {
         });
     }
 
+    /** A spyglass into your hand (used while the shot holds the use key), or out of it again. */
+    /**
+     * Every theme's night as the Night Sky lab's theme table has it: the aurora over the north-east, the nebulae
+     * overhead, the rune, Deep Field's Milky Way on a new moon, Silver Night's haze along the horizon, Monsoon's broken
+     * cloud lit by lightning; the rest facing their moon as it climbs in the east at 21:00 on the full moon's night.
+     */
+    private void themeNights() {
+        for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+            if (!e.builtIn() || "empty".equals(e.id())) {
+                continue;
+            }
+            String id = e.id(), name = "sol_night_theme_" + id;
+            switch (id) {
+                // The lab's cameras (its azimuths are from north through east, the game's from south through west).
+                case "aurora" -> shots.add(new Shot(name, id, 0f, false, 222f, -30f, 18000L));
+                case "nebula" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
+                case "grace" -> shots.add(new Shot(name, id, 0f, false, 342f, -22f, 18000L));
+                case "deep_field" -> shots.add(new Shot(name, id, 0f, false, 45f, -18f, 4 * 24000L + 15000L));
+                case "silver_night" -> shots.add(new Shot(name, id, 0f, false, 20f, -10f, 18000L));
+                case "monsoon" -> shots.add(new Shot(name, id, 0f, false, 0f, -35f, 18000L));
+                default -> {
+                    float[] m = new float[3];
+                    io.github.georgwav.cosmetics.sol.atmosphere.NightSky.moonAt(e.base(), 15000 / 24000.0, celestial(15000L), 0, null, m);
+                    float yaw = (float) Math.toDegrees(Math.atan2(-m[0], m[2])), alt = (float) Math.toDegrees(Math.asin(m[1]));
+                    shots.add(new Shot(name, id, 0f, false, yaw, -Math.max(4f, alt - 8f), 15000L));
+                }
+            }
+        }
+    }
+
+    /** Each theme through the day from one place, facing its showpiece: the eight times of day in order. */
+    private void timelapse() {
+        String[] phases = {"predawn", "sunrise", "morning", "noon", "afternoon", "sunset", "bluehour", "night"};
+        long[] times = {sphereTime(-8.5f, true), sphereTime(3f, true), sphereTime(17f, true), 6000L, sphereTime(17f, false),
+                sphereTime(3f, false), sphereTime(-8.5f, false), 18000L};
+        for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
+            if (!e.builtIn() || "empty".equals(e.id())) {
+                continue;
+            }
+            for (int i = 0; i < phases.length; i++) {
+                shots.add(new Shot("sol_tl_" + e.id() + "_" + i + phases[i], e.id(), 0f, false, e.base().show().azimuth(),
+                        -Extras.SHOW_PITCH, times[i]));
+            }
+        }
+    }
+
+    /** A shot facing the moon in a look, on the full moon's night (day 0) at a day time. */
+    private void moonShot(String look, String theme, long dayTime) {
+        ThemeRegistry.Entry e = ThemeRegistry.find(theme);
+        if (e == null) {
+            return;
+        }
+        float tod = celestial(dayTime);
+        // A theme holding its showpiece shows its own time.
+        if (e.base().show().hold()) {
+            tod = e.base().show().heldTime();
+        }
+        float[] m = new float[3];
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.moonAt(e.base(), (dayTime % 24000L) / 24000.0, tod, 0, look, m);
+        float yaw = (float) Math.toDegrees(Math.atan2(-m[0], m[2])), alt = (float) Math.toDegrees(Math.asin(m[1]));
+        shots.add(new Shot("sol_night_look_" + look, theme, 0f, false, yaw, -Math.max(4f, alt - 8f), dayTime));
+    }
+
+    /** The game's sun angle (0 noon) for a day time, as the game eases it. */
+    private static float celestial(long dayTime) {
+        double d = dayTime / 24000.0 - 0.25;
+        d -= Math.floor(d);
+        double e = 0.5 - Math.cos(d * Math.PI) / 2.0;
+        return (float) ((d * 2.0 + e) / 3.0);
+    }
+
+    /** The day time the sky sphere's sun stands at an altitude (at the default sky latitude). */
+    private static long sphereTime(float sunAlt, boolean morning) {
+        double c = Math.sin(Math.toRadians(sunAlt)) / Math.cos(Math.toRadians(io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE));
+        double hourAngle = Math.toDegrees(Math.acos(Math.max(-1, Math.min(1, c))));
+        // The game's own path puts its sun at 90° less the hour angle.
+        return dayTimeFor((float) (90.0 - hourAngle), morning);
+    }
+
+    private static boolean spyglassShot(String name) {
+        return name.equals(SPYGLASS) || name.startsWith(ZOOM);
+    }
+
+    /** The view (yaw, pitch) onto the comet (44° east of the sun along the ecliptic, 11° above it). */
+    private static float[] aimAtComet(double days, float timeOfDay) {
+        io.github.georgwav.cosmetics.sol.sky.SkySphere sky = new io.github.georgwav.cosmetics.sol.sky.SkySphere();
+        sky.update(days, timeOfDay, 0, io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE,
+                io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_YEAR);
+        double[] eq = io.github.georgwav.cosmetics.sol.sky.SkySphere.ecl(sky.lamSun + 44, 11, new double[3]);
+        float[] w = new float[3];
+        sky.toWorld(eq[0], eq[1], eq[2], w);
+        // A little above it, so the tails rising away from the set sun are in the frame.
+        return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1])) - 8f};
+    }
+
+    /** The view (yaw, pitch) onto a planet on a day of the sky's year at a time of day (0 noon). */
+    private static float[] aimAt(String id, double days, float timeOfDay) {
+        io.github.georgwav.cosmetics.sol.sky.SkySphere sky = new io.github.georgwav.cosmetics.sol.sky.SkySphere();
+        sky.update(days, timeOfDay, 0, io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_LATITUDE,
+                io.github.georgwav.cosmetics.sol.sky.SkySphere.DEFAULT_YEAR);
+        double[] eq = io.github.georgwav.cosmetics.sol.sky.Bodies.place(io.github.georgwav.cosmetics.sol.sky.Bodies.find(id),
+                sky.lamSun, new double[3]);
+        float[] w = new float[3];
+        sky.toWorld(eq[0], eq[1], eq[2], w);
+        return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1]))};
+    }
+
+    private static void spyglass(Minecraft mc, boolean in) {
+        if (in == holdingSpyglass) {
+            return;
+        }
+        holdingSpyglass = in;
+        if (!in) {
+            mc.options.keyUse.setDown(false);
+        }
+        asPlayer(mc, List.of("item replace entity @s weapon.mainhand with minecraft:" + (in ? "spyglass" : "air")));
+    }
+
+    /**
+     * Into a closed stone room 24 blocks above where you stand (nothing of the scene to put back), or back down and
+     * the room taken away.
+     */
+    private static void room(Minecraft mc, boolean in) {
+        if (in == inRoom) {
+            return;
+        }
+        inRoom = in;
+        asPlayer(mc, in
+                ? List.of("execute at @s run fill ~-3 ~23 ~-3 ~3 ~29 ~3 stone hollow", "execute at @s run tp @s ~ ~24 ~")
+                : List.of("execute at @s run tp @s ~ ~-24 ~", "execute at @s run fill ~-3 ~23 ~-3 ~3 ~29 ~3 air"));
+    }
+
     private void finish(Minecraft mc) {
         finished = true;
+        room(mc, false);
         stageUi("");
         if (MOCK_CIDER) {
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = albumUiWas;
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumSky = albumSkyWas;
+            vizWas.forEach(io.github.georgwav.cosmetics.client.Setting.Toggle::set);
             if (!musicWasOn) {
                 io.github.georgwav.cosmetics.client.Modules.MUSIC.setEnabled(false);
             }
         }
-        io.github.georgwav.cosmetics.client.modules.Zoom.hold(0.0);
+        spyglass(mc, false);
         io.github.georgwav.cosmetics.sol.atmosphere.Extras.holdFlash = Float.NaN;
         lockedTime = -1L;
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride = Double.NaN;
+        io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride = null;
         crosshairOnly = false;
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
@@ -911,25 +1247,11 @@ public final class SolScenario {
                 && io.github.georgwav.cosmetics.ui.Mannequin.framesPainted == 0) {
             problems.add("the mannequin (you without a world) was never drawn");
         }
-        if (chatShown) {
-            // The chat's search: text no message has leaves every message out, then all come back.
-            io.github.georgwav.cosmetics.client.modules.SolChat.search("no message says this");
-            io.github.georgwav.cosmetics.client.modules.SolChat.search("");
-            if (io.github.georgwav.cosmetics.client.modules.SolChat.filteredOut == 0) {
-                problems.add("the chat's search never left a message out");
-            }
-        }
         motionBlur(false);
         if (shots.stream().anyMatch(x -> x.name().equals("sol_motion_blur"))
                 && io.github.georgwav.cosmetics.sol.render.LightPass.blurFrames == 0) {
             problems.add("motion blur never ran in its shot");
         }
-        //? if >=1.21.9 {
-        // The HUD shots post a line of yours: Sol Chat puts your face before it.
-        if (chatShown && io.github.georgwav.cosmetics.client.modules.SolChat.headsShown == 0) {
-            problems.add("Sol Chat never put a sender's face before a message");
-        }
-        //?}
         boolean passed = problems.isEmpty();
         CosmeticsMod.LOGGER.info("[Sol] Scenario {}: {}", passed ? "PASSED" : "FAILED", problems);
         try {

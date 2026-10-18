@@ -20,22 +20,51 @@ import java.util.List;
  * Armour & Items: what you wear and hold with the durability it has left, how many of what you hold you carry (arrows
  * for a bow), the cooldowns running in your hotbar, and the totems that popped this session. Sol UI draws one bar
  * per piece going from the accent to amber to red, the last piece pulsing when it's about to break; the plain look
- * writes numbers in green to red.
+ * writes numbers in green to red. A piece worn or held that falls under a tenth of its uses gets a warning (a toast
+ * and a soft bell), once until it's mended or swapped.
  */
 public final class ArmourItemsHud extends HudModule {
     private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
     private static final int ROW = 18;
-    private final Setting.Toggle hands = add(new Setting.Toggle("hands", true));
-    private final Setting.Choice value = add(new Setting.Choice("value", "number", List.of("number", "percent")));
-    private final Setting.Toggle counter = add(new Setting.Toggle("counter", true));
-    private final Setting.Toggle cooldowns = add(new Setting.Toggle("cooldowns", true));
-    private final Setting.Toggle totems = add(new Setting.Toggle("totems", true));
+    private final Setting.Toggle hands = add(new Setting.Toggle("hands", true).group("shows"));
+    private final Setting.Choice value = add(new Setting.Choice("value", "number", List.of("number", "percent")).group("durability"));
+    private final Setting.Toggle counter = add(new Setting.Toggle("counter", true).group("shows"));
+    private final Setting.Toggle cooldowns = add(new Setting.Toggle("cooldowns", true).group("shows"));
+    private final Setting.Toggle totems = add(new Setting.Toggle("totems", true).group("shows"));
+    /** A toast and a bell when something worn or held is about to break. */
+    private final Setting.Toggle warnings = add(new Setting.Toggle("durability_warnings", true).group("durability"));
+    private static final EquipmentSlot[] WATCHED = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
+            EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
+    /** The item each watched slot was last warned about (null: none). */
+    private final net.minecraft.world.item.Item[] warned = new net.minecraft.world.item.Item[WATCHED.length];
 
     /** Totems that popped for you this session (counted from the game's entity event 35). */
     public static int totemPops;
 
     public ArmourItemsHud() {
         super("armour_items", "shield", 1f, 1f, -4f, -4f);
+    }
+
+    @Override
+    protected void tick(Minecraft mc) {
+        if (!warnings.get() || mc.player == null) {
+            java.util.Arrays.fill(warned, null);
+            return;
+        }
+        for (int i = 0; i < WATCHED.length; i++) {
+            ItemStack stack = mc.player.getItemBySlot(WATCHED[i]);
+            boolean low = stack.isDamageableItem() && stack.getMaxDamage() - stack.getDamageValue() < stack.getMaxDamage() * 0.1f;
+            if (!low) {
+                warned[i] = null;
+            } else if (warned[i] != stack.getItem()) {
+                warned[i] = stack.getItem();
+                int left = stack.getMaxDamage() - stack.getDamageValue();
+                io.github.georgwav.cosmetics.sol.ui.kit.Notifications.post(net.minecraft.network.chat.Component.translatable(
+                        "cosmeticsmod.module.armour_items.warning", stack.getHoverName(), left).getString());
+                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 0.6f));
+            }
+        }
     }
 
     /** One row: its item, its text, and how much is left (0 to 1), or -1 for none. */

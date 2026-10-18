@@ -49,7 +49,7 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
   - The others: their sun, and the moon at night.
 - **Night themes keep their night** at any time of day. This is visual only: the game's time is not changed.
 - **Atmosphere intensity** (100% by default) tones the look down.
-- **Quality:** Low, Medium, High or Auto. **Light style:** Pixel light (the default) or Smooth.
+- **Quality:** Low, Medium, High or Auto.
 - **Theme packs:** resource packs can add themes; see [docs/ATMOSPHERE_FORMAT.md](docs/ATMOSPHERE_FORMAT.md).
 
 ### The quick menu (Right Shift)
@@ -156,16 +156,40 @@ on or off.
 
 ### Modules
 
-Every module is off by default, and none has a key until you bind one. Profiles save every module's settings.
+The module grid has 29 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
+Pinned by default: Crosshair, Glint, Atmosphere and Camera.
+
+A profile keeps every module's settings, the HUD layout, the pins, the theme, what you wear (cosmetics, outfit), your
+skin and your cape. Switching profiles puts all of it back: the skin is sent to Mojang and the cape worn on your
+account, only when they differ from what Sol last sent.
 
 | Module | What it does |
 |---|---|
-| Fullbright | Brightness, with an optional night vision effect so it works with shaders. |
-| Toggle Sprint / Sneak | Switches the game's own toggles. |
-| Weather changer, Time changer | Your own weather and time of day, on your screen only. |
+| Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks), stars, planets, time and weather locks. |
+| Camera | Freelook (Left Alt) and freecam (singleplayer, or as an operator). |
+| PvP Tweaks | Hurt cam strength, low fire, hit colour. |
+| PvP Effects | Hit sounds, and a kill effect (lightning, a burst or a sound) only you see. |
+| Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
+| Held Items | A lower shield and a smaller totem pop. |
+| Nametags | Health above heads; your own tag, size, backing and text shadow. |
+| Screen | Switch off the pumpkin mask, powder snow frost, vignette, portal swirl, nausea, the underwater overlay and the darkening behind inventories; motion blur (not on 1.21.2 to 1.21.5). |
+| Particles | A multiplier for hit particles, sharpness sparks on every hit, and fewer block, explosion and weather particles. |
+| Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's, and an outline or glow in inventories. |
+| Fullbright | Brightness (G), with night vision so it works with shaders. |
 | Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
-| Block outline | The outline around the block you look at, in your colour and opacity. Off with a Fabric API that has no block outline event (older 1.21.9 builds). |
-| Keystrokes, FPS, Ping, Clock, Coordinates, Armor, Effect timers | HUD modules. Each has a size and a dark backing; the text ones also have a text shadow, a font (Minecraft or Geist) and a colour. |
+| Block outline | The outline round the block you look at, in your colour and opacity. |
+| Movement | Toggle sprint and sneak. |
+| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
+| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music | HUD modules. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing with live lyrics. |
+| Sol Chat | Timestamps (click to copy a message), stacked repeats, up to 5,000 messages kept, emoji shortcodes and an emoji picker. |
+| World Overlays | Chunk borders, where mobs can spawn, beacon range, slime chunks (from the world's seed in singleplayer, `/seed` for operators, or a seed you type) and structure outlines in singleplayer. |
+| Inventory | Durability as numbers on items. |
+| Performance | Video presets: Low-end, Balanced and High. |
+| Screenshots | Each screenshot copied to the clipboard. |
+| Social | Discord status, and streamer mode (hides your name, skin, the server's address and private messages). |
+| Servers | Auto reconnect, and the server list upgrade: pings in ms, players online, and folders (name a server `Folder/Name`). |
+| Cosmetics | Capes, wings, hats and the rest, set up in the Wardrobe. |
 
 ### Main folder
 
@@ -179,6 +203,9 @@ Every module is off by default, and none has a key until you bind one. Profiles 
   already has them takes them over.
 
 The client's typeface is Geist (SIL Open Font License, `assets/cosmeticsmod/font/geist-ofl.txt`, Geist Mono included).
+
+The night sky's stars come from the HYG Database v4.1 by David Nash (CC BY-SA 4.0), and its constellation lines and
+names from d3-celestial by Olaf Frohn (BSD 3-clause); see `assets/cosmeticsmod/sky/CREDITS.txt`.
 
 ### Cosmetics
 
@@ -290,7 +317,7 @@ writes into your private `cosmetics-personal` repository, into the mod jar.
 built jar (see the [importer's README](tools/badlion-import/README.md#bundle-your-packs-inside-the-mods-jar)):
 
 ```
-badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\badlion-packs
+badlion-import bundle solclient-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk --out C:\badlion-packs
 ```
 
 **Building it yourself** (needs Java 21, and 25 for 26.x):
@@ -301,7 +328,7 @@ badlion-import bundle cosmeticsmod-<v>+mc26.2.jar C:\badlion-packs\badlion C:\ba
 
 - The pack's `assets/` folder is copied into the jar, where the mod finds `assets/<ns>/cosmetics/*.json` like its
   own cosmetics. The path is relative to this repository's root, or absolute.
-- The jars are named `cosmeticsmod-<v>+mc<minecraft>-personal.jar`.
+- The jars are named `solclient-<v>+mc<minecraft>-personal.jar`.
 - A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
 - Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
   checks this mechanism with a tiny made-up pack.

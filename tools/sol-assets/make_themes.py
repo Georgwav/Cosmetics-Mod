@@ -21,14 +21,14 @@ def ui(a,p,r):
 
 theme("sakura_dusk",1,"Sakura Dusk","Violet dusk over a coral horizon, blossoms falling.",
   ui("#f59ac0","rgba(52,30,56,.52)","rgba(255,190,215,.55)"),
-  sky("#4a3866","#5d3f68","#a3606c","#fa9588",0.45), fog("#cf7b72",.35), {"tint":"#ffc4cc","strength":0.16},
+  sky("#4a3866","#5d3f68","#a3606c","#fa888e",0.45), fog("#cf7279",.35), {"tint":"#ffc4cc","strength":0.16},
   {"phase":"dusk","azimuth":90},
   {"day":{"sky":sky("#6f86c9","#9aa6d8","#f2b8c4","#ffd0d0",0.25),"fog":fog("#e8bcc4",.3),"light":{"tint":"#fff0f2","strength":0.08},"clouds":{"tint":"#fff2f4"}},
-   "dawn":{"sky":sky("#5a4a7c","#8a6a98","#e8a0a8","#ffb8b0",0.4),"fog":fog("#dca0a4",.38)},
+   "dawn":{"sky":sky("#5a4a7c","#8a6a98","#e8a0a8","#ffb0b5",0.4),"fog":fog("#dca0a4",.38)},
    "night":{"sky":sky("#120c22","#1e1430","#3a2440","#6a3a52",0.1),"fog":fog("#2a1a2e",.4),"light":{"tint":"#c8b0ff","strength":0.12},"clouds":{"tint":"#3a2a44"},"particleScale":0.6}},
-  sun={"size":.034,"core":"#ffe8d8","halo":"#ff9b86","haloRadius":.36,"haloAlpha":.8,"rays":12,"coreRays":8,"x":.8,"y":.61},
+  sun={"size":.034,"core":"#ffe2d8","halo":"#ff8786","haloRadius":.36,"haloAlpha":.8,"rays":12,"coreRays":8,"x":.8,"y":.61},
   stars={"count":24,"palette":"warm","milkyWay":0.35},
-  clouds={"tint":"#ffb4a8","litBySun":True}, wind=[0.35,0.0,0.12],
+  clouds={"tint":"#ffa8aa","litBySun":True}, wind=[0.35,0.0,0.12],
   particles=em([["petal",70,["#f7a8c4","#ffc9da","#ee93b4"],[3,6]],["blossom",22,["#f9b3cb","#ffd3e2"],[4,7]],["lens",3,["#f7a8c4"],[34,52]]]))
 
 theme("frost_morning",2,"Frost Morning","Pale blue mist that swallows the world; snow in the air.",
@@ -65,7 +65,7 @@ theme("aurora",4,"Aurora","Deep teal night, green and violet ribbons, slow snow.
    "dusk":{"sky":sky("#142238","#2a4a60","#6a9aa0","#a8d8c8",0.3),"fog":fog("#3a5a64",.5)}},
   moon={"size":.02,"color":"#e8f0ff","halo":"#9fd9ff","haloRadius":.12,"haloAlpha":.3,"ring":True,"x":.17,"y":.2},
   stars={"count":150,"palette":"teal","milkyWay":0.55},
-  aurora=["#4dffb0","#7a6bff"],
+  aurora=["#46f096","#7850eb"],
   clouds={"tint":"#16303a","litBySun":True}, wind=[0.12,0.0,0.04],
   particles=em([["snow",50,["#dff6ff"],[1.1,2.4]],["dust",20,["#7affd0"],[1,2]]]))
 
@@ -161,7 +161,8 @@ theme("silver_night",11,"Silver Night","A huge square moon, silver haze, pollen 
 theme("grace",12,"Grace","A gold rune of linked rings burns above a bank of lit cloud, deep in dark green fog.",
   ui("#e8c26a","rgba(8,20,17,.62)","rgba(240,205,120,.5)"),
   sky("#040d0b","#0b2a28","#14403d","#215049",0.1), fog("#10302d",.78), {"tint":"#b8e0c8","strength":0.12},
-  {"phase":"night","azimuth":180,"hold":True,"time":0.42},
+  # Facing south, the rune under the Carian moon as the Night Sky lab has it (its RUNE_DIR: 30 degrees up, due south).
+  {"phase":"night","azimuth":350,"hold":True,"time":0.42},
   {"day":{"sky":sky("#2c5a54","#4a7a70","#86aa98","#a8c8b4",0.15),"fog":fog("#4a7068",.72),"light":{"tint":"#e8f8ee","strength":0.06},"clouds":{"tint":"#a8c4b8"}},
    "dawn":{"sky":sky("#0c2420","#1e443e","#4a6e5c","#c09060",0.3),"fog":fog("#244a44",.76)},
    "dusk":{"sky":sky("#081c18","#183c36","#3e6050","#b07e50",0.3),"fog":fog("#1c403a",.76)}},
@@ -186,7 +187,7 @@ theme("empty",0,"Empty","Vanilla sky, Atmosphere off, neutral colours. Set it up
 # toward the sun and hangs near the ground, how golden hour lights the blocks (boost, sun and shadow colours), and
 # each theme's colour grade, bloom and vignette. Keyframes get their own fog distances and light where they differ.
 LOOK = {
-  "sakura_dusk": dict(fog=dict(near=3, far=72, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.55, sun="#ffd0c0", shadow="#4e3e74"),
+  "sakura_dusk": dict(fog=dict(near=3, far=72, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.55, sun="#ffc6c0", shadow="#4e3e74"),
     grade=dict(highlights="#ffd9e2", shadows="#24163a", saturation=1.1, contrast=1.05, bloomTint="#ffb2c8", bloom=0.88, threshold=0.6, vignette=0.14),
     kf=dict(day=dict(fog=dict(near=12, far=180), light=dict(boost=1.05)), night=dict(fog=dict(near=6, far=110), light=dict(boost=1.0)))),
   "frost_morning": dict(fog=dict(near=2, far=52, scatter=0.55, haze=0.5), light=dict(strength=0.42, boost=1.0, sun="#fff4e0", shadow="#7f98bc"),
@@ -211,11 +212,14 @@ LOOK = {
   "maple_afternoon": dict(fog=dict(near=4, far=84, scatter=0.95, haze=0.4), light=dict(strength=0.62, boost=1.5, sun="#ffd99a", shadow="#3c4a6c"),
     grade=dict(highlights="#ffe2ae", shadows="#1a2034", saturation=1.12, contrast=1.06, bloomTint="#ffcf88", bloom=0.88, threshold=0.6, vignette=0.12),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.06)), night=dict(fog=dict(near=6, far=100), light=dict(boost=1.0)))),
-  "eclipse": dict(fog=dict(near=4, far=84, scatter=0.85, haze=0.4), light=dict(strength=0.78, boost=0.3, sun="#ff9a72", shadow="#140404"),
-    grade=dict(highlights="#ffb894", shadows="#0a0204", saturation=1.08, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
+  # The red light and black sky stay; the world is lifted enough to play in, its shadows deep red rather than black,
+  # and the light tints the blocks rather than repainting them, so their own colours show through.
+  "eclipse": dict(fog=dict(near=8, far=110, scatter=0.85, haze=0.4), light=dict(strength=0.35, boost=0.55, sun="#ff9a72", shadow="#3a1a1e"),
+    grade=dict(highlights="#ffb894", shadows="#1c0608", saturation=1.22, contrast=1.12, bloomTint="#ff6a3a", bloom=1.0, threshold=0.5, vignette=0.2),
     kf=dict()),
   "deep_field": dict(fog=dict(near=10, far=130, scatter=0.35, haze=0.25), light=dict(strength=0.62, boost=1.0, sun="#f4f4fa", shadow="#101014"),
-    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.0, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
+    # Black and white with a trace of the world's colour left in it (the sky has none), so the land stays readable.
+    grade=dict(highlights="#ffffff", shadows="#020203", saturation=0.22, contrast=1.18, bloomTint="#ffffff", bloom=0.9, threshold=0.55, vignette=0.18),
     kf=dict(day=dict(fog=dict(near=16, far=200)))),
   "silver_night": dict(fog=dict(near=8, far=110, scatter=0.55, haze=0.35), light=dict(strength=0.7, boost=1.0, sun="#dfe6ff", shadow="#141c38"),
     grade=dict(highlights="#e8eeff", shadows="#060a1a", saturation=0.94, contrast=1.06, bloomTint="#c8d4ff", bloom=0.9, threshold=0.55, vignette=0.18),
@@ -230,6 +234,28 @@ LOOK = {
 # The sun themes' nights: the moon lights the world in the night's own colour.
 for _id in ("sakura_dusk", "frost_morning", "ember_solstice", "firefly_meadow", "maple_afternoon", "monsoon"):
     LOOK[_id]["kf"].setdefault("night", {}).setdefault("light", {})["strength"] = 0.45
+# Each theme's night (the Night Sky lab's THEMES): its moon look, its moonlight's colour, its night sky (top,
+# middle, horizon, blended in as the sun goes down) and its airglow.
+def hexc(r, g, b): return "#%02x%02x%02x" % (round(r), round(g), round(b))
+def light(r, g, b):
+    m = max(r, g, b)
+    return hexc(r / m * 255, g / m * 255, b / m * 255)
+NIGHT = {
+    "ember_solstice":  ("ember",     light(1, .62, .42),   ["#14070a", "#2c0e10", "#64210f"], hexc(150, 62, 30)),
+    "sakura_dusk":     ("pink",      light(.96, .8, .98),  ["#140c27", "#2d1a3d", "#58304f"], hexc(150, 80, 140)),
+    "maple_afternoon": ("harvest",   light(.72, .8, 1),    ["#0d0c1f", "#211b33", "#42302e"], hexc(130, 96, 60)),
+    "firefly_meadow":  ("honey",     light(1, .94, .7),    ["#06110e", "#0f2219", "#1e3b28"], hexc(70, 150, 80)),
+    "frost_morning":   ("halo",      light(.74, .88, 1.12), ["#081528", "#142a4c", "#2c4c72"], hexc(90, 150, 210)),
+    "monsoon":         ("corona",    light(.7, .78, .92),  ["#070b13", "#111925", "#1d2938"], hexc(60, 90, 120)),
+    "aurora":          ("silver",    light(.66, .92, .98), ["#04101b", "#082333", "#0f3545"], hexc(60, 200, 140)),
+    "nebula":          ("blue",      light(.8, .74, 1.12), ["#0f0622", "#210d3b", "#3a1c56"], hexc(150, 80, 210)),
+    "deep_field":      ("newmoon",   light(.8, .8, .8),    ["#020203", "#06060a", "#121218"], hexc(100, 100, 100)),
+    "silver_night":    ("supermoon", light(.8, .86, 1.06), ["#0a0e1c", "#19213b", "#30405f"], hexc(120, 140, 190)),
+    "eclipse":         ("blood",     light(1, .42, .3),    ["#0b0406", "#1d080a", "#561409"], hexc(170, 40, 30)),
+    "grace":           ("carian",    light(.84, .95, 1.12), ["#03110f", "#0a2621", "#17443b"], hexc(80, 170, 125)),
+}
+# Monsoon's broken cloud over the stars (lit by the lightning); Silver Night's silver haze along the horizon.
+NIGHT_EXTRA = {"monsoon": {"clouds": True}, "silver_night": {"haze": hexc(150, 165, 205)}}
 # Clear skies like the prototypes', except where clouds are the point (Monsoon's overcast) and in Empty, which is
 # the vanilla sky. The game's blocky clouds would cover Maple's and Frost's skies, which the prototypes keep clear.
 CLOUDY = {"monsoon", "empty"}
@@ -241,6 +267,98 @@ for id,o in T:
         k = o["keyframes"].setdefault(ph, {})
         for sec, vals in extra.items():
             k.setdefault(sec, {}).update(vals)
+
+for id,o in T:
+    if id in NIGHT:
+        moon, ml, nsky, air = NIGHT[id]
+        o["night"] = {"moon": moon, "light": ml, "sky": nsky, "airglow": air}
+        o["night"].update(NIGHT_EXTRA.get(id, {}))
+
+# Every theme through the whole day (the night follow-up): eight times of day, each a showpiece. The files had their
+# sunrise (dawn), noon (day), sunset (dusk) and night; morning and afternoon come between them, blue hour (a deep blue
+# sky over a pink and orange band) and pre-dawn from the Night Sky lab's twilight colours with the theme's night, and
+# sunrise turns pastel: pink, peach and gold, with mist in the valleys. No theme holds its showpiece any more.
+OLD = {"dawn": "sunrise", "day": "noon", "dusk": "sunset", "night": "night"}
+SKYK = [(10, "#4f74ad", "#91b2d8", "#f2cfa2"), (3, "#3f5f98", "#7b8fc0", "#ffb47a"), (-1, "#2c4380", "#5a68a6", "#ff8e5e"),
+        (-4, "#1d2c62", "#3b4a8a", "#d77b7e"), (-7, "#13204c", "#283a76", "#7a6596"), (-11, "#0b1538", "#182760", "#34437c"),
+        (-15, "#070f2a", "#0f1b46", "#1d2a5e"), (-19, "#050b20", "#0a1436", "#172350")]
+# Themes whose own sky colour is their identity keep it through blue hour and pre-dawn (Eclipse's sky stays red-black).
+OWN_TWILIGHT = {"eclipse"}
+PASTEL = {"sakura_dusk", "frost_morning", "ember_solstice", "firefly_meadow", "maple_afternoon", "aurora", "nebula", "silver_night"}
+
+def rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+def ishex(v): return isinstance(v, str) and v.startswith("#") and len(v) in (7, 9)
+def mixh(a, b, t):
+    x, y = rgb(a), rgb(b)
+    return "#%02x%02x%02x" % tuple(round(x[i] + (y[i] - x[i]) * t) for i in range(3))
+def skyk(alt):
+    for i in range(1, len(SKYK)):
+        a, b = SKYK[i - 1], SKYK[i]
+        if alt >= b[0]:
+            t = (alt - b[0]) / (a[0] - b[0])
+            return tuple(mixh(b[j], a[j], t) for j in (1, 2, 3))
+    return SKYK[-1][1:]
+
+def merged(base, over):
+    out = json.loads(json.dumps(base))
+    for k, v in over.items():
+        out[k] = merged(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+SECTIONS = ("sky", "fog", "light", "clouds", "particleScale")
+def resolved(o, name):
+    """A time of day's sky, fog, light and clouds as they come out: its keyframe over the file's own values."""
+    own = {k: o[k] for k in SECTIONS if k in o}
+    own.setdefault("particleScale", 1.0)
+    return merged(own, {} if o["show"]["phase"] == name else o["keyframes"].get(name, {}))
+
+def blend(a, b, t):
+    """Between two resolved times of day: colours mixed, numbers in between, anything else the nearer one's."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        keys = list(a) + [k for k in b if k not in a]
+        return {k: blend(a.get(k, b.get(k)), b.get(k, a.get(k)), t) for k in keys}
+    if ishex(a) and ishex(b):
+        return mixh(a, b, t)
+    if isinstance(a, int) and isinstance(b, int) and not isinstance(a, bool):
+        return round(a + (b - a) * t)
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)) and not isinstance(a, bool):
+        return round(a + (b - a) * t, 4)
+    return a if t < 0.5 else b
+
+for id, o in T:
+    if id == "empty":
+        continue
+    o["keyframes"] = {OLD.get(k, k): v for k, v in o["keyframes"].items()}
+    o["show"]["phase"] = OLD.get(o["show"]["phase"], o["show"]["phase"])
+    o["show"].pop("hold", None)
+    o["show"].pop("time", None)
+    show = o["show"]["phase"]
+    kf = o["keyframes"]
+    # The theme's own night sky from the lab (a night showpiece keeps its own).
+    if id in NIGHT and show != "night":
+        kf.setdefault("night", {}).setdefault("sky", {}).update(dict(zip(("top", "middle", "horizon"), NIGHT[id][2])))
+    if id in PASTEL and show != "sunrise":
+        r = resolved(o, "sunrise")["sky"]
+        kf.setdefault("sunrise", {}).setdefault("sky", {}).update(
+            horizon=mixh(r["horizon"], "#ffc8a8", 0.35), middle=mixh(r["middle"], "#e6b4c8", 0.25), glow=mixh(r["glow"], "#ffd890", 0.3))
+        kf["sunrise"].setdefault("fog", {})["haze"] = round(o["fog"].get("haze", 0.2) + 0.25, 3)
+    sunrise, noon, sunset, night = (resolved(o, n) for n in ("sunrise", "noon", "sunset", "night"))
+    kf["morning"] = blend(sunrise, noon, 0.65)
+    kf["afternoon"] = blend(noon, sunset, 0.3)
+    bk, pk = skyk(-8), skyk(-11)
+    own = 0.85 if id in OWN_TWILIGHT else 0.0
+    blue = blend(sunset, night, 0.6)
+    blue["sky"].update(top=mixh(bk[0], night["sky"]["top"], max(own, 0.35)), middle=mixh(bk[1], night["sky"]["middle"], max(own, 0.3)),
+                       horizon=mixh(mixh(sunset["sky"]["horizon"], "#d77b7e", 0.45), night["sky"]["horizon"], 0.25),
+                       glow=sunset["sky"]["glow"], sunWarmth=0.3)
+    kf["bluehour"] = blue
+    pre = blend(night, sunrise, 0.35)
+    pre["sky"].update(top=mixh(pk[0], night["sky"]["top"], max(own, 0.45)), middle=mixh(pk[1], night["sky"]["middle"], max(own, 0.4)),
+                      horizon=mixh(night["sky"]["horizon"], sunrise["sky"]["horizon"], 0.45), glow=sunrise["sky"]["glow"], sunWarmth=0.25)
+    kf["predawn"] = pre
+    kf.pop(show, None)
+    order = ["predawn", "sunrise", "morning", "noon", "afternoon", "sunset", "bluehour", "night"]
+    o["keyframes"] = {k: kf[k] for k in order if k in kf}
 
 os.makedirs(OUT, exist_ok=True)
 for id,o in T:

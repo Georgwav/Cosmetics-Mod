@@ -43,6 +43,14 @@ public final class SolOverlay {
             g.fill(cx, cy - 4, cx + 1, cy, 0xE6FFFFFF);
             g.fill(cx, cy + 1, cx + 1, cy + 5, 0xE6FFFFFF);
         }
+        if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof net.minecraft.client.gui.screens.packs.PackSelectionScreen packs) {
+            double scale = mc.getWindow().getGuiScale();
+            int mx = (int) (mc.mouseHandler.xpos() / scale), my = (int) (mc.mouseHandler.ypos() / scale);
+            io.github.georgwav.cosmetics.sol.client.PackPreview.draw(g, packs, mx, my);
+        }
+        if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen servers) {
+            io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.drawTotal(g, servers.getServers(), servers.width);
+        }
         // Like the game's own toasts, Sol's hide with the HUD (F1) unless a screen is open.
         if (!io.github.georgwav.cosmetics.sol.render.Mc.hudHidden() || io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
             toasts(mc, g);

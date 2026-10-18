@@ -50,6 +50,7 @@ public final class SolHooks {
                 *///?}
                 FrameInfo.renderDistance = mc.options.getEffectiveRenderDistance() * 16f;
                 FrameInfo.day = Math.floorDiv(level.getGameTime(), 24000L);
+                FrameInfo.days = level.getGameTime() / 24000.0;
                 var player = mc.player;
                 FrameInfo.skyHidden = player != null && (player.hasEffect(MobEffects.BLINDNESS)
                         || player.hasEffect(MobEffects.DARKNESS));
@@ -62,8 +63,8 @@ public final class SolHooks {
             FrameInfo.timeOfDay = io.github.georgwav.cosmetics.sol.atmosphere.SkyTime.shown;
             ThemeState.update(FrameInfo.inWorld ? FrameInfo.timeOfDay : Float.NaN);
             QualityGovernor.frame(FrameInfo.frameSeconds);
+            io.github.georgwav.cosmetics.sol.atmosphere.SkyOpen.frame(FrameInfo.frameSeconds);
             SolTiming.frame(FrameInfo.frameSeconds);
-            io.github.georgwav.cosmetics.client.modules.Performance.frame(FrameInfo.frameSeconds);
             io.github.georgwav.cosmetics.devtools.SolScenario.frame(FrameInfo.frameSeconds,
                     io.github.georgwav.cosmetics.sol.render.LightPass.nanos);
         } catch (RuntimeException | LinkageError e) {

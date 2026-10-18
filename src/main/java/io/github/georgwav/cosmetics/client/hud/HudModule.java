@@ -18,8 +18,11 @@ public abstract class HudModule extends Module {
     float offsetX;
     float offsetY;
     protected final Setting.Slider scale = add(new Setting.Slider("scale", 1.0, 0.5, 2.0, 0.05,
-            v -> Math.round(v * 100) + "%"));
-    protected final Setting.Toggle backing = add(new Setting.Toggle("backing", true));
+            v -> Math.round(v * 100) + "%").group("size"));
+    protected final Setting.Toggle backing = add(new Setting.Toggle("backing", true).group("size"));
+    /** How dark the backing (or Sol UI's glass) is, against its usual. */
+    protected final Setting.Slider backingOpacity = add(new Setting.Slider("backing_opacity", 100, 10, 200, 10,
+            v -> Math.round(v) + "%").group("size"));
 
     protected HudModule(String id, String icon, float anchorX, float anchorY, float offsetX, float offsetY) {
         super(id, Category.HUD, icon);
@@ -82,6 +85,16 @@ public abstract class HudModule extends Module {
         draw(g.canvas(), mc);
     }
 
+    /** The plain look's backing colour: the game's dark backing, as dark as the module's backing asks. */
+    protected int backingArgb() {
+        return Math.min(255, Math.round(0x70 * backingOpacity.get().floatValue() / 100f)) << 24;
+    }
+
+    /** How much of Sol UI's glass to draw: none without a backing, else its darkness against the usual. */
+    public float glass() {
+        return backing.get() ? backingOpacity.get().floatValue() / 100f : 0f;
+    }
+
     public float scale() {
         return scale.get().floatValue();
     }
@@ -129,7 +142,7 @@ public abstract class HudModule extends Module {
             io.github.georgwav.cosmetics.sol.hud.SolHud.module(g, s, this, mc);
         } else {
             if (backing.get() && wholeBacking()) {
-                g.fill(0, 0, width(mc), height(mc), 0x70000000);
+                g.fill(0, 0, width(mc), height(mc), backingArgb());
             }
             draw(g, mc);
         }

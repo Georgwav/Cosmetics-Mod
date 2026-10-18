@@ -14,11 +14,11 @@ import net.minecraft.world.InteractionResult;
  * switched off: blocks breaking, explosions, and rain and splashes.
  */
 public final class ParticleTweaks extends Module {
-    private final Setting.Slider multiplier = add(new Setting.Slider("multiplier", 1, 1, 5, 1, v -> Math.round(v) + "×"));
-    private final Setting.Toggle sharpness = add(new Setting.Toggle("sharpness", false));
-    private final Setting.Toggle blocks = add(new Setting.Toggle("blocks", true));
-    private final Setting.Toggle explosions = add(new Setting.Toggle("explosions", true));
-    private final Setting.Toggle weather = add(new Setting.Toggle("weather", true));
+    private final Setting.Slider multiplier = add(new Setting.Slider("multiplier", 1, 1, 5, 1, v -> Math.round(v) + "×").group("hits"));
+    private final Setting.Toggle sharpness = add(new Setting.Toggle("sharpness", false).group("hits"));
+    private final Setting.Toggle blocks = add(new Setting.Toggle("blocks", true).group("busy"));
+    private final Setting.Toggle explosions = add(new Setting.Toggle("explosions", true).group("busy"));
+    private final Setting.Toggle weather = add(new Setting.Toggle("weather", true).group("busy"));
 
     public ParticleTweaks() {
         super("particles", Category.VIEW, "dots");

@@ -38,9 +38,10 @@ import java.util.Random;
  * - Hearts: pixel hearts in the accent with a soft glow. Poison, wither, frozen, absorption and hardcore keep their
  *   meaning. The game's heart logic is ported: the blink after damage, the regeneration wave, the low-health jitter
  *   and half hearts.
- * - Hunger: shanks in the glow, emptying as the game's do; hunger keeps its green. A bright rim on the shanks that
- *   still hold saturation, and the shanks a held food would fill blink. With AppleSkin, its exhaustion line is
- *   drawn under the shanks, and AppleSkin's own overlays are cancelled ({@link AppleSkinBridge}).
+ * - Hunger: shanks in the glow, emptying as the game's do; hunger keeps its green. With AppleSkin installed, its
+ *   details are drawn here in the theme instead of over the bar: a bright rim on the shanks that still hold
+ *   saturation, the shanks a held food would fill blinking, and the exhaustion line under the shanks; AppleSkin's
+ *   own overlays are cancelled ({@link AppleSkinBridge}). Without it the bar shows what the game's does.
  * - Armour: pixel chestplates in light silver.
  * - XP: a glowing line from the glow to the accent, the level above it in the accent.
  * - Air and mount health: the same pixel icons in the theme's colours. The jump and locator bars stay the game's.
@@ -184,7 +185,12 @@ public final class SolHud {
         DRAWN[Part.MODULES.ordinal()]++;
         Guard.run(Feature.SOL_UI, () -> {
             Gfx g = begin(c, scale);
-            module.drawSolLook(g, ThemeState.tokens(), mc);
+            HudKit.glass = module.glass();
+            try {
+                module.drawSolLook(g, ThemeState.tokens(), mc);
+            } finally {
+                HudKit.glass = 1f;
+            }
             end(c);
         });
     }
@@ -467,11 +473,12 @@ public final class SolHud {
         boolean hunger = player.hasEffect(MobEffects.HUNGER);
         PictureTexture t = HudIcons.texture(tk);
         RANDOM.setSeed(tickCount * 312871L + 1L);
-        // What the food in hand would bring, blinking (1.1 s).
-        FoodProperties held = player.getMainHandItem().get(DataComponents.FOOD);
+        // AppleSkin's details: what the food in hand would bring, blinking (1.1 s), and the saturation rims.
+        boolean appleSkin = AppleSkinBridge.present();
+        FoodProperties held = appleSkin ? player.getMainHandItem().get(DataComponents.FOOD) : null;
         int after = held == null ? level : Math.min(20, level + held.nutrition());
         boolean blinkOn = !SolScreen.calm() && (millis() % 1100L) < 650L;
-        float sat = saturation;
+        float sat = appleSkin ? saturation : 0f;
         for (int i = 0; i < 10; i++) {
             int y = l.y();
             if (saturation <= 0f && tickCount % (level * 3 + 1) == 0) {

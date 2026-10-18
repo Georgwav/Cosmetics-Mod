@@ -16,6 +16,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class BossOverlayMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;)V", at = @At("HEAD"), require = 0)
     private void cosmeticsmod$in(GuiGraphics graphics, CallbackInfo ci) {
+        // Sol UI may leave the boss bars out (BossBarTweaksMixin cancels), and then this is never undone.
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.hidesBossBars()) {
+            return;
+        }
         Canvas g = new Canvas(graphics);
         g.push();
         g.translate(VanillaHud.dx(VanillaHud.Part.BOSS_BAR), VanillaHud.dy(VanillaHud.Part.BOSS_BAR));
@@ -23,7 +27,9 @@ abstract class BossOverlayMixin {
 
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;)V", at = @At("RETURN"), require = 0)
     private void cosmeticsmod$out(GuiGraphics graphics, CallbackInfo ci) {
-        new Canvas(graphics).pop();
+        if (!io.github.georgwav.cosmetics.sol.hud.HudTweaks.hidesBossBars()) {
+            new Canvas(graphics).pop();
+        }
     }
 }
 *///?}

@@ -38,7 +38,20 @@ public final class WorldTint {
                 c = Colors.mixRgb(c, tk.skyGlow, low * 0.4f);
             }
         }
+        // Monsoon's overcast breaks up at night: the blocky clouds melt into the sky as its own broken cloud comes.
+        float gone = nightFade();
+        if (gone > 0f) {
+            c = Colors.mixRgb(c, tk.skyMiddle, gone);
+        }
         return (vanilla & 0xFF000000) | (c & 0x00FFFFFF);
+    }
+
+    /** How far the game's clouds have given way to the theme's night cloud (NightClouds), 0..1. */
+    private static float nightFade() {
+        if (!ThemeState.entry().base().night().clouds()) {
+            return 0f;
+        }
+        return Ease.smoothstep(-3f, -12f, NightSky.SPHERE.sunAlt);
     }
 
     /** Whether the game's clouds should be drawn now: hidden while a theme with a clear sky is on. */
@@ -47,7 +60,7 @@ public final class WorldTint {
         if (at == null || !at.clouds.get() || !Atmosphere.active() || !FogControl.activeSky()) {
             return true;
         }
-        return ThemeState.tokens().cloudsVisible;
+        return ThemeState.tokens().cloudsVisible && nightFade() < 0.97f;
     }
 
     /**

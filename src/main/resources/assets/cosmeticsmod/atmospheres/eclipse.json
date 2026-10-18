@@ -19,23 +19,21 @@
   "fog": {
     "color": "#3a0d0b",
     "density": 0.5,
-    "near": 4,
-    "far": 84,
+    "near": 8,
+    "far": 110,
     "scatter": 0.85,
     "haze": 0.4
   },
   "light": {
     "tint": "#ff9a7a",
-    "strength": 0.78,
-    "boost": 0.3,
+    "strength": 0.35,
+    "boost": 0.55,
     "sun": "#ff9a72",
-    "shadow": "#140404"
+    "shadow": "#3a1a1e"
   },
   "show": {
-    "phase": "day",
-    "azimuth": 0,
-    "hold": true,
-    "time": 0.1842
+    "phase": "noon",
+    "azimuth": 0
   },
   "sun": {
     "size": 0.055,
@@ -100,7 +98,37 @@
     }
   ],
   "keyframes": {
-    "dawn": {
+    "predawn": {
+      "sky": {
+        "top": "#0b070e",
+        "middle": "#1c0d17",
+        "horizon": "#5f170d",
+        "glow": "#ff5a34",
+        "sunWarmth": 0.25
+      },
+      "fog": {
+        "color": "#280908",
+        "density": 0.5,
+        "near": 8,
+        "far": 110,
+        "scatter": 0.85,
+        "haze": 0.4
+      },
+      "light": {
+        "tint": "#ff8969",
+        "strength": 0.2135,
+        "boost": 0.55,
+        "sun": "#ff9a72",
+        "shadow": "#3a1a1e"
+      },
+      "clouds": {
+        "tint": "#2a0e0c",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
+    },
+    "sunrise": {
       "sky": {
         "top": "#060406",
         "middle": "#160a0c",
@@ -109,7 +137,67 @@
         "sunWarmth": 0.32
       }
     },
-    "dusk": {
+    "morning": {
+      "sky": {
+        "top": "#050405",
+        "middle": "#13080b",
+        "horizon": "#621510",
+        "glow": "#ff502e",
+        "sunWarmth": 0.307
+      },
+      "fog": {
+        "color": "#3a0d0b",
+        "density": 0.5,
+        "near": 8,
+        "far": 110,
+        "scatter": 0.85,
+        "haze": 0.4
+      },
+      "light": {
+        "tint": "#ff9a7a",
+        "strength": 0.35,
+        "boost": 0.55,
+        "sun": "#ff9a72",
+        "shadow": "#3a1a1e"
+      },
+      "clouds": {
+        "tint": "#2a0e0c",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
+    },
+    "afternoon": {
+      "sky": {
+        "top": "#050405",
+        "middle": "#13080b",
+        "horizon": "#621510",
+        "glow": "#ff502e",
+        "sunWarmth": 0.306
+      },
+      "fog": {
+        "color": "#3a0d0b",
+        "density": 0.5,
+        "near": 8,
+        "far": 110,
+        "scatter": 0.85,
+        "haze": 0.4
+      },
+      "light": {
+        "tint": "#ff9a7a",
+        "strength": 0.35,
+        "boost": 0.55,
+        "sun": "#ff9a72",
+        "shadow": "#3a1a1e"
+      },
+      "clouds": {
+        "tint": "#2a0e0c",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
+    },
+    "sunset": {
       "sky": {
         "top": "#060406",
         "middle": "#160a0c",
@@ -117,12 +205,42 @@
         "glow": "#ff5a34",
         "sunWarmth": 0.32
       }
+    },
+    "bluehour": {
+      "sky": {
+        "top": "#0c0810",
+        "middle": "#1e0f19",
+        "horizon": "#8a3a34",
+        "glow": "#ff5a34",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#290908",
+        "density": 0.5,
+        "near": 8,
+        "far": 110,
+        "scatter": 0.85,
+        "haze": 0.4
+      },
+      "light": {
+        "tint": "#ff8a6a",
+        "strength": 0.224,
+        "boost": 0.55,
+        "sun": "#ff9a72",
+        "shadow": "#3a1a1e"
+      },
+      "clouds": {
+        "tint": "#2a0e0c",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
     },
     "night": {
       "sky": {
-        "top": "#020203",
-        "middle": "#080405",
-        "horizon": "#2a0a08",
+        "top": "#0b0406",
+        "middle": "#1d080a",
+        "horizon": "#561409",
         "glow": "#7a2014",
         "sunWarmth": 0.1
       },
@@ -138,12 +256,22 @@
   },
   "grade": {
     "highlights": "#ffb894",
-    "shadows": "#0a0204",
-    "saturation": 1.08,
+    "shadows": "#1c0608",
+    "saturation": 1.22,
     "contrast": 1.12,
     "bloomTint": "#ff6a3a",
     "bloom": 1.0,
     "threshold": 0.5,
     "vignette": 0.2
+  },
+  "night": {
+    "moon": "blood",
+    "light": "#ff6b4c",
+    "sky": [
+      "#0b0406",
+      "#1d080a",
+      "#561409"
+    ],
+    "airglow": "#aa281e"
   }
 }

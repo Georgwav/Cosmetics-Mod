@@ -13,7 +13,8 @@ import net.minecraft.tags.FluidTags;
 
 /**
  * The glitter path: the light (a low sun, the moon, the burning ring) reflected on the water toward you as a road
- * of twinkling glints. Every half second the water surface is found in a narrowing cone toward the light; each
+ * of twinkling glints. Every half second the water surface under the open sky is found in a narrowing cone toward
+ * the light; each
  * frame its glints twinkle there, added in the light's colour, brighter the nearer the light is to the horizon.
  */
 public final class GlitterPath {
@@ -143,7 +144,8 @@ public final class GlitterPath {
                     pos.set(bx, y, bz);
                     if (level.getFluidState(pos).is(FluidTags.WATER)) {
                         pos.set(bx, y + 1, bz);
-                        if (level.getBlockState(pos).isAir()) {
+                        // Only water under the open sky catches the light (not a lake in a cave below you).
+                        if (level.getBlockState(pos).isAir() && level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos) >= 12) {
                             gx[count] = wx;
                             gy[count] = y + 0.9f;
                             gz[count] = wz;

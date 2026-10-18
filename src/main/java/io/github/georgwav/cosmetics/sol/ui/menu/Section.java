@@ -28,6 +28,17 @@ public interface Section {
     default void opened() {
     }
 
+    /** Another section was opened instead of this one. */
+    default void left() {
+    }
+
+    /**
+     * After the menu's frame, in the game's GUI pixels and drawing tools: for what only the game draws (the 3D player).
+     * Not called while the command bar or the profiles cover the section.
+     */
+    default void game(SolMenu menu, io.github.georgwav.cosmetics.ui.Canvas canvas, int mouseX, int mouseY, float dt) {
+    }
+
     /** The menu closed: free textures. */
     default void closed() {
     }

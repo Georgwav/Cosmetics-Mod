@@ -10,7 +10,7 @@ layout(location = 0) in vec2 texCoord;
 
 layout(location = 0) out vec4 fragColor;
 
-// Sol's per-frame values: 64 floats, each one's IEEE bits in a texel's bytes (r = lowest).
+// Sol's per-frame values: 128 floats, each one's IEEE bits in a texel's bytes (r = lowest).
 float P(int i) {
     vec4 t = texelFetch(ParamsSampler, ivec2(i, 0), 0);
     int b0 = int(t.r * 255.0 + 0.5);
@@ -52,10 +52,7 @@ void main() {
     vec3 col = texture(InSampler, texCoord).rgb;
     float depth = texture(DepthSampler, texCoord).r;
     vec3 sunCol = P3(32);
-    // Pixel light reads the quarter-size shafts texel by texel: light in visible steps.
-    vec2 ss = vec2(textureSize(ShaftsSampler, 0));
-    vec2 suv = P(30) > 0.5 ? (floor(texCoord * ss) + 0.5) / ss : texCoord;
-    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, suv).rgb * sunCol * P(21) : vec3(0.0);
+    vec3 shafts = P(11) >= 2.0 ? texture(ShaftsSampler, texCoord).rgb * sunCol * P(21) : vec3(0.0);
     if (isSky(depth)) {
         // A lightning flash lights the clouds from inside.
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
@@ -134,6 +131,24 @@ void main() {
         float graze = pow(1.0 - abs(dot(n, dir)), 2.5);
         col += lightCol * facing * graze * P(47) * 0.55 * (1.0 - fogged * 0.7) * smoothstep(0.0, 0.3, P(12));
         flashGain = 0.3 + 0.7 * facing;
+        // A second light where the theme's own is something else (the moon under the rune, the aurora, the
+        // galaxy): silver on the faces turned toward it, a little everywhere.
+        if (P(70) > 0.0) {
+            float xk = (max(0.0, dot(n, normalize(P3(64)))) * 0.72 + 0.07) * P(70);
+            col += col * P3(67) * xk * 1.4 * (1.0 - fogged);
+        }
+    } else if (P(70) > 0.0) {
+        col += col * P3(67) * P(70) * 0.25 * (1.0 - fogged);
+    }
+    // Day for night: the dim world turns blue, its shadows lifted to a blue-violet floor (never flat black), the
+    // nearest blocks the most so you can still play; warm lights (torches, lava, windows) keep their colour.
+    float nk = P(71);
+    if (nk > 0.0) {
+        float l = luma(col);
+        float warm = clamp((col.r - col.b) * 3.0, 0.0, 1.0) * smoothstep(0.2, 0.55, l);
+        col = mix(col, l * vec3(0.78, 0.9, 1.22), nk * 0.55 * (1.0 - smoothstep(0.12, 0.7, l)) * (1.0 - warm));
+        float near = 1.0 - smoothstep(4.0, 36.0, dist);
+        col += P3(72) * nk * (0.35 + 0.65 * near) * (1.0 - smoothstep(0.0, 0.3, l)) * (1.0 - fogged * 0.6);
     }
     // A lightning flash lights the whole world for a moment, the faces toward the bolt the most.
     // It lifts the midtones (the dark world comes up, bright sand doesn't clip into a white sheet).

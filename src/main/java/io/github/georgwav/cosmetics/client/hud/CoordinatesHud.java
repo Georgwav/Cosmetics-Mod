@@ -13,18 +13,17 @@ import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * Coordinates: where you are (block coordinates), which way you face and the biome, with a compass strip under it.
- * Sol UI shows steady mono numbers with the axes in the accent, the biome underneath, and the strip with an accent
- * marker (the brief's coordinates and compass); the plain look writes lines.
+ * Coordinates: where you are (block coordinates) and which way you face, with a direction bar under it. Sol UI shows
+ * steady mono numbers with the axes in the accent, the facing underneath, and the bar with an accent marker (the
+ * brief's coordinates and compass); the plain look writes lines.
  */
 public final class CoordinatesHud extends TextHud {
-    private final Setting.Toggle direction = add(new Setting.Toggle("direction", true));
-    private final Setting.Toggle biome = add(new Setting.Toggle("biome", false));
-    private final Setting.Toggle compass = add(new Setting.Toggle("compass", true));
-    private String biomeId = "", biomeName = "";
+    private final Setting.Toggle direction = add(new Setting.Toggle("direction", true).group("shows"));
+    private final Setting.Toggle compass = add(new Setting.Toggle("compass", true).group("shows"));
+    /** The same spot in the other dimension: the Nether's in the Overworld and the other way round. */
+    private final Setting.Toggle other = add(new Setting.Toggle("other_dimension", false).group("shows"));
 
     public CoordinatesHud() {
         super("coordinates", "pin", 0f, 0f, 4f, 40f);
@@ -40,10 +39,27 @@ public final class CoordinatesHud extends TextHud {
         if (direction.get()) {
             lines.add(facing(mc));
         }
-        if (biome.get()) {
-            lines.add(biome(mc));
+        String o = otherDimension(mc);
+        if (o != null) {
+            lines.add(o);
         }
         return lines;
+    }
+
+    /** "Nether 16 -32" in the Overworld, "Overworld 128 -256" in the Nether; null elsewhere or when off. */
+    private String otherDimension(Minecraft mc) {
+        if (!other.get() || mc.player == null || mc.level == null) {
+            return null;
+        }
+        var dim = mc.level.dimension();
+        boolean nether = dim == net.minecraft.world.level.Level.NETHER;
+        if (!nether && dim != net.minecraft.world.level.Level.OVERWORLD) {
+            return null;
+        }
+        double k = nether ? 8.0 : 1.0 / 8.0;
+        int x = (int) Math.floor(mc.player.getX() * k), z = (int) Math.floor(mc.player.getZ() * k);
+        return Component.translatable(nether ? "cosmeticsmod.module.coordinates.overworld" : "cosmeticsmod.module.coordinates.nether")
+                .getString() + " " + x + " " + z;
     }
 
     private static String facing(Minecraft mc) {
@@ -57,31 +73,6 @@ public final class CoordinatesHud extends TextHud {
         };
         return Component.translatable("cosmeticsmod.module.coordinates.facing." + facing.getSerializedName()).getString()
                 + " (" + axis + ")";
-    }
-
-    private String biome(Minecraft mc) {
-        String id = mc.level.getBiome(mc.player.blockPosition()).getRegisteredName();
-        if (!id.equals(biomeId)) {
-            biomeId = id;
-            biomeName = biomeName(id);
-        }
-        return biomeName;
-    }
-
-    /** "minecraft:dark_forest" as "Dark Forest". */
-    private static String biomeName(String id) {
-        String path = id.substring(id.indexOf(':') + 1);
-        StringBuilder name = new StringBuilder();
-        for (String word : path.split("[_/]")) {
-            if (word.isEmpty()) {
-                continue;
-            }
-            if (!name.isEmpty()) {
-                name.append(' ');
-            }
-            name.append(word.substring(0, 1).toUpperCase(Locale.ROOT)).append(word.substring(1));
-        }
-        return name.toString();
     }
 
     // ---------------------------------------------------------------- Sol UI
@@ -98,11 +89,11 @@ public final class CoordinatesHud extends TextHud {
 
     private String sub(Minecraft mc) {
         if (mc.player == null) {
-            return "Plains";
+            return Component.translatable("cosmeticsmod.module.coordinates.facing.north").getString() + " (-Z)";
         }
-        String b = biome.get() ? biome(mc) : null;
-        String d = direction.get() ? facing(mc) : null;
-        return b != null && d != null ? b + "  ·  " + d : b != null ? b : d;
+        String o = otherDimension(mc);
+        String f = direction.get() ? facing(mc) : null;
+        return f == null ? o : o == null ? f : f + "  ·  " + o;
     }
 
     private float cardWidth(Minecraft mc) {

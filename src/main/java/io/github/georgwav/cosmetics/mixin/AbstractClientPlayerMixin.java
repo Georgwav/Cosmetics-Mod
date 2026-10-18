@@ -13,12 +13,20 @@ import net.minecraft.world.entity.player.PlayerSkin;
 /*import net.minecraft.client.resources.PlayerSkin;
 *///?}
 
-/** Your own player wears the skin you just applied (OwnSkin) until the game fetches it from Mojang on rejoining. */
+/**
+ * Your own player wears the skin you just applied (OwnSkin) until the game fetches it from Mojang on rejoining, and
+ * the game's default skin while streaming (Social).
+ */
 @Mixin(AbstractClientPlayer.class)
 abstract class AbstractClientPlayerMixin {
     @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
     private void cosmeticsmod$ownSkin(CallbackInfoReturnable<PlayerSkin> cir) {
-        if (OwnSkin.active() && (Object) this == Minecraft.getInstance().player) {
+        if ((Object) this != Minecraft.getInstance().player) {
+            return;
+        }
+        if (io.github.georgwav.cosmetics.sol.client.Streamer.on()) {
+            cir.setReturnValue(net.minecraft.client.resources.DefaultPlayerSkin.get(((AbstractClientPlayer) (Object) this).getUUID()));
+        } else if (OwnSkin.active()) {
             cir.setReturnValue(OwnSkin.apply(cir.getReturnValue()));
         }
     }

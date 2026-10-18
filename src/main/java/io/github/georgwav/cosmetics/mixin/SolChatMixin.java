@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -25,11 +27,13 @@ import net.minecraft.client.GuiMessageTag;
 //?}
 
 /**
- * Sol Chat's messages: each one on its way into the chat goes through SolChat (timestamp, stacking, mentions) and is
- * added again as it becomes; a stacked one takes the place of the one it repeats.
+ * Sol Chat's messages: each one on its way into the chat goes through SolChat (timestamp, stacking) and is added
+ * again as it becomes; a stacked one takes the place of the one it repeats. Streamer mode (Social) scrubs every line
+ * first, with Sol Chat on or off. The chat keeps as many lines as Sol Chat's
+ * history asks (the game's 100 otherwise).
  */
 @Mixin(ChatComponent.class)
-abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.ChatRefresh {
+abstract class SolChatMixin {
     @Shadow
     @Final
     private List<GuiMessage> allMessages;
@@ -41,43 +45,39 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         throw new AssertionError();
     }
 
+    /** How many messages (and lines) the chat keeps before the oldest go. */
+    @ModifyConstant(method = {"addMessageToDisplayQueue", "addMessageToQueue"}, constant = @Constant(intValue = 100), require = 0)
+    private int cosmeticsmod$history(int game) {
+        return SolChat.history(game);
+    }
+
     /** What to add instead (null: the message as it is), with the stacked one it repeats taken away. */
     @Unique
     private SolChat.Added cosmeticsmod$process(Component message) {
         io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD.hit();
-        if (cosmeticsmod$adding || !Guard.on(Feature.CHAT)) {
+        if (cosmeticsmod$adding) {
             return null;
         }
+        // Streamer mode first, on its own: a Sol Chat failure mustn't let your name or a whisper through.
+        Component scrubbed = io.github.georgwav.cosmetics.sol.client.Streamer.scrub(message);
+        SolChat.Added plain = scrubbed != message ? new SolChat.Added(scrubbed, false) : null;
+        if (!Guard.on(Feature.CHAT)) {
+            return plain;
+        }
         try {
-            SolChat.Added added = SolChat.process(message);
-            if (added != null && added.replacesLast() && !allMessages.isEmpty()) {
+            SolChat.Added added = SolChat.process(scrubbed);
+            if (added == null) {
+                return plain;
+            }
+            if (added.replacesLast() && !allMessages.isEmpty()) {
                 allMessages.remove(0);
                 refreshTrimmedMessages();
             }
             return added;
         } catch (RuntimeException | LinkageError e) {
             Guard.fail(Feature.CHAT, e);
-            return null;
+            return plain;
         }
-    }
-
-    @Override
-    public void cosmeticsmod$refresh() {
-        refreshTrimmedMessages();
-    }
-
-    /** Sol Chat's tabs and search: a message they leave out isn't shown (it stays in the chat). */
-    @Inject(method = "addMessageToDisplayQueue", at = @At("HEAD"), cancellable = true, require = 0)
-    private void cosmeticsmod$filter(GuiMessage message, CallbackInfo ci) {
-        if (SolChat.hides(message.content(), message.signature() != null)) {
-            ci.cancel();
-        }
-    }
-
-    @Unique
-    private static GuiMessageTag cosmeticsmod$tag(SolChat.Added added, GuiMessageTag tag) {
-        return added.mention() ? new GuiMessageTag(SolChat.mentionColor(), null,
-                Component.translatable("sol.chat.mention"), "Mention") : tag;
     }
 
     //? if >=26.1 {
@@ -96,7 +96,7 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         }
         cosmeticsmod$adding = true;
         try {
-            addMessage(added.component(), signature, source, cosmeticsmod$tag(added, tag));
+            addMessage(added.component(), signature, source, tag);
         } finally {
             cosmeticsmod$adding = false;
         }
@@ -115,7 +115,7 @@ abstract class SolChatMixin implements io.github.georgwav.cosmetics.sol.chat.Cha
         }
         cosmeticsmod$adding = true;
         try {
-            addMessage(added.component(), signature, cosmeticsmod$tag(added, tag));
+            addMessage(added.component(), signature, tag);
         } finally {
             cosmeticsmod$adding = false;
         }

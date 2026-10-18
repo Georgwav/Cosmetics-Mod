@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.function.DoubleFunction;
 
 /**
- * One setting of a client module: a switch, a slider or a choice. Its name and hint are translation keys
- * ({@code cosmeticsmod.module.<module>.<setting>} and {@code ...hint}); its value is saved with the module.
+ * One setting of a client module: a switch, a slider, a choice, a line of text or a colour. Its name and hint are
+ * translation keys ({@code cosmeticsmod.module.<module>.<setting>} and {@code ...hint}); its value is saved with the
+ * module. Settings are shown in groups on the module's page ({@link #group}), the advanced ones folded at the end.
  */
 public abstract class Setting<T> {
     public final String id;
@@ -17,8 +18,10 @@ public abstract class Setting<T> {
     /** Called after the value changes. */
     Runnable onChange = () -> {
     };
-    /** Shown under "Advanced settings" in the Sol drawer, folded by default. */
+    /** Shown under "Advanced" on the module's page, folded by default. */
     public boolean advanced;
+    /** The group it's shown in on the module's page ({@code cosmeticsmod.group.<group>}). */
+    public String group = "general";
 
     protected Setting(String id, T def) {
         this.id = id;
@@ -28,6 +31,13 @@ public abstract class Setting<T> {
 
     public T get() {
         return value;
+    }
+
+    /** Puts it in a group on the module's page ("look", "behaviour", ...). */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S group(String name) {
+        group = name;
+        return (S) this;
     }
 
     /** Marks this setting as advanced (folded away in the drawer). */
@@ -147,8 +157,8 @@ public abstract class Setting<T> {
         }
     }
 
-    /** A line of text (up to {@code max} characters): what an auto-text key sends, a word to be mentioned by. */
-    public static class Text extends Setting<String> {
+    /** A line of text (up to {@code max} characters), such as the Discord application id. */
+    public static final class Text extends Setting<String> {
         public final int max;
 
         public Text(String id, String def, int max) {
@@ -179,64 +189,97 @@ public abstract class Setting<T> {
     }
 
     /**
-     * A secret line (an API key): kept in the owner-only secrets file, never in a profile (profiles get shared), and
-     * shown masked in the drawer.
+     * A colour (ARGB), saved as {@code #RRGGBB}, or {@code #AARRGGBB} when it keeps its own opacity. A colour that
+     * can follow the theme ({@link #themed}) saves "theme" and is the theme's accent while it does.
      */
-    public static final class Secret extends Text {
-        private final String key;
-        /** The value, read from the file once; written back half a second after the typing stops. */
-        private volatile String cached;
-        private final java.util.concurrent.atomic.AtomicLong edits = new java.util.concurrent.atomic.AtomicLong();
+    public static final class Color extends Setting<Integer> {
+        /** The value of a themed colour that follows the theme's accent (no real colour is fully see-through black). */
+        public static final int THEME = 0;
+        public final boolean alpha;
+        /** Whether it can follow the theme's accent. */
+        public boolean themed;
+        /** Colour names saved by older versions (when it was a list of names), and what each is now. */
+        private java.util.Map<String, Integer> names = java.util.Map.of();
 
-        public Secret(String id, String secretKey, int max) {
-            super(id, "", max);
-            this.key = secretKey;
+        public Color(String id, int def, boolean alpha) {
+            super(id, def == THEME ? THEME : alpha ? def : def | 0xFF000000);
+            this.alpha = alpha;
+            this.themed = def == THEME;
+        }
+
+        public Color(String id, int def) {
+            this(id, def, false);
+        }
+
+        /** Lets it follow the theme's accent (the "Theme" choice by its picker). */
+        public Color themed() {
+            themed = true;
+            return this;
+        }
+
+        /** The colour names an older version saved, each read as this colour ({@link #THEME} for "accent"). */
+        public Color names(java.util.Map<String, Integer> legacy) {
+            names = legacy;
+            return this;
+        }
+
+        /** Whether it follows the theme now. */
+        public boolean followsTheme() {
+            return themed && value == THEME;
+        }
+
+        /** The colour to draw with, ARGB: the theme's accent while it follows the theme. */
+        public int argb() {
+            if (followsTheme()) {
+                return 0xFF000000 | io.github.georgwav.cosmetics.sol.theme.ThemeState.tokens().accent;
+            }
+            return value;
         }
 
         @Override
-        public String get() {
-            String v = cached;
+        protected Integer clean(Integer v) {
             if (v == null) {
-                v = io.github.georgwav.cosmetics.sol.config.Secrets.get(key);
-                v = v == null ? "" : v;
-                cached = v;
+                return def;
             }
-            return v;
-        }
-
-        @Override
-        public void set(String v) {
-            String next = clean(v).strip();
-            if (!next.equals(get())) {
-                cached = next;
-                long edit = edits.incrementAndGet();
-                java.util.concurrent.CompletableFuture.delayedExecutor(500, java.util.concurrent.TimeUnit.MILLISECONDS,
-                        io.github.georgwav.cosmetics.sol.util.SolExecutors.IO).execute(() -> {
-                    if (edits.get() == edit) {
-                        io.github.georgwav.cosmetics.sol.config.Secrets.put(key, next);
-                    }
-                });
-                onChange.run();
+            if (themed && v == THEME) {
+                return THEME;
             }
-        }
-
-        /** A module's Reset leaves a secret alone: clearing a key is for its own field. */
-        @Override
-        public void reset() {
-        }
-
-        @Override
-        public boolean changed() {
-            return false;
+            return alpha ? v : v | 0xFF000000;
         }
 
         @Override
         JsonElement save() {
-            return null;
+            if (followsTheme()) {
+                return new JsonPrimitive("theme");
+            }
+            return new JsonPrimitive(alpha ? String.format(java.util.Locale.ROOT, "#%08X", value)
+                    : String.format(java.util.Locale.ROOT, "#%06X", value & 0xFFFFFF));
         }
 
         @Override
         void load(JsonElement json) {
+            if (json.isJsonPrimitive() && json.getAsJsonPrimitive().isString()) {
+                String s = json.getAsString();
+                if (s.equals("theme") && themed) {
+                    value = THEME;
+                    return;
+                }
+                Integer named = names.get(s);
+                if (named != null) {
+                    value = clean(named);
+                    return;
+                }
+                String h = s.startsWith("#") ? s.substring(1) : s;
+                try {
+                    if (h.length() == 6) {
+                        value = clean((int) Long.parseLong(h, 16) | 0xFF000000);
+                    } else if (h.length() == 8) {
+                        value = clean((int) Long.parseLong(h, 16));
+                    }
+                } catch (NumberFormatException e) {
+                    // Not a colour: keep the default.
+                }
+            }
         }
     }
 }

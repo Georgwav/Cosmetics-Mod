@@ -231,13 +231,13 @@ Instead of copying packs into `resourcepacks` and turning them on, put them into
 in your `mods` folder with all your cosmetics and emotes.
 
 ```powershell
-badlion-import bundle C:\Users\Pc\Downloads\jars\cosmeticsmod-<version>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk C:\badlion-packs\emotes-appdata --out C:\badlion-packs
+badlion-import bundle C:\Users\Pc\Downloads\jars\solclient-<version>+mc26.2.jar C:\badlion-packs\badlion C:\badlion-packs\lunar-norisk C:\badlion-packs\emotes-appdata --out C:\badlion-packs
 ```
 
 - The first argument is the mod's jar for your Minecraft version (from a build's `jars` download), then any number
   of pack folders written by `import` and `emotes`. It says how many cosmetics and emotes went in, and warns when
   none of the packs has emotes (the emotes pack left out: the emote wheel would have only the mod's own).
-- It writes `cosmeticsmod-<version>+mc<minecraft>-personal.jar`: next to the mod's jar, or into the folder (or as
+- It writes `solclient-<version>+mc<minecraft>-personal.jar`: next to the mod's jar, or into the folder (or as
   the file) `--out` names, such as the folder your packs are in. Never into this repository: like the packs, it is
   for your own use. Copy it into your launcher's `mods` folder (or point `--out` there).
 - Only each pack's `assets/` goes in; the mod reads it from the jar exactly as from the pack. Where two packs have

@@ -26,11 +26,27 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The mod browser's Modrinth: search Fabric mods for this Minecraft version, and install one (its newest compatible
- * file, checked against Modrinth's SHA-1, with the mods it requires) into the mods folder for the next start. Parsing
- * is pure and unit tested; the calls run on IO threads.
+ * The mod browser's Modrinth: search Fabric mods or resource packs for this Minecraft version, and install one (its
+ * newest compatible file, checked against Modrinth's SHA-1; a mod with the mods it requires) into this instance's
+ * folder: the game's own folder, so the launcher's instance (Threadrinth's, or .minecraft). Mods load at the next
+ * start; packs show in the pack screen at once. Parsing is pure and unit tested; the calls run on IO threads.
  */
 public final class Modrinth {
+    /** What to look for: Fabric mods (into mods) or resource packs (into resourcepacks). */
+    public enum Kind {
+        MOD("mod", "mods", "fabric"), PACK("resourcepack", "resourcepacks", "minecraft");
+
+        final String projectType;
+        public final String folder;
+        final String loader;
+
+        Kind(String projectType, String folder, String loader) {
+            this.projectType = projectType;
+            this.folder = folder;
+            this.loader = loader;
+        }
+    }
+
     static final String API = System.getProperty("cosmeticsmod.modrinth", "https://api.modrinth.com/v2");
 
     /** A search hit. */
@@ -53,9 +69,10 @@ public final class Modrinth {
         return FabricLoader.getInstance().getModContainer("minecraft").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
     }
 
-    /** The search address: Fabric mods for {@code mc}; empty query lists the most downloaded. */
-    static String searchUrl(String query, String mc) {
-        String facets = "[[\"categories:fabric\"],[\"versions:" + mc + "\"],[\"project_type:mod\"]]";
+    /** The search address: Fabric mods (or resource packs) for {@code mc}; empty query lists the most downloaded. */
+    static String searchUrl(String query, String mc, Kind kind) {
+        String facets = (kind == Kind.MOD ? "[[\"categories:fabric\"]," : "[") + "[\"versions:" + mc + "\"],[\"project_type:"
+                + kind.projectType + "\"]]";
         return API + "/search?limit=24&index=" + (query.isBlank() ? "downloads" : "relevance") + "&query="
                 + URLEncoder.encode(query.strip(), StandardCharsets.UTF_8) + "&facets=" + URLEncoder.encode(facets, StandardCharsets.UTF_8);
     }
@@ -110,8 +127,8 @@ public final class Modrinth {
     }
 
     /** Searches (IO thread); null when Modrinth can't be reached. */
-    public static List<Hit> search(String query) {
-        Http.Reply r = Http.get(searchUrl(query, minecraft()), headers());
+    public static List<Hit> search(String query, Kind kind) {
+        Http.Reply r = Http.get(searchUrl(query, minecraft(), kind), headers());
         try {
             return r.ok() ? hits(r.body()) : null;
         } catch (RuntimeException e) {
@@ -125,17 +142,22 @@ public final class Modrinth {
                 || hit.slug() != null && FabricLoader.getInstance().isModLoaded(hit.slug());
     }
 
+    /** This instance's folder (where its mods and resourcepacks folders are). */
+    public static Path instance() {
+        return FabricLoader.getInstance().getGameDir();
+    }
+
     /**
-     * Installs a project and what it requires (IO thread) into the mods folder; returns the files written, or throws
-     * with a reason. Mods already loaded are skipped.
+     * Installs a project (IO thread) into this instance's mods or resourcepacks folder, a mod with the mods it
+     * requires; returns the files written, or throws with a reason. Mods already loaded are skipped.
      */
-    public static List<String> install(String projectId, Set<String> seen) throws IOException, InterruptedException {
+    public static List<String> install(String projectId, Kind kind, Set<String> seen) throws IOException, InterruptedException {
         List<String> written = new ArrayList<>();
         if (!seen.add(projectId)) {
             return written;
         }
         String mc = minecraft();
-        String url = API + "/project/" + projectId + "/version?loaders=" + URLEncoder.encode("[\"fabric\"]", StandardCharsets.UTF_8)
+        String url = API + "/project/" + projectId + "/version?loaders=" + URLEncoder.encode("[\"" + kind.loader + "\"]", StandardCharsets.UTF_8)
                 + "&game_versions=" + URLEncoder.encode("[\"" + mc + "\"]", StandardCharsets.UTF_8);
         Http.Reply r = Http.get(url, headers());
         if (!r.ok()) {
@@ -145,7 +167,8 @@ public final class Modrinth {
         if (d == null || d.url() == null || d.fileName() == null || d.fileName().contains("/") || d.fileName().contains("\\")) {
             throw new IOException("no file");
         }
-        Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+        Path mods = instance().resolve(kind.folder);
+        Files.createDirectories(mods);
         Path target = mods.resolve(d.fileName());
         if (!Files.exists(target)) {
             Path part = mods.resolve(d.fileName() + ".part");
@@ -164,14 +187,14 @@ public final class Modrinth {
             Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
             written.add(d.fileName());
         }
-        for (String dep : d.requires()) {
+        for (String dep : kind == Kind.MOD ? d.requires() : List.<String>of()) {
             Http.Reply pr = Http.get(API + "/project/" + dep, headers());
             String slug = pr.ok() ? str(JsonParser.parseString(pr.body()).getAsJsonObject(), "slug") : null;
             if (slug != null && (FabricLoader.getInstance().isModLoaded(slug) || FabricLoader.getInstance().isModLoaded(slug.replace('-', '_'))
                     || slug.equals("fabric-api") && FabricLoader.getInstance().isModLoaded("fabric-api"))) {
                 continue;
             }
-            written.addAll(install(dep, seen));
+            written.addAll(install(dep, kind, seen));
         }
         return written;
     }

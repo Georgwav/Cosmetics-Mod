@@ -15,8 +15,14 @@ import io.github.georgwav.cosmetics.ui.ScreenOpener;
 
 import java.util.List;
 
-/** Settings: the client's own (Sol UI, keys, motion, quality, blur, light style, main folder, updates). */
+/**
+ * Settings: the client's own (Sol UI, keys, motion, quality, blur, light style, main folder, updates), and About:
+ * the version and the credits for what Sol is made with.
+ */
 final class SettingsSection implements Section {
+    /** The About page's lines: lang keys under {@code sol.menu.about.}. */
+    private static final String[] CREDITS = {"made", "stars", "constellations", "fonts", "lab", "moon_looks", "licences"};
+    private boolean about;
     private static final String VERSION = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("cosmeticsmod")
             .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?");
     private final Scroll scroll = new Scroll();
@@ -31,12 +37,19 @@ final class SettingsSection implements Section {
         Atmosphere at = Atmosphere.INSTANCE;
         float headY = y + 15f;
         SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
-        String title = SolMenu.tr("sol.section.settings");
+        String title = SolMenu.tr(about ? "sol.menu.about.title" : "sol.section.settings");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
-        g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
+        if (!about) {
+            g.textMid(mono, SolMenu.tr("sol.menu.settings.count"), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
+        }
+        ui.button(tk, x + w, headY, SolMenu.tr(about ? "sol.menu.about.back" : "sol.menu.about.open"), about, () -> about = !about);
+        if (about) {
+            about(g, x, y + 42f, w);
+            return;
+        }
 
-        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "light", "cosmetics", "keys", "screenshots",
-                "fast_quit", "pack_folders", "main_folder", "updates"};
+        String[] labels = {"sol_ui", "menu_key", "search", "motion", "quality", "blur", "cosmetics", "pack_folders",
+                "main_folder", "updates"};
         Row[] rows = {
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.solUi, () -> {
                     cfg.solUi = !cfg.solUi;
@@ -68,24 +81,8 @@ final class SettingsSection implements Section {
                         SolConfig.save();
                     });
                 },
-                (gg, u, t, r, cy) -> {
-                    if (at == null) {
-                        return;
-                    }
-                    boolean pixel = !"smooth".equals(at.lightStyle.get());
-                    u.segmented(t, r, cy, new String[]{at.optionName(at.lightStyle, "pixel"), at.optionName(at.lightStyle, "smooth")},
-                            pixel ? 0 : 1, i -> at.lightStyle.set(i == 0 ? "pixel" : "smooth"));
-                },
                 (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.cosmetics_open"), false,
                         () -> ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(menu, "settings"))),
-                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
-                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.KeybindSearch(menu))),
-                (gg, u, t, r, cy) -> u.button(t, r, cy, SolMenu.tr("sol.menu.settings.open"), false,
-                        () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ScreenshotGallery(menu))),
-                (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.fastQuit, () -> {
-                    cfg.fastQuit = !cfg.fastQuit;
-                    SolConfig.save();
-                }),
                 (gg, u, t, r, cy) -> u.smallSwitch(t, r - 30f, cy - 9f, cfg.packFolders, () -> {
                     cfg.packFolders = !cfg.packFolders;
                     SolConfig.save();
@@ -106,7 +103,7 @@ final class SettingsSection implements Section {
                     float bw;
                     if (state.equals("available") && rel != null) {
                         bw = u.button(t, r, cy, SolMenu.tr("sol.menu.settings.update_install", rel.version()), true,
-                                io.github.georgwav.cosmetics.sol.client.Updates::install);
+                                io.github.georgwav.cosmetics.sol.client.Updates::showWhatsNew);
                     } else if (state.equals("staged")) {
                         bw = u.pill(t, r, cy, SolMenu.tr("sol.menu.settings.update_restart"), true);
                     } else if (state.equals("checking") || state.equals("downloading")) {
@@ -131,6 +128,26 @@ final class SettingsSection implements Section {
         g.endClip();
         scroll.setMax(((rows.length + 1) / 2) * 40f - gh);
         scroll.step(menu.dt());
+    }
+
+    /** Opens on the About page (the scenario's shot). */
+    void showAbout() {
+        about = true;
+    }
+
+    /** The version and the credits, each a short paragraph. */
+    private static void about(Gfx g, float x, float y, float w) {
+        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.MONO, 12f);
+        float cy = y + 12f;
+        g.textMid(mono, "Sol Client " + VERSION, x, cy, 0xB3FFFFFF);
+        cy += 30f;
+        for (String key : CREDITS) {
+            for (String line : HudSection.wrap(g, f, SolMenu.tr("sol.menu.about." + key), w)) {
+                g.textMid(f, line, x, cy, 0xFFFFFFFF);
+                cy += 19f;
+            }
+            cy += 11f;
+        }
     }
 
     @Override

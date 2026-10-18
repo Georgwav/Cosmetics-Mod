@@ -1,0 +1,13 @@
+{
+  "name": "Blood moon",
+  "eclipse": true,
+  "light": 0.14,
+  "lightColor": "#ff6b4c",
+  "milkyWay": 1.0,
+  "chance": 0.1,
+  "minNightsBetween": 16,
+  "validPhases": [
+    "full_moon"
+  ],
+  "elongation": 180
+}

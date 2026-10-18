@@ -22,11 +22,18 @@ public final class HudKit {
     }
 
     /** A glass card (the prototype's .hc). */
+    /** How much of the glass the HUD module being drawn wants (its backing darkness; 0 for none). */
+    public static float glass = 1f;
+
     public static void card(Gfx g, Tokens tk, float x, float y, float w, float h, float r) {
-        g.glow(x, y, w, h, r, 5f, Colors.withAlpha(tk.glow, 0.14f));
-        g.round(x, y, w, h, r, Colors.withAlpha(tk.panel, Math.max(0.55f, tk.glass)));
-        g.stroke(x, y, w, h, r, 1f / g.d.u, 0x24FFFFFF);
-        g.highlight(x, y, w, h, r, 0x47FFFFFF);
+        float k = glass;
+        if (k <= 0f) {
+            return;
+        }
+        g.glow(x, y, w, h, r, 5f, Colors.withAlpha(tk.glow, Math.min(1f, 0.14f * k)));
+        g.round(x, y, w, h, r, Colors.withAlpha(tk.panel, Math.min(1f, Math.max(0.55f, tk.glass) * k)));
+        g.stroke(x, y, w, h, r, 1f / g.d.u, Colors.withAlpha(0xFFFFFFFF, Math.min(1f, 0.14f * k)));
+        g.highlight(x, y, w, h, r, Colors.withAlpha(0xFFFFFFFF, Math.min(1f, 0.28f * k)));
     }
 
     /** The accent square with its glow (the prototype's .hstats i). */

@@ -31,45 +31,100 @@ public final class ModulesSelfTest {
         setting(Modules.ATMOSPHERE, "lock_time").set(true);
         setting(Modules.FULLBRIGHT, "night_vision").set("always");
         Modules.FULLBRIGHT.setEnabled(true);
-        // A diamond in the inventory's top row, for the hotbar rows key.
-        command(mc, "item replace entity @s inventory.0 with minecraft:diamond");
-    }
-
-    private static boolean inventoryWasOn;
-
-    /** Midway, once the diamond is there: the hotbar rows key, so the diamond comes down to the hotbar. */
-    public static void midway(Minecraft mc) {
-        inventoryWasOn = Modules.INVENTORY.enabled();
-        Modules.INVENTORY.setEnabled(true);
-        rotated = io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
-    }
-
-    private static boolean rotated;
-
-    /** Projectile trails on, and a snowball in your hand to throw. */
-    public static void trailsOn(Minecraft mc) {
-        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").set("sparkle");
-        command(mc, "item replace entity @s weapon.mainhand with minecraft:snowball 4");
-    }
-
-    /** Throws the snowball (as a right click would) once it has reached your hand; true when thrown. */
-    public static boolean throwSnowball(Minecraft mc) {
-        if (mc.gameMode == null || mc.player == null || !mc.player.getMainHandItem().is(net.minecraft.world.item.Items.SNOWBALL)) {
-            return false;
+        // World Overlays' structure outlines, with a made-up desert pyramid starting in the chunk next to you.
+        overlaysWereOn = Modules.WORLD_OVERLAYS.enabled();
+        structuresWereOn = ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").get();
+        ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(true);
+        Modules.WORLD_OVERLAYS.setEnabled(true);
+        scansBefore = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans;
+        plantPyramid(mc, true);
+        // Hitboxes in red at twice the game's width, on a pig in front of you.
+        hitboxesWereOn = Modules.HITBOXES.enabled();
+        ModulesSelfTest.<Integer>setting(Modules.HITBOXES, "color").set(0xFFFF4D4D);
+        setting(Modules.HITBOXES, "width").set(2.0);
+        Modules.HITBOXES.setEnabled(true);
+        hitboxLines = io.github.georgwav.cosmetics.render.HitboxLines.drawn;
+        hitboxAsks = io.github.georgwav.cosmetics.client.modules.Hitboxes.asked;
+        command(mc, "execute as @s at @s run summon pig ^ ^ ^3 {Tags:[\"sol_hitbox\"],NoAI:1b}");
+        // Crystal PvP's optimizer, on a crystal floating out of the way (cleared with /kill, which doesn't blow it up).
+        crystalWasOn = Modules.CRYSTAL_PVP.enabled();
+        ModulesSelfTest.<Boolean>setting(Modules.CRYSTAL_PVP, "optimizer").set(true);
+        Modules.CRYSTAL_PVP.setEnabled(true);
+        command(mc, "execute as @s at @s run summon end_crystal ^1 ^1 ^5 {Tags:[\"sol_crystal\"],ShowBottom:0b}");
+        crystalSize = io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SIZE.count();
+        crystalSpin = io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SPIN.count();
+        // Sol UI leaving out a boss bar, a scoreboard and a title the server shows.
+        setting(Modules.SOL_UI, "boss_bars").set(false);
+        setting(Modules.SOL_UI, "scoreboard").set(false);
+        setting(Modules.SOL_UI, "titles").set(false);
+        hidden = new int[]{io.github.georgwav.cosmetics.sol.hud.HudTweaks.bossesHidden, io.github.georgwav.cosmetics.sol.hud.HudTweaks.sidebarsHidden,
+                io.github.georgwav.cosmetics.sol.hud.HudTweaks.titlesHidden};
+        for (String c : List.of("bossbar add cosmeticsmod:selftest \"Self-test\"", "bossbar set cosmeticsmod:selftest players @s",
+                "scoreboard objectives add solselftest dummy", "scoreboard objectives setdisplay sidebar solselftest",
+                "scoreboard players set @s solselftest 1", "title @s times 0 200 0", "title @s title \"Sol\"")) {
+            command(mc, c);
         }
-        mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
-        return true;
     }
 
-    /** Whether the snowball left a trail; then the trails go off and the snowballs go. */
-    public static java.util.List<String> trailsCheckAndOff(Minecraft mc) {
-        java.util.List<String> problems = new java.util.ArrayList<>();
-        if (io.github.georgwav.cosmetics.client.modules.CosmeticsModule.trailsMade <= 0) {
-            problems.add("the thrown snowball left no trail");
+    private static int[] hidden;
+
+    private static boolean hitboxesWereOn;
+    private static boolean crystalWasOn;
+    private static int crystalSize, crystalSpin;
+    private static int hitboxLines;
+    private static int hitboxAsks;
+
+    private static boolean overlaysWereOn;
+    private static boolean structuresWereOn;
+    private static int scansBefore;
+    /** Where the made-up pyramid's box starts (its corner block), once planted. */
+    private static volatile int pyramidX = Integer.MIN_VALUE, pyramidZ;
+    private static java.util.Map<net.minecraft.world.level.levelgen.structure.Structure, net.minecraft.world.level.levelgen.structure.StructureStart> startsBefore;
+    private static java.util.Map<net.minecraft.world.level.levelgen.structure.Structure, it.unimi.dsi.fastutil.longs.LongSet> referencesBefore;
+
+    /**
+     * On the world's server: a desert pyramid's start (with its one piece) in the chunk east of you and a reference
+     * to it there, as world generation would leave them (the test world makes no structures); or, with
+     * {@code plant} false, the chunk's own starts and references back.
+     */
+    private static void plantPyramid(Minecraft mc, boolean plant) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return;
         }
-        ModulesSelfTest.<String>setting(Modules.COSMETICS, "projectile_trails").reset();
-        command(mc, "clear @s minecraft:snowball");
-        return problems;
+        var dimension = mc.level.dimension();
+        int cx = (mc.player.blockPosition().getX() >> 4) + 1, cz = mc.player.blockPosition().getZ() >> 4;
+        server.execute(() -> {
+            var level = server.getLevel(dimension);
+            var chunk = level == null ? null : level.getChunkSource().getChunkNow(cx, cz);
+            if (chunk == null) {
+                return;
+            }
+            if (!plant) {
+                if (startsBefore != null) {
+                    chunk.setAllStarts(startsBefore);
+                    chunk.setAllReferences(referencesBefore);
+                    startsBefore = null;
+                }
+                return;
+            }
+            var structure = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                    .get(net.minecraft.world.level.levelgen.structure.BuiltinStructures.DESERT_PYRAMID).orElseThrow().value();
+            startsBefore = new java.util.HashMap<>(chunk.getAllStarts());
+            referencesBefore = new java.util.HashMap<>(chunk.getAllReferences());
+            var piece = new net.minecraft.world.level.levelgen.structure.structures.DesertPyramidPiece(
+                    net.minecraft.util.RandomSource.create(1L), cx << 4, cz << 4);
+            var pos = new net.minecraft.world.level.ChunkPos(cx, cz);
+            chunk.setStartForStructure(structure, new net.minecraft.world.level.levelgen.structure.StructureStart(structure, pos, 0,
+                    new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(java.util.List.of(piece))));
+            //? if >=26.1 {
+            /*chunk.addReferenceForStructure(structure, pos.pack());
+            *///?} else {
+            chunk.addReferenceForStructure(structure, pos.toLong());
+            //?}
+            pyramidZ = piece.getBoundingBox().minZ();
+            pyramidX = piece.getBoundingBox().minX();
+        });
     }
 
     private static void command(Minecraft mc, String command) {
@@ -89,6 +144,28 @@ public final class ModulesSelfTest {
             problems.add("no world to check the modules in");
             return problems;
         }
+        // Hitting the crystal (the game's attack event, as a click would fire it) takes it down on your side at once.
+        var crystals = mc.level.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class,
+                mc.player.getBoundingBox().inflate(12.0));
+        if (crystals.isEmpty()) {
+            problems.add("the test crystal for Crystal PvP didn't appear");
+        } else {
+            var crystal = crystals.get(0);
+            net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.invoker().interact(mc.player, mc.level,
+                    net.minecraft.world.InteractionHand.MAIN_HAND, crystal, null);
+            if (!crystal.isRemoved()) {
+                problems.add("the crystal optimizer didn't take a hit crystal down at once");
+            }
+        }
+        // Its look rides on the crystal renderer's hooks, which must have run while it was in view.
+        if (io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SIZE.count() == crystalSize) {
+            problems.add("Crystal PvP's crystal size hook never ran");
+        }
+        if (io.github.georgwav.cosmetics.sol.Hooks.CRYSTAL_SPIN.count() == crystalSpin) {
+            problems.add("Crystal PvP's crystal spin hook never ran");
+        }
+        command(mc, "kill @e[type=end_crystal,tag=sol_crystal]");
+        Modules.CRYSTAL_PVP.setEnabled(crystalWasOn);
         if (mc.level.getRainLevel(1f) < 0.99f || mc.level.getThunderLevel(1f) < 0.99f) {
             problems.add("the weather changer's thunder doesn't show (rain " + mc.level.getRainLevel(1f) + ")");
         }
@@ -109,18 +186,45 @@ public final class ModulesSelfTest {
         if (!mc.player.hasEffect(MobEffects.NIGHT_VISION)) {
             problems.add("fullbright's night vision isn't on");
         }
-        if (!rotated) {
-            problems.add("the hotbar rows key didn't swap (no inventory to swap in)");
-        } else if (!mc.player.getInventory().getItem(0).is(net.minecraft.world.item.Items.DIAMOND)) {
-            problems.add("the hotbar rows key didn't bring the top row's diamond to the hotbar (it holds "
-                    + mc.player.getInventory().getItem(0) + ")");
+        int[] boxes = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureBoxes();
+        if (pyramidX == Integer.MIN_VALUE) {
+            problems.add("the made-up desert pyramid wasn't planted for World Overlays' structures");
+        } else if (io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans == scansBefore) {
+            problems.add("World Overlays didn't look for structures");
+        } else if (boxes.length != 6 || boxes[0] != pyramidX || boxes[2] != pyramidZ) {
+            problems.add("World Overlays didn't find the desert pyramid at " + pyramidX + ", " + pyramidZ + " (found "
+                    + java.util.Arrays.toString(boxes) + ")");
         }
-        // Three more turns put every row back; then the diamond goes.
-        for (int i = 0; i < 3 && rotated; i++) {
-            io.github.georgwav.cosmetics.client.modules.InventoryTweaks.rotateRows(mc);
+        if (io.github.georgwav.cosmetics.client.modules.Hitboxes.asked == hitboxAsks) {
+            problems.add("Hitboxes' players-only filter was never asked about an entity");
         }
-        command(mc, "item replace entity @s inventory.0 with minecraft:air");
-        Modules.INVENTORY.setEnabled(inventoryWasOn);
+        if (io.github.georgwav.cosmetics.render.HitboxLines.drawn == hitboxLines) {
+            problems.add("Hitboxes' line width never reached the hitbox lines");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.bossesHidden == hidden[0]) {
+            problems.add("Sol UI didn't leave out the boss bar");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.sidebarsHidden == hidden[1]) {
+            problems.add("Sol UI didn't leave out the scoreboard");
+        }
+        if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.titlesHidden == hidden[2]) {
+            problems.add("Sol UI didn't leave out the title");
+        }
+        for (String c : List.of("bossbar remove cosmeticsmod:selftest", "scoreboard objectives remove solselftest", "title @s clear",
+                "title @s reset")) {
+            command(mc, c);
+        }
+        setting(Modules.SOL_UI, "boss_bars").reset();
+        setting(Modules.SOL_UI, "scoreboard").reset();
+        setting(Modules.SOL_UI, "titles").reset();
+        // Into the void, so it leaves nothing behind on the ground.
+        command(mc, "tp @e[tag=sol_hitbox] 0 -400 0");
+        Modules.HITBOXES.setEnabled(hitboxesWereOn);
+        setting(Modules.HITBOXES, "width").reset();
+        setting(Modules.HITBOXES, "color").reset();
+        plantPyramid(mc, false);
+        ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(structuresWereOn);
+        Modules.WORLD_OVERLAYS.setEnabled(overlaysWereOn);
         Modules.FULLBRIGHT.setEnabled(false);
         setting(Modules.ATMOSPHERE, "lock_time").reset();
         setting(Modules.ATMOSPHERE, "lock_weather").reset();
@@ -149,13 +253,12 @@ public final class ModulesSelfTest {
     private static float pitchBefore;
 
     /**
-     * The HUD modules all on, the crosshair, a raised hotbar, and a red block outline: the player looks down at the
-     * ground in front so there is a block to outline.
+     * The HUD modules all on, the crosshair, a raised hotbar, and a red block outline twice the game's width and
+     * filled: the player looks down at the ground in front so there is a block to outline.
      */
     public static void switchOnHud(Minecraft mc) {
-        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").set(true);
         ModulesSelfTest.<String>setting(Modules.STATS, "font").set("geist");
-        ModulesSelfTest.<String>setting(Modules.STATS, "color").set("yellow");
+        ModulesSelfTest.<Integer>setting(Modules.STATS, "color").set(0xFFFFE040);
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").set(true);
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "clock").set(true);
         if (mc.player != null) {
@@ -163,8 +266,11 @@ public final class ModulesSelfTest {
             pitchBefore = mc.player.getXRot();
             mc.player.setXRot(30f);
         }
-        ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").set("red");
+        ModulesSelfTest.<Integer>setting(Modules.OUTLINE, "color").set(0xFFFF4040);
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").set(1.0);
+        // Twice the game's width, and filled.
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "width").set(2.0);
+        ModulesSelfTest.<Boolean>setting(Modules.OUTLINE, "fill").set(true);
         Modules.OUTLINE.setEnabled(true);
         for (Module m : Modules.hud()) {
             m.setEnabled(true);
@@ -183,7 +289,6 @@ public final class ModulesSelfTest {
         }
         Modules.CROSSHAIR.setEnabled(false);
         VanillaHud.reset();
-        ModulesSelfTest.<Boolean>setting(Modules.COORDINATES, "biome").reset();
         ModulesSelfTest.<String>setting(Modules.STATS, "font").reset();
         ModulesSelfTest.<String>setting(Modules.STATS, "color").reset();
         ModulesSelfTest.<Boolean>setting(Modules.STATS, "ping").reset();
@@ -191,6 +296,8 @@ public final class ModulesSelfTest {
         Modules.OUTLINE.setEnabled(false);
         ModulesSelfTest.<String>setting(Modules.OUTLINE, "color").reset();
         ModulesSelfTest.<Double>setting(Modules.OUTLINE, "opacity").reset();
+        ModulesSelfTest.<Double>setting(Modules.OUTLINE, "width").reset();
+        ModulesSelfTest.<Boolean>setting(Modules.OUTLINE, "fill").reset();
         if (mc.player != null) {
             mc.player.setXRot(pitchBefore);
             mc.player.removeEffect(MobEffects.NIGHT_VISION);

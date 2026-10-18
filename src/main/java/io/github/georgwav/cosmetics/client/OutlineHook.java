@@ -1,12 +1,14 @@
 package io.github.georgwav.cosmetics.client;
 
 // Fabric's block outline event lets the client draw the outline of the block you look at itself, in BlockOutline's
-// colour, and skip the game's own. Up to 1.21.8 it hands over the block and a line buffer; from 1.21.9 the outline's
-// render state, and the game may ask once for each of its passes, so each frame's outline (a new render state) is
-// drawn once, as wide as the game draws its own (2.5 pixels on a 1080p window, wider on bigger ones). framesDrawn
-// counts the frames the client drew it in, for the in-game test; available says the event was there to hook (some
-// Fabric API builds for 1.21.9 lack it). 26.x has no such event: LevelRendererOutlineMixin gives the game's own
-// outline the colour there (color(); the high-contrast black border under it stays black).
+// colour and width (a wider or thinner copy of the game's lines before 1.21.11), with its see-through fill, and skip
+// the game's own. Up to 1.21.8 it hands over the block and a line buffer; from 1.21.9 the outline's render state, and
+// the game may ask once for each of its passes, so each frame's outline (a new render state) is drawn once, as wide as
+// the game draws its own (2.5 pixels on a 1080p window, wider on bigger ones) times the module's width. framesDrawn
+// counts the frames the client drew it in, for the in-game test; available says it can be drawn: by the event, or on
+// 1.21.9 (whose Fabric API has no such event) by OutlineFallbackMixin changing the game's own. 26.x has no such
+// event: LevelRendererOutlineMixin gives the game's own outline the colour and width there (color(); the
+// high-contrast black border under it stays black) and adds the fill.
 //? if >=26.1 {
 /*public final class OutlineHook {
     public static int framesDrawn;
@@ -27,6 +29,7 @@ package io.github.georgwav.cosmetics.client;
     }
 }
 *///?} elif >=1.21.11 {
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShapeRenderer;
@@ -52,9 +55,14 @@ public final class OutlineHook {
                 drawn = outline;
                 Vec3 camera = context.gameRenderer().getMainCamera().position();
                 BlockPos pos = outline.pos();
+                double x = pos.getX() - camera.x, y = pos.getY() - camera.y, z = pos.getZ() - camera.z;
                 ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.lines()),
-                        outline.shape(), pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z,
-                        Modules.OUTLINE.argb(), lineWidth());
+                        outline.shape(), x, y, z, Modules.OUTLINE.argb(), lineWidth() * BlockOutline.widthScale());
+                int fill = Modules.OUTLINE.fillArgb();
+                if (fill != 0) {
+                    OutlineFill.faces(context.matrices().last(), context.consumers().getBuffer(RenderTypes.debugQuads()), outline.shape(),
+                            x, y, z, fill);
+                }
                 framesDrawn++;
             }
             return false;
@@ -67,7 +75,8 @@ public final class OutlineHook {
     }
 }
 //?} elif >=1.21.9 {
-/*import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+/*import io.github.georgwav.cosmetics.client.modules.BlockOutline;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.state.BlockOutlineRenderState;
@@ -77,6 +86,8 @@ import net.minecraft.world.phys.Vec3;
 public final class OutlineHook {
     public static int framesDrawn;
     public static boolean available;
+    /^* Whether Fabric's event draws it; without it (1.21.9's Fabric API) OutlineFallbackMixin changes the game's own. ^/
+    private static boolean event;
     private static BlockOutlineRenderState drawn;
 
     private OutlineHook() {
@@ -91,19 +102,46 @@ public final class OutlineHook {
                 drawn = outline;
                 Vec3 camera = context.gameRenderer().getMainCamera().position();
                 BlockPos pos = outline.pos();
-                ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderType.lines()),
-                        outline.shape(), pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z,
+                double x = pos.getX() - camera.x, y = pos.getY() - camera.y, z = pos.getZ() - camera.z;
+                ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(
+                        io.github.georgwav.cosmetics.render.HitboxLines.lines(BlockOutline.widthScale())), outline.shape(), x, y, z,
                         Modules.OUTLINE.argb());
+                int fill = Modules.OUTLINE.fillArgb();
+                if (fill != 0) {
+                    OutlineFill.faces(context.matrices().last(), context.consumers().getBuffer(RenderType.debugQuads()), outline.shape(),
+                            x, y, z, fill);
+                }
                 framesDrawn++;
             }
             return false;
         });
+        event = true;
         available = true;
+    }
+
+    /^* OutlineFallbackMixin is in place: without the event, the game's own outline takes the module's look. ^/
+    public static void fallbackReady() {
+        available = true;
+    }
+
+    /^* Whether the fallback changes the game's outline now (no event, the module on). ^/
+    public static boolean fallback() {
+        return !event && Modules.OUTLINE.enabled();
+    }
+
+    /^* The fallback's colour for the game's outline (its high-contrast black border stays black). ^/
+    public static int color(int vanilla) {
+        if (!fallback() || vanilla == 0xFF000000) {
+            return vanilla;
+        }
+        framesDrawn++;
+        return Modules.OUTLINE.argb();
     }
 }
 *///?} else {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github.georgwav.cosmetics.client.modules.BlockOutline;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -123,8 +161,17 @@ public final class OutlineHook {
             }
             BlockPos pos = outline.blockPos();
             VoxelShape shape = outline.blockState().getShape(context.world(), pos, CollisionContext.of(outline.entity()));
-            draw(context.matrixStack(), outline.vertexConsumer(), shape, pos.getX() - outline.cameraX(),
-                    pos.getY() - outline.cameraY(), pos.getZ() - outline.cameraZ(), Modules.OUTLINE.argb());
+            double x = pos.getX() - outline.cameraX(), y = pos.getY() - outline.cameraY(), z = pos.getZ() - outline.cameraZ();
+            float scale = BlockOutline.widthScale();
+            // At the game's width into its own lines; wider or thinner into a copy of them with that width.
+            VertexConsumer lines = scale == 1f || context.consumers() == null ? outline.vertexConsumer()
+                    : context.consumers().getBuffer(io.github.georgwav.cosmetics.render.HitboxLines.lines(scale));
+            draw(context.matrixStack(), lines, shape, x, y, z, Modules.OUTLINE.argb());
+            int fill = Modules.OUTLINE.fillArgb();
+            if (fill != 0 && context.consumers() != null) {
+                OutlineFill.faces(context.matrixStack().last(), context.consumers().getBuffer(net.minecraft.client.renderer.RenderType.debugQuads()),
+                        shape, x, y, z, fill);
+            }
             framesDrawn++;
             return false;
         });

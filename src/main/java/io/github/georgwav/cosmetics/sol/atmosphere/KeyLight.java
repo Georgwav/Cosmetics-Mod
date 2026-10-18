@@ -46,6 +46,12 @@ public final class KeyLight {
      */
     public static int color2 = 0xFFFFFFFF;
     public static float bands;
+    /**
+     * A second light: the moon, where the theme's own light is something else (the rune, the ring, the ribbons,
+     * the galaxy, the storm). Direction toward it (world space), colour and strength (0..1).
+     */
+    public static float extraX, extraY = 1f, extraZ, extraStrength;
+    public static int extraColor = 0xFFB8CCFF;
 
     private static final float[] dir = new float[3];
 
@@ -58,6 +64,13 @@ public final class KeyLight {
         faceRim = 0f;
         rimAll = 0f;
         bands = 0f;
+        // The moon as the second light; the sun themes take it as their own at night (below), and drop it here.
+        float[] mv = NightSky.SPHERE.moon;
+        extraX = mv[0];
+        extraY = mv[1];
+        extraZ = mv[2];
+        extraColor = NightSky.moonColor;
+        extraStrength = 0.6f * Math.min(1f, NightSky.moonLight) * NightSky.dark * (1f - rain * 0.7f);
         if (theme.sigil() != null) {
             ThemeSpec.Sigil g = theme.sigil();
             Extras.directionOf(g.x(), g.y(), theme.show().azimuth(), false, dir);
@@ -148,6 +161,8 @@ public final class KeyLight {
             sunOrMoon(theme, tk, rain);
         }
         strength = Ease.clamp01(strength);
+        // A fireball lights the world for a moment, as a lightning flash does.
+        flash = Math.max(flash, 0.45f * SkyEvents.fireball());
         if (bands <= 0f) {
             color2 = color;
         }
@@ -170,17 +185,18 @@ public final class KeyLight {
             faceRim = 0.45f * golden;
             return;
         }
-        // The moon: opposite the sun, a little behind the game's.
-        set(-SkyPass.sunX, -SkyPass.sunY, -SkyPass.sunZ);
-        float moonAlt = (float) Math.toDegrees(Math.asin(Math.max(-1f, Math.min(1f, y))));
+        // The moon: where it is on the sky sphere, as bright as its phase and tonight's look make it (a new moon
+        // leaves the night dark), in the colour of its light.
+        extraStrength = 0f;
+        float[] mv = NightSky.SPHERE.moon;
+        set(mv[0], mv[1], mv[2]);
+        float moonAlt = NightSky.SPHERE.moonAlt;
         float up = Ease.smoothstep(-4f, 6f, moonAlt);
-        ThemeSpec.Moon m = theme.moon();
-        int moonColor = m != null ? m.color() : 0xFFDDE6FF;
-        color = Colors.mix(tk.lightTint, moonColor, 0.5f);
-        glow = m != null ? m.halo() : tk.skyGlow;
-        float big = m != null ? Math.min(1f, m.size() / 0.03f) : 0.6f;
-        strength = (moonTheme ? 0.9f : 0.55f) * Math.max(tk.night, moonTheme ? 1f : 0f) * up * (1f - rain * 0.7f);
-        visible = up * (1f - rain * 0.8f) * (0.5f + 0.5f * big);
+        float ml = Math.min(1f, NightSky.moonLight);
+        color = Colors.mix(tk.lightTint, NightSky.moonColor, 0.75f);
+        glow = Colors.mix(NightSky.moonColor, tk.skyGlow, 0.3f);
+        strength = (moonTheme ? 0.95f : 0.8f) * ml * Math.max(tk.night, moonTheme ? 1f : 0f) * (1f - rain * 0.7f);
+        visible = NightSky.hasMoon ? up * (1f - rain * 0.8f) * (0.4f + 0.6f * ml) : 0f;
         shafts = moonTheme ? 0.8f : 0.4f;
         rim = moonTheme ? 1.4f : 0.8f;
         faceRim = moonTheme ? 0.75f : 0.35f;
@@ -212,6 +228,7 @@ public final class KeyLight {
 
     /** No Sol sky this frame: no theme light. */
     static void none() {
+        extraStrength = 0f;
         bands = 0f;
         strength = 0f;
         visible = 0f;

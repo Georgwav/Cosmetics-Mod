@@ -29,6 +29,8 @@ public final class LensFlare {
             0xFF9CFF7A};
 
     private static float occlusion = 1f;
+    /** Frames the flare or the glare was drawn in (the scenario checks none are in a closed room). */
+    public static int drawn;
     private static float occlusionTarget = 1f;
     private static float nextRay;
     private static SolTexture vignette;
@@ -37,6 +39,7 @@ public final class LensFlare {
     private static final float[] petalX = {0.18f, 0.62f, 0.86f};
     private static final float[] petalY = {0.3f, 0.72f, 0.18f};
     private static final float[] petalA = {0.4f, 2.1f, 4.0f};
+    private static final float[] uv = new float[4];
 
     private LensFlare() {
     }
@@ -66,11 +69,12 @@ public final class LensFlare {
             float x = screen[0], y = screen[1];
             // The sun's half-size in pixels.
             float s = SkyPass.sunS * SkyDraw.T / (2f * (float) Math.tan(Math.toRadians(FrameInfo.fovY) / 2f)) * H;
-            float vis = SkyPass.sunVisible * occlusion;
+            float vis = SkyPass.sunVisible * occlusion * SkyOpen.get();
             // Off screen it fades over a sun's width.
             float off = Math.max(Math.max(-x, x - W), Math.max(-y, y - H));
             vis *= 1f - Math.max(0f, Math.min(1f, off / Math.max(1f, s * 3f)));
             if (vis > 0.005f) {
+                drawn++;
                 float dx = W / 2f - x, dy = H / 2f - y;
                 float dist = (float) Math.sqrt(dx * dx + dy * dy);
                 float maxD = (float) Math.sqrt(W * W + H * H) * 0.5f;
@@ -87,20 +91,27 @@ public final class LensFlare {
                         screenRect(gx - R, gy - R, gx + R, gy + R, Colors.withAlpha(GHOST_COLORS[g], 0.1f * str));
                     }
                     WorldDraw.end();
-                    WorldDraw.begin(WorldDraw.SKY_ADD, null);
+                    // The ghosts themselves: round, as a lens's aperture makes them; soft discs, and soft rings for
+                    // the hollow ones.
+                    WorldDraw.begin(WorldDraw.SKY_ADD, ParticleSprites.glow());
                     for (int g = 0; g < GHOSTS.length; g++) {
                         float k = GHOSTS[g][0], f = GHOSTS[g][1];
-                        boolean hollow = GHOSTS[g][3] > 0f;
                         float gx = x + dx * k, gy = y + dy * k;
-                        float h = Math.max(px, Math.round(s * f / Math.max(px, 1e-3f)) * px);
-                        int c = GHOST_COLORS[g];
-                        if (hollow) {
-                            float lw = Math.max(1f, px * 0.45f);
-                            screenHollow(gx, gy, h, lw, Colors.withAlpha(c, 0.13f * str));
-                            screenRect(gx - h, gy - h, gx + h, gy + h, Colors.withAlpha(c, 0.04f * str));
-                        } else {
-                            screenRect(gx - h, gy - h, gx + h, gy + h, Colors.withAlpha(c, 0.14f * str));
+                        float h = Math.max(2f, s * f);
+                        float alpha = GHOSTS[g][3] > 0f ? 0.05f : 0.2f;
+                        ParticleSprites.glowUv(1, ParticleSprites.glowLevel(2f * h), uv);
+                        screenRect(gx - h, gy - h, gx + h, gy + h, uv, Colors.withAlpha(GHOST_COLORS[g], alpha * str));
+                    }
+                    WorldDraw.end();
+                    WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.ring());
+                    for (int g = 0; g < GHOSTS.length; g++) {
+                        if (GHOSTS[g][3] <= 0f) {
+                            continue;
                         }
+                        float k = GHOSTS[g][0], f = GHOSTS[g][1];
+                        float gx = x + dx * k, gy = y + dy * k;
+                        float h = Math.max(2f, s * f) / 0.8f;
+                        screenRect(gx - h, gy - h, gx + h, gy + h, Colors.withAlpha(GHOST_COLORS[g], 0.22f * str));
                     }
                     WorldDraw.end();
                 }
@@ -116,11 +127,11 @@ public final class LensFlare {
             }
         }
         lensPetals(theme);
-        if (Extras.flash > 0f) {
+        if (Extras.flash > 0f && SkyOpen.get() > 0.01f) {
             WorldDraw.begin(WorldDraw.SKY_ALPHA, null);
             // With the light pass lighting the world and the clouds, only a thin veil is left to add.
             float veil = LightPass.preset() == LightPass.HIGH ? 0.3f : 1f;
-            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash * veil));
+            screenRect(0f, 0f, W, H, Colors.withAlpha(0xFFDCE8FF, Extras.flash * veil * SkyOpen.get()));
             WorldDraw.end();
         }
         if (at.vignette.get()) {
@@ -132,7 +143,10 @@ public final class LensFlare {
         }
     }
 
-    /** Sakura's three lens petals: big soft blobs drifting across the screen. */
+    /**
+     * Sakura's three lens petals: petals right in front of the lens, out of focus, drifting across the screen and
+     * turning over as they go.
+     */
     private static void lensPetals(ThemeSpec theme) {
         ThemeSpec.Emitter lens = null;
         for (ThemeSpec.Emitter e : theme.particles()) {
@@ -141,23 +155,28 @@ public final class LensFlare {
                 break;
             }
         }
-        if (lens == null) {
+        float open = SkyOpen.get();
+        if (lens == null || open < 0.01f) {
             return;
         }
         float W = FrameInfo.width, H = FrameInfo.height, t = FrameInfo.time;
         float sc = H / 560f;
-        WorldDraw.begin(WorldDraw.SKY_ADD, SkyDraw.glow());
+        Petals.blurUv(uv);
+        WorldDraw.begin(WorldDraw.SKY_ALPHA, Petals.texture());
         for (int i = 0; i < Math.min(3, lens.count()); i++) {
             float x = ((petalX[i] + t * 0.012f) % 1.1f) * W;
             float y = ((petalY[i] + t * 0.0025f) % 1.05f) * H;
-            float R = (lens.minSize() + (lens.maxSize() - lens.minSize()) * (i / 2f)) * sc;
+            float R = (lens.minSize() + (lens.maxSize() - lens.minSize()) * (i / 2f)) * sc * 1.6f;
             float a = petalA[i] + t * 0.3f;
-            int c = Colors.withAlpha(lens.colors()[i % lens.colors().length], 0.26f);
+            // Turning over: narrower as it shows its edge, never to a line.
+            float turn = 0.35f + 0.65f * Math.abs((float) Math.cos(t * 0.35f + i * 1.9f));
+            int c = Colors.withAlpha(Colors.mix(lens.colors()[i % lens.colors().length], 0xFFFFFFFF, 0.25f), 0.42f * open);
             float cs = (float) Math.cos(a), sn = (float) Math.sin(a);
-            screenPoint(x + (-R * cs - -R * 0.6f * sn), y + (-R * sn + -R * 0.6f * cs), 0f, 0f, c);
-            screenPoint(x + (-R * cs - R * 0.6f * sn), y + (-R * sn + R * 0.6f * cs), 0f, 1f, c);
-            screenPoint(x + (R * cs - R * 0.6f * sn), y + (R * sn + R * 0.6f * cs), 1f, 1f, c);
-            screenPoint(x + (R * cs - -R * 0.6f * sn), y + (R * sn + -R * 0.6f * cs), 1f, 0f, c);
+            float rx = R * turn, ry = R;
+            screenPoint(x + (-rx * cs + ry * sn), y + (-rx * sn - ry * cs), uv[0], uv[1], c);
+            screenPoint(x + (-rx * cs - ry * sn), y + (-rx * sn + ry * cs), uv[0], uv[3], c);
+            screenPoint(x + (rx * cs - ry * sn), y + (rx * sn + ry * cs), uv[2], uv[3], c);
+            screenPoint(x + (rx * cs + ry * sn), y + (rx * sn - ry * cs), uv[2], uv[1], c);
         }
         WorldDraw.end();
     }
@@ -198,12 +217,11 @@ public final class LensFlare {
         screenPoint(x1, y0, 1f, 0f, c);
     }
 
-    private static void screenHollow(float x, float y, float h, float w, int c) {
-        float hw = w / 2f;
-        screenRect(x - h - hw, y - h - hw, x + h + hw, y - h + hw, c);
-        screenRect(x - h - hw, y + h - hw, x + h + hw, y + h + hw, c);
-        screenRect(x - h - hw, y - h + hw, x - h + hw, y + h - hw, c);
-        screenRect(x + h - hw, y - h + hw, x + h + hw, y + h - hw, c);
+    private static void screenRect(float x0, float y0, float x1, float y1, float[] uv, int c) {
+        screenPoint(x0, y0, uv[0], uv[1], c);
+        screenPoint(x0, y1, uv[0], uv[3], c);
+        screenPoint(x1, y1, uv[2], uv[3], c);
+        screenPoint(x1, y0, uv[2], uv[1], c);
     }
 
     /** The prototype's vignette: clear inside a quarter of the radius, black at .32 at the edge. */

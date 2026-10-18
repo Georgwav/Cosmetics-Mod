@@ -144,13 +144,14 @@ public final class Hud {
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
         long t0 = io.github.georgwav.cosmetics.sol.render.SolTiming.start();
+        io.github.georgwav.cosmetics.client.modules.CrystalPvp.drawHud(g, mc, w, h);
+        io.github.georgwav.cosmetics.client.modules.Movement.drawHud(g, mc, w, h);
         for (HudModule hud : Modules.hud()) {
             if (hud.enabled()) {
                 hud.render(g, mc, w, h);
             }
         }
         io.github.georgwav.cosmetics.sol.render.SolTiming.end(io.github.georgwav.cosmetics.sol.render.SolTiming.Part.HUD, t0);
-        io.github.georgwav.cosmetics.client.modules.Performance.drawGraph(g, w, h);
     }
 
     /** Draws one module where it sits (the HUD editor). */

@@ -78,6 +78,18 @@ public abstract class Module {
         return Component.translatable(settingKey(setting.id)).getString();
     }
 
+    /** A setting's hint (one line under its name), or "" when it has none. */
+    public String settingHint(Setting<?> setting) {
+        String key = settingKey(setting.id) + ".hint";
+        String text = Component.translatable(key).getString();
+        return text.equals(key) ? "" : text;
+    }
+
+    /** A group's name on the module's page. */
+    public static String groupName(String group) {
+        return Component.translatable("cosmeticsmod.group." + group).getString();
+    }
+
     /** One option of a choice setting. */
     public String optionName(Setting<?> setting, String option) {
         return Component.translatable(settingKey(setting.id) + "." + option).getString();
@@ -158,6 +170,13 @@ public abstract class Module {
     }
 
     protected void afterOptionsSave(Minecraft mc) {
+    }
+
+    /**
+     * Moves values saved by an older version to where they are now, before the settings read them (a colour name
+     * that meant "no flash" becomes the flash switched off).
+     */
+    protected void migrate(JsonObject settings) {
     }
 
     /** Extra state kept between sessions (Fullbright: your own brightness, to put back). */

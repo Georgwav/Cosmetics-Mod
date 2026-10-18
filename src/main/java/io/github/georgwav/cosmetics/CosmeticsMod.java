@@ -36,6 +36,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyMapping quickKey = VersionHooks.registerQuickMenuKeyMapping();
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
         KeyMapping wheelKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.quick_wheel");
+        KeyMapping lookKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.look_around");
         io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.key = wheelKey;
         io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.key = emoteKey;
         KeyBinds.open = openKey;
@@ -47,9 +48,9 @@ public final class CosmeticsMod implements ClientModInitializer {
         try {
             OutlineHook.register();
         } catch (LinkageError e) {
-            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: the outline stays the game's
-            // and Block Outline shows as unsupported. Expected there, so info rather than a warning.
-            LOGGER.info("No block outline event in this Fabric API, the outline colour is off: {}", e.toString());
+            // Some Fabric API builds (early 1.21.9 ones) have no block outline event: there Block Outline changes the
+            // game's own outline (OutlineFallbackMixin). Expected there, so info rather than a warning.
+            LOGGER.info("No block outline event in this Fabric API, Block Outline changes the game's own outline: {}", e.toString());
         }
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
                 client -> io.github.georgwav.cosmetics.client.Modules.flush());
@@ -60,6 +61,9 @@ public final class CosmeticsMod implements ClientModInitializer {
             }
             while (quickKey.consumeClick()) {
                 ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null));
+            }
+            while (lookKey.consumeClick()) {
+                io.github.georgwav.cosmetics.sol.atmosphere.LookAround.toggle();
             }
             while (wheelKey.consumeClick()) {
                 io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.openIfAllowed(client);

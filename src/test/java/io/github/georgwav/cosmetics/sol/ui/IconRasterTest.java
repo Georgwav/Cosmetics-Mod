@@ -36,7 +36,7 @@ class IconRasterTest {
     @Test
     void everyModuleHasAnIconOfItsOwn() throws IOException {
         JsonObject icons = icons();
-        assertEquals(33, ModuleIcons.MODULES.size());
+        assertEquals(31, ModuleIcons.MODULES.size());
         java.util.Map<String, String> seen = new java.util.HashMap<>();
         for (var e : ModuleIcons.MODULES.entrySet()) {
             assertTrue(icons.has(e.getValue()), e.getKey() + " -> " + e.getValue());

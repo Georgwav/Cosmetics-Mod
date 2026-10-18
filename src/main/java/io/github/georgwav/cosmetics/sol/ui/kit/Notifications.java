@@ -9,13 +9,11 @@ import java.util.List;
 
 /**
  * Sunrise notifications: short messages that spring up from the bottom of the screen, with an optional action
- * (such as Undo), over the HUD and any screen; the last ones are kept in an inbox. Posting is thread safe; showing
- * them is the render thread's.
+ * (such as Undo), over the HUD and any screen. Posting is thread safe; showing them is the render thread's.
  */
 public final class Notifications {
     /** How long a short one stays up, in seconds; longer ones stay a little longer to be read. */
     public static final float SECONDS = 2.6f;
-    private static final int INBOX = 30;
 
     /** One message. {@code action} is the button's label, or null. */
     public static final class Note {
@@ -46,7 +44,6 @@ public final class Notifications {
 
     private static final Deque<Note> pending = new ArrayDeque<>();
     private static final List<Note> showing = new ArrayList<>();
-    private static final Deque<Note> inbox = new ArrayDeque<>();
 
     private Notifications() {
     }
@@ -69,19 +66,9 @@ public final class Notifications {
             while (!pending.isEmpty()) {
                 Note n = pending.poll();
                 showing.add(n);
-                inbox.addFirst(n);
-                while (inbox.size() > INBOX) {
-                    inbox.removeLast();
-                }
             }
         }
         showing.removeIf(n -> n.dismissed || n.age() > n.life() + 0.6f);
         return showing;
-    }
-
-    public static List<Note> inbox() {
-        synchronized (pending) {
-            return List.copyOf(inbox);
-        }
     }
 }

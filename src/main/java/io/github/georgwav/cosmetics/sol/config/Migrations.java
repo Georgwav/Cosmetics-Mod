@@ -30,6 +30,21 @@ public final class Migrations {
                 || profile.get("schema").getAsInt() < PROFILE_SCHEMA;
     }
 
+    /** The modules pinned in a new profile. */
+    public static final java.util.List<String> DEFAULT_PINS = java.util.List.of("crosshair", "glint", "atmosphere", "camera");
+
+    /**
+     * A saved pin as it reads now: the old default pin on Zoom (Zoomify zooms now) becomes Camera; pins on modules
+     * the client no longer has are dropped (null).
+     */
+    public static String pin(String id) {
+        return switch (id) {
+            case "zoom" -> "camera";
+            case "hypixel", "dropped_items", "sounds" -> null;
+            default -> id;
+        };
+    }
+
     /** A copy of the profile in the current schema. Unknown fields are kept. */
     public static JsonObject migrateProfile(JsonObject old) {
         JsonObject out = old.deepCopy();
@@ -46,7 +61,7 @@ public final class Migrations {
         }
         if (!out.has("pinned") || !out.get("pinned").isJsonArray()) {
             com.google.gson.JsonArray pinned = new com.google.gson.JsonArray();
-            for (String p : new String[]{"zoom", "crosshair", "glint", "atmosphere"}) {
+            for (String p : DEFAULT_PINS) {
                 pinned.add(p);
             }
             out.add("pinned", pinned);

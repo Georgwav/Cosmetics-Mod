@@ -34,13 +34,11 @@ public final class SolTexture {
     public final boolean linear;
     private final DynamicTexture texture;
     private boolean released;
-    /** Whether it is drawn smooth right now: its own filter, or pixel-sharp under the Pixel light style. */
-    private boolean drawnLinear;
     /**
-     * Render types made for this texture, by {@link WorldDraw} kind, smooth and crisp (versions that need one per
-     * texture), and the GUI's added one last.
+     * Render types made for this texture, by {@link WorldDraw} kind (versions that need one per texture), and the
+     * GUI's added one last.
      */
-    final Object[] renderTypes = new Object[WorldDraw.KINDS * 2 + 1];
+    final Object[] renderTypes = new Object[WorldDraw.KINDS + 1];
 
     /** Registers {@code cosmeticsmod:sol/<path>} as an empty {@code width} x {@code height} texture. */
     public SolTexture(String path, int width, int height, boolean linear) {
@@ -55,7 +53,6 @@ public final class SolTexture {
         this.width = width;
         this.height = height;
         this.linear = linear;
-        this.drawnLinear = linear;
         //? if >=1.21.11 {
         id = Identifier.fromNamespaceAndPath(namespace, path);
         //?} else {
@@ -104,6 +101,14 @@ public final class SolTexture {
 
     /** Copies an ARGB picture in and uploads it. */
     public void upload(int[] argb) {
+        upload(argb, width, height);
+    }
+
+    /**
+     * Copies a {@code w} x {@code h} ARGB picture (rows {@code w} long) into the top left corner and uploads the
+     * texture; the rest keeps what it had.
+     */
+    public void upload(int[] argb, int w, int h) {
         if (released) {
             return;
         }
@@ -111,9 +116,9 @@ public final class SolTexture {
         if (pixels == null) {
             return;
         }
-        int i = 0;
-        for (int py = 0; py < height; py++) {
-            for (int px = 0; px < width; px++) {
+        for (int py = 0; py < Math.min(h, height); py++) {
+            int i = py * w;
+            for (int px = 0; px < Math.min(w, width); px++) {
                 int c = argb[i++];
                 //? if >=1.21.2 {
                 pixels.setPixel(px, py, c);
@@ -126,28 +131,14 @@ public final class SolTexture {
         // Up to 1.21.4 an upload sets the texture's filter to nearest (NativeImage._upload): put the filter it's
         // drawn with back.
         //? if <1.21.5 {
-        /*texture.setFilter(drawnLinear, false);
-        *///?}
-    }
-
-    /**
-     * Draws it smooth or pixel-sharp from now on. The world's Pixel light style draws every Sol light pixel-sharp
-     * (glows in visible steps, the look of a block game); Smooth uses each texture's own filter.
-     */
-    public void useLinear(boolean on) {
-        if (on == drawnLinear || released) {
-            return;
-        }
-        drawnLinear = on;
-        //? if <1.21.11 {
-        /*texture.setFilter(on, false);
+        /*texture.setFilter(linear, false);
         *///?}
     }
 
     //? if >=1.21.11 {
     /** The sampler this texture is drawn with. */
     public GpuSampler sampler() {
-        return RenderSystem.getSamplerCache().getClampToEdge(drawnLinear ? FilterMode.LINEAR : FilterMode.NEAREST);
+        return RenderSystem.getSamplerCache().getClampToEdge(linear ? FilterMode.LINEAR : FilterMode.NEAREST);
     }
     //?}
 

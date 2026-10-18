@@ -1,0 +1,10 @@
+{
+  "name": "Ember moon",
+  "tint": [
+    1.2,
+    0.66,
+    0.4
+  ],
+  "glow": 1.1,
+  "elongation": 180
+}

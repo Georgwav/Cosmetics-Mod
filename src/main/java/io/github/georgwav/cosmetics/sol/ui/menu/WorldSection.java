@@ -18,10 +18,15 @@ import io.github.georgwav.cosmetics.sol.util.Colors;
 
 import java.util.List;
 
-/** World: the presets (each theme's showpiece as a card) and the world's quick settings under them. */
+/**
+ * World: the presets (each theme's showpiece as a card) and the world's quick settings under them, or the Night
+ * sky page ({@link NightPage}).
+ */
 final class WorldSection implements Section {
     private final Scroll scroll = new Scroll();
     private final PresetThumbs thumbs = new PresetThumbs();
+    private final NightPage nightPage = new NightPage();
+    private boolean night;
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
@@ -32,15 +37,19 @@ final class WorldSection implements Section {
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.world.count", Widgets.themeName(cur)), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
         float bw = ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.world.customise", Widgets.themeName(cur)), false,
-                () -> {
-                    if (Modules.ATMOSPHERE != null) {
-                        menu.openDrawer(Modules.ATMOSPHERE);
-                    }
-                });
-        ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr("sol.menu.world.packs"), false,
-                () -> menu.toast(SolMenu.tr("sol.notify.packs")));
+                () -> menu.openTheme(night));
+        bw += 8f + ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr(night ? "sol.menu.world.themes" : "sol.menu.world.night"), night,
+                () -> night = !night);
+        if (!night) {
+            ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr("sol.menu.world.packs"), false,
+                    () -> menu.toast(SolMenu.tr("sol.notify.packs")));
+        }
 
         float gy = y + 42f, gh = h - 42f;
+        if (night) {
+            nightPage.draw(menu, g, ui, tk, x, gy, w, gh);
+            return;
+        }
         g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);
         float top = gy + 2f - scroll.value();
         List<ThemeRegistry.Entry> themes = ThemeRegistry.all();
@@ -106,9 +115,7 @@ final class WorldSection implements Section {
         }
         lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.clouds"), at.clouds.get(), () -> at.clouds.set(!at.clouds.get()));
         lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.ambience"), at.ambience.get(), () -> at.ambience.set(!at.ambience.get()));
-        lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.lock_time"), at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
-        boolean pixel = !"smooth".equals(at.lightStyle.get());
-        toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.pixel_light"), pixel, () -> at.lightStyle.set(pixel ? "smooth" : "pixel"));
+        toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.lock_time"), at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
     }
 
     private static float toggle(Gfx g, Ui ui, Tokens tk, SolFont f, float x, float cy, String label, boolean on, Runnable toggle) {
@@ -116,6 +123,11 @@ final class WorldSection implements Section {
         float sx = x + g.width(f, label) + 8f;
         ui.smallSwitch(tk, sx, cy - 9f, on, toggle);
         return sx + 30f + 22f;
+    }
+
+    /** Opens on the Night sky page (the scenario's shot). */
+    void showNight() {
+        night = true;
     }
 
     static void customise(Customisation c) {
@@ -138,7 +150,7 @@ final class WorldSection implements Section {
 
     @Override
     public boolean scroll(float amount) {
-        return scroll.wheel(amount);
+        return night ? nightPage.scroll(amount) : scroll.wheel(amount);
     }
 
     @Override

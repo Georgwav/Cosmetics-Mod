@@ -1,5 +1,7 @@
 package io.github.georgwav.cosmetics.client.skins;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 
 /**
  * The skins saved in the launcher (Threadrinth, like the Modrinth App): its database's
@@ -85,5 +88,42 @@ public final class SkinLibrary {
             // Not an id.
         }
         return null;
+    }
+
+    /**
+     * A skin's (or a cape's) PNG as 64 x 64 ARGB pixels: a 64 x 64 skin as it is, an old 64 x 32 skin with its right
+     * arm and leg copied to the left ones, a 64 x 32 cape in the top half ({@code height} 32 asks for a cape).
+     */
+    public static int[] pixels(byte[] png, int height) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
+            if (image == null || image.getWidth() % 64 != 0) {
+                return null;
+            }
+            int scale = image.getWidth() / 64;
+            int h = image.getHeight() / scale;
+            if (h != 64 && h != 32) {
+                return null;
+            }
+            int[] argb = new int[64 * 64];
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < 64; x++) {
+                    argb[y * 64 + x] = image.getRGB(x * scale, y * scale);
+                }
+            }
+            if (height == 64 && h == 32) {
+                copy(argb, 0, 16, 16, 32, 16, 48);
+                copy(argb, 40, 16, 16, 32, 32, 48);
+            }
+            return argb;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static void copy(int[] argb, int fromX, int fromY, int w, int h, int toX, int toY) {
+        for (int y = 0; y < h; y++) {
+            System.arraycopy(argb, (fromY + y) * 64 + fromX, argb, (toY + y) * 64 + toX, w);
+        }
     }
 }

@@ -25,7 +25,7 @@ public final class ThemeState {
     private static final Tokens current = new Tokens();
     private static final Tokens target = new Tokens();
     private static final Tokens from = new Tokens();
-    private static final float[] weights = new float[4];
+    private static final float[] weights = new float[ThemeRegistry.Phase.values().length];
     private static float lastTime = Float.NaN;
     private static long changeStart = -1L;
     private static int generation;
@@ -131,11 +131,18 @@ public final class ThemeState {
             return;
         }
         ThemeRegistry.Entry base = ThemeRegistry.get(themeId);
-        entry = custom.isNone() ? base : base.map(custom::apply);
+        entry = custom.isNone() ? base : customised(base, custom);
         if (album != null) {
             entry = entry.map(album);
         }
         entryGeneration = gen;
+    }
+
+    /** {@code base} with the player's edits, each time of day against the theme's own values and its night's. */
+    public static ThemeRegistry.Entry customised(ThemeRegistry.Entry base, Customisation c) {
+        ThemeSpec ref = base.base(), night = base.phase(ThemeRegistry.Phase.NIGHT);
+        return base.mapPhases((phase, spec) -> c.apply(spec, ref, night, phase == ThemeRegistry.Phase.NIGHT
+                || phase == ThemeRegistry.Phase.BLUEHOUR || phase == ThemeRegistry.Phase.PREDAWN));
     }
 
     /**

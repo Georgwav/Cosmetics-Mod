@@ -33,9 +33,7 @@
   },
   "show": {
     "phase": "night",
-    "azimuth": 180,
-    "hold": true,
-    "time": 0.42
+    "azimuth": 350
   },
   "stars": {
     "count": 12,
@@ -111,7 +109,80 @@
     }
   ],
   "keyframes": {
-    "day": {
+    "predawn": {
+      "sky": {
+        "top": "#081124",
+        "middle": "#13284a",
+        "horizon": "#2c554b",
+        "glow": "#c09060",
+        "sunWarmth": 0.25
+      },
+      "fog": {
+        "color": "#173935",
+        "density": 0.773,
+        "near": 3,
+        "far": 58,
+        "scatter": 0.95,
+        "haze": 0.7
+      },
+      "light": {
+        "tint": "#b8e0c8",
+        "strength": 0.8,
+        "boost": 1.0,
+        "sun": "#ffe2a0",
+        "shadow": "#062420"
+      },
+      "clouds": {
+        "tint": "#1e3e38",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
+    },
+    "sunrise": {
+      "sky": {
+        "top": "#0c2420",
+        "middle": "#1e443e",
+        "horizon": "#4a6e5c",
+        "glow": "#c09060",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#244a44",
+        "density": 0.76
+      }
+    },
+    "morning": {
+      "sky": {
+        "top": "#214742",
+        "middle": "#3b675e",
+        "horizon": "#719583",
+        "glow": "#b0b497",
+        "sunWarmth": 0.2025
+      },
+      "fog": {
+        "color": "#3d635b",
+        "density": 0.734,
+        "near": 4,
+        "far": 72,
+        "scatter": 0.95,
+        "haze": 0.7
+      },
+      "light": {
+        "tint": "#d7f0e1",
+        "strength": 0.319,
+        "boost": 1.0,
+        "sun": "#ffe2a0",
+        "shadow": "#062420"
+      },
+      "clouds": {
+        "tint": "#78958b",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
+    },
+    "noon": {
       "sky": {
         "top": "#2c5a54",
         "middle": "#4a7a70",
@@ -133,20 +204,37 @@
         "tint": "#a8c4b8"
       }
     },
-    "dawn": {
+    "afternoon": {
       "sky": {
-        "top": "#0c2420",
-        "middle": "#1e443e",
-        "horizon": "#4a6e5c",
-        "glow": "#c09060",
-        "sunWarmth": 0.3
+        "top": "#214742",
+        "middle": "#3b675f",
+        "horizon": "#709482",
+        "glow": "#aab296",
+        "sunWarmth": 0.195
       },
       "fog": {
-        "color": "#244a44",
-        "density": 0.76
-      }
+        "color": "#3c625a",
+        "density": 0.732,
+        "near": 4,
+        "far": 73,
+        "scatter": 0.95,
+        "haze": 0.7
+      },
+      "light": {
+        "tint": "#daf1e3",
+        "strength": 0.282,
+        "boost": 1.0,
+        "sun": "#ffe2a0",
+        "shadow": "#062420"
+      },
+      "clouds": {
+        "tint": "#7f9c92",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
     },
-    "dusk": {
+    "sunset": {
       "sky": {
         "top": "#081c18",
         "middle": "#183c36",
@@ -158,6 +246,36 @@
         "color": "#1c403a",
         "density": 0.76
       }
+    },
+    "bluehour": {
+      "sky": {
+        "top": "#0c1732",
+        "middle": "#1c325a",
+        "horizon": "#67615b",
+        "glow": "#b07e50",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#153632",
+        "density": 0.772,
+        "near": 3,
+        "far": 58,
+        "scatter": 0.95,
+        "haze": 0.7
+      },
+      "light": {
+        "tint": "#b8e0c8",
+        "strength": 0.8,
+        "boost": 1.0,
+        "sun": "#ffe2a0",
+        "shadow": "#062420"
+      },
+      "clouds": {
+        "tint": "#1e3e38",
+        "litBySun": false,
+        "visible": false
+      },
+      "particleScale": 1.0
     }
   },
   "grade": {
@@ -169,5 +287,15 @@
     "bloom": 1.1,
     "threshold": 0.5,
     "vignette": 0.2
+  },
+  "night": {
+    "moon": "carian",
+    "light": "#bfd8ff",
+    "sky": [
+      "#03110f",
+      "#0a2621",
+      "#17443b"
+    ],
+    "airglow": "#50aa7d"
   }
 }

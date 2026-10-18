@@ -27,48 +27,55 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("TooltipLookMixin");
         all.add("PauseLookMixin");
         all.add("DeathLookMixin");
-        all.add("FastQuitMixin");
-        all.add("FastQuitGateMixin");
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
+        all.add("PackEntryAccess");
+        all.add("PackSearchMixin");
         all.add("TotemSizeMixin");
         all.add("WaterOverlayMixin");
+        all.add("InventoryDimMixin");
         all.add("NametagLookMixin");
         all.add("NametagHealthMixin");
-        all.add("GlintPlacesMixin");
-        all.add("GlintArmourMixin");
+        all.add("NametagShadowMixin");
         all.add("BeaconLevelsAccess");
-        all.add("ShulkerTooltipMixin");
         all.add("HitboxColorMixin");
+        all.add("HitboxWidthMixin");
+        all.add("HitboxFilterMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");
+        all.add("TabListTweaksMixin");
+        all.add("HudTweaksMixin");
+        all.add("BossBarTweaksMixin");
+        all.add("PlayerInfoSkinMixin");
+        all.add("DeathStreamerMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
+        all.add("EndCrystalLookMixin");
+        all.add("CrystalRemovalMixin");
+        //? if >=1.21.9 && <1.21.11 {
+        /*all.add("OutlineFallbackMixin");
+        *///?}
         all.add("SolChatMixin");
         all.add("ChatSendMixin");
-        all.add("ZoomMouseMixin");
+        all.add("ChatEmojiMixin");
         all.add("CameraTweaksMixin");
         all.add("FreelookTurnMixin");
         all.add("ViewBobMixin");
         all.add("LowFireMixin");
         all.add("OverlayTextureAccessor");
         all.add("HeldItemsMixin");
-        all.add("SwingMixin");
         all.add("ScreenOverlayMixin");
         all.add("NametagMixin");
-        all.add("BackgroundFpsMixin");
         all.add("ParticleTweaksMixin");
-        all.add("SoundMixerMixin");
-        all.add("DroppedItemsMixin");
         all.add("ScreenshotMixin");
         all.add("ItemDecorationsMixin");
         all.add("DisconnectedScreenMixin");
-        //? if >=26.1 {
-        /*all.add("ZoomCameraMixin");
-        *///?} else {
-        all.add("ZoomFovMixin");
-        //?}
+        all.add("ServerEntryMixin");
+        all.add("ServerEntryCountMixin");
+        all.add("ServerFoldersMixin");
+        all.add("ServerListSwapMixin");
+        all.add("ServerListScreenMixin");
         //? if >=1.21.11 {
         all.add("SolChatDrawMixin");
         //?} else {
@@ -79,9 +86,6 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         *///?}
         //? if <26.1 {
         all.add("ClientLevelDataMixin");
-        //?}
-        //? if >=1.21.4 {
-        all.add("ItemLayersAccess");
         //?}
         return all;
     }

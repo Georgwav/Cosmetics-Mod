@@ -25,15 +25,15 @@ import java.util.Map;
 
 /**
  * Stats: the small numbers, each one a line you switch on (FPS on by default): frame rate, clicks per second,
- * ping, the clock, memory, the world's day, how long you've played, the server, your speed, your last hit's reach,
- * your combo and a stopwatch (its own key). Sol UI shows each as a glass chip with an accent dot and a number that
+ * ping, the clock, memory, the world's day, how long you've played, the server, the resource pack in use, your
+ * speed, your last hit's reach, your combo and a stopwatch (its own key). Sol UI shows each as a glass chip with an accent dot and a number that
  * rolls instead of jumping, amber or red when it's poor (FPS under 60, ping over 150 ms, memory over 80%); the plain
  * look writes them as lines. Replaces the separate FPS, Ping and Clock modules (their settings move here).
  */
 public final class StatsHud extends TextHud {
     public enum Stat {
         FPS(true), CPS(false), PING(false), CLOCK(false), MEMORY(false), DAY(false), PLAYTIME(false), SERVER(false),
-        SPEED(false), REACH(false), COMBO(false), STOPWATCH(false);
+        PACK(false), SPEED(false), REACH(false), COMBO(false), STOPWATCH(false);
 
         final boolean on;
 
@@ -49,8 +49,8 @@ public final class StatsHud extends TextHud {
     private static final DateTimeFormatter H24 = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT);
     private static final DateTimeFormatter H12 = DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT);
     private final Map<Stat, Setting.Toggle> shown = new EnumMap<>(Stat.class);
-    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h")));
-    private final Setting.Choice layout = add(new Setting.Choice("layout", "row", List.of("row", "column")));
+    private final Setting.Choice format = add(new Setting.Choice("format", "24h", List.of("24h", "12h")).group("look"));
+    private final Setting.Choice layout = add(new Setting.Choice("layout", "row", List.of("row", "column")).group("look"));
     private final Map<Stat, RollingText> rolling = new EnumMap<>(Stat.class);
     private final Map<Stat, String> label = new EnumMap<>(Stat.class);
 
@@ -64,11 +64,14 @@ public final class StatsHud extends TextHud {
     private long lastHit;
     private int hurtBefore;
     private long stopwatchStart = -1L, stopwatchStop = -1L;
+    /** The resource packs in use, as the line shows them (made again once a second). */
+    private String packs;
+    private int packAge;
 
     public StatsHud() {
         super("stats", "debug", 0f, 0f, 4f, 4f);
         for (Stat s : Stat.values()) {
-            shown.put(s, add(new Setting.Toggle(s.id(), s.on)));
+            shown.put(s, add(new Setting.Toggle(s.id(), s.on).group("lines")));
             rolling.put(s, new RollingText());
         }
         addKey("stopwatch");
@@ -98,6 +101,10 @@ public final class StatsHud extends TextHud {
 
     @Override
     protected void tick(Minecraft mc) {
+        if (shown.get(Stat.PACK).get() && (packs == null || ++packAge >= 20)) {
+            packAge = 0;
+            packs = packs(mc);
+        }
         if (mc.player == null) {
             joinedAt = -1L;
             moved = false;
@@ -135,6 +142,26 @@ public final class StatsHud extends TextHud {
         }
     }
 
+    /**
+     * The resource packs you put on (not the game's own, Fabric's or mods'): the top one's name, "+n" for the others;
+     * null with none.
+     */
+    private static String packs(Minecraft mc) {
+        String top = null;
+        int more = 0;
+        for (var pack : mc.getResourcePackRepository().getSelectedPacks()) {
+            if (!pack.getId().startsWith("file/")) {
+                continue;
+            }
+            // The list runs bottom to top: the last one is on top.
+            if (top != null) {
+                more++;
+            }
+            top = pack.getTitle().getString();
+        }
+        return top == null ? null : more > 0 ? top + " +" + more : top;
+    }
+
     /** A stat's number (or text) and its label, or null when there's nothing to show. */
     private String value(Minecraft mc, Stat s) {
         return switch (s) {
@@ -162,6 +189,7 @@ public final class StatsHud extends TextHud {
                 var server = mc.getCurrentServer();
                 yield server == null ? null : server.ip;
             }
+            case PACK -> packs != null ? packs : preview() ? "Faithful" : null;
             case SPEED -> String.format(Locale.ROOT, "%.1f", speed);
             case REACH -> reach < 0f ? (preview() ? "3.00" : null) : String.format(Locale.ROOT, "%.2f", reach);
             case COMBO -> combo <= 0 && !preview() ? null : Integer.toString(combo);
@@ -218,7 +246,7 @@ public final class StatsHud extends TextHud {
             }
             String v = value(mc, s);
             if (v != null) {
-                out.add(s == Stat.SERVER || s == Stat.CLOCK ? v : v + " " + label(s));
+                out.add(s == Stat.SERVER || s == Stat.PACK || s == Stat.CLOCK ? v : v + " " + label(s));
             }
         }
         return out;
@@ -243,10 +271,10 @@ public final class StatsHud extends TextHud {
     }
 
     private float chipWidth(Stat s, String v) {
-        boolean text = s == Stat.SERVER;
+        boolean text = s == Stat.SERVER || s == Stat.PACK;
         float w = PAD + 3.5f + 3f + (text ? HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, v, scale())
                 : HudKit.measure(SolFont.Family.MONO, HudKit.TEXT, "0", scale()) * v.length());
-        if (s != Stat.SERVER && s != Stat.CLOCK) {
+        if (s != Stat.SERVER && s != Stat.PACK && s != Stat.CLOCK) {
             w += 2.5f + HudKit.measure(SolFont.Family.MEDIUM, HudKit.SMALL, label(s), scale());
         }
         return w + PAD;
@@ -288,7 +316,7 @@ public final class StatsHud extends TextHud {
             float cy = y + CHIP_H / 2f;
             HudKit.dot(g, col, cx + PAD, cy);
             float tx = cx + PAD + 3.5f + 3f;
-            if (s == Stat.SERVER) {
+            if (s == Stat.SERVER || s == Stat.PACK) {
                 g.textMid(text, v, tx, cy, 0xFFFFFFFF);
             } else {
                 tx += rolling.get(s).draw(g, mono, v, tx, cy, col == tk.accent ? 0xFFFFFFFF : col);

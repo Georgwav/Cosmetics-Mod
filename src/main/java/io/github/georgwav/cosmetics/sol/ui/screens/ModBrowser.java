@@ -16,6 +16,7 @@ import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.SolExecutors;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -25,8 +26,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Get mods: Fabric mods on Modrinth for this Minecraft version, the most downloaded first or what you search for.
- * Install puts the mod (and what it needs) in the mods folder for the next start; nothing runs until you restart.
+ * Get mods: Fabric mods or resource packs on Modrinth for this Minecraft version, the most downloaded first or what
+ * you search for. Install puts a mod (and what it needs) in this instance's mods folder, and offers to quit so the
+ * launcher starts the game again with it; a pack goes in its resourcepacks folder and shows in the pack screen at once.
  */
 public final class ModBrowser extends SolScreen {
     private final Ui ui = new Ui();
@@ -39,6 +41,9 @@ public final class ModBrowser extends SolScreen {
     /** Project id → "installing", "done" or "failed". */
     private final Map<String, String> state = new ConcurrentHashMap<>();
     private final Set<String> downloaded = ConcurrentHashMap.newKeySet();
+    private Modrinth.Kind kind = Modrinth.Kind.MOD;
+    /** A mod was installed here: the game needs a restart to load it. */
+    private volatile boolean restart;
 
     public ModBrowser(Screen parent, String query) {
         super(Component.translatable("sol.mods.browser.title"), parent, Feature.MENU);
@@ -52,9 +57,10 @@ public final class ModBrowser extends SolScreen {
         hits = null;
         failed = false;
         String query = asked;
+        Modrinth.Kind k = kind;
         SolExecutors.IO.execute(() -> {
-            List<Modrinth.Hit> h = Modrinth.search(query);
-            if (query.equals(asked)) {
+            List<Modrinth.Hit> h = Modrinth.search(query, k);
+            if (query.equals(asked) && k == kind) {
                 failed = h == null;
                 hits = h == null ? List.of() : h;
             }
@@ -90,14 +96,33 @@ public final class ModBrowser extends SolScreen {
         return n >= 1_000_000L ? String.format(Locale.ROOT, "%.1fM", n / 1e6) : n >= 1000L ? String.format(Locale.ROOT, "%.0fk", n / 1e3) : Long.toString(n);
     }
 
+    /** Shows mods or resource packs. */
+    private void show(Modrinth.Kind k) {
+        if (kind != k) {
+            kind = k;
+            scroll.reset();
+            ask(search.text());
+        }
+    }
+
     private void install(Modrinth.Hit hit) {
         state.put(hit.id(), "installing");
+        Modrinth.Kind k = kind;
+        Minecraft mc = Minecraft.getInstance();
         SolExecutors.IO.execute(() -> {
             try {
-                List<String> files = Modrinth.install(hit.id(), ConcurrentHashMap.newKeySet());
+                List<String> files = Modrinth.install(hit.id(), k, ConcurrentHashMap.newKeySet());
                 downloaded.add(hit.id());
                 state.put(hit.id(), "done");
-                Notifications.post(Component.translatable("sol.notify.mod_installed", hit.title(), files.size()).getString());
+                if (k == Modrinth.Kind.PACK) {
+                    // The new pack in the pack screen now (it's off until you turn it on there).
+                    mc.execute(() -> mc.getResourcePackRepository().reload());
+                    Notifications.post(Component.translatable("sol.notify.pack_installed", hit.title()).getString());
+                    return;
+                }
+                restart = true;
+                Notifications.post(Component.translatable("sol.notify.mod_installed", hit.title(), files.size()).getString(),
+                        Component.translatable("sol.mods.browser.quit").getString(), mc::stop);
             } catch (Exception e) {
                 state.put(hit.id(), "failed");
                 Notifications.post(Component.translatable("sol.notify.mod_failed", hit.title()).getString());
@@ -117,12 +142,16 @@ public final class ModBrowser extends SolScreen {
         SolFont h1 = g.font(SolFont.Family.SEMIBOLD, 26f), mono = g.font(SolFont.Family.MONO, 12f);
         SolFont b = g.font(SolFont.Family.SEMIBOLD, 14f), s = g.font(SolFont.Family.MEDIUM, 12f);
         float x0 = 160f, w = 960f, top = 44f;
-        String title = Component.translatable("sol.mods.browser.title").getString();
+        String title = Component.translatable(kind == Modrinth.Kind.MOD ? "sol.mods.browser.title" : "sol.mods.browser.title_packs").getString();
         g.textMid(h1, title, x0, top, 0xFFFFFFFF);
         g.textMid(mono, Component.translatable("sol.mods.browser.for", "Modrinth",
                 net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("minecraft").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse(""))
                 .getString(), x0 + g.width(h1, title) + 14f, top, 0x8CFFFFFF);
-        ui.button(tk, x0 + w, top, Component.translatable("gui.done").getString(), true, this::onClose);
+        float tabs = x0 + w - ui.button(tk, x0 + w, top, Component.translatable("gui.done").getString(), true, this::onClose) - 16f;
+        tabs -= ui.button(tk, tabs, top, Component.translatable("sol.mods.browser.packs").getString(), kind == Modrinth.Kind.PACK,
+                () -> show(Modrinth.Kind.PACK)) + 6f;
+        ui.button(tk, tabs, top, Component.translatable("sol.mods.browser.mods").getString(), kind == Modrinth.Kind.MOD,
+                () -> show(Modrinth.Kind.MOD));
         search.draw(g, ui, tk, x0, top + 30f, w, 34f, "search", Component.translatable("sol.mods.browser.search").getString(), dt);
         List<Modrinth.Hit> list = hits;
         float ly = top + 82f, bottom = 700f;
@@ -131,7 +160,8 @@ public final class ModBrowser extends SolScreen {
             return;
         }
         if (list.isEmpty()) {
-            g.textMid(s, Component.translatable(failed ? "sol.mods.browser.offline" : "sol.mods.browser.none").getString(), x0, ly + 20f, 0x8CFFFFFF);
+            g.textMid(s, Component.translatable(failed ? "sol.mods.browser.offline" : kind == Modrinth.Kind.MOD ? "sol.mods.browser.none"
+                    : "sol.mods.browser.none_packs").getString(), x0, ly + 20f, 0x8CFFFFFF);
             return;
         }
         g.clip(x0 - 8f, ly - 4f, x0 + w + 8f, bottom);
@@ -148,12 +178,14 @@ public final class ModBrowser extends SolScreen {
                     g.round(x0 + 12f, y + 12f, 44f, 44f, 10f, 0x14FFFFFF);
                     Icons.draw(g, "puzzle", x0 + 23f, y + 23f, 22f, 0x99FFFFFF, Icons.FILL, 0);
                 }
-                String st = state.getOrDefault(hit.id(), Modrinth.installed(hit, downloaded) ? "installed" : "");
+                String st = state.getOrDefault(hit.id(), downloaded.contains(hit.id())
+                        || kind == Modrinth.Kind.MOD && Modrinth.installed(hit, downloaded) ? "installed" : "");
                 float aw;
                 float cy = y + rh / 2f;
                 switch (st) {
                     case "installing" -> aw = ui.pill(tk, x0 + w - 14f, cy, Component.translatable("sol.mods.browser.installing").getString(), false);
-                    case "done" -> aw = ui.pill(tk, x0 + w - 14f, cy, Component.translatable("sol.mods.browser.restart").getString(), true);
+                    case "done" -> aw = ui.pill(tk, x0 + w - 14f, cy, Component.translatable(kind == Modrinth.Kind.MOD
+                            ? "sol.mods.browser.restart" : "sol.mods.browser.added").getString(), true);
                     case "installed" -> aw = ui.pill(tk, x0 + w - 14f, cy, Component.translatable("sol.mods.browser.installed").getString(), false);
                     default -> aw = ui.button(tk, x0 + w - 14f, cy, Component.translatable(st.equals("failed")
                             ? "sol.mods.browser.retry" : "sol.mods.browser.install").getString(), true, () -> install(hit));
@@ -169,7 +201,14 @@ public final class ModBrowser extends SolScreen {
         g.endClip();
         scroll.setMax(y + scroll.value() - bottom);
         scroll.step(dt);
-        g.text(g.font(SolFont.Family.MEDIUM, 11f), Component.translatable("sol.mods.browser.note").getString(), x0, 712f,
-                Colors.withAlpha(0xFFFFFFFF, 0.45f));
+        String where = Modrinth.instance().toAbsolutePath().normalize().toString();
+        if (restart) {
+            // The restart prompt: the game can't load a mod while it runs; quitting lets the launcher start it again.
+            g.text(g.font(SolFont.Family.SEMIBOLD, 12f), Component.translatable("sol.mods.browser.restart_note").getString(), x0, 712f, tk.accent);
+            ui.button(tk, x0 + w, 708f, Component.translatable("sol.mods.browser.quit").getString(), true, () -> Minecraft.getInstance().stop());
+        } else {
+            g.text(g.font(SolFont.Family.MEDIUM, 11f), g.fit(g.font(SolFont.Family.MEDIUM, 11f), Component.translatable(kind == Modrinth.Kind.MOD
+                    ? "sol.mods.browser.note" : "sol.mods.browser.note_packs", where).getString(), w), x0, 712f, Colors.withAlpha(0xFFFFFFFF, 0.45f));
+        }
     }
 }

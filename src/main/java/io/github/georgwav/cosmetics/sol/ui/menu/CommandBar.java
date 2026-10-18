@@ -3,7 +3,6 @@ package io.github.georgwav.cosmetics.sol.ui.menu;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
-import io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere;
 import io.github.georgwav.cosmetics.sol.config.SolProfiles;
 import io.github.georgwav.cosmetics.sol.theme.ThemeRegistry;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
@@ -25,12 +24,12 @@ import java.util.Locale;
  * profile, an action. Every word typed has to match; the best matches first; Enter runs the chosen one.
  */
 final class CommandBar {
-    /** One thing to run; {@code key} names it for the suggestions ("module:zoom", "preset:ember_solstice", ...). */
+    /** One thing to run; {@code key} names it for the suggestions ("module:camera", "preset:ember_solstice", ...). */
     record Item(String key, String label, String kind, String icon, Runnable run) {
     }
 
     /** What shows before anything is typed: the prototype's five, then stand-ins while a module doesn't exist yet. */
-    private static final String[] SUGGESTED = {"module:zoom", "action:edit_hud", "preset:ember_solstice", "profile:",
+    private static final String[] SUGGESTED = {"module:camera", "action:edit_hud", "preset:ember_solstice", "profile:",
             "settings:glint", "settings:atmosphere", "module:crosshair"};
 
     private final SolMenu menu;
@@ -62,6 +61,15 @@ final class CommandBar {
                 }));
             }
         }
+        String theme = Widgets.themeName(io.github.georgwav.cosmetics.sol.theme.ThemeState.baseEntry());
+        it.add(new Item("theme:customise", SolMenu.tr("sol.cmd.customise_theme", theme), SolMenu.tr("sol.cmd.open"), "sun", () -> {
+            menu.go("world");
+            menu.openTheme(false);
+        }));
+        it.add(new Item("theme:night", SolMenu.tr("sol.cmd.customise_night", theme), SolMenu.tr("sol.cmd.open"), "sun", () -> {
+            menu.go("world");
+            menu.openTheme(true);
+        }));
         for (ThemeRegistry.Entry e : ThemeRegistry.all()) {
             it.add(new Item("preset:" + e.id(), SolMenu.tr("sol.cmd.preset", Widgets.themeName(e)), SolMenu.tr("sol.cmd.kind.preset"), "sun",
                     () -> WorldSection.apply(menu, e)));
@@ -81,12 +89,6 @@ final class CommandBar {
         }
         it.add(new Item("action:edit_hud", SolMenu.tr("sol.cmd.edit_hud"), SolMenu.tr("sol.cmd.kind.action"), "hud",
                 () -> ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.HudEditor(menu))));
-        Atmosphere at = Atmosphere.INSTANCE;
-        if (at != null) {
-            boolean pixel = !"smooth".equals(at.lightStyle.get());
-            it.add(new Item("action:light", SolMenu.tr(pixel ? "sol.cmd.smooth_light" : "sol.cmd.pixel_light"), SolMenu.tr("sol.cmd.kind.action"), "sun",
-                    () -> at.lightStyle.set(pixel ? "smooth" : "pixel")));
-        }
         return it;
     }
 
