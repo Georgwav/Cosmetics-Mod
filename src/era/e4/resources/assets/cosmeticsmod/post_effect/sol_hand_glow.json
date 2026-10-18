@@ -40,7 +40,7 @@
   },
   "passes": [
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_hand_mask",
       "inputs": [
         {
@@ -63,7 +63,7 @@
       "output": "hmask"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_down",
       "inputs": [
         {
@@ -75,7 +75,7 @@
       "output": "hg1"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_down",
       "inputs": [
         {
@@ -87,7 +87,7 @@
       "output": "hg2"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_down",
       "inputs": [
         {
@@ -99,7 +99,7 @@
       "output": "hg3"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_down",
       "inputs": [
         {
@@ -111,7 +111,7 @@
       "output": "hg4"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_up",
       "inputs": [
         {
@@ -134,7 +134,7 @@
       "output": "hu3"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_up",
       "inputs": [
         {
@@ -157,7 +157,7 @@
       "output": "hu2"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_up",
       "inputs": [
         {
@@ -180,7 +180,7 @@
       "output": "hu1"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_glow_up",
       "inputs": [
         {
@@ -203,7 +203,7 @@
       "output": "hu0"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_hand_glow",
       "inputs": [
         {
@@ -231,7 +231,7 @@
       "output": "swap"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_copy",
       "inputs": [
         {

@@ -616,12 +616,29 @@ def era_files(era):
                 if era == "e2":
                     p["program"] = "cosmeticsmod:post/" + prog
                 else:
-                    p["vertex_shader"] = "minecraft:post/screenquad" if era in ("e3", "e4") else "minecraft:core/screenquad"
+                    p["vertex_shader"] = "cosmeticsmod:post/sol_quad" if era in ("e3", "e4") else "minecraft:core/screenquad"
                     p["fragment_shader"] = "cosmeticsmod:post/" + prog
                 p["inputs"] = ins
                 p["output"] = "minecraft:main" if out == "main" else out
                 plist.append(p)
             write(os.path.join(ns, "post_effect", name + ".json"), json.dumps({"targets": tmap, "passes": plist}, indent=2) + "\n")
+    if era in ("e3", "e4"):
+        # 1.21.5 to 1.21.8: the game's screen quad is sized by a projection for the whole screen, so a pass into a
+        # smaller fixed-size target (the bloom levels, the light shafts, the hand glow) filled only its corner. This
+        # quad fills its own target at any size; it keeps the game's uniforms in use so the game finds them.
+        if era == "e3":
+            head = "#version 150\n\nin vec4 Position;\n\nuniform mat4 ProjMat;\nuniform vec2 OutSize;\n"
+        else:
+            head = ("#version 150\n\n#moj_import <minecraft:projection.glsl>\n\nin vec4 Position;\n\n"
+                    "layout(std140) uniform SamplerInfo {\n    vec2 OutSize;\n    vec2 InSize;\n};\n")
+        write(os.path.join(ns, "shaders", "post", "sol_quad.vsh"), head + """
+out vec2 texCoord;
+
+void main() {
+    gl_Position = vec4(Position.xy * 2.0 - 1.0, 0.2, 1.0);
+    texCoord = Position.xy + (OutSize.x < 0.0 ? ProjMat[0][0] : 0.0);
+}
+""")
     if era == "e1":
         # 1.21.1 asks the resources for a chain's textures before using the one Sol registered under that name.
         for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX):

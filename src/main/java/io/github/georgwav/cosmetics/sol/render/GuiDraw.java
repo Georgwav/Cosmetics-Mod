@@ -248,14 +248,17 @@ public final class GuiDraw {
         //? if >=1.21.9 {
         @Override
         public void buildVertices(VertexConsumer consumer) {
+            float z = 0f;
         //?} else {
         /*@Override
         public void buildVertices(VertexConsumer consumer, float z) {
         *///?}
+            // 1.21.6 to 1.21.8 put each stratum at its own depth: the shapes have to sit at the one they're given, or
+            // a later stratum's (Sol's own, from the drawing-order fix) is hidden behind the earlier ones.
             float[] d = verts;
             for (int v = 0; v < count; v++) {
                 int i = v * FLOATS;
-                consumer.addVertex(d[i], d[i + 1], 0f).setUv(d[i + 2], d[i + 3]).setColor(Float.floatToRawIntBits(d[i + 4]));
+                consumer.addVertex(d[i], d[i + 1], z).setUv(d[i + 2], d[i + 3]).setColor(Float.floatToRawIntBits(d[i + 4]));
             }
         }
 

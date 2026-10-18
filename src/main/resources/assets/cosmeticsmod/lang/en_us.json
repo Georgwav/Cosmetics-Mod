@@ -1347,7 +1347,7 @@
   "cosmeticsmod.module.music.lyrics": "Lyrics under it",
   "cosmeticsmod.module.music.lyrics.hint": "The line being sung under the card (the Lyrics module can show it anywhere instead)",
   "cosmeticsmod.module.lyrics": "Lyrics",
-  "cosmeticsmod.module.lyrics.note": "The line being sung, on its own, wherever you put it",
+  "cosmeticsmod.module.lyrics.note": "The line being sung, on its own, wherever you put it (with Music on)",
   "cosmeticsmod.module.lyrics.next_line": "Next line",
   "cosmeticsmod.module.lyrics.next_line.hint": "The line coming up, under the one being sung",
   "cosmeticsmod.module.lyrics.align": "Align",

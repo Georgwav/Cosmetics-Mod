@@ -48,7 +48,7 @@
   },
   "passes": [
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_bright",
       "inputs": [
         {
@@ -67,7 +67,7 @@
       "output": "b0"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_down",
       "inputs": [
         {
@@ -79,7 +79,7 @@
       "output": "b1"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_down",
       "inputs": [
         {
@@ -91,7 +91,7 @@
       "output": "b2"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_down",
       "inputs": [
         {
@@ -103,7 +103,7 @@
       "output": "b3"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_down",
       "inputs": [
         {
@@ -115,7 +115,7 @@
       "output": "b4"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_down",
       "inputs": [
         {
@@ -127,7 +127,7 @@
       "output": "b5"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_up",
       "inputs": [
         {
@@ -143,7 +143,7 @@
       "output": "u4"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_up",
       "inputs": [
         {
@@ -159,7 +159,7 @@
       "output": "u3"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_up",
       "inputs": [
         {
@@ -175,7 +175,7 @@
       "output": "u2"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_up",
       "inputs": [
         {
@@ -191,7 +191,7 @@
       "output": "u1"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_up",
       "inputs": [
         {
@@ -207,7 +207,7 @@
       "output": "u0"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_grade",
       "inputs": [
         {
@@ -237,7 +237,7 @@
       "output": "swap"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_copy",
       "inputs": [
         {
