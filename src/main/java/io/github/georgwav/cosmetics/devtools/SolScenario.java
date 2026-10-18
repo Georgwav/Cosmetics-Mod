@@ -35,7 +35,8 @@ public final class SolScenario {
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "menu_settings_about",
             "menu_drawer_atmosphere", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
@@ -186,6 +187,12 @@ public final class SolScenario {
             shots.add(new Shot(EVENTS + "comet", "maple_afternoon", 0f, false, comet[0], comet[1], newMoon + dusk));
             float[] death = aimAt("deathstar", 0.75, 0.5f);
             shots.add(new Shot(EVENTS + "ships", "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            if ("clip".equals(System.getProperty("cosmeticsmod.solEvents", ""))) {
+                // The events clip: sixteen frames a fifth of a second apart, round the Death Star.
+                for (int k = 0; k < 16; k++) {
+                    shots.add(new Shot(EVENTS + "clip" + k, "maple_afternoon", 0f, false, death[0], death[1] + 12f, newMoon + 18000L));
+                }
+            }
             return;
         }
         if ("timelapse".equals(SHOTS)) {

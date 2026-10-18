@@ -18,10 +18,15 @@ import io.github.georgwav.cosmetics.sol.util.Colors;
 
 import java.util.List;
 
-/** World: the presets (each theme's showpiece as a card) and the world's quick settings under them. */
+/**
+ * World: the presets (each theme's showpiece as a card) and the world's quick settings under them, or the Night
+ * sky page ({@link NightPage}).
+ */
 final class WorldSection implements Section {
     private final Scroll scroll = new Scroll();
     private final PresetThumbs thumbs = new PresetThumbs();
+    private final NightPage nightPage = new NightPage();
+    private boolean night;
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
@@ -37,10 +42,18 @@ final class WorldSection implements Section {
                         menu.openDrawer(Modules.ATMOSPHERE);
                     }
                 });
-        ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr("sol.menu.world.packs"), false,
-                () -> menu.toast(SolMenu.tr("sol.notify.packs")));
+        bw += 8f + ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr(night ? "sol.menu.world.themes" : "sol.menu.world.night"), night,
+                () -> night = !night);
+        if (!night) {
+            ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr("sol.menu.world.packs"), false,
+                    () -> menu.toast(SolMenu.tr("sol.notify.packs")));
+        }
 
         float gy = y + 42f, gh = h - 42f;
+        if (night) {
+            nightPage.draw(menu, g, ui, tk, x, gy, w, gh);
+            return;
+        }
         g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);
         float top = gy + 2f - scroll.value();
         List<ThemeRegistry.Entry> themes = ThemeRegistry.all();
@@ -116,6 +129,11 @@ final class WorldSection implements Section {
         return sx + 30f + 22f;
     }
 
+    /** Opens on the Night sky page (the scenario's shot). */
+    void showNight() {
+        night = true;
+    }
+
     static void customise(Customisation c) {
         ThemeState.setCustomisation(c);
         SolProfiles.setCustomisation(c);
@@ -136,7 +154,7 @@ final class WorldSection implements Section {
 
     @Override
     public boolean scroll(float amount) {
-        return scroll.wheel(amount);
+        return night ? nightPage.scroll(amount) : scroll.wheel(amount);
     }
 
     @Override

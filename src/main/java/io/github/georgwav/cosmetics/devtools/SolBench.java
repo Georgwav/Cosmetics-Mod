@@ -21,6 +21,9 @@ final class SolBench {
     static final double ATMOSPHERE_BUDGET = 0.3;
     static final double SUN_FLARE_BUDGET = 0.03;
     static final double SOL_UI_BUDGET = 0.2;
+    /** The night sky (stars, Milky Way, constellations, twilight, planets, moon, events) and the theme's night extras. */
+    static final double NIGHT_BUDGET = 0.15;
+    static final double NIGHT_EXTRAS_BUDGET = 0.1;
 
     private static final List<Module> TURNED_ON = new ArrayList<>();
 
@@ -62,6 +65,39 @@ final class SolBench {
         on(Modules.GLINT);
         on(Modules.SOL_CHAT);
         SolTiming.reset();
+    }
+
+    /**
+     * The night: the Nebula theme at midnight, facing south and looking up into its nebulae with every layer on
+     * (stars, the Milky Way, constellations, planets, wild worlds, the moon, meteors, the comet, ships).
+     */
+    static void night(Minecraft mc) {
+        ThemeState.setTheme("nebula", false);
+        Atmosphere at = Atmosphere.INSTANCE;
+        if (at != null) {
+            at.time.set(18000.0);
+        }
+        if (mc.player != null) {
+            mc.player.setYRot(0f);
+            mc.player.setXRot(-40f);
+        }
+        SolTiming.reset();
+    }
+
+    /** The night's budgets (not on a software renderer, as {@link #check}). */
+    static void checkNight(JsonObject phase, List<String> failures) {
+        if (phase == null || !phase.has("solMsPerFrame") || "1".equals(System.getenv("LIBGL_ALWAYS_SOFTWARE"))) {
+            return;
+        }
+        JsonObject parts = phase.getAsJsonObject("solMsPerFrame");
+        double sky = parts.get("night").getAsDouble() + parts.get("planets").getAsDouble() + parts.get("events").getAsDouble();
+        double extras = parts.get("extras").getAsDouble();
+        if (sky > NIGHT_BUDGET) {
+            failures.add(String.format(java.util.Locale.ROOT, "the night sky took %.3f ms/frame (budget %.2f)", sky, NIGHT_BUDGET));
+        }
+        if (extras > NIGHT_EXTRAS_BUDGET) {
+            failures.add(String.format(java.util.Locale.ROOT, "the night's extras took %.3f ms/frame (budget %.2f)", extras, NIGHT_EXTRAS_BUDGET));
+        }
     }
 
     private static void on(Module m) {

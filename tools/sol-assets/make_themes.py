@@ -282,6 +282,8 @@ OLD = {"dawn": "sunrise", "day": "noon", "dusk": "sunset", "night": "night"}
 SKYK = [(10, "#4f74ad", "#91b2d8", "#f2cfa2"), (3, "#3f5f98", "#7b8fc0", "#ffb47a"), (-1, "#2c4380", "#5a68a6", "#ff8e5e"),
         (-4, "#1d2c62", "#3b4a8a", "#d77b7e"), (-7, "#13204c", "#283a76", "#7a6596"), (-11, "#0b1538", "#182760", "#34437c"),
         (-15, "#070f2a", "#0f1b46", "#1d2a5e"), (-19, "#050b20", "#0a1436", "#172350")]
+# Themes whose own sky colour is their identity keep it through blue hour and pre-dawn (Eclipse's sky stays red-black).
+OWN_TWILIGHT = {"eclipse"}
 PASTEL = {"sakura_dusk", "frost_morning", "ember_solstice", "firefly_meadow", "maple_afternoon", "aurora", "nebula", "silver_night"}
 
 def rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
@@ -313,7 +315,8 @@ def resolved(o, name):
 def blend(a, b, t):
     """Between two resolved times of day: colours mixed, numbers in between, anything else the nearer one's."""
     if isinstance(a, dict) and isinstance(b, dict):
-        return {k: blend(a.get(k, b.get(k)), b.get(k, a.get(k)), t) for k in set(a) | set(b)}
+        keys = list(a) + [k for k in b if k not in a]
+        return {k: blend(a.get(k, b.get(k)), b.get(k, a.get(k)), t) for k in keys}
     if ishex(a) and ishex(b):
         return mixh(a, b, t)
     if isinstance(a, int) and isinstance(b, int) and not isinstance(a, bool):
@@ -343,13 +346,14 @@ for id, o in T:
     kf["morning"] = blend(sunrise, noon, 0.65)
     kf["afternoon"] = blend(noon, sunset, 0.3)
     bk, pk = skyk(-8), skyk(-11)
+    own = 0.85 if id in OWN_TWILIGHT else 0.0
     blue = blend(sunset, night, 0.6)
-    blue["sky"].update(top=mixh(bk[0], night["sky"]["top"], 0.35), middle=mixh(bk[1], night["sky"]["middle"], 0.3),
+    blue["sky"].update(top=mixh(bk[0], night["sky"]["top"], max(own, 0.35)), middle=mixh(bk[1], night["sky"]["middle"], max(own, 0.3)),
                        horizon=mixh(mixh(sunset["sky"]["horizon"], "#d77b7e", 0.45), night["sky"]["horizon"], 0.25),
                        glow=sunset["sky"]["glow"], sunWarmth=0.3)
     kf["bluehour"] = blue
     pre = blend(night, sunrise, 0.35)
-    pre["sky"].update(top=mixh(pk[0], night["sky"]["top"], 0.45), middle=mixh(pk[1], night["sky"]["middle"], 0.4),
+    pre["sky"].update(top=mixh(pk[0], night["sky"]["top"], max(own, 0.45)), middle=mixh(pk[1], night["sky"]["middle"], max(own, 0.4)),
                       horizon=mixh(night["sky"]["horizon"], sunrise["sky"]["horizon"], 0.45), glow=sunrise["sky"]["glow"], sunWarmth=0.25)
     kf["predawn"] = pre
     kf.pop(show, None)

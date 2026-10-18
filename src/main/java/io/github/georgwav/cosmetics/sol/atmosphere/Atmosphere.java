@@ -39,27 +39,14 @@ public final class Atmosphere extends Module {
     public final Setting.Slider waterView = add(new Setting.Slider("water_view", 100, 100, 400, 25, v -> Math.round(v) + "%").advanced());
     public final Setting.Toggle light = add(new Setting.Toggle("light", true).advanced());
     public final Setting.Toggle clouds = add(new Setting.Toggle("clouds", true).advanced());
-    public final Setting.Toggle stars = add(new Setting.Toggle("stars", true).advanced());
-    public final Setting.Toggle planets = add(new Setting.Toggle("planets", true).advanced());
-    /** Worlds from films and games among the planets: Gargantua, Halo, the Death Star and more. */
-    public final Setting.Toggle wildWorlds = add(new Setting.Toggle("wild_worlds", true).advanced());
     /** The game's square moon instead of the round pixel moon. */
     public final Setting.Toggle squareMoon = add(new Setting.Toggle("square_moon", false).advanced());
-    // The night sky (the Night Sky lab's layers).
+    // The night sky, for every theme (each theme's own layers are on the Night sky page, in its edits).
+    /** The game's own sky instead of Sol's, to compare. */
+    public final Setting.Toggle vanillaSky = add(new Setting.Toggle("vanilla_sky", false).advanced());
+    /** How far the moon's light spreads into the sky round it. */
+    public final Setting.Slider moonGlow = add(new Setting.Slider("moon_glow", 45, 0, 100, 5, v -> Math.round(v) + "%").advanced());
     public final Setting.Choice constellations = add(new Setting.Choice("constellations", "always", List.of("off", "look", "always")).advanced());
-    public final Setting.Toggle names = add(new Setting.Toggle("names", true).advanced());
-    public final Setting.Toggle milkyWay = add(new Setting.Toggle("milky_way", true).advanced());
-    public final Setting.Toggle nebulae = add(new Setting.Toggle("nebulae", true).advanced());
-    /** The faint airglow band round the horizon on dark nights, and the zodiacal light. */
-    public final Setting.Toggle airglow = add(new Setting.Toggle("airglow", true).advanced());
-    /** Meteors all night, bursts, fireballs and earthgrazers. */
-    public final Setting.Toggle meteors = add(new Setting.Toggle("meteors", true).advanced());
-    /** Shower nights: more meteors, most from the season's radiant. */
-    public final Setting.Toggle showers = add(new Setting.Toggle("showers", true).advanced());
-    /** The two-tailed comet in the evening sky. */
-    public final Setting.Toggle comet = add(new Setting.Toggle("comet", true).advanced());
-    /** Satellites, ships jumping to hyperspace and the Death Star's superlaser. */
-    public final Setting.Toggle ships = add(new Setting.Toggle("ships", true).advanced());
     /** How high the celestial pole stands over the north (0° is the game's straight east-to-west path). */
     public final Setting.Slider latitude = add(new Setting.Slider("latitude", 34, 0, 60, 1, v -> Math.round(v) + "°").advanced());
     /** Days in the sky's year: the stars at a given hour turn once round through it. */

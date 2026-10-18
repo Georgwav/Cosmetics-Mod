@@ -73,7 +73,7 @@ import java.util.List;
 public final class DevScenario {
     private static final String PREFIX = CosmeticsMod.MOD_ID + ".";
 
-    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, DONE }
+    private enum Phase { WAIT_FOR_WORLD, WARMUP, FRONT, BACK, BACK_WARMUP, BACK_NORMAL, BACK_OFF, SHIELD_ON, SHIELD_OFF, SHIELD_COSMETIC, EMOTE_WHEEL, EMOTE, EMOTE_ELYTRA, ELYTRA_STAND_ON, ELYTRA_ANGLE_ON, ELYTRA_STAND_OFF, ELYTRA_ANGLE_OFF, ELYTRA_CAPE, ELYTRA_LAUNCH, ELYTRA_EMOTE, SETTINGS_UI, QUICK_MENU, MENU_MODULES, MENU_DRAWER, WARDROBE_SKINS, MENU_WARDROBE, MENU_SETTINGS, WORLD_MODULES, FREECAM, HUD_MODULES, HUD_EDITOR, MOD_MENU, SHADERS_WARMUP, SHADERS_ON, SHADERS_NORMAL, SHADERS_OFF, SHADOW_SKIP, SOL_WARMUP, SOL_ATMOS_OFF, SOL_ATMOS_ON, SOL_ALL, SOL_NIGHT, DONE }
 
     /** Ticks each settings tab stays open during the UI check. */
     private static final int UI_TAB_TICKS = 60;
@@ -348,6 +348,14 @@ public final class DevScenario {
                 if (ticks >= phaseTicks) {
                     record("sol_all");
                     SolBench.check(phases.getAsJsonObject("sol_all"), failures);
+                    SolBench.night(client);
+                    enter(Phase.SOL_NIGHT);
+                }
+            }
+            case SOL_NIGHT -> {
+                if (ticks >= phaseTicks) {
+                    record("sol_night");
+                    SolBench.checkNight(phases.getAsJsonObject("sol_night"), failures);
                     SolBench.tearDown();
                     restoreLoad();
                     enter(Phase.DONE);

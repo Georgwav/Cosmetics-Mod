@@ -13,11 +13,16 @@ import java.util.Map;
 /**
  * A player's edits to one theme, saved in the profile: hue and saturation (the brief's {@code customTheme()}),
  * particle density, fog density, sun size and rays, particle types switched off, stars, planets, the Milky Way and
- * the aurora's colours. Applied over every time of day of the theme. Immutable; {@link #NONE} changes nothing.
+ * the aurora's colours, and which of the night sky's layers it shows ({@link #LAYERS}, all on unless switched off).
+ * Applied over every time of day of the theme. Immutable; {@link #NONE} changes nothing.
  */
 public record Customisation(float hue, float sat, float density, Float fog, float sunSize, Integer rays,
-                            Map<String, Boolean> particles, float stars, Boolean planets, Float milkyWay, int[] aurora) {
-    public static final Customisation NONE = new Customisation(0f, 1f, 1f, null, 1f, null, Map.of(), 1f, null, null, null);
+                            Map<String, Boolean> particles, float stars, Boolean planets, Float milkyWay, int[] aurora,
+                            Map<String, Boolean> layers) {
+    public static final Customisation NONE = new Customisation(0f, 1f, 1f, null, 1f, null, Map.of(), 1f, null, null, null, Map.of());
+    /** The night sky's layers (the Night Sky lab's), each on unless a theme's edits switch it off. */
+    public static final java.util.List<String> LAYERS = java.util.List.of("stars", "milky_way", "nebulae", "planets",
+            "wild_worlds", "moonlight", "meteors", "showers", "comet", "ships", "airglow", "names");
 
     public Customisation {
         hue = clamp(hue, -180f, 180f);
@@ -29,6 +34,7 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         particles = particles == null ? Map.of() : Map.copyOf(particles);
         stars = clamp(stars, 0f, 3f);
         milkyWay = milkyWay == null ? null : clamp(milkyWay, 0f, 1f);
+        layers = layers == null ? Map.of() : Map.copyOf(layers);
     }
 
     public boolean isNone() {
@@ -36,27 +42,27 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
     }
 
     public Customisation withHue(float v) {
-        return new Customisation(v, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(v, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withSat(float v) {
-        return new Customisation(hue, v, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, v, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withDensity(float v) {
-        return new Customisation(hue, sat, v, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, v, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withFog(Float v) {
-        return new Customisation(hue, sat, density, v, sunSize, rays, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, density, v, sunSize, rays, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withSunSize(float v) {
-        return new Customisation(hue, sat, density, fog, v, rays, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, density, fog, v, rays, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withRays(Integer v) {
-        return new Customisation(hue, sat, density, fog, sunSize, v, particles, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, density, fog, sunSize, v, particles, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withParticle(String type, boolean on) {
@@ -66,23 +72,42 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         } else {
             map.put(type, false);
         }
-        return new Customisation(hue, sat, density, fog, sunSize, rays, map, stars, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, density, fog, sunSize, rays, map, stars, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withStars(float v) {
-        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, v, planets, milkyWay, aurora);
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, v, planets, milkyWay, aurora, layers);
     }
 
     public Customisation withPlanets(Boolean v) {
-        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, v, milkyWay, aurora);
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, v, milkyWay, aurora, layers);
     }
 
     public Customisation withMilkyWay(Float v) {
-        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, v, aurora);
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, v, aurora, layers);
     }
 
     public Customisation withAurora(int[] v) {
-        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, v);
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, v, layers);
+    }
+
+    public Customisation withLayer(String layer, boolean on) {
+        Map<String, Boolean> map = new LinkedHashMap<>(layers);
+        if (on) {
+            map.remove(layer);
+        } else {
+            map.put(layer, false);
+        }
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora, map);
+    }
+
+    public Customisation withLayers(Map<String, Boolean> v) {
+        return new Customisation(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, aurora, v);
+    }
+
+    /** Whether the theme shows a night sky layer ({@link #LAYERS}). */
+    public boolean layerOn(String layer) {
+        return layers.getOrDefault(layer, true);
     }
 
     public boolean particleOn(String type) {
@@ -216,6 +241,13 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
             }
             o.add("aurora", a);
         }
+        if (!layers.isEmpty()) {
+            JsonObject l = new JsonObject();
+            layers.forEach(l::addProperty);
+            JsonObject night = new JsonObject();
+            night.add("layers", l);
+            o.add("night", night);
+        }
         return o;
     }
 
@@ -248,7 +280,22 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
                 o.has("fog") ? num(o, "fog", 0.5f) : null, num(o, "sunSize", 1f),
                 o.has("rays") ? (int) num(o, "rays", 14f) : null, parts, num(o, "stars", 1f),
                 o.has("planets") && o.get("planets").isJsonPrimitive() ? o.get("planets").getAsBoolean() : null,
-                o.has("milkyWay") ? num(o, "milkyWay", 0.5f) : null, aurora);
+                o.has("milkyWay") ? num(o, "milkyWay", 0.5f) : null, aurora, offs(o));
+    }
+
+    /** The night sky layers switched off ({@code "night": {"layers": {"meteors": false}}}). */
+    private static Map<String, Boolean> offs(JsonObject o) {
+        Map<String, Boolean> out = new LinkedHashMap<>();
+        if (o.has("night") && o.get("night").isJsonObject() && o.getAsJsonObject("night").has("layers")
+                && o.getAsJsonObject("night").get("layers").isJsonObject()) {
+            for (Map.Entry<String, JsonElement> l : o.getAsJsonObject("night").getAsJsonObject("layers").entrySet()) {
+                if (LAYERS.contains(l.getKey()) && l.getValue().isJsonPrimitive() && l.getValue().getAsJsonPrimitive().isBoolean()
+                        && !l.getValue().getAsBoolean()) {
+                    out.put(l.getKey(), false);
+                }
+            }
+        }
+        return out;
     }
 
     private static float num(JsonObject o, String key, float fallback) {
@@ -269,12 +316,13 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
         return o instanceof Customisation c && hue == c.hue && sat == c.sat && density == c.density
                 && java.util.Objects.equals(fog, c.fog) && sunSize == c.sunSize && java.util.Objects.equals(rays, c.rays)
                 && particles.equals(c.particles) && stars == c.stars && java.util.Objects.equals(planets, c.planets)
-                && java.util.Objects.equals(milkyWay, c.milkyWay) && java.util.Arrays.equals(aurora, c.aurora);
+                && java.util.Objects.equals(milkyWay, c.milkyWay) && java.util.Arrays.equals(aurora, c.aurora)
+                && layers.equals(c.layers);
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay)
+        return java.util.Objects.hash(hue, sat, density, fog, sunSize, rays, particles, stars, planets, milkyWay, layers)
                 * 31 + java.util.Arrays.hashCode(aurora);
     }
 }

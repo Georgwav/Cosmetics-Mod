@@ -78,13 +78,16 @@ public final class SkyEvents {
         lastTime = t;
         float clear = 1f - rain;
         float dark = NightSky.dark * clear;
-        boolean meteors = at == null || at.meteors.get(), showers = at == null || at.showers.get();
-        boolean comet = (at == null || at.comet.get()) && theme.stars().comets();
-        boolean ships = at == null || at.ships.get(), names = at == null || at.names.get();
+        boolean meteors = NightSky.layer("meteors"), showers = NightSky.layer("showers");
+        boolean comet = NightSky.layer("comet") && theme.stars().comets();
+        boolean ships = NightSky.layer("ships"), names = NightSky.layer("names");
         float p = NightSky.pixel, fp = NightSky.sh / 2f / NightSky.tanY;
         if (staging != null && ++stageFrames >= 5) {
             // A few frames in, once the view has turned to the shot.
             setUp(staging, fp);
+            if (staging.startsWith("clip")) {
+                simulate(theme, Integer.parseInt(staging.substring(4)) * CLIP_STEP, fp);
+            }
             staging = null;
         }
         if (held) {
@@ -626,7 +629,7 @@ public final class SkyEvents {
 
     /** The Death Star's superlaser: eight green beams meet in front of its dish, then the main beam fires. */
     private static void laser(Atmosphere at, float dt, float p, boolean glows) {
-        boolean up = (at == null || at.ships.get()) && Planets.deathA >= 0.4f;
+        boolean up = NightSky.layer("ships") && Planets.deathA >= 0.4f;
         if (!up) {
             laserAge = -1f;
             return;
@@ -685,6 +688,22 @@ public final class SkyEvents {
         held = what != null;
     }
 
+    /** The events clip: its frames are this many seconds apart. */
+    private static final float CLIP_STEP = 0.2f;
+
+    /** Runs the events on by {@code seconds} (thirty steps a second), for the clip's frames. */
+    private static void simulate(ThemeSpec theme, float seconds, float fp) {
+        float dt = 1f / 30f;
+        for (float done = 0f; done < seconds - 1e-4f; done += dt) {
+            step(theme, true, true, NightSky.dark, dt, fp);
+            stepShips(true, NightSky.dark, dt, fp);
+            fireFlash = Math.max(0f, fireFlash - dt * 1.6f);
+            if (laserAge >= 0f && (laserAge += dt) > 2.6f) {
+                laserAge = -1f;
+            }
+        }
+    }
+
     private static void setUp(String what, float fp) {
         rnd = new Mulberry32(7);
         java.util.Arrays.fill(mOn, false);
@@ -692,6 +711,20 @@ public final class SkyEvents {
         java.util.Arrays.fill(hOn, false);
         fireFlash = 0f;
         laserAge = -1f;
+        if (what.startsWith("clip")) {
+            // The clip: the ships' scene starting out, meteors arriving; a burst soon.
+            setUp("ships", fp);
+            rnd = new Mulberry32(11);
+            for (int h = 0; h < HYPERS; h++) {
+                hAge[h] = -0.6f - h * 0.16f;
+            }
+            laserAge = 0.1f;
+            sFlare[0] = 2.4f;
+            nextMeteor = 0.2f;
+            nextBurst = 0.8f;
+            burst = 0;
+            return;
+        }
         if ("meteors".equals(what)) {
             // A burst from the radiant at different moments, a fireball beside the train an earlier one left, and an
             // earthgrazer low down.

@@ -9,8 +9,12 @@ import java.util.Arrays;
  * percentiles. Off unless the game runs the benchmark: then each part costs one boolean check.
  */
 public final class SolTiming {
-    /** The parts timed: the sky pass (the sun inside it again on its own), particles, light pass, flare, Sol UI, HUD modules. */
-    public enum Part { SKY, SUN, PARTICLES, LIGHT, FLARE, SOL_UI, HUD }
+    /**
+     * The parts timed: the sky pass (inside it again on their own: the sun; the night sky's stars, Milky Way,
+     * constellations and twilight; the planets and the moon; the theme's night extras, its nebulae, aurora and
+     * cloud; the sky's events), particles, light pass, flare, Sol UI, HUD modules.
+     */
+    public enum Part { SKY, SUN, PARTICLES, LIGHT, FLARE, SOL_UI, HUD, NIGHT, PLANETS, EXTRAS, EVENTS }
 
     public static final boolean ON = RenderStats.TIMING;
     private static final long[] NANOS = new long[Part.values().length];

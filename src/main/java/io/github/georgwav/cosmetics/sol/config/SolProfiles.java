@@ -364,6 +364,15 @@ public final class SolProfiles {
         changed();
     }
 
+    /** Gives every theme the night sky layers of the theme in use (the Night sky page). */
+    public static void layersEverywhere() {
+        Map<String, Boolean> layers = ThemeState.customisation().layers();
+        for (io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.Entry e : io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.all()) {
+            customs.put(e.id(), customs.getOrDefault(e.id(), Customisation.NONE).withLayers(layers));
+        }
+        changed();
+    }
+
     public static void setAccent(Integer accent) {
         ThemeState.setAccent(accent);
         changed();

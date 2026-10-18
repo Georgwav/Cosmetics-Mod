@@ -131,11 +131,15 @@ public final class NightSky {
         // The lab's envOf: how dark, how much moonlight is in the sky, and the faintest star that shows.
         dark = Ease.smoothstep(-4f, -17f, SPHERE.sunAlt);
         hasMoon = SPHERE.elong > 8f && SPHERE.elong < 352f && !look.hidden();
-        glowK = (0.35f + 1.3f * MOON_GLOW) * look.glow();
+        glowK = (0.35f + 1.3f * (at != null ? at.moonGlow.get().floatValue() / 100f : MOON_GLOW)) * look.glow();
         moonLight = hasMoon ? (float) Math.pow(SPHERE.illum, 1.6) * Ease.smoothstep(-1.5f, 12f, SPHERE.moonAlt) * look.light()
                 * Math.min(1.25f, look.size()) : 0f;
         moonSky = moonLight * (0.45f + 0.55f * Math.min(1.4f, glowK));
         moonOn = hasMoon && SPHERE.moonAlt > -5f ? moonSky : 0f;
+        // The moon's light on the world (the sky round it stays lit), unless the theme switches it off.
+        if (!layer("moonlight")) {
+            moonLight = 0f;
+        }
         limit = Ease.lerp(1.1f, 6.5f, dark) - 1.15f * moonSky + (look.eclipse() ? 0.3f : 0f);
         mwVis = Ease.smoothstep(-9f, -18f, SPHERE.sunAlt) * (1f - 0.62f * Math.min(1f, moonSky)) * look.milkyWay();
         // The moonlight's colour: an eclipse's copper, a harvest moon's orange low down, else the look's or the theme's.
@@ -174,7 +178,7 @@ public final class NightSky {
             return;
         }
         boolean gaps = "cloudGaps".equals(theme.stars().through());
-        if (at == null || at.milkyWay.get() || at.nebulae.get()) {
+        if (layer("milky_way") || layer("nebulae")) {
             cube(at, clear);
         }
         StarCatalog cat = catalog();
@@ -182,16 +186,16 @@ public final class NightSky {
         if (cat == null) {
             return;
         }
-        boolean names = at == null || at.names.get();
+        boolean names = layer("names");
         // The theme's star density (and the player's Stars slider) moves the faintest star that shows.
         float density = theme.stars().density();
         float shift = density <= 0.01f ? -20f : 2.5f * (float) Math.log10(density);
-        if (at == null || at.stars.get()) {
+        if (layer("stars")) {
             stars(cat, t, clear, gaps, names, limit + shift);
         }
         String mode = at != null ? at.constellations.get() : "always";
         focus(cat, FrameInfo.frameSeconds);
-        if (!"off".equals(mode) && (at == null || at.stars.get())) {
+        if (!"off".equals(mode) && (layer("stars"))) {
             constellations(cat, "always".equals(mode), names, clear);
         }
     }
@@ -231,6 +235,11 @@ public final class NightSky {
         for (int col = 0; col < 3; col++) {
             v[r * 3 + col] = a * m[col] + b * m[3 + col] + c * m[6 + col];
         }
+    }
+
+    /** Whether the theme in use shows a night sky layer (its edits on the Night sky page; all on by default). */
+    static boolean layer(String id) {
+        return io.github.georgwav.cosmetics.sol.theme.ThemeState.customisation().layerOn(id);
     }
 
     /** A vertex at screen point (x, y) in pixels, on the sky. */
@@ -311,7 +320,7 @@ public final class NightSky {
     // ------------------------------------------------------------------ the Milky Way and the nebulae
 
     private static void cube(Atmosphere at, float clear) {
-        boolean mw = at == null || at.milkyWay.get(), neb = at == null || at.nebulae.get();
+        boolean mw = layer("milky_way"), neb = layer("nebulae");
         String key = (mw ? "mw" : "") + (neb ? "+neb" : "");
         if (cube != null && cube.released()) {
             cube = null;

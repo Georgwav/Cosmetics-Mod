@@ -36,12 +36,25 @@ final class Planets {
     private static volatile boolean mapsStarted;
     private static final Map<String, Slot> SLOTS = new HashMap<>();
 
-    /** A body's picture: what was asked for, what's ready, and the texture it's drawn from. */
+    /**
+     * How often a body is painted again (seconds): its light and turn change slowly, and every new picture is an
+     * upload (which waits on a busy renderer, as with Voxy).
+     */
+    private static final float REPAINT = 0.25f;
+
+    /**
+     * A body's picture: what was asked for, what's ready, and the texture it's drawn from. Two textures take turns,
+     * each new picture going into the one the last frame didn't draw with, so the upload never waits for a frame still
+     * being drawn (with Voxy keeping the renderer busy it did, as the sun's plasma did).
+     */
     private static final class Slot {
         final Bodies.Body body;
         final BodyRender.Light light = new BodyRender.Light();
         final AtomicReference<Picture> ready = new AtomicReference<>();
         volatile boolean pending;
+        final SolTexture[] texs = new SolTexture[2];
+        final int[] sizes = new int[2];
+        int turn;
         SolTexture tex;
         int texSize, n, s;
         int askedN = -1;
@@ -98,7 +111,7 @@ final class Planets {
 
     /** Draws the planets and the wild worlds (sky pass, after the stars). */
     static void render(Tokens tk, Atmosphere at, float t, float rain) {
-        boolean planets = at == null || at.planets.get(), wild = at == null || at.wildWorlds.get();
+        boolean planets = NightSky.layer("planets"), wild = NightSky.layer("wild_worlds");
         float clear = 1f - rain;
         seenCount = 0;
         deathA = 0f;
@@ -112,7 +125,7 @@ final class Planets {
         sunEq[1] = Math.sin(raS);
         sunEq[2] = 0;
         float fp = NightSky.sh / 2f / NightSky.tanY;
-        boolean names = at == null || at.names.get();
+        boolean names = NightSky.layer("names");
         for (Bodies.Body b : Bodies.PLANETS) {
             if (seenCount >= MAX || (b.wild() != null ? !wild : !planets)) {
                 continue;
@@ -145,7 +158,7 @@ final class Planets {
             screenDir(POLE, dir);
             float ndx = dir[0], ndy = dir[1];
             Slot slot = slot(b);
-            if (!slot.pending && (n != slot.askedN || t - slot.askedAt > 0.1f || t < slot.askedAt)) {
+            if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt)) {
                 BodyRender.Light l = slot.light;
                 double ps = Math.toRadians(b.phase());
                 l.lx = Math.sin(ps) * sdx;
@@ -302,6 +315,7 @@ final class Planets {
         if (p == null) {
             if (slot.tex != null && slot.tex.released()) {
                 slot.tex = null;
+                slot.texs[0] = slot.texs[1] = null;
                 slot.askedN = -1;
             }
             return;
@@ -310,14 +324,20 @@ final class Planets {
         while (need < p.s()) {
             need *= 2;
         }
-        if (slot.tex == null || slot.tex.released() || slot.texSize < need) {
-            if (slot.tex != null) {
-                slot.tex.release();
+        int k = 1 - slot.turn;
+        SolTexture t = slot.texs[k];
+        if (t == null || t.released() || slot.sizes[k] < need) {
+            if (t != null) {
+                t.release();
             }
-            slot.tex = new SolTexture("sky_body_" + slot.body.id(), need, need, false);
-            slot.texSize = need;
+            t = new SolTexture("sky_body_" + slot.body.id() + "_" + k, need, need, false);
+            slot.texs[k] = t;
+            slot.sizes[k] = need;
         }
-        slot.tex.upload(p.px(), p.s(), p.s());
+        t.upload(p.px(), p.s(), p.s());
+        slot.turn = k;
+        slot.tex = t;
+        slot.texSize = slot.sizes[k];
         slot.n = p.n();
         slot.s = p.s();
         slot.pending = false;
@@ -388,7 +408,7 @@ final class Planets {
         float ndx = dir[0], ndy = dir[1];
         int n = Math.max(10, Math.min(160, Math.round(diam / (NightSky.pixel * 1.1f))));
         Slot slot = slot(Bodies.find(lk.body()));
-        if (!slot.pending && (n != slot.askedN || t - slot.askedAt > 0.1f || t < slot.askedAt)) {
+        if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt)) {
             BodyRender.Light l = slot.light;
             double ps = Math.toRadians(sp.phaseAngle);
             l.lx = Math.sin(ps) * sdx;

@@ -119,6 +119,14 @@ public final class SolMenu extends SolScreen {
                 go("music");
                 ((MusicSection) sections.get("music")).stage("lyrics");
             }
+            case "world_night" -> {
+                go("world");
+                ((WorldSection) sections.get("world")).showNight();
+            }
+            case "settings_about" -> {
+                go("settings");
+                ((SettingsSection) sections.get("settings")).showAbout();
+            }
             default -> {
                 if (state.startsWith("drawer_")) {
                     go("modules");

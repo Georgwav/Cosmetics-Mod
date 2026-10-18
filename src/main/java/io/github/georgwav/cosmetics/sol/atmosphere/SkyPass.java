@@ -65,6 +65,12 @@ public final class SkyPass {
             KeyLight.none();
             return false;
         }
+        // The game's own sky, to compare (the Night sky page).
+        Atmosphere at = Atmosphere.INSTANCE;
+        if (at != null && at.vanillaSky.get()) {
+            KeyLight.none();
+            return false;
+        }
         // A theme holding its showpiece shows its own time (a night theme keeps its night sky by day).
         float shownAngle = SkyTime.angle(sunAngle);
         long t0 = SolTiming.start();
@@ -103,16 +109,24 @@ public final class SkyPass {
         float sunAz = (float) Math.toDegrees(Math.atan2(-sx, sz));
 
         dome(tk, sunAz, q, rain);
+        long tp = SolTiming.start();
         Twilight.render(theme, at, rain);
         NightSky.render(theme, at, t, rain);
+        SolTiming.end(SolTiming.Part.NIGHT, tp);
+        tp = SolTiming.start();
         Extras.renderNight(theme, t, rain);
+        SolTiming.end(SolTiming.Part.EXTRAS, tp);
+        tp = SolTiming.start();
         Planets.render(tk, at, t, rain);
         if (at != null && at.squareMoon.get()) {
             moon(theme, tk, sunAngle, moonPhase, rain);
         } else {
             Planets.moon(theme, tk, t, rain);
         }
+        SolTiming.end(SolTiming.Part.PLANETS, tp);
+        tp = SolTiming.start();
         SkyEvents.render(theme, at, t, rain);
+        SolTiming.end(SolTiming.Part.EVENTS, tp);
         SkyLabels.draw();
         StarText.render(tk, sunAz, t, rain);
         Extras.renderBehind(theme, tk, t, rain);

@@ -96,6 +96,25 @@ class ThemeBlendTest {
     }
 
     @Test
+    void nightLayersAreAllOnUntilATurnsOffAndSaveWithTheTheme() {
+        for (String layer : Customisation.LAYERS) {
+            assertTrue(Customisation.NONE.layerOn(layer), layer + " on by default");
+        }
+        Customisation c = Customisation.NONE.withLayer("meteors", false).withLayer("names", false);
+        assertFalse(c.layerOn("meteors"));
+        assertFalse(c.layerOn("names"));
+        assertTrue(c.layerOn("stars"));
+        com.google.gson.JsonObject json = c.toJson();
+        assertFalse(json.getAsJsonObject("night").getAsJsonObject("layers").get("meteors").getAsBoolean(), "saved as night.layers");
+        assertEquals(c, Customisation.fromJson(json), "round trip");
+        assertTrue(c.withLayer("meteors", true).withLayer("names", true).isNone(), "back on is no edit at all");
+        // Unknown layers, and layers saved as on, are dropped.
+        com.google.gson.JsonObject odd = com.google.gson.JsonParser.parseString(
+                "{\"night\":{\"layers\":{\"dragons\":false,\"stars\":true,\"comet\":false}}}").getAsJsonObject();
+        assertEquals(Customisation.NONE.withLayer("comet", false), Customisation.fromJson(odd));
+    }
+
+    @Test
     void matchHueSnapsToFiveDegrees() {
         float dh = Customisation.matchHue(0xFFFF4B2B, 0xFF3B82FF);
         assertEquals(0f, dh % 5f, 1e-4);

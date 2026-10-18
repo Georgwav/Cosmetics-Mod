@@ -33,7 +33,7 @@ final class Twilight {
         float sunAz = (float) Math.toDegrees(Math.atan2(-sp.sun[0], sp.sun[2]));
         afterglow(sp, sunAlt, clear);
         belt(sunAlt, sunAz, clear);
-        if (at == null || at.airglow.get()) {
+        if (NightSky.layer("airglow")) {
             airglow(theme, sunAlt, clear);
             zodiacal(sp, sunAlt, clear);
         }

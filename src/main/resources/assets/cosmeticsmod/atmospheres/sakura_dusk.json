@@ -101,34 +101,34 @@
   ],
   "keyframes": {
     "predawn": {
-      "particleScale": 0.74,
       "sky": {
-        "glow": "#ffbcaa",
+        "top": "#0f1130",
         "middle": "#202252",
-        "sunWarmth": 0.25,
         "horizon": "#9c6977",
-        "top": "#0f1130"
+        "glow": "#ffbcaa",
+        "sunWarmth": 0.25
+      },
+      "fog": {
+        "color": "#684957",
+        "density": 0.393,
+        "near": 5,
+        "far": 97,
+        "scatter": 0.95,
+        "haze": 0.4875
       },
       "light": {
         "tint": "#dbb7ed",
-        "boost": 1.1925,
         "strength": 0.5095,
+        "boost": 1.1925,
         "sun": "#ffc6c0",
         "shadow": "#4e3e74"
       },
       "clouds": {
-        "visible": false,
         "tint": "#7f5668",
-        "litBySun": true
+        "litBySun": true,
+        "visible": false
       },
-      "fog": {
-        "haze": 0.4875,
-        "near": 5,
-        "far": 97,
-        "color": "#684957",
-        "density": 0.393,
-        "scatter": 0.95
-      }
+      "particleScale": 0.74
     },
     "sunrise": {
       "sky": {
@@ -145,34 +145,34 @@
       }
     },
     "morning": {
-      "particleScale": 1.0,
       "sky": {
-        "glow": "#ffc9c3",
+        "top": "#6871ae",
         "middle": "#9c97c6",
-        "sunWarmth": 0.3025,
         "horizon": "#f1b4ba",
-        "top": "#6871ae"
+        "glow": "#ffc9c3",
+        "sunWarmth": 0.3025
+      },
+      "fog": {
+        "color": "#e4b2b9",
+        "density": 0.328,
+        "near": 9,
+        "far": 142,
+        "scatter": 0.95,
+        "haze": 0.4875
       },
       "light": {
         "tint": "#ffe1e5",
-        "boost": 1.225,
         "strength": 0.269,
+        "boost": 1.225,
         "sun": "#ffc6c0",
         "shadow": "#4e3e74"
       },
       "clouds": {
-        "visible": false,
         "tint": "#ffd8da",
-        "litBySun": true
+        "litBySun": true,
+        "visible": false
       },
-      "fog": {
-        "haze": 0.4875,
-        "near": 9,
-        "far": 142,
-        "color": "#e4b2b9",
-        "density": 0.328,
-        "scatter": 0.95
-      }
+      "particleScale": 1.0
     },
     "noon": {
       "sky": {
@@ -198,64 +198,64 @@
       }
     },
     "afternoon": {
-      "particleScale": 1.0,
       "sky": {
-        "glow": "#febabc",
+        "top": "#646fab",
         "middle": "#8887b6",
-        "sunWarmth": 0.31,
         "horizon": "#da9eaa",
-        "top": "#646fab"
+        "glow": "#febabc",
+        "sunWarmth": 0.31
+      },
+      "fog": {
+        "color": "#e0a6ae",
+        "density": 0.315,
+        "near": 9,
+        "far": 148,
+        "scatter": 0.95,
+        "haze": 0.4
       },
       "light": {
         "tint": "#ffe3e7",
-        "boost": 1.2,
         "strength": 0.242,
+        "boost": 1.2,
         "sun": "#ffc6c0",
         "shadow": "#4e3e74"
       },
       "clouds": {
-        "visible": false,
         "tint": "#ffdcde",
-        "litBySun": true
+        "litBySun": true,
+        "visible": false
       },
-      "fog": {
-        "haze": 0.4,
-        "near": 9,
-        "far": 148,
-        "color": "#e0a6ae",
-        "density": 0.315,
-        "scatter": 0.95
-      }
+      "particleScale": 1.0
     },
     "bluehour": {
-      "particleScale": 0.76,
       "sky": {
-        "glow": "#fa888e",
+        "top": "#12173c",
         "middle": "#272d61",
-        "sunWarmth": 0.3,
         "horizon": "#a25d6b",
-        "top": "#12173c"
+        "glow": "#fa888e",
+        "sunWarmth": 0.3
+      },
+      "fog": {
+        "color": "#6c3d4c",
+        "density": 0.38,
+        "near": 5,
+        "far": 95,
+        "scatter": 0.95,
+        "haze": 0.4
       },
       "light": {
         "tint": "#deb8eb",
-        "boost": 1.22,
         "strength": 0.518,
+        "boost": 1.22,
         "sun": "#ffc6c0",
         "shadow": "#4e3e74"
       },
       "clouds": {
-        "visible": false,
         "tint": "#895c6d",
-        "litBySun": true
+        "litBySun": true,
+        "visible": false
       },
-      "fog": {
-        "haze": 0.4,
-        "near": 5,
-        "far": 95,
-        "color": "#6c3d4c",
-        "density": 0.38,
-        "scatter": 0.95
-      }
+      "particleScale": 0.76
     },
     "night": {
       "sky": {
