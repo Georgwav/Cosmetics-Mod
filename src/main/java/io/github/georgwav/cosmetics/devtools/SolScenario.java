@@ -38,14 +38,14 @@ public final class SolScenario {
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
-    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear"};
+    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -1118,6 +1118,8 @@ public final class SolScenario {
     private static String coloursWas;
     /** Whether the glow was on before a "_bare" shot (the same frame without it, to measure the glow by), or null. */
     private static Boolean glowWas;
+    /** The glow's style before an "_outline" shot (the Outline style instead of Golden), or null. */
+    private static String lookWas;
 
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
@@ -1146,6 +1148,18 @@ public final class SolScenario {
                 } else if (!gold && coloursWas != null) {
                     colours.set(coloursWas);
                     coloursWas = null;
+                }
+            }
+            if (st.id.equals("glow_look")) {
+                @SuppressWarnings("unchecked")
+                var look = (io.github.georgwav.cosmetics.client.Setting<String>) st;
+                boolean outline = what.startsWith("hands") && what.endsWith("_outline");
+                if (outline && lookWas == null) {
+                    lookWas = look.get();
+                    look.set("outline");
+                } else if (!outline && lookWas != null) {
+                    look.set(lookWas);
+                    lookWas = null;
                 }
             }
             if (st.id.equals("glow")) {

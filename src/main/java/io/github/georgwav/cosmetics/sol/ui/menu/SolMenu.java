@@ -137,14 +137,19 @@ public final class SolMenu extends SolScreen {
             default -> {
                 if (state.startsWith("drawer_")) {
                     go("modules");
-                    // "drawer_advanced_<id>": with Advanced open, scrolled to it.
+                    // "drawer_advanced_<id>": with Advanced open, scrolled to it; "drawer_<id>__<words>": its settings
+                    // searched for those words.
                     boolean advanced = state.startsWith("drawer_advanced_");
-                    Module m = io.github.georgwav.cosmetics.client.Modules.byId(state.substring(advanced ? "drawer_advanced_".length()
-                            : "drawer_".length()));
+                    String rest = state.substring(advanced ? "drawer_advanced_".length() : "drawer_".length());
+                    int words = rest.indexOf("__");
+                    Module m = io.github.georgwav.cosmetics.client.Modules.byId(words < 0 ? rest : rest.substring(0, words));
                     if (m != null) {
                         openDrawer(m);
                         if (advanced && drawer() != null) {
                             drawer().showAdvanced();
+                        }
+                        if (words >= 0 && drawer() != null) {
+                            drawer().showSearch(rest.substring(words + 2).replace('_', ' '));
                         }
                     }
                 } else {

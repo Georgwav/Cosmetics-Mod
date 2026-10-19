@@ -506,6 +506,11 @@ public final class ModulePage implements Page {
 
     // ------------------------------------------------------------------ input
 
+    /** Searches its settings for {@code query} (the dev scenario's shot of one part of a long page). */
+    public void showSearch(String query) {
+        search.set(query);
+    }
+
     /** Opens Advanced and scrolls to it (the dev scenario's shot of the folded groups). */
     public void showAdvanced() {
         advancedOpen = true;
