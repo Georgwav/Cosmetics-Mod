@@ -288,8 +288,9 @@ public final class PunchyModule extends Module {
         float mode = 0f;
         switch (m.glowColours.get()) {
             case "custom" -> {
+                // Your colour alone (no paler second colour flowing through it), as Clarity's gold is.
                 a = m.glowColour.argb();
-                b = Colors.mix(a, 0xFFFFFFFF, 0.35f);
+                b = a;
             }
             case "item" -> {
                 int knife = io.github.georgwav.cosmetics.melee.KnifeRenderer.brightColour();
