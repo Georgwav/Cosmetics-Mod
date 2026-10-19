@@ -47,8 +47,13 @@ public final class ScreenTweaks extends Module {
         *///?}
     }
 
+    /**
+     * Whether the game's vignette is left out: when this module hides it, and while the Punchy module's hand glow
+     * shows (the game draws its vignette over the finished picture, which dimmed the glow at the screen's edges by
+     * about a tenth; Sol's own vignette is drawn under the glow).
+     */
     public static boolean hidesVignette() {
-        return hides(Modules.SCREEN.vignette);
+        return hides(Modules.SCREEN.vignette) || PunchyModule.glowNow() > 0f;
     }
 
     public static boolean hidesPortal() {
