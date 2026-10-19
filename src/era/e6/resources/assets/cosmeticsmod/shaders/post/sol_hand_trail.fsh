@@ -39,7 +39,7 @@ float leaves(vec2 uv) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.25 : e.g;
+    return e.b > 0.5 ? 0.1 : e.g;
 }
 
 // What they left at a point the frame before.

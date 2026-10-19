@@ -78,7 +78,7 @@ void main() {
     }
     float rising = clamp(glow * grade * s, 0.0, 1.5);
     // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
-    vec3 warm = mix(col, vec3(1.0), 0.45 * e.r * (1.0 - e.b));
+    vec3 warm = mix(col, vec3(1.0), 0.3 * e.r * (1.0 - e.b));
     c = mix(c, warm, clamp(rising * 1.4, 0.0, 0.97));
     c = soft(c + warm * rising * 0.3);
     // The line, pale (cream for gold).
