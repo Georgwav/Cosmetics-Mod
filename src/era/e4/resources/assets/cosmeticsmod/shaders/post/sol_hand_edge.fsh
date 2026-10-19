@@ -66,16 +66,6 @@ vec2 distAt(vec2 uv) {
     return max(vec2(0.0), d * vec2(32.0, 48.0) - 1.0);
 }
 
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
 
 void main() {
     float hand = handAt(texCoord);
@@ -98,13 +88,11 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for over half its height, then fading softly; its reach wavers in tongues that rise, so
-        // its top flickers like a flame.
-        vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(32.0, 24.0 * size) * (0.7 + 0.6 * noise(vec2(w.x / 16.0, w.y / 28.0 - P(22) * 2.4)));
-        // The field stops at 48 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.6 * reach, 1.2 * reach, dists.y)) * step(dists.y, 46.0);
-        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
+        // The golden glow: soft light all round the hands, reaching a little further up (warm light rises), fading
+        // smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising (no hand that near).
+        float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
+        float up = exp(-dists.y / (12.0 * size)) * (1.0 - smoothstep(36.0, 46.0, dists.y));
+        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : max(halo, up * 0.85);
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
         rim = hand > 0.5 ? 0.0 : f * f * 0.8;

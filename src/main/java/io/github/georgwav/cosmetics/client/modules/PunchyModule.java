@@ -40,12 +40,13 @@ public final class PunchyModule extends Module {
     /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
     private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
-    /** A thin line round the hands with a glow rising off their tops ("outline", its old id), or a soft glow all round. */
+    /** A thin line round the hands in a golden glow ("outline", its old id), or a softer glow all round. */
     private final Setting.Choice glowStyle = add(new Setting.Choice("glow_style", "outline", List.of("outline", "soft")).group("glow"));
-    private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
+    /** Gold by default (your own colour, gold until you pick another), as in Georg's picture of Clarity's glow. */
+    private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "custom",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
-    /** The custom colour: the gold of Clarity's glow in Georg's picture until you pick another. */
-    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFE070).group("glow"));
+    /** The custom colour: a rich gold (the glow runs from deep gold to pale gold round it). */
+    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFD84F).group("glow"));
     private final Setting.Slider glowStrength = add(new Setting.Slider("glow_strength", 100, 10, 200, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 100, 100, 300, 10, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", false).group("glow"));
@@ -279,7 +280,7 @@ public final class PunchyModule extends Module {
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
      * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the
-     * lines of light moving through it, the style (1 rising, 0 soft), how much of the trail is left after this frame,
+     * lines of light moving through it, the style (1 line and glow, 0 soft), how much of the trail is left after this frame,
      * and whether the trail shows.
      */
     public static void glowParams(float[] v, int at, Tokens tk, boolean continuous) {

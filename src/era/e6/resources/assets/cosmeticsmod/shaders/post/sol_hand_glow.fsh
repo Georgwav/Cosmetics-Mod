@@ -76,11 +76,13 @@ void main() {
     if (P(90) > 0.0) {
         glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
     }
-    float rising = clamp(glow * grade * s, 0.0, 1.5);
-    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
-    vec3 warm = mix(col, vec3(1.0), 0.3 * e.r * (1.0 - e.b));
-    c = mix(c, warm, clamp(rising * 1.4, 0.0, 0.97));
-    c = soft(c + warm * rising * 0.3);
+    float g = clamp(glow * grade * s, 0.0, 1.5);
+    // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
+    // deep gold where it fades out, the colour itself, then pale bright gold where it's strongest, at the hands.
+    vec3 outer = col * vec3(1.0, 0.8, 0.45);
+    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), 0.5);
+    vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, g)), hot, smoothstep(0.55, 1.0, g));
+    c = soft(c * (1.0 - 0.45 * min(g, 1.0)) + light * g * 1.15);
     // The line, pale (cream for gold).
     float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
     vec3 pale = mix(col, vec3(1.0), 0.55);

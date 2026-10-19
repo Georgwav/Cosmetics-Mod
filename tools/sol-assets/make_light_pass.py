@@ -421,9 +421,9 @@ void main() {
     # The hand glow (Clarity's look, from Georg's picture), at full resolution. Red: the line round the hands, full
     # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
     # size setting, up to 3x), from the distance field; or, for the soft style, a softer fade with no bright core,
-    # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the glow rising
-    # off their top edges, about 75 px up and a few to the side (times the size, up to 100 px), its top flickering like
-    # a flame. Blue: the hands themselves (never filled).
+    # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the golden glow,
+    # soft light all round them reaching a little further up, fading smoothly (times the size). Blue: the hands
+    # themselves (never filled).
     "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
@@ -444,16 +444,6 @@ vec2 distAt(vec2 uv) {
     return max(vec2(0.0), d * vec2(32.0, 48.0) - 1.0);
 }
 
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
 
 void main() {
     float hand = handAt(texCoord);
@@ -476,13 +466,11 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for over half its height, then fading softly; its reach wavers in tongues that rise, so
-        // its top flickers like a flame.
-        vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(32.0, 24.0 * size) * (0.7 + 0.6 * noise(vec2(w.x / 16.0, w.y / 28.0 - P(22) * 2.4)));
-        // The field stops at 48 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.6 * reach, 1.2 * reach, dists.y)) * step(dists.y, 46.0);
-        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
+        // The golden glow: soft light all round the hands, reaching a little further up (warm light rises), fading
+        // smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising (no hand that near).
+        float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
+        float up = exp(-dists.y / (12.0 * size)) * (1.0 - smoothstep(36.0, 46.0, dists.y));
+        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : max(halo, up * 0.85);
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
         rim = hand > 0.5 ? 0.0 : f * f * 0.8;
@@ -562,8 +550,8 @@ void main() {
     fragColor = vec4(own, max(trail, own), 0.0, 1.0);
 }
 """),
-    # The hand glow (Clarity's look, from Georg's picture): the glow rising off the top edges of the hands and what
-    # they hold, in the glow's colour and paler where it's strongest, then a thin pale line round them; brightest at
+    # The hand glow (Clarity's look, from Georg's picture): golden light round the hands and what they hold, deep gold
+    # where it fades out and pale bright gold at the hands, then a thin pale line round them; brightest at
     # the fist and dimmer where the arm leaves the screen; the hands themselves flat, with their 1 px inner edge; the
     # motion trail (the path they took, filled with their glow). Each is laid over what's behind (so the hue holds on
     # any sky), then added with a soft clamp that keeps the hue, so no channel clips unless the colour itself is white.
@@ -610,11 +598,13 @@ void main() {
     if (P(90) > 0.0) {
         glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
     }
-    float rising = clamp(glow * grade * s, 0.0, 1.5);
-    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
-    vec3 warm = mix(col, vec3(1.0), 0.3 * e.r * (1.0 - e.b));
-    c = mix(c, warm, clamp(rising * 1.4, 0.0, 0.97));
-    c = soft(c + warm * rising * 0.3);
+    float g = clamp(glow * grade * s, 0.0, 1.5);
+    // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
+    // deep gold where it fades out, the colour itself, then pale bright gold where it's strongest, at the hands.
+    vec3 outer = col * vec3(1.0, 0.8, 0.45);
+    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), 0.5);
+    vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, g)), hot, smoothstep(0.55, 1.0, g));
+    c = soft(c * (1.0 - 0.45 * min(g, 1.0)) + light * g * 1.15);
     // The line, pale (cream for gold).
     float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
     vec3 pale = mix(col, vec3(1.0), 0.55);
