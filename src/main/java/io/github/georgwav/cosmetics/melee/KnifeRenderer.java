@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.render.CosmeticRenderer;
 import io.github.georgwav.cosmetics.render.MeshEmitter;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.render.RenderStats;
+import io.github.georgwav.cosmetics.sol.render.HandMotion;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.util.SolExecutors;
 import net.minecraft.client.Minecraft;
@@ -85,6 +86,8 @@ public final class KnifeRenderer {
     private static int skinTick = Integer.MIN_VALUE;
     /** Knife space into the hand's this frame (rows of a 3x4 matrix), see {@link #local}. */
     private static final float[] LOCAL = new float[12];
+    /** The points of the knife and the pack's other hand the glow's trail follows (pose space), and a box's scratch. */
+    private static final float[] TRAIL = new float[HandMotion.FOLLOWED * 3], ARM_BOX = new float[6];
     /** The arms' render type, and the texture it was made with. */
     private static RenderType armType;
     private static Object armTypeTexture;
@@ -289,6 +292,7 @@ public final class KnifeRenderer {
             // are right-handed), pixels to blocks, the eye at the origin. Kept as a matrix the vertices take, so the
             // hand's pose is handed over as it is (no pose pushed).
             local(player, partialTick, lower, player.getMainArm() == HumanoidArm.LEFT, view.eye);
+            trail(poseStack.last(), view, player.getMainArm() != HumanoidArm.LEFT);
             //? if >=1.21.9 {
             buffers.submitCustomGeometry(poseStack, knifeType, PASSES[0]);
             buffers.submitCustomGeometry(poseStack, armType, PASSES[1]);
@@ -453,6 +457,59 @@ public final class KnifeRenderer {
             case CosmeticDefinition.Melee.ANGEL -> 2;
             default -> 0;
         };
+    }
+
+    // ------------------------------------------------------------------ the glow's trail
+
+    /**
+     * The hand glow's trail follows the knife as it moves, not the game's hand (never drawn while the knife is): the
+     * knife's blade as the main hand, and the pack's other hand (when it shows) as the other.
+     */
+    private static void trail(PoseStack.Pose pose, KnifeView v, boolean rightMain) {
+        KnifeRig rig = v.knife.rig;
+        if (rig.blade >= 0) {
+            trailPoints(pose, v.pose.world, rig.blade, rig.bladeBox);
+            HandMotion.drawnAt(rightMain, TRAIL);
+        }
+        if (rig.otherHand >= 0 && v.pose.shown(rig.otherHand)) {
+            // The left arm's fist end in its bone's frame (x 4 to 8, y 6 to 12, z -2 to 2: the arm reaches back past
+            // the eye), sized round the fist as it's drawn.
+            float s = handScale;
+            ARM_BOX[0] = -ArmGeo.FIST_X;
+            ARM_BOX[1] = ArmGeo.FIST_Y - 3f * s;
+            ARM_BOX[2] = 0f;
+            ARM_BOX[3] = 2f * s;
+            ARM_BOX[4] = 3f * s;
+            ARM_BOX[5] = 2f * s;
+            trailPoints(pose, v.pose.world, rig.otherHand, ARM_BOX);
+            HandMotion.drawnAt(!rightMain, TRAIL);
+        }
+    }
+
+    /** A box's middle and either side of it on each axis, in bone {@code b}'s frame, into the hands' pose space ({@link #TRAIL}). */
+    private static void trailPoints(PoseStack.Pose pose, float[] w, int b, float[] box) {
+        var m = pose.pose();
+        float[] l = LOCAL;
+        int o = b * 12;
+        for (int i = 0; i < HandMotion.FOLLOWED; i++) {
+            float x = box[0], y = box[1], z = box[2];
+            float side = (i & 1) == 1 ? 1f : -1f;
+            switch ((i - 1) / 2) {
+                case 0 -> x += i > 0 ? side * box[3] : 0f;
+                case 1 -> y += side * box[4];
+                default -> z += side * box[5];
+            }
+            // The bone's frame to knife space, to the hand's, to the pose the hands are drawn with.
+            float kx = w[o] * x + w[o + 1] * y + w[o + 2] * z + w[o + 3];
+            float ky = w[o + 4] * x + w[o + 5] * y + w[o + 6] * z + w[o + 7];
+            float kz = w[o + 8] * x + w[o + 9] * y + w[o + 10] * z + w[o + 11];
+            float hx = l[0] * kx + l[1] * ky + l[2] * kz + l[3];
+            float hy = l[4] * kx + l[5] * ky + l[6] * kz + l[7];
+            float hz = l[8] * kx + l[9] * ky + l[10] * kz + l[11];
+            TRAIL[i * 3] = m.m00() * hx + m.m10() * hy + m.m20() * hz + m.m30();
+            TRAIL[i * 3 + 1] = m.m01() * hx + m.m11() * hy + m.m21() * hz + m.m31();
+            TRAIL[i * 3 + 2] = m.m02() * hx + m.m12() * hy + m.m22() * hz + m.m32();
+        }
     }
 
     // ------------------------------------------------------------------ vertices

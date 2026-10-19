@@ -1,5 +1,6 @@
 package io.github.georgwav.cosmetics.sol.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -15,29 +16,45 @@ public final class HandMotion {
     /** The points of a hand's pose that are followed (blocks, in hand space): its grip and round it. */
     private static final float[][] POINTS = {{0f, 0f, 0f}, {0.4f, 0f, 0f}, {-0.4f, 0f, 0f}, {0f, 0.4f, 0f}, {0f, -0.4f, 0f},
             {0f, 0f, 0.4f}, {0f, 0f, -0.4f}};
-    private static final int N = POINTS.length;
+    /** How many points of a hand are followed (see {@link #drawnAt}). */
+    public static final int FOLLOWED = POINTS.length;
     /** The farthest a hand may move in a frame (screen heights) before it counts as a jump, not a move. */
     private static final float JUMP = 0.6f;
-    private static final float[][] now = new float[2][N * 2];
-    private static final float[][] before = new float[2][N * 2];
-    private static final boolean[][] okNow = new boolean[2][N];
-    private static final boolean[][] okBefore = new boolean[2][N];
+    private static final float[][] now = new float[2][FOLLOWED * 2];
+    private static final float[][] before = new float[2][FOLLOWED * 2];
+    private static final boolean[][] okNow = new boolean[2][FOLLOWED];
+    private static final boolean[][] okBefore = new boolean[2][FOLLOWED];
     private static final boolean[] seenNow = new boolean[2];
     private static final boolean[] seenBefore = new boolean[2];
     /** The frames {@link #now} and {@link #before} are from. */
     private static long frameNow = -1, frameBefore = -2;
     private static final Vector4f p = new Vector4f();
+    private static final float[] posed = new float[FOLLOWED * 3];
 
     private HandMotion() {
     }
 
     /** The game drew a hand ({@code right}: the right one) with this pose; on the render thread. */
     public static void drawn(boolean right, Matrix4f pose) {
+        for (int i = 0; i < FOLLOWED; i++) {
+            pose.transform(p.set(POINTS[i][0], POINTS[i][1], POINTS[i][2], 1f));
+            posed[i * 3] = p.x;
+            posed[i * 3 + 1] = p.y;
+            posed[i * 3 + 2] = p.z;
+        }
+        drawnAt(right, posed);
+    }
+
+    /**
+     * A hand drawn some other way (a knife draws its own): seven points that move with it, in the hands' pose space
+     * (blocks), as {@link #drawn} follows round a hand's grip; on the render thread.
+     */
+    public static void drawnAt(boolean right, float[] points) {
         if (FrameInfo.frame != frameNow) {
             // The first hand of a frame: the last frame's hands become the ones before.
             for (int s = 0; s < 2; s++) {
-                System.arraycopy(now[s], 0, before[s], 0, N * 2);
-                System.arraycopy(okNow[s], 0, okBefore[s], 0, N);
+                System.arraycopy(now[s], 0, before[s], 0, FOLLOWED * 2);
+                System.arraycopy(okNow[s], 0, okBefore[s], 0, FOLLOWED);
                 seenBefore[s] = seenNow[s];
                 seenNow[s] = false;
             }
@@ -47,12 +64,19 @@ public final class HandMotion {
         int side = right ? 0 : 1;
         float aspect = FrameInfo.width / Math.max(1f, FrameInfo.height);
         float f = 1f / (float) Math.tan(Math.toRadians(35.0));
-        for (int i = 0; i < N; i++) {
-            pose.transform(p.set(POINTS[i][0], POINTS[i][1], POINTS[i][2], 1f));
-            okNow[side][i] = p.z < -0.02f;
+        // The game draws the hands with the view's turn taken out of their pose and put back in the model-view matrix
+        // (every version): that matrix takes the points to view space.
+        Matrix4f modelView = RenderSystem.getModelViewStack();
+        for (int i = 0; i < FOLLOWED; i++) {
+            modelView.transform(p.set(points[i * 3], points[i * 3 + 1], points[i * 3 + 2], 1f));
+            float x = p.x, y = p.y, z = p.z;
+            // A point at the eye, or far off the screen, would throw the fit (an arm reaching past the camera).
+            okNow[side][i] = z < -0.05f;
             if (okNow[side][i]) {
-                now[side][i * 2] = (0.5f + 0.5f * f / aspect * p.x / -p.z) * aspect;
-                now[side][i * 2 + 1] = 0.5f + 0.5f * f * p.y / -p.z;
+                float sx = (0.5f + 0.5f * f / aspect * x / -z) * aspect, sy = 0.5f + 0.5f * f * y / -z;
+                okNow[side][i] = sx > -aspect && sx < 2f * aspect && sy > -1f && sy < 2f;
+                now[side][i * 2] = sx;
+                now[side][i * 2 + 1] = sy;
             }
         }
         seenNow[side] = true;
@@ -82,7 +106,7 @@ public final class HandMotion {
         float[] c = now[side], b = before[side];
         float cx = 0f, cy = 0f, bx = 0f, by = 0f;
         int n = 0;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < FOLLOWED; i++) {
             if (okNow[side][i] && okBefore[side][i]) {
                 cx += c[i * 2];
                 cy += c[i * 2 + 1];
@@ -103,7 +127,7 @@ public final class HandMotion {
         }
         // L = (sum of db dc^T) times the inverse of (sum of dc dc^T).
         float sxx = 0f, sxy = 0f, syy = 0f, m00 = 0f, m01 = 0f, m10 = 0f, m11 = 0f;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < FOLLOWED; i++) {
             if (okNow[side][i] && okBefore[side][i]) {
                 float dx = c[i * 2] - cx, dy = c[i * 2 + 1] - cy, ex = b[i * 2] - bx, ey = b[i * 2 + 1] - by;
                 sxx += dx * dx;
@@ -138,7 +162,7 @@ public final class HandMotion {
         // How far the farthest followed point moved, in 1080p pixels (half again, for the tip of a long item): a step
         // every 5 of them, 2 to 32 steps.
         float most = 0f;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < FOLLOWED; i++) {
             if (okNow[side][i] && okBefore[side][i]) {
                 most = Math.max(most, (float) Math.hypot(c[i * 2] - b[i * 2], c[i * 2 + 1] - b[i * 2 + 1]));
             }

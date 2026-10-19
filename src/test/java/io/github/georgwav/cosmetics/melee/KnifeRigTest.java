@@ -54,6 +54,21 @@ class KnifeRigTest {
     }
 
     @Test
+    void theTrailFollowsTheBladeAndThePacksOtherHand() {
+        KnifeGeo g = KnifeGeo.parse(StandInKnife.geo(), "standin");
+        KnifeRig r = new KnifeRig(g, KnifeClip.parseAll(StandInKnife.animations(), g));
+        assertEquals(g.bone("weapon"), r.blade, "the biggest part of the knife's own");
+        assertEquals(g.bone("lefthand_pos"), r.otherHand);
+        for (int a = 3; a < 6; a++) {
+            assertTrue(r.bladeBox[a] >= 0.5f, "half a pixel at least either side");
+        }
+        // No cubes of its own: nothing for the trail to follow but the hands.
+        KnifeGeo bare = KnifeGeo.parse(JsonParser.parseString("{\"minecraft:geometry\":[{\"description\":{\"texture_width\":16,"
+                + "\"texture_height\":16},\"bones\":[{\"name\":\"root\",\"pivot\":[0,0,0]}]}]}").getAsJsonObject(), "bare");
+        assertEquals(-1, new KnifeRig(bare, Map.of()).blade);
+    }
+
+    @Test
     void theStandInKnifeHasEveryPart() {
         JsonObject anims = StandInKnife.animations();
         KnifeGeo g = KnifeGeo.parse(StandInKnife.geo(), "standin");

@@ -1293,9 +1293,11 @@ public final class SolScenario {
             problems.add(name + ": the knife wasn't drawn in third person");
         }
         boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail");
-        // The trail shot: light attacks over and over in slow motion (this renderer draws a few frames a second).
-        io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(what.equals("knife_trail") ? 0.2f : 1f);
-        if (what.equals("knife_trail") && phaseTick > 10 && phaseTick % 12 == 0) {
+        // The trail shot: a light attack in slow motion, a twentieth of its speed, so each of the few frames a second
+        // this renderer draws moves the knife about as far as a frame at 60 FPS does; shot at its strike (0.15 s in, as
+        // the light attack shot holds it: three seconds at this speed).
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(what.equals("knife_trail") ? 0.05f : 1f);
+        if (what.equals("knife_trail") && phaseTick == SETTLE - 60) {
             io.github.georgwav.cosmetics.melee.KnifeRenderer.play("light");
         }
         if (punchy.enabled() != module) {

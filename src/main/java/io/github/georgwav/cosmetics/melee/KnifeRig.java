@@ -35,6 +35,13 @@ public final class KnifeRig {
     private final Map<KnifeClip, KnifeClip> angels = new java.util.IdentityHashMap<>();
     /** The bones that hold nothing but arms, and the scale to show them at when an animation hides them. */
     final float[][] handFix;
+    /**
+     * What the hand glow's trail follows: the knife's biggest part (its blade, mostly; -1 if it draws nothing of its
+     * own) with the box round its faces in its bone's frame (middle x, y, z, then half sizes; pixels), and the bone the
+     * pack's other hand is drawn at (-1 for none).
+     */
+    public final int blade, otherHand;
+    public final float[] bladeBox = new float[6];
 
     public KnifeRig(KnifeGeo geo, Map<String, KnifeClip> clips) {
         this.geo = geo;
@@ -73,6 +80,14 @@ public final class KnifeRig {
             }
         }
         this.handFix = handFix(geo, clips);
+        this.blade = blade(geo, bladeBox);
+        int other = -1;
+        for (int b = 0; b < geo.bones.length && other < 0; b++) {
+            if (geo.bones[b].arm < 0) {
+                other = b;
+            }
+        }
+        this.otherHand = other;
         KnifePose pose = new KnifePose(geo);
         pose.handFix = handFix;
         int view = geo.bone("idle_view");
@@ -101,6 +116,47 @@ public final class KnifeRig {
         }
         KnifeClip a = angels.get(c);
         return a != null ? a : c;
+    }
+
+    // ------------------------------------------------------------------ the trail
+
+    /** The bone with the most cube volume of the knife's own (no arms, places or effects), and its faces' box. */
+    static int blade(KnifeGeo geo, float[] box) {
+        int best = -1;
+        float most = 0f;
+        for (int b = 0; b < geo.bones.length; b++) {
+            KnifeGeo.Bone bone = geo.bones[b];
+            if (bone.arm != 0 || bone.marker || bone.effect || bone.quads.length == 0) {
+                continue;
+            }
+            float volume = 0f;
+            for (int k = 0; k < bone.cubes.length; k += 4) {
+                volume += bone.cubes[k];
+            }
+            if (best < 0 || volume > most) {
+                best = b;
+                most = volume;
+            }
+        }
+        if (best < 0) {
+            return -1;
+        }
+        float[] q = geo.bones[best].quads;
+        float[] lo = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE}, hi = {-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+        for (int o = 0; o < q.length; o += KnifeGeo.QUAD) {
+            for (int k = 0; k < 4; k++) {
+                for (int a = 0; a < 3; a++) {
+                    lo[a] = Math.min(lo[a], q[o + k * 5 + a]);
+                    hi[a] = Math.max(hi[a], q[o + k * 5 + a]);
+                }
+            }
+        }
+        for (int a = 0; a < 3; a++) {
+            box[a] = (lo[a] + hi[a]) / 2f;
+            // At least half a pixel either side, so a flat blade still shows how it turns.
+            box[3 + a] = Math.max(0.5f, (hi[a] - lo[a]) / 2f);
+        }
+        return best;
     }
 
     // ------------------------------------------------------------------ hidden hands
