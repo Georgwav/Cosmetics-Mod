@@ -29,3 +29,7 @@ From local runs at 1080p (1.21.11, and 26.2 for the title and the line). Knife s
 - `round4/voxy-world-outline.png`: Voxy's land past the far plane before and after (rim turned up 40 times), and the rim without Voxy.
 - `round4/knife-colour-page.png`: a knife's Wardrobe page with its colour controls.
 
+
+## Round 5 (georgwav/cosmetics-mod#37)
+
+- `round5/arms-knife-glow.png`: Punchy's hands with Sol arms off, the stand-in knife at Punchy's hand size, the golden glow in white with and without Punchy, Sol arms without Punchy, and the knife inspecting from Punchy's inspect key (1.21.11, 1080p).
