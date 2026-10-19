@@ -38,7 +38,7 @@ float leaves(vec2 uv) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.35 : e.g;
+    return e.b > 0.5 ? 0.25 : e.g;
 }
 
 // What they left at a point the frame before.
@@ -70,7 +70,7 @@ void main() {
         vec2 mid = vec2(P(o + 8), P(o + 9));
         mat2 back = turn(a) * stretch;
         float steps = P(o + 10);
-        for (int k = 1; k < 24; k++) {
+        for (int k = 1; k < 32; k++) {
             if (float(k) >= steps) {
                 break;
             }

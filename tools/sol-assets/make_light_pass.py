@@ -507,7 +507,7 @@ float leaves(vec2 uv) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.35 : e.g;
+    return e.b > 0.5 ? 0.25 : e.g;
 }
 
 // What they left at a point the frame before.
@@ -539,7 +539,7 @@ void main() {
         vec2 mid = vec2(P(o + 8), P(o + 9));
         mat2 back = turn(a) * stretch;
         float steps = P(o + 10);
-        for (int k = 1; k < 24; k++) {
+        for (int k = 1; k < 32; k++) {
             if (float(k) >= steps) {
                 break;
             }
@@ -613,8 +613,8 @@ void main() {
     float rising = clamp(glow * grade * s, 0.0, 1.5);
     // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
     vec3 warm = mix(col, vec3(1.0), 0.45 * e.r * (1.0 - e.b));
-    c = mix(c, warm, clamp(rising * 1.25, 0.0, 0.96));
-    c = soft(c + warm * rising * 0.35);
+    c = mix(c, warm, clamp(rising * 1.4, 0.0, 0.97));
+    c = soft(c + warm * rising * 0.3);
     // The line, pale (cream for gold).
     float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
     vec3 pale = mix(col, vec3(1.0), 0.55);

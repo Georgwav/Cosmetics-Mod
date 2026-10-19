@@ -136,13 +136,13 @@ public final class HandMotion {
         v[o + 8] = cx;
         v[o + 9] = cy;
         // How far the farthest followed point moved, in 1080p pixels (half again, for the tip of a long item): a step
-        // every 5 of them, 2 to 24 steps.
+        // every 5 of them, 2 to 32 steps.
         float most = 0f;
         for (int i = 0; i < N; i++) {
             if (okNow[side][i] && okBefore[side][i]) {
                 most = Math.max(most, (float) Math.hypot(c[i * 2] - b[i * 2], c[i * 2 + 1] - b[i * 2 + 1]));
             }
         }
-        v[o + 10] = Math.max(2f, Math.min(24f, most * 1.5f * 1080f / 5f));
+        v[o + 10] = Math.max(2f, Math.min(32f, most * 1.5f * 1080f / 5f));
     }
 }

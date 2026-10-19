@@ -45,7 +45,7 @@ public final class PunchyModule extends Module {
     private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
     /** The custom colour: the gold of Clarity's glow in Georg's picture until you pick another. */
-    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFAD066).group("glow"));
+    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFDEB80).group("glow"));
     private final Setting.Slider glowStrength = add(new Setting.Slider("glow_strength", 100, 10, 200, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 100, 100, 300, 10, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", false).group("glow"));
