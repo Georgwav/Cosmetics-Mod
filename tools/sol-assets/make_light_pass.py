@@ -422,7 +422,7 @@ void main() {
     # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
     # size setting, up to 3x), from the distance field; or, for the soft style, a softer fade with no bright core,
     # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the glow rising
-    # off their top edges, about 40 px up and a few to the side (times the size, up to 70 px), its top flickering like
+    # off their top edges, about 45 px up and a few to the side (times the size, up to 60 px), its top flickering like
     # a flame. Blue: the hands themselves (never filled).
     "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
@@ -475,11 +475,12 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for its first third, then fading; its reach wavers, rising, so its top flickers.
+        // The rising glow: strong for about half its height, then fading softly; its reach wavers in narrow tongues
+        // that rise, so its top flickers like a flame.
         vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(24.0, 13.0 * size) * (0.8 + 0.45 * noise(vec2(w.x / 16.0, w.y / 22.0 - P(22) * 2.2)));
+        float reach = min(20.0, 15.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 9.0, w.y / 18.0 - P(22) * 2.6)));
         // The field stops at 32 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.3 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        float rising = (1.0 - smoothstep(0.45 * reach, reach, dists.y)) * step(dists.y, 30.0);
         green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
@@ -543,9 +544,10 @@ void main() {
     // Green is the inner edge inside the hands and the rising glow outside them.
     float inner = e.b > 0.5 ? e.g : 0.0;
     float rising = clamp((e.b > 0.5 ? 0.0 : e.g) * grade * s, 0.0, 1.5);
-    vec3 warm = mix(col, vec3(1.0), 0.45 * min(rising, 1.0) * min(rising, 1.0));
-    c = mix(c, warm, clamp(rising * 0.75, 0.0, 0.85));
-    c = soft(c + warm * rising * 0.5);
+    // Gold, a little paler right at the edge.
+    vec3 warm = mix(col, vec3(1.0), 0.35 * pow(min(e.b > 0.5 ? 0.0 : e.g, 1.0), 6.0));
+    c = mix(c, warm, clamp(rising * 0.85, 0.0, 0.9));
+    c = soft(c + warm * rising * 0.6);
     // The line, pale (cream for gold).
     float k = (e.r + inner) * grade;
     if (P(90) > 0.0) {

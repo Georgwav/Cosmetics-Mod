@@ -98,11 +98,12 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for its first third, then fading; its reach wavers, rising, so its top flickers.
+        // The rising glow: strong for about half its height, then fading softly; its reach wavers in narrow tongues
+        // that rise, so its top flickers like a flame.
         vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(24.0, 13.0 * size) * (0.8 + 0.45 * noise(vec2(w.x / 16.0, w.y / 22.0 - P(22) * 2.2)));
+        float reach = min(20.0, 15.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 9.0, w.y / 18.0 - P(22) * 2.6)));
         // The field stops at 32 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.3 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        float rising = (1.0 - smoothstep(0.45 * reach, reach, dists.y)) * step(dists.y, 30.0);
         green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);

@@ -71,9 +71,10 @@ void main() {
     // Green is the inner edge inside the hands and the rising glow outside them.
     float inner = e.b > 0.5 ? e.g : 0.0;
     float rising = clamp((e.b > 0.5 ? 0.0 : e.g) * grade * s, 0.0, 1.5);
-    vec3 warm = mix(col, vec3(1.0), 0.45 * min(rising, 1.0) * min(rising, 1.0));
-    c = mix(c, warm, clamp(rising * 0.75, 0.0, 0.85));
-    c = soft(c + warm * rising * 0.5);
+    // Gold, a little paler right at the edge.
+    vec3 warm = mix(col, vec3(1.0), 0.35 * pow(min(e.b > 0.5 ? 0.0 : e.g, 1.0), 6.0));
+    c = mix(c, warm, clamp(rising * 0.85, 0.0, 0.9));
+    c = soft(c + warm * rising * 0.6);
     // The line, pale (cream for gold).
     float k = (e.r + inner) * grade;
     if (P(90) > 0.0) {
