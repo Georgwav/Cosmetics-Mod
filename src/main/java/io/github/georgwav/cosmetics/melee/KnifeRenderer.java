@@ -467,7 +467,7 @@ public final class KnifeRenderer {
         boolean bench = BENCH && shownFrames > WARM_UP;
         long benchStart = bench ? System.nanoTime() : 0L, benchAlloc = bench ? allocated() : 0L;
         try {
-            emitPass(pose, consumer, pass, v.pose, light, false, LOCAL);
+            emitPass(pose, consumer, pass, v.pose, v.knife.solid, light, false, LOCAL);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(v.knife.id, e);
         }
@@ -483,10 +483,11 @@ public final class KnifeRenderer {
 
     /**
      * One pass of a posed knife into a consumer: {@code pass} {@link #NORMAL} or {@link #LIT} faces, or {@link #ARMS};
+     * {@code solid}: the knife's faces that show something ({@link Knife#solid}), or null for all of them;
      * {@code third}: as held in third person (no slash effects or glints).
      */
-    static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifePose p, int light, boolean third,
-                         float[] local) {
+    static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifePose p, float[][] solid, int light,
+                         boolean third, float[] local) {
         // `var`: Matrix4fc/Matrix3fc on newer versions, Matrix4f/Matrix3f on older ones.
         var m = pose.pose();
         var nm = pose.normal();
@@ -526,7 +527,7 @@ public final class KnifeRenderer {
                     || third && bone.effect || !p.shown(b)) {
                 continue;
             }
-            float[] quads = pass == ARMS ? ArmGeo.quads(bone.arm > 0, slim) : bone.quads;
+            float[] quads = pass == ARMS ? ArmGeo.quads(bone.arm > 0, slim) : solid != null ? solid[b] : bone.quads;
             if (quads.length == 0) {
                 continue;
             }
@@ -620,6 +621,7 @@ public final class KnifeRenderer {
                 k.bright = Knife.cut(argb, out);
                 k.cutWidth = image.getWidth();
                 k.cutHeight = image.getHeight();
+                k.solid = Knife.solidQuads(k.rig.geo, out, image.getWidth(), image.getHeight());
                 k.cutPixels = out;
             }
         } catch (Exception e) {

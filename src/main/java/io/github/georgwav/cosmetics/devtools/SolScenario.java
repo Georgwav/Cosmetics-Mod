@@ -1191,6 +1191,10 @@ public final class SolScenario {
                 io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
             }
             asPlayer(mc, List.of("item replace entity @s weapon.mainhand with diamond_sword"));
+            if (pick >= 0) {
+                // The local runs with many knives are long: no mob comes to end them.
+                asPlayer(mc, List.of("difficulty peaceful"));
+            }
             io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn = 0;
             for (var st : punchy.settings()) {
                 if (st.id.equals("pvp")) {
@@ -1239,6 +1243,10 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
             io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
         }
+        if (phaseTick == SETTLE - 25 && what.equals("knife_spam")) {
+            // Spam-inspect: an inspect, then the key again mid-way (a fresh one at once, below).
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.play("inspect");
+        }
         if (phaseTick == SETTLE - 17 && what.equals("knife_light")) {
             // A real attack click (the knife's input hook), then the light attack held at its strike. The key by its
             // name: the left button's number differs from 26.3 on (SDL).
@@ -1250,6 +1258,7 @@ public final class SolScenario {
                 case "knife_light" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("light", 0.15f);
                 case "knife_heavy" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("heavy", 0.15f);
                 case "knife_inspect" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("inspect", 0.5f);
+                case "knife_spam" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("inspect", 0.3f);
                 default -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("idle", 0f);
             }
         }

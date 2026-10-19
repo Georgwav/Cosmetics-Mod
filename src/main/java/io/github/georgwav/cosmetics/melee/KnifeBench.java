@@ -57,9 +57,9 @@ public final class KnifeBench {
             }
         }
         v.frame(t[0], true);
-        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.NORMAL, v.pose, 0xF000F0, false, local);
-        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.LIT, v.pose, 0xF000F0, false, local);
-        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.ARMS, v.pose, 0xF000F0, false, local);
+        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.NORMAL, v.pose, v.knife.solid, 0xF000F0, false, local);
+        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.LIT, v.pose, v.knife.solid, 0xF000F0, false, local);
+        KnifeRenderer.emitPass(pose, sink, KnifeRenderer.ARMS, v.pose, v.knife.solid, 0xF000F0, false, local);
     }
 
     /** Adds up what it's given (the methods without @Override are only on some Minecraft versions). */
@@ -70,6 +70,13 @@ public final class KnifeBench {
         public VertexConsumer addVertex(float x, float y, float z) {
             sum += x + y + z;
             return this;
+        }
+
+        /** One call a vertex, as the game's own buffer takes the knife's vertices. */
+        @Override
+        public void addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx,
+                              float ny, float nz) {
+            sum += x + y + z + color + u + v + light + nx + ny + nz;
         }
 
         @Override

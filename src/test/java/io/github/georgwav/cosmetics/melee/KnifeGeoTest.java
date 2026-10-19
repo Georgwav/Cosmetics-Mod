@@ -30,6 +30,31 @@ class KnifeGeoTest {
             {"south", new float[][]{{2, 3, 4}, {0, 3, 4}, {2, 0, 4}, {0, 0, 4}}, 16f, 0f}};
 
     @Test
+    void facesThatShowNothingAreLeftOut() {
+        KnifeGeo g = KnifeGeo.parse(cube(""), "test");
+        int[] cut = new int[64 * 32];
+        cut[5 * 64 + 5] = 0xFF112233;      // inside north's picture (0, 0) to (10, 10)
+        cut[9 * 64 + 41] = 0xFF112233;     // the last texel of east's (32, 0) to (42, 10)
+        cut[5 * 64 + 26] = 0xFF112233;     // just past south's (16, 0) to (26, 10): not south's
+        float[][] solid = Knife.solidQuads(g, cut, 64, 32);
+        float[] q = g.bones[0].quads, kept = solid[0];
+        assertEquals(2 * KnifeGeo.QUAD, kept.length, "north and east show; the see-through faces are left out");
+        java.util.List<Float> us = new java.util.ArrayList<>();
+        for (int o = 0; o < kept.length; o += KnifeGeo.QUAD) {
+            us.add(kept[o + 3] * 64f);
+        }
+        assertTrue(us.contains(0f) && us.contains(32f), "north (u 0) and east (u 32): " + us);
+        // Every face shows on a solid texture: the bone keeps its own array.
+        java.util.Arrays.fill(cut, 0xFF000000);
+        assertTrue(Knife.solidQuads(g, cut, 64, 32)[0] == q);
+        // A cube of no height: its four sides have no area, the top and bottom stay.
+        String flat = "{\"minecraft:geometry\":[{\"description\":{\"texture_width\":64,\"texture_height\":32},"
+                + "\"bones\":[{\"name\":\"b\",\"pivot\":[0,0,0],\"cubes\":[{\"origin\":[0,0,0],\"size\":[2,0,4],\"uv\":[0,0]}]}]}]}";
+        KnifeGeo f = KnifeGeo.parse(JsonParser.parseString(flat).getAsJsonObject(), "test");
+        assertEquals(2 * KnifeGeo.QUAD, Knife.solidQuads(f, cut, 64, 32)[0].length);
+    }
+
+    @Test
     void facesFollowTheTable() {
         KnifeGeo g = KnifeGeo.parse(cube(""), "test");
         float[] q = g.bones[0].quads;

@@ -127,8 +127,8 @@ public final class KnifeThirdPerson {
             buffers.submitCustomGeometry(pose, type, pass(k, light, KnifeRenderer.NORMAL));
             buffers.submitCustomGeometry(pose, type, pass(k, light, KnifeRenderer.LIT));
             //?} else {
-            /*KnifeRenderer.emitPass(pose.last(), buffers.getBuffer(type), KnifeRenderer.NORMAL, kp, light, true, null);
-            KnifeRenderer.emitPass(pose.last(), buffers.getBuffer(type), KnifeRenderer.LIT, kp, light, true, null);
+            /*KnifeRenderer.emitPass(pose.last(), buffers.getBuffer(type), KnifeRenderer.NORMAL, kp, k.solid, light, true, null);
+            KnifeRenderer.emitPass(pose.last(), buffers.getBuffer(type), KnifeRenderer.LIT, kp, k.solid, light, true, null);
             *///?}
             pose.popPose();
             drawn++;
@@ -174,7 +174,7 @@ public final class KnifeThirdPerson {
                 return;
             }
             try {
-                KnifeRenderer.emitPass(pose, consumer, which, k.thirdPose(), light, true, null);
+                KnifeRenderer.emitPass(pose, consumer, which, k.thirdPose(), k.solid, light, true, null);
             } catch (RuntimeException | LinkageError e) {
                 RenderGuard.cosmeticFailed(k.id, e);
             }

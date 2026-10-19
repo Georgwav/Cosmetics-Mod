@@ -22,6 +22,8 @@ public final class Knife {
     public volatile boolean cutting, cutFailed;
     public volatile int[] cutPixels;
     public volatile int cutWidth, cutHeight;
+    /** Per bone, its faces that show something with the cut texture (see {@link #solidQuads}); null until it's cut. */
+    public volatile float[][] solid;
 
     private KnifePose third;
 
@@ -82,6 +84,71 @@ public final class Knife {
             }
         }
         return 0xFF000000 | (int) (r / count) << 16 | (int) (g / count) << 8 | (int) (b / count);
+    }
+
+    /**
+     * Per bone of {@code geo}, its faces that show something with the cut texture {@code cut} ({@code w} by {@code h},
+     * from {@link #cut}): a face of no area, or whose picture is see-through everywhere, draws nothing and is left out.
+     * Every texel the face's picture touches counts, so no face that could show a pixel is lost. Bones keep their
+     * own array when nothing is left out.
+     */
+    public static float[][] solidQuads(KnifeGeo geo, int[] cut, int w, int h) {
+        float[][] out = new float[geo.bones.length][];
+        for (int b = 0; b < geo.bones.length; b++) {
+            float[] q = geo.bones[b].quads;
+            int keep = 0;
+            boolean[] shows = new boolean[q.length / KnifeGeo.QUAD];
+            for (int f = 0; f < shows.length; f++) {
+                shows[f] = shows(q, f * KnifeGeo.QUAD, cut, w, h);
+                if (shows[f]) {
+                    keep++;
+                }
+            }
+            if (keep == shows.length) {
+                out[b] = q;
+                continue;
+            }
+            float[] kept = new float[keep * KnifeGeo.QUAD];
+            for (int f = 0, k = 0; f < shows.length; f++) {
+                if (shows[f]) {
+                    System.arraycopy(q, f * KnifeGeo.QUAD, kept, k++ * KnifeGeo.QUAD, KnifeGeo.QUAD);
+                }
+            }
+            out[b] = kept;
+        }
+        return out;
+    }
+
+    private static boolean shows(float[] q, int o, int[] cut, int w, int h) {
+        // No area: the corners on a line or a point.
+        float ax = q[o + 5] - q[o], ay = q[o + 6] - q[o + 1], az = q[o + 7] - q[o + 2];
+        float bx = q[o + 15] - q[o], by = q[o + 16] - q[o + 1], bz = q[o + 17] - q[o + 2];
+        float cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+        if (cx * cx + cy * cy + cz * cz < 1.0e-10f) {
+            return false;
+        }
+        float u0 = Float.MAX_VALUE, u1 = -Float.MAX_VALUE, v0 = Float.MAX_VALUE, v1 = -Float.MAX_VALUE;
+        for (int k = 0; k < 4; k++) {
+            float u = q[o + k * 5 + 3], v = q[o + k * 5 + 4];
+            u0 = Math.min(u0, u);
+            u1 = Math.max(u1, u);
+            v0 = Math.min(v0, v);
+            v1 = Math.max(v1, v);
+        }
+        int x0 = Math.max(0, (int) Math.floor(u0 * w + 1.0e-4f)), x1 = Math.min(w, Math.max(x0 + 1, (int) Math.ceil(u1 * w - 1.0e-4f)));
+        int y0 = Math.max(0, (int) Math.floor(v0 * h + 1.0e-4f)), y1 = Math.min(h, Math.max(y0 + 1, (int) Math.ceil(v1 * h - 1.0e-4f)));
+        if (x0 >= x1 || y0 >= y1) {
+            // Its picture is off the texture (the texture's edge repeats or clamps): keep it.
+            return true;
+        }
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                if (cut[y * w + x] != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static int luma(int c) {
