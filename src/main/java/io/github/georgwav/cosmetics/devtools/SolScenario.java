@@ -44,6 +44,8 @@ public final class SolScenario {
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
+    /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
+    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -277,6 +279,11 @@ public final class SolScenario {
                         : inPlay(ui) && !ui.startsWith("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
+            }
+            for (String ui : LOCAL_UI_SHOTS) {
+                if (only.contains(ui)) {
+                    shots.add(new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
+                }
             }
         }
         if (!KNIFE_IDS.isEmpty()) {
@@ -1097,7 +1104,8 @@ public final class SolScenario {
 
     /** Whether the Punchy module was on before the hands shot (null while it isn't on). */
     private static Boolean punchyWas;
-    private static boolean handEmpty;
+    /** What the hand shots hold, main hand then off hand, as last set. */
+    private static String handHeld = "diamond_sword[enchantment_glint_override=true]|shield";
 
     /**
      * The hands shots, with an enchanted sword in hand: the Punchy module on (Sol's arms, the glow), off (the game's
@@ -1155,12 +1163,17 @@ public final class SolScenario {
         }
         if (on) {
             punchy.setEnabled(!what.equals("hands_plain"));
-            // At night (and in gold at rest) the hand is empty, so the arm shows (dark, outlined).
-            boolean empty = what.startsWith("hands_night") || what.startsWith("hands_gold");
-            if (empty != handEmpty) {
-                handEmpty = empty;
-                asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with "
-                        + (handEmpty ? "air" : "diamond_sword[enchantment_glint_override=true]")));
+            // At night (and in gold at rest) the hand is empty, so the arm shows (dark, outlined). The local spear shot
+            // holds a spear and a torch at rest, posed like Georg's reference picture.
+            boolean spear = what.equals("hands_gold_spear");
+            boolean empty = !spear && (what.startsWith("hands_night") || what.startsWith("hands_gold"));
+            String held = (empty ? "air" : spear ? "iron_spear" : "diamond_sword[enchantment_glint_override=true]")
+                    + "|" + (spear ? "torch" : "shield");
+            if (!held.equals(handHeld)) {
+                handHeld = held;
+                String[] hands = held.split("\\|");
+                asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with " + hands[0],
+                        "item replace entity @s weapon.offhand with " + hands[1]));
             }
         } else if (punchyWas != null) {
             punchy.setEnabled(punchyWas);
