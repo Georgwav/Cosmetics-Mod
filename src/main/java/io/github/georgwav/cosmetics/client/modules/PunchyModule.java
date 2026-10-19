@@ -47,7 +47,7 @@ public final class PunchyModule extends Module {
     /** The custom colour: the gold of Georg's pictures until you pick another. */
     private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFD21F).group("glow"));
     private final Setting.Slider glowStrength = add(new Setting.Slider("glow_strength", 100, 10, 200, 5, v -> Math.round(v) + "%").group("glow"));
-    private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 65, 0, 100, 5, v -> Math.round(v) + "%").group("glow"));
+    private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 40, 0, 100, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", true).group("glow"));
     /**
      * Thin lines of light rising through the soft glow; off by default (the "movement lines" Georg asked for turned
