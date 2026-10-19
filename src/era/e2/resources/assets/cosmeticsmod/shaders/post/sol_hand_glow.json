@@ -1,5 +1,5 @@
 {
-  "vertex": "minecraft:post/screenquad",
+  "vertex": "cosmeticsmod:post/sol_quad",
   "fragment": "cosmeticsmod:post/sol_hand_glow",
   "samplers": [
     {

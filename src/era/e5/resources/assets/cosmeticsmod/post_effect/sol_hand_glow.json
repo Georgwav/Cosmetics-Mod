@@ -235,12 +235,19 @@
       "fragment_shader": "cosmeticsmod:post/sol_hand_trail",
       "inputs": [
         {
-          "sampler_name": "Edge",
-          "target": "hedge"
+          "sampler_name": "Glow",
+          "target": "hu0",
+          "bilinear": true
+        },
+        {
+          "sampler_name": "Mask",
+          "target": "hmask",
+          "bilinear": true
         },
         {
           "sampler_name": "Prev",
-          "target": "htrail"
+          "target": "htrail",
+          "bilinear": true
         },
         {
           "sampler_name": "Params",

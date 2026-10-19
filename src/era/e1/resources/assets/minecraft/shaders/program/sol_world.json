@@ -4,7 +4,7 @@
     "srcrgb": "one",
     "dstrgb": "zero"
   },
-  "vertex": "screenquad",
+  "vertex": "sol_quad",
   "fragment": "sol_world",
   "attributes": [
     "Position"

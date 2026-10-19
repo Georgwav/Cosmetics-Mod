@@ -40,7 +40,7 @@ public final class PunchyModule extends Module {
     /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
     private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
-    /** A crisp bright outline on the edge fading out, or only the soft haze. */
+    /** Smoke round the hands that trails behind them ("outline", the id it had as a crisp outline), or a soft haze. */
     private final Setting.Choice glowStyle = add(new Setting.Choice("glow_style", "outline", List.of("outline", "soft")).group("glow"));
     private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
@@ -54,10 +54,7 @@ public final class PunchyModule extends Module {
      * out to be the motion trail).
      */
     private final Setting.Toggle glowLines = add(new Setting.Toggle("rising_lines", false).group("glow"));
-    /**
-     * While the hands move (a swing, or just walking), where they were stays a moment behind them: see-through copies
-     * of them with their outlines, fading out.
-     */
+    /** While the hands move (a swing, or just walking), their smoke stays behind them, rising and fading. */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
     // Knives (a melee cosmetic held in place of a sword).
@@ -282,8 +279,8 @@ public final class PunchyModule extends Module {
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
      * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the
-     * lines of light moving through it, the style (1 outline, 0 soft), how much of the motion trail is left after this
-     * frame, and whether the trail shows.
+     * lines of light moving through it, the style (1 smoke, 0 soft), how much of the smoke is left after this frame,
+     * whether it trails (kept frame to frame), and the frame's time.
      */
     public static void glowParams(float[] v, int at, Tokens tk, boolean continuous) {
         PunchyModule m = Modules.PUNCHY;
@@ -331,6 +328,8 @@ public final class PunchyModule extends Module {
         float halfLife = 0.04f + 0.26f * (float) (m.trailLength.get() / 100.0);
         float dt = TRAIL_DT > 0f ? TRAIL_DT : Math.min(0.25f, io.github.georgwav.cosmetics.sol.render.FrameInfo.frameSeconds);
         v[at + 13] = trail ? (float) Math.pow(0.5, dt / halfLife) : 0f;
+        // The frame's time, for how far the smoke rises and curls this frame.
+        v[at + 15] = dt;
         // The trail needs a picture kept from one frame to the next, which 1.21.2 to 1.21.5's post chains don't keep.
         v[at + 14] = m.motionTrail.get() && io.github.georgwav.cosmetics.sol.render.LightPass.blurSupported() ? 1f : 0f;
     }

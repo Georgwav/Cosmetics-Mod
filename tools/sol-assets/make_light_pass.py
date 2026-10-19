@@ -12,8 +12,9 @@ Chains:
                                       toward the sun and ground haze, light shafts (high).
   sol_grade                           after the hand: bloom (half-resolution threshold, five-level dual-filter mip
                                       chain), the theme's colour grade (a 32x32x32 LUT), vignette, dither.
-  sol_hand_glow                       after the hand, before the grade: a soft glow round the first-person hands
-                                      and held item (a quarter-resolution mask blurred through three levels).
+  sol_hand_glow                       after the hand, before the grade: a glow round the first-person hands and
+                                      held item (a quarter-resolution mask blurred through four levels): smoke that
+                                      rises, curls and trails behind them (kept frame to frame), or a soft haze.
 """
 import json
 import os
@@ -65,6 +66,20 @@ vec3 viewAt(vec2 uv, float depth) {
     float z = linearDepth(depth);
     return vec3((uv * 2.0 - 1.0) * vec2(P(6), P(7)) * z, -z);
 }
+"""
+
+NOISE = r"""
+float hash2(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// Smooth value noise, 0 to 1.
+float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
 """
 
 BODIES = {
@@ -359,10 +374,8 @@ void main() {
     fragColor = vec4(s / 12.0 + texture(CurSampler, texCoord).rgb * mix(0.7, 0.15, P(86)), 1.0);
 }
 """),
-    # The hand glow's outline, found once a frame at full resolution from the depth: how much of each of four rings
-    # round a pixel is hand. Red: the crisp line right on the edge (three to four pixels at 1080p); green: the short
-    # glow that fades out from it (as in Georg's pictures: a sharp bright line, a little light round it, nothing on
-    # the hand itself); blue: the hand itself, for the trail.
+    # The hand glow's edge, found once a frame at full resolution from the depth. Red: the thin pale line right on the
+    # edge, just outside the hand (a ring of taps round each pixel); blue: the hand itself.
     "sol_hand_edge": (["In", "Depth", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
@@ -371,44 +384,50 @@ float handAt(vec2 uv) {
 void main() {
     float hand = handAt(texCoord);
     vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
-    float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0) * (0.6 + 0.8 * P(86));
-    float covA = 0.0, cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
+    float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0);
+    float cov = 0.0;
     for (int i = 0; i < 8; i++) {
         float a = float(i) * 0.7853982 + 0.2;
-        vec2 d = vec2(cos(a), sin(a)) * px * scale;
-        covA += handAt(texCoord + d * 1.4) * 0.125;
-        cov0 += handAt(texCoord + d * 3.0) * 0.125;
-        cov1 += handAt(texCoord + d * 4.6) * 0.125;
-        cov2 += handAt(texCoord + d * 6.5) * 0.125;
-        cov3 += handAt(texCoord + d * 9.5) * 0.125;
+        cov += handAt(texCoord + vec2(cos(a), sin(a)) * px * scale * 1.3) * 0.125;
     }
-    float line = hand > 0.5 ? 0.0 : min(1.0, max(covA, cov0) * 3.0);
-    float band = hand > 0.5 ? 0.0
-            : max(max(line, min(1.0, cov1 * 2.5) * 0.7), max(min(1.0, cov2 * 2.5) * 0.28, min(1.0, cov3 * 2.5) * 0.08));
-    // The hands' own shape, for the motion trail's see-through copies of them.
-    float inner = hand;
+    float line = hand > 0.5 ? 0.0 : min(1.0, cov * 3.0);
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
-    fragColor = vec4(line, band, inner, max(texture(InSampler, texCoord).a, 1.0));
+    fragColor = vec4(line, 0.0, hand, max(texture(InSampler, texCoord).a, 1.0));
 }
 """),
-    # The motion trail: last frame's trail fading (by the frame's time, so it lasts as long at any frame rate), the
-    # outline, its glow and the hands' shape drawn into it again. Where the hands move (as in Georg's video), they
-    # leave see-through copies of themselves with their outlines, fading out.
-    "sol_hand_trail": (["Edge", "Prev", "Params"], PARAMS + r"""
+    # The smoke round the hands (Georg's video): last frame's smoke risen a little, curled by two slow noises, spread
+    # by a soft blur and thinned out by the frame's time (so it lasts as long at any frame rate); the hands' soft glow
+    # given off into it again, in flickering wisps. Where the hands move, what they gave off stays behind them and
+    # fades: a smoky trail, not copies of them.
+    "sol_hand_trail": (["Glow", "Mask", "Prev", "Params"], PARAMS + NOISE + r"""
 void main() {
-    // The outline, its glow and the hands' shape where they are now, over what's left of them from before (less a
-    // half step, so an 8-bit target fades all the way out).
-    vec3 e = texture(EdgeSampler, texCoord).rgb;
-    vec3 p = max(texture(PrevSampler, texCoord).rgb * P(89) - 0.5 / 255.0, 0.0);
-    fragColor = vec4(max(p, e), 1.0);
+    vec2 px = 1.0 / vec2(textureSize(PrevSampler, 0));
+    float scale = max(1.0, float(textureSize(PrevSampler, 0).y) / 720.0);
+    float t = P(22);
+    float frames = clamp(P(91) * 60.0, 0.0, 4.0);
+    vec2 w = texCoord * vec2(P(28), 1.0);
+    vec2 curl = vec2(noise(w * 7.0 + vec2(t * 0.6, 0.0)), noise(w * 7.0 + vec2(4.7, t * 0.5))) - 0.5;
+    vec2 from = texCoord - (vec2(0.0, 0.45) + curl * 1.2) * px * scale * frames;
+    vec2 d = px * scale * 1.6;
+    vec3 prev = texture(PrevSampler, from).rgb * 0.36
+            + (texture(PrevSampler, from + vec2(d.x, 0.0)).rgb + texture(PrevSampler, from - vec2(d.x, 0.0)).rgb
+            + texture(PrevSampler, from + vec2(0.0, d.y)).rgb + texture(PrevSampler, from - vec2(0.0, d.y)).rgb) * 0.16;
+    // Less a half step, so an 8-bit target fades all the way out.
+    prev = max(prev * P(89) - 0.5 / 255.0, 0.0);
+    // Mostly from round the hands' edge: what's inside them gives off a little, so a swing leaves smoke, not a copy.
+    vec3 mk = texture(MaskSampler, texCoord).rgb;
+    float inside = max(max(mk.r, mk.g), mk.b) > 0.02 ? 1.0 : 0.0;
+    vec3 now = min(texture(GlowSampler, texCoord).rgb, vec3(1.0)) * (1.0 - 0.5 * inside)
+            * (0.7 + 0.6 * noise(w * 40.0 + vec2(0.0, -t * 1.8)));
+    fragColor = vec4(max(prev, now), 1.0);
 }
 """),
-    # The hand glow: the blurred mask round the hands and item, fading out softly, breathing, with (if picked) lines
-    # of light rising and waving through it; only a faint sheen on the hand itself. The outline style (Georg's
-    # pictures) is instead a crisp bright line right on the silhouette with a short glow round it (found at full
-    # resolution from the depth, rings of taps), nothing on the hands, and a motion trail of the hands' see-through
-    # copies with their outlines (Georg's video).
-    "sol_hand_glow": (["In", "Glow", "Edge", "Trail", "Depth", "Params"], PARAMS + DEPTH + r"""
+    # The hand glow. The smoke style (Georg's video): the smoke round the hands, thick and bright close to them and
+    # fading to nothing as it thins, with a thin pale line right on their edge and nothing on the hands themselves;
+    # where frames aren't kept (1.21.2 to 1.21.5) or the trail is off, the glow as it is now in flickering wisps. The
+    # soft style: the blurred mask round the hands as a haze, breathing, with (if picked) lines of light rising
+    # through it and a faint sheen on the hand itself.
+    "sol_hand_glow": (["In", "Glow", "Edge", "Trail", "Depth", "Params"], PARAMS + DEPTH + NOISE + r"""
 float hash(float n) {
     return fract(sin(n * 91.345) * 47453.21);
 }
@@ -435,51 +454,35 @@ void main() {
     vec3 g = texture(GlowSampler, texCoord).rgb;
     float t = P(22);
     float m = max(max(g.r, g.g), max(g.b, 1e-4));
-    bool outline = P(88) > 0.5;
     vec2 w = texCoord * vec2(P(28), 1.0);
     float pulse = 1.0 + P(84) * (0.18 * sin(t * 2.3) + 0.08 * sin(t * 5.1 + 1.3));
-    // Brightness falling off smoothly all the way out (no flat bright band round the hands), the hue kept.
-    float k = 1.0 - exp(-m * 1.1 * pulse);
-    k = k * k * mix(1.0, P(85), hand);
-    if (outline) {
-        // Behind the outline only a breath of haze, and none on the hands (they stay black).
-        k = pow(k, 1.6) * 0.18 * (1.0 - hand);
-    }
-    vec3 col = mix(g / m, vec3(1.0), 0.25 * k * k * k);
     float s = min(P(82), 2.0);
-    vec3 glow = clamp(col * k * s * 0.7, 0.0, 1.0);
-    c = 1.0 - (1.0 - c) * (1.0 - glow);
-    // The motion trail, under the outline: where the hands were, a see-through copy of them in the glow's colour with
-    // their outlines bright round it, all fading out as it ages; never over the hands themselves, and nothing while
-    // they keep still (the trail is then the hands themselves).
-    if (P(90) > 0.0) {
-        vec3 tr = max(texture(TrailSampler, texCoord).rgb - texture(EdgeSampler, texCoord).rgb, vec3(0.0)) * (1.0 - hand) * P(90);
-        vec3 tint = m > 0.02 ? g / m : P3(76);
-        vec3 tc = mix(tint, vec3(1.0), 0.3);
-        float s3 = min(P(82), 2.0);
-        c = mix(c, tint, clamp(tr.z * 0.42 * s3, 0.0, 0.7));
-        c = mix(c, tc, clamp(tr.y * 0.3 * s3, 0.0, 1.0));
-        if (outline) {
-            c = mix(c, mix(tc, vec3(1.0), 0.3), clamp(tr.x * s3, 0.0, 1.0));
-        } else {
-            c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.x * s3 * 0.6, 0.0, 1.0));
+    if (P(88) > 0.5) {
+        vec3 sm = P(90) > 0.0 ? texture(TrailSampler, texCoord).rgb
+                : min(g, vec3(1.0)) * (0.7 + 0.6 * noise(w * 40.0 + vec2(0.0, -t * 1.8)));
+        float d = max(max(sm.r, sm.g), max(sm.b, 1e-4));
+        vec3 tint = d > 0.02 ? sm / d : m > 0.02 ? g / m : P3(76);
+        // Raised first, so a thin sword glows as brightly at its edge as a whole arm does.
+        float dd = min(1.0, d * 1.8);
+        float a = (1.0 - exp(-dd * dd * 3.0 * pulse * s)) * (1.0 - hand);
+        // Its own colour, saturated, only a little whiter where it's thickest.
+        vec3 col = mix(tint, vec3(1.0), 0.18 * a * a);
+        // Laid over what's behind (so it shows on bright skies), and glowing.
+        c = mix(c, col, clamp(a * 0.4, 0.0, 1.0));
+        c = 1.0 - (1.0 - c) * (1.0 - clamp(col * a * 0.75, 0.0, 1.0));
+        vec3 edgeTint = m > 0.02 ? g / m : tint;
+        c = mix(c, mix(edgeTint, vec3(1.0), 0.55), clamp(texture(EdgeSampler, texCoord).r * 0.9 * min(s, 1.0), 0.0, 1.0));
+    } else {
+        // Brightness falling off smoothly all the way out (no flat bright band round the hands), the hue kept.
+        float k = 1.0 - exp(-m * 1.1 * pulse);
+        k = k * k * mix(1.0, P(85), hand);
+        vec3 col = mix(g / m, vec3(1.0), 0.25 * k * k * k);
+        c = 1.0 - (1.0 - c) * (1.0 - clamp(col * k * s * 0.7, 0.0, 1.0));
+        // The lines show in the glow round the hands, brightest partway out, not over the hand.
+        if (P(87) > 0.0) {
+            float band = smoothstep(0.03, 0.25, k) * (1.0 - smoothstep(0.55, 0.9, k)) * (1.0 - hand);
+            c += mix(g / m, vec3(1.0), 0.35) * lines(w, t) * band * s * 0.85 * P(87);
         }
-    }
-    if (outline) {
-        // The line right on the edge, solid and hot, and the short glow fading out from it (see sol_hand_edge).
-        vec3 e = texture(EdgeSampler, texCoord).rgb;
-        float line = e.r * (0.92 + 0.08 * pulse), band = e.g * (0.85 + 0.15 * pulse);
-        vec3 tint = m > 0.02 ? g / m : P3(76);
-        float s2 = min(P(82), 2.0);
-        // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark:
-        // the glow first, then the line on top, whiter at its core.
-        c = mix(c, tint, clamp(band * s2 * 0.75, 0.0, 1.0));
-        c = mix(c, mix(tint, vec3(1.0), 0.35), clamp(line * s2, 0.0, 1.0));
-    }
-    // The lines show in the glow round the hands, brightest partway out, not over the hand.
-    if (P(87) > 0.0) {
-        float band = smoothstep(0.03, 0.25, k) * (1.0 - smoothstep(0.55, 0.9, k)) * (1.0 - hand);
-        c += mix(g / m, vec3(1.0), 0.35) * lines(w, t) * band * s * 0.85 * P(87);
     }
     fragColor = vec4(c, 1.0);
 }
@@ -556,8 +559,8 @@ def chain(name, era=None):
             # The trail lives in a target kept from frame to frame (not on 1.21.2 to 1.21.5, which can't).
             targets["htrail"] = "persistent"
             targets["htrailn"] = None
-            passes.append(("sol_hand_trail", "htrailn", [("Edge", "hedge", T, False), ("Prev", "htrail", T, False),
-                                                         ("Params", PARAMS_TEX, X, False)]))
+            passes.append(("sol_hand_trail", "htrailn", [("Glow", "hu0", T, True), ("Mask", "hmask", T, True),
+                                                         ("Prev", "htrail", T, True), ("Params", PARAMS_TEX, X, False)]))
             passes.append(("sol_copy", "htrail", [("In", "htrailn", T, False)]))
             trail = "htrailn"
         else:
@@ -650,14 +653,14 @@ def era_files(era):
             samplers = [{"name": "DiffuseSampler" if i == 0 else s + "Sampler"} for i, s in enumerate(inputs)]
             write(os.path.join(mc, "shaders", "program", prog + ".json"), json.dumps({
                 "blend": {"func": "add", "srcrgb": "one", "dstrgb": "zero"},
-                "vertex": "screenquad", "fragment": prog,
+                "vertex": "sol_quad", "fragment": prog,
                 "attributes": ["Position"], "samplers": samplers,
                 "uniforms": [{"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]},
                              {"name": "OutSize", "type": "float", "count": 2, "values": [1.0, 1.0]}]}, indent=2) + "\n")
         elif era == "e2":
             write(os.path.join(ns, "shaders", "post", prog + ".fsh"), text)
             write(os.path.join(ns, "shaders", "post", prog + ".json"), json.dumps({
-                "vertex": "minecraft:post/screenquad", "fragment": "cosmeticsmod:post/" + prog,
+                "vertex": "cosmeticsmod:post/sol_quad", "fragment": "cosmeticsmod:post/" + prog,
                 "samplers": [{"name": s + "Sampler"} for s in inputs],
                 "uniforms": [{"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]},
                              {"name": "OutSize", "type": "float", "count": 2, "values": [1.0, 1.0]}]}, indent=2) + "\n")
@@ -718,6 +721,30 @@ def era_files(era):
                 p["output"] = "minecraft:main" if out == "main" else out
                 plist.append(p)
             write(os.path.join(ns, "post_effect", name + ".json"), json.dumps({"targets": tmap, "passes": plist}, indent=2) + "\n")
+    if era in ("e1", "e2"):
+        # 1.21.1 to 1.21.4: the game draws each pass's quad in its target's pixels under a projection for the whole
+        # screen, so a pass into a smaller fixed-size target (the bloom levels, the light shafts, the hand glow) filled
+        # only its corner. This quad fills its own target at any size; it keeps the game's uniforms in use so the game
+        # finds them.
+        quad = """#version 150
+
+in vec4 Position;
+
+uniform mat4 ProjMat;
+uniform vec2 OutSize;
+
+out vec2 texCoord;
+
+void main() {
+    vec2 uv = Position.xy / OutSize;
+    gl_Position = vec4(uv * 2.0 - 1.0, 0.2, 1.0);
+    texCoord = uv + (OutSize.x < 0.0 ? ProjMat[0][0] : 0.0);
+}
+"""
+        if era == "e1":
+            write(os.path.join(base, "minecraft", "shaders", "program", "sol_quad.vsh"), quad)
+        else:
+            write(os.path.join(ns, "shaders", "post", "sol_quad.vsh"), quad)
     if era in ("e3", "e4"):
         # 1.21.5 to 1.21.8: the game's screen quad is sized by a projection for the whole screen, so a pass into a
         # smaller fixed-size target (the bloom levels, the light shafts, the hand glow) filled only its corner. This

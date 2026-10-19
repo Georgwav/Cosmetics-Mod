@@ -4,7 +4,7 @@
     "srcrgb": "one",
     "dstrgb": "zero"
   },
-  "vertex": "screenquad",
+  "vertex": "sol_quad",
   "fragment": "sol_hand_trail",
   "attributes": [
     "Position"
@@ -12,6 +12,9 @@
   "samplers": [
     {
       "name": "DiffuseSampler"
+    },
+    {
+      "name": "MaskSampler"
     },
     {
       "name": "PrevSampler"

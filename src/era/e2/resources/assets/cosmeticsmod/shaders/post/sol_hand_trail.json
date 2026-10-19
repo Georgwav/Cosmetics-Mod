@@ -1,9 +1,12 @@
 {
-  "vertex": "minecraft:post/screenquad",
+  "vertex": "cosmeticsmod:post/sol_quad",
   "fragment": "cosmeticsmod:post/sol_hand_trail",
   "samplers": [
     {
-      "name": "EdgeSampler"
+      "name": "GlowSampler"
+    },
+    {
+      "name": "MaskSampler"
     },
     {
       "name": "PrevSampler"

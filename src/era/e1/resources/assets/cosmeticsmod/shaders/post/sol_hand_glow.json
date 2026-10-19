@@ -191,10 +191,14 @@
     },
     {
       "name": "sol_hand_trail",
-      "intarget": "hedge",
+      "intarget": "hu0",
       "outtarget": "htrailn",
-      "use_linear_filter": false,
+      "use_linear_filter": true,
       "auxtargets": [
+        {
+          "name": "MaskSampler",
+          "id": "hmask"
+        },
         {
           "name": "PrevSampler",
           "id": "htrail"
