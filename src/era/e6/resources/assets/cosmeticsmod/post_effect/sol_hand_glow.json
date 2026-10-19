@@ -36,7 +36,12 @@
     "hg4": {
       "width": 30,
       "height": 17
-    }
+    },
+    "hedge": {},
+    "htrail": {
+      "persistent": true
+    },
+    "htrailn": {}
   },
   "passes": [
     {
@@ -204,6 +209,62 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_hand_edge",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hedge"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_hand_trail",
+      "inputs": [
+        {
+          "sampler_name": "Edge",
+          "target": "hedge"
+        },
+        {
+          "sampler_name": "Prev",
+          "target": "htrail"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "htrailn"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "cosmeticsmod:post/sol_copy",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "htrailn"
+        }
+      ],
+      "output": "htrail"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
       "fragment_shader": "cosmeticsmod:post/sol_hand_glow",
       "inputs": [
         {
@@ -214,6 +275,14 @@
           "sampler_name": "Glow",
           "target": "hu0",
           "bilinear": true
+        },
+        {
+          "sampler_name": "Edge",
+          "target": "hedge"
+        },
+        {
+          "sampler_name": "Trail",
+          "target": "htrailn"
         },
         {
           "sampler_name": "Depth",

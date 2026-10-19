@@ -36,7 +36,8 @@
     "hg4": {
       "width": 30,
       "height": 17
-    }
+    },
+    "hedge": {}
   },
   "passes": [
     {
@@ -204,6 +205,29 @@
     },
     {
       "vertex_shader": "cosmeticsmod:post/sol_quad",
+      "fragment_shader": "cosmeticsmod:post/sol_hand_edge",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hedge"
+    },
+    {
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_hand_glow",
       "inputs": [
         {
@@ -214,6 +238,14 @@
           "sampler_name": "Glow",
           "target": "hu0",
           "bilinear": true
+        },
+        {
+          "sampler_name": "Edge",
+          "target": "hedge"
+        },
+        {
+          "sampler_name": "Trail",
+          "target": "hedge"
         },
         {
           "sampler_name": "Depth",

@@ -145,6 +145,8 @@ public final class LightPass {
 
     /** For the in-game test: frames the hand glow ran on. */
     public static int handGlowFrames;
+    /** The last frame the hand glow ran on (its motion trail carries on only from the frame before). */
+    private static long lastGlowFrame = -10;
 
     /**
      * The Punchy module's glow round the first-person hands and held item: everything drawn after the game cleared
@@ -165,6 +167,7 @@ public final class LightPass {
         })) {
             handGlowFrames++;
         }
+        lastGlowFrame = FrameInfo.frame;
         nanos += System.nanoTime() - t0;
     }
 
@@ -431,7 +434,7 @@ public final class LightPass {
         rgb(v, 72, io.github.georgwav.cosmetics.sol.atmosphere.NightSky.floorColor);
         v[75] = night * in;
         // The glow round the hands (the Punchy module).
-        io.github.georgwav.cosmetics.client.modules.PunchyModule.glowParams(v, 76, tk);
+        io.github.georgwav.cosmetics.client.modules.PunchyModule.glowParams(v, 76, tk, lastGlowFrame == FrameInfo.frame - 1);
         for (int i = 0; i < PARAMS; i++) {
             int bits = Float.floatToRawIntBits(v[i]);
             int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;

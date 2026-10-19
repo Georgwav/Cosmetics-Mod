@@ -25,6 +25,12 @@ import java.util.Map;
  * Georg's picture). The arms and the glow work without Punchy too.
  */
 public final class PunchyModule extends Module {
+    /**
+     * For the test scenario's swing shot on a slow software renderer: fade the trail as if each frame took this long
+     * (-Dcosmeticsmod.trailDt=0.016), so its picture shows the trail as it builds up at a playable frame rate.
+     */
+    private static final float TRAIL_DT = Float.parseFloat(System.getProperty("cosmeticsmod.trailDt", "-1"));
+
     /** How far in front of the eye the hands are (blocks), roughly: what the arms are moved back from. */
     private static final float HAND_DEPTH = 0.72f, HAND_DROP = 0.52f;
 
@@ -43,6 +49,9 @@ public final class PunchyModule extends Module {
     private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 65, 0, 100, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", true).group("glow"));
     private final Setting.Toggle glowLines = add(new Setting.Toggle("glow_lines", true).group("glow"));
+    /** While the hands move (a swing), their outlines stay a moment behind them: a fan of lines fading out. */
+    private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
+    private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
     /** Punchy's own values of what PvP mode changes, put back when it goes off. */
     private final Map<String, Object> own = new LinkedHashMap<>();
 
@@ -202,9 +211,10 @@ public final class PunchyModule extends Module {
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
      * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the
-     * lines of light moving through it, and the style (1 outline, 0 soft).
+     * lines of light moving through it, the style (1 outline, 0 soft), how much of the motion trail is left after this
+     * frame, and whether the trail shows.
      */
-    public static void glowParams(float[] v, int at, Tokens tk) {
+    public static void glowParams(float[] v, int at, Tokens tk, boolean continuous) {
         PunchyModule m = Modules.PUNCHY;
         int a, b;
         float mode = 0f;
@@ -237,6 +247,13 @@ public final class PunchyModule extends Module {
         v[at + 10] = (float) (m.glowSize.get() / 100.0);
         v[at + 11] = m.glowLines.get() ? 1f : 0f;
         v[at + 12] = m.glowStyle.get().equals("outline") ? 1f : 0f;
+        // How much of the trail is left after this frame: half of it goes in a time set by its length, so it lasts
+        // as long at any frame rate; none when the glow wasn't drawn last frame (no stale trail when it comes back).
+        boolean trail = m.motionTrail.get() && continuous;
+        float halfLife = 0.03f + 0.17f * (float) (m.trailLength.get() / 100.0);
+        float dt = TRAIL_DT > 0f ? TRAIL_DT : Math.min(0.25f, io.github.georgwav.cosmetics.sol.render.FrameInfo.frameSeconds);
+        v[at + 13] = trail ? (float) Math.pow(0.5, dt / halfLife) : 0f;
+        v[at + 14] = m.motionTrail.get() ? 1f : 0f;
     }
 
     private static void rgb(float[] v, int at, int c) {

@@ -3,6 +3,8 @@
 uniform sampler2D DiffuseSampler;
 #define InSampler DiffuseSampler
 uniform sampler2D GlowSampler;
+uniform sampler2D EdgeSampler;
+uniform sampler2D TrailSampler;
 uniform sampler2D DepthSampler;
 uniform sampler2D ParamsSampler;
 
@@ -89,21 +91,9 @@ void main() {
     vec3 glow = clamp(col * k * s * 0.7, 0.0, 1.0);
     c = 1.0 - (1.0 - c) * (1.0 - glow);
     if (outline) {
-        // How much of each ring round this pixel is hand: a solid band right on the edge (as thick as the two
-        // nearest rings), fading over the next two; on the hand itself, a thin line just inside the edge.
-        vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
-        float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0) * (0.6 + 0.8 * P(86));
-        float cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
-        for (int i = 0; i < 8; i++) {
-            float a = float(i) * 0.7853982 + 0.2;
-            vec2 d = vec2(cos(a), sin(a)) * px * scale;
-            cov0 += handAt(texCoord + d * 1.8) * 0.125;
-            cov1 += handAt(texCoord + d * 3.8) * 0.125;
-            cov2 += handAt(texCoord + d * 7.0) * 0.125;
-            cov3 += handAt(texCoord + d * 11.0) * 0.125;
-        }
-        float rim = hand > 0.5 ? (1.0 - cov0) * 0.85
-                : max(max(min(1.0, cov0 * 2.5), min(1.0, cov1 * 2.5) * 0.92), max(min(1.0, cov2 * 2.5) * 0.5, min(1.0, cov3 * 2.5) * 0.22));
+        // The band right on the edge fading out, or the thin line just inside it (see sol_hand_edge).
+        vec3 e = texture(EdgeSampler, texCoord).rgb;
+        float rim = hand > 0.5 ? e.b : e.g;
         rim *= 0.88 + 0.12 * pulse;
         vec3 tint = m > 0.02 ? g / m : P3(76);
         // Hot toward the edge, in the glow's colour further out.
@@ -112,6 +102,18 @@ void main() {
         // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark.
         c = mix(c, edge, clamp(rim * s2 * 0.9, 0.0, 1.0));
         c += edge * rim * rim * s2 * 0.15;
+    }
+    // The motion trail: what's left of the outlines where the hands were, not over the hands themselves; nothing
+    // while they keep still (the trail is then the outline itself).
+    if (P(90) > 0.0) {
+        vec2 tr = max(texture(TrailSampler, texCoord).rg - texture(EdgeSampler, texCoord).rg, vec2(0.0)) * (1.0 - hand) * P(90);
+        vec3 tint = m > 0.02 ? g / m : P3(76);
+        vec3 tc = mix(tint, vec3(1.0), 0.3);
+        float s3 = min(P(82), 2.0);
+        if (outline) {
+            c = mix(c, tc, clamp(tr.x * s3 * 0.85, 0.0, 1.0));
+        }
+        c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.y * s3 * 0.4, 0.0, 1.0));
     }
     // The lines show in the glow round the hands, brightest partway out, not over the hand.
     if (P(87) > 0.0) {

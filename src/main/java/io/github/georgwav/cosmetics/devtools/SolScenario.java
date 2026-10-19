@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -393,6 +393,14 @@ public final class SolScenario {
         tick++;
         if (tick < 60) {
             return;
+        }
+        // The swing shot swings the sword over and over, so the outline's motion trail shows.
+        if (index >= 0 && index < shots.size() && shots.get(index).name().equals("ui_hands_swing") && tick % 7 == 0) {
+            //? if >=26.3 {
+            /*mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+            *///?} else {
+            mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            //?}
         }
         if (!built) {
             built = true;
@@ -1054,7 +1062,8 @@ public final class SolScenario {
 
     /**
      * The hands shots, with an enchanted sword in hand: the Punchy module on (Sol's arms, the glow), off (the game's
-     * own hands, to compare), and on again at night with an empty hand (the dark arm with its outline).
+     * own hands, to compare), swinging (the outline's motion trail), and on again at night with an empty hand (the
+     * dark arm with its outline).
      */
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;

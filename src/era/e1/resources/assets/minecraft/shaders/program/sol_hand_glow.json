@@ -17,6 +17,12 @@
       "name": "GlowSampler"
     },
     {
+      "name": "EdgeSampler"
+    },
+    {
+      "name": "TrailSampler"
+    },
+    {
       "name": "DepthSampler"
     },
     {

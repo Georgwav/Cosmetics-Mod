@@ -45,7 +45,10 @@
       "name": "hg4",
       "width": 30,
       "height": 17
-    }
+    },
+    "hedge",
+    "htrail",
+    "htrailn"
   ],
   "passes": [
     {
@@ -168,6 +171,50 @@
       ]
     },
     {
+      "name": "sol_hand_edge",
+      "intarget": "minecraft:main",
+      "outtarget": "hedge",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_trail",
+      "intarget": "hedge",
+      "outtarget": "htrailn",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "PrevSampler",
+          "id": "htrail"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "htrailn",
+      "outtarget": "htrail",
+      "use_linear_filter": false
+    },
+    {
       "name": "sol_hand_glow",
       "intarget": "minecraft:main",
       "outtarget": "swap",
@@ -176,6 +223,14 @@
         {
           "name": "GlowSampler",
           "id": "hu0"
+        },
+        {
+          "name": "EdgeSampler",
+          "id": "hedge"
+        },
+        {
+          "name": "TrailSampler",
+          "id": "htrailn"
         },
         {
           "name": "DepthSampler",
