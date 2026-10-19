@@ -19,3 +19,13 @@ From local look runs on 1.21.11 at 1280×720, after the Night Sky lab. The lab f
 - `night/twilight.png`: the Earth's shadow and Belt of Venus, the afterglow, the zodiacal light, airglow.
 - `night/events.png`, `night/events.gif`: meteors (a burst, a fireball and its train, an earthgrazer), the comet, a satellite flare, ships jumping, the superlaser; the clip is sixteen frames a fifth of a second apart.
 - `night/ui_night_page.png`, `night/ui_about.png`: World › Night sky and Settings › About.
+
+## Round 4: Georg's fix list (georgwav/cosmetics-mod#37)
+
+From local runs at 1080p (1.21.11, and 26.2 for the title and the line). Knife shots use the generated stand-in knife.
+
+- `round4/fixes-26.2-pill-and-line.png`: the title's Singleplayer pill (solid accent) and the hands shot with no line at eye level.
+- `round4/hands-and-knife-with-punchy.png`: Punchy's hands with Sol's tuning, Sol arms without Punchy, and the knife alone with Punchy on (at rest and its trail).
+- `round4/voxy-world-outline.png`: Voxy's land past the far plane before and after (rim turned up 40 times), and the rim without Voxy.
+- `round4/knife-colour-page.png`: a knife's Wardrobe page with its colour controls.
+
