@@ -425,6 +425,11 @@ public final class LightPass {
         v[30] = FrameInfo.renderDistance;
         // The eye's height above sea level (the low haze is measured from there).
         v[31] = (float) FrameInfo.camY - SEA_LEVEL;
+        // Where the depth buffer's land ends while far land goes on (the world's light fades out before it): the
+        // last chunks with Distant Horizons (its land never reaches the depth buffer), else the game's far plane,
+        // along the view axis (Voxy's land past it reads as sky; the game's own land ends well short of it).
+        v[59] = DISTANT_HORIZONS ? FrameInfo.renderDistance : 1f / Math.max(1e-6f, v[10] * v[8] + v[9]);
+        v[60] = DISTANT_HORIZONS ? 0f : 1f;
         float rain = FrameInfo.rain;
         v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in * open;
         v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in) * open;

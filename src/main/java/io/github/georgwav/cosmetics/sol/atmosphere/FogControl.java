@@ -54,10 +54,20 @@ public final class FogControl {
     }
 
     /**
+     * Fog pushed out this far is another mod's that draws far land past the game's chunks (Voxy takes the fog off
+     * them, and draws its own land without it): left as it is. With the theme's fog, the game's last chunks faded into
+     * it right in front of that land's clear start, a straight line across the world.
+     */
+    private static final float FAR_LAND = 1.0e7f;
+
+    /**
      * Fog start in blocks, never further than the game's own: the theme's fixed distance when it has one (Ember's
      * world is a silhouette about 20 blocks out at any render distance), else a part of the render distance.
      */
     public static float start(float vanilla) {
+        if (vanilla >= FAR_LAND) {
+            return vanilla;
+        }
         Tokens tk = ThemeState.tokens();
         float ours = tk.fogFar > 0f ? tk.fogNear : tk.fogStart * FrameInfo.renderDistance;
         return Math.min(vanilla, ours);
@@ -65,6 +75,9 @@ public final class FogControl {
 
     /** Fog end in blocks, never further than the game's own. */
     public static float end(float vanilla) {
+        if (vanilla >= FAR_LAND) {
+            return vanilla;
+        }
         Tokens tk = ThemeState.tokens();
         float ours = tk.fogFar > 0f ? tk.fogFar : tk.fogEnd * FrameInfo.renderDistance;
         return Math.max(1f, Math.min(vanilla, ours));

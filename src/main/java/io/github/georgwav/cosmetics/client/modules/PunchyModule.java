@@ -35,14 +35,18 @@ public final class PunchyModule extends Module {
     /** How far in front of the eye the hands are (blocks), roughly: what the arms are moved back from. */
     private static final float HAND_DEPTH = 0.72f, HAND_DROP = 0.52f;
 
-    private final Setting.Toggle solArms = add(new Setting.Toggle("sol_arms", true).group("arms"));
+    /**
+     * Sol's arms: automatic (the default) is Punchy's hands when Punchy is installed and Sol's smaller hands without it
+     * (the fallback); or always on, or off. A new id, so the new default reaches saved settings.
+     */
+    private final Setting.Choice solArms = add(new Setting.Choice("sol_arms_when", "auto", List.of("auto", "on", "off")).group("arms"));
     /** How big the hands look (new ids: the preset changed to smaller hands nearer the middle). */
     private final Setting.Slider handSize = add(new Setting.Slider("hand_size", 60, 40, 100, 1, v -> Math.round(v) + "%").group("arms"));
     /** How far toward the middle of the screen they sit. */
     private final Setting.Slider handsCentre = add(new Setting.Slider("hands_centre", 50, 0, 100, 5, v -> Math.round(v) + "%").group("arms"));
     private final Setting.Toggle pvp = add(new Setting.Toggle("pvp", false).group("pvp"));
     /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
-    private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
+    private final Setting.Toggle darkArms = add(new Setting.Toggle("arms_dark", false).group("arms"));
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
     /**
      * Golden light round the hands that their movement leaves behind (no outline unless asked for), a thin bright
@@ -100,7 +104,13 @@ public final class PunchyModule extends Module {
 
     public PunchyModule() {
         super("punchy", Category.VIEW, "flame");
-        addKey("inspect", com.mojang.blaze3d.platform.InputConstants.KEY_V);
+        // The knives' inspect key; with Punchy installed its own inspect key inspects the knife (see KnifeInput), so
+        // this one starts unbound (one key can only reach one key bind).
+        if (Compat.PUNCHY) {
+            addKey("inspect");
+        } else {
+            addKey("inspect", com.mojang.blaze3d.platform.InputConstants.KEY_V);
+        }
     }
 
     /** On in a fresh install: the arms, the glow and the knives live here (the Punchy mod itself stays optional). */
@@ -199,7 +209,7 @@ public final class PunchyModule extends Module {
     public static PoseStack arms(PoseStack pose) {
         PunchyModule m = Modules.PUNCHY;
         drawingHands = m.enabled() && m.darkArms.get();
-        if (!m.enabled() || !m.solArms.get()) {
+        if (!m.enabled() || !m.solArmsOn()) {
             return pose;
         }
         float s = (float) (m.handSize.get() / 100.0), c = (float) (m.handsCentre.get() / 100.0);
@@ -212,19 +222,40 @@ public final class PunchyModule extends Module {
         return place(pose, s, c);
     }
 
+    /** Whether Sol's arms are on now: as set, or (automatic) only when Punchy isn't installed. */
+    private boolean solArmsOn() {
+        String when = solArms.get();
+        return when.equals("on") || when.equals("auto") && !Compat.PUNCHY;
+    }
+
     /**
-     * With Punchy installed the sliders start from its tuning, which doesn't reach a knife's hands (the knife draws its
-     * own): Sol's preset is put on the knife's pose here (pushed: the caller pops it when this says so).
+     * While Punchy draws the hands, a knife's hands (which the knife draws itself, Punchy's tuning doesn't reach them)
+     * are drawn at the size Punchy's tuning has its own, in their place: scaled round where the game holds an item
+     * (the screen's lower corner on that side), so the hand stays there and its arm still comes in from the edge.
+     * Pushed onto the pose here; the caller pops it when this says so. Sol's arms, when on with Punchy, move both on
+     * from there (through the hands' pose).
      */
-    public static boolean knifePreset(PoseStack pose) {
+    public static boolean knifePreset(PoseStack pose, boolean leftHanded) {
         PunchyModule m = Modules.PUNCHY;
-        if (!Compat.PUNCHY || !m.enabled() || !m.solArms.get()) {
+        if (!Compat.PUNCHY || !m.enabled()) {
             return false;
         }
+        float[] t = knifeWithPunchyTry;
+        float size = t != null ? t[0] : KNIFE_WITH_PUNCHY_SIZE, lift = t != null ? t[1] : KNIFE_WITH_PUNCHY_LIFT;
+        float x = leftHanded ? -ITEM_X : ITEM_X;
         pose.pushPose();
-        place(pose, PRESET_SIZE, PRESET_CENTRE);
+        pose.translate(x, ITEM_Y + lift, ITEM_Z);
+        pose.scale(size, size, size);
+        pose.translate(-x, -ITEM_Y, -ITEM_Z);
         return true;
     }
+
+    /** Where the game holds an item in first person (the right hand's; the left's x is mirrored). */
+    private static final float ITEM_X = 0.56f, ITEM_Y = -0.52f, ITEM_Z = -0.72f;
+    /** How big a knife's hands are drawn next to Punchy's tuned hands, and how far they're lifted (blocks). */
+    static final float KNIFE_WITH_PUNCHY_SIZE = 0.5f, KNIFE_WITH_PUNCHY_LIFT = 0.06f;
+    /** For the test scenario's local tries: size and lift instead of the two above (null: those). */
+    public static float[] knifeWithPunchyTry;
 
     /** The hand size and centring Sol's preset has (the sliders' defaults), which Punchy's tuning matches. */
     static final float PRESET_SIZE = 0.60f, PRESET_CENTRE = 0.50f;

@@ -74,6 +74,44 @@ public final class KnifeInput {
     }
 
     private static boolean conflictChecked;
+    /** Punchy's own inspect key (null without Punchy, or until looked up). */
+    private static net.minecraft.client.KeyMapping punchyInspect;
+    private static boolean punchyLooked;
+
+    /** Punchy's inspect key bind, looked up once by its name (null without Punchy). */
+    private static net.minecraft.client.KeyMapping punchyInspect(Minecraft mc) {
+        if (!punchyLooked && io.github.georgwav.cosmetics.compat.Compat.PUNCHY && mc.options != null) {
+            punchyLooked = true;
+            for (net.minecraft.client.KeyMapping k : mc.options.keyMappings) {
+                if ("key.punchy.inspect".equals(k.getName())) {
+                    punchyInspect = k;
+                }
+            }
+        }
+        return punchyInspect;
+    }
+
+    /**
+     * The start of the game's tick, before Punchy's: while a knife is out, a press of Punchy's inspect key inspects the
+     * knife, and Punchy never sees it (its sword inspect, and its sounds, stay quiet).
+     */
+    public static void beforeTick(Minecraft mc) {
+        net.minecraft.client.KeyMapping k = punchyInspect(mc);
+        KnifeView v = KnifeRenderer.current();
+        if (k == null || v == null) {
+            return;
+        }
+        boolean pressed = false;
+        while (k.consumeClick()) {
+            pressed = true;
+        }
+        if (k.isDown()) {
+            k.setDown(false);
+        }
+        if (pressed && io.github.georgwav.cosmetics.ui.ScreenOpener.current() == null) {
+            v.behaviour.inspect(KnifeRenderer.now());
+        }
+    }
 
     /** Each tick: the inspect key, and what stops an inspect (switching items, a screen). */
     public static void tick(Minecraft mc) {
@@ -81,7 +119,9 @@ public final class KnifeInput {
         if (!conflictChecked && key != null && mc.player != null && !KnifeRegistry.all().isEmpty()) {
             // Once, with knives loaded: say so if another key bind (another mod's) shares the inspect key.
             conflictChecked = true;
-            if (io.github.georgwav.cosmetics.ui.KeyBinds.conflicts(key)) {
+            // Sharing Punchy's inspect key is fine: that key inspects the knife anyway.
+            var punchy = punchyInspect(mc);
+            if (io.github.georgwav.cosmetics.ui.KeyBinds.conflicts(key) && !(punchy != null && key.same(punchy))) {
                 io.github.georgwav.cosmetics.CosmeticsMod.LOGGER.warn("Knives: the inspect key ({}) is also bound to another key bind",
                         key.getTranslatedKeyMessage().getString());
                 io.github.georgwav.cosmetics.sol.ui.kit.Notifications.post(net.minecraft.network.chat.Component.translatable(

@@ -38,6 +38,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         //? if <26.3 {
         if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("punchy")) {
             all.add("KnifePunchyMixin");
+            all.add("KnifeKeyMixin");
         }
         //?}
         //? if >=1.21.11 {

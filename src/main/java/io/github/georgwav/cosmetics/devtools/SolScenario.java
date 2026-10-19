@@ -45,7 +45,7 @@ public final class SolScenario {
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
-    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline"};
+    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline", "hands_white", "knife_pinspect"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -288,6 +288,14 @@ public final class SolScenario {
             // Local: the hands at other sizes (-Dcosmeticsmod.handTries=size/centre,...), to match a look.
             for (int i = 0; i < HAND_TRIES.length; i++) {
                 shots.add(new Shot("ui_hands_try" + i, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
+            }
+        }
+        // Local: the knife's size next to Punchy's hands (-Dcosmeticsmod.knifePunchyTries=size/centre,...), at rest with
+        // the Punchy module on, for each knife asked for (or the stand-in).
+        for (int i = 0; i < KNIFE_PUNCHY_TRIES.length; i++) {
+            for (int k = 0; k < Math.max(1, KNIFE_IDS.size()); k++) {
+                shots.add(new Shot("ui_knife_ptry" + i + (KNIFE_IDS.isEmpty() ? "" : "_k" + k), "ember_solstice", 40f, false, 90f,
+                        -Extras.SHOW_PITCH));
             }
         }
         if (!KNIFE_IDS.isEmpty()) {
@@ -1125,6 +1133,9 @@ public final class SolScenario {
     /** The glow's style before an "_outline" shot (the Outline style instead of Golden), or null. */
     private static String lookWas;
 
+    /** The glow's own colour before the white shot (null while it isn't on). */
+    private static Integer colourWas;
+
     /** The local hand tries (see {@code ui_hands_try<n>}): size and centring, in percent. */
     private static final String[] HAND_TRIES = System.getProperty("cosmeticsmod.handTries", "").isBlank() ? new String[0]
             : System.getProperty("cosmeticsmod.handTries").split(",");
@@ -1161,13 +1172,25 @@ public final class SolScenario {
             if (st.id.equals("glow_colours")) {
                 @SuppressWarnings("unchecked")
                 var colours = (io.github.georgwav.cosmetics.client.Setting<String>) st;
-                boolean gold = what.equals("hands_swing_gold") || what.startsWith("hands_gold");
+                boolean gold = what.equals("hands_swing_gold") || what.startsWith("hands_gold") || what.equals("hands_white");
                 if (gold && coloursWas == null) {
                     coloursWas = colours.get();
                     colours.set("custom");
                 } else if (!gold && coloursWas != null) {
                     colours.set(coloursWas);
                     coloursWas = null;
+                }
+            }
+            if (st.id.equals("glow_colour")) {
+                // The white shot (local): the golden glow in white, which must stay white all through.
+                @SuppressWarnings("unchecked")
+                var colour = (io.github.georgwav.cosmetics.client.Setting<Integer>) st;
+                if (what.equals("hands_white") && colourWas == null) {
+                    colourWas = colour.get();
+                    colour.set(0xFFFFFFFF);
+                } else if (!what.equals("hands_white") && colourWas != null) {
+                    colour.set(colourWas);
+                    colourWas = null;
                 }
             }
             if (st.id.equals("glow_look")) {
@@ -1219,6 +1242,10 @@ public final class SolScenario {
     private boolean shot(String name) {
         return shots.stream().anyMatch(x -> x.name().equals(name));
     }
+
+    /** The local tries of a knife's size next to Punchy's hands (see {@code ui_knife_ptry<n>}): size/centre. */
+    private static final String[] KNIFE_PUNCHY_TRIES = System.getProperty("cosmeticsmod.knifePunchyTries", "").isBlank()
+            ? new String[0] : System.getProperty("cosmeticsmod.knifePunchyTries").split(",");
 
     /** Knives to shoot one by one (local checks with real packs), by cosmetic id. */
     private static final List<String> KNIFE_IDS = System.getProperty("cosmeticsmod.knifeIds", "").isBlank() ? List.of()
@@ -1317,7 +1344,36 @@ public final class SolScenario {
             // Third person shows the sword unless the knife is asked for there.
             problems.add(name + ": the knife was drawn in third person, which is off");
         }
-        boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail");
+        boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail")
+                || what.startsWith("knife_ptry") || what.equals("knife_pinspect");
+        if (what.equals("knife_pinspect")) {
+            // Local, with Punchy: its own inspect key pressed with the knife out must inspect the knife.
+            // Pressed 0.6 s before the shot: the shortest inspect (the stand-in's 1.2 s one) is still playing then.
+            if (phaseTick == SETTLE - 12) {
+                for (net.minecraft.client.KeyMapping k : mc.options.keyMappings) {
+                    if ("key.punchy.inspect".equals(k.getName()) && !k.isUnbound()) {
+                        // Between ticks, as a real key press comes in (in a tick, Punchy could read it first).
+                        var key = com.mojang.blaze3d.platform.InputConstants.getKey(k.saveString());
+                        //? if >=1.21.3 {
+                        mc.schedule(() -> net.minecraft.client.KeyMapping.click(key));
+                        //?} else {
+                        /*mc.tell(() -> net.minecraft.client.KeyMapping.click(key));
+                        *///?}
+                    }
+                }
+            }
+            var v = io.github.georgwav.cosmetics.melee.KnifeRenderer.current();
+            if (phaseTick == SETTLE && (v == null || !v.behaviour.inspecting())) {
+                problems.add(name + ": Punchy's inspect key didn't inspect the knife");
+            }
+        }
+        if (what.startsWith("knife_ptry")) {
+            String[] t = KNIFE_PUNCHY_TRIES[Integer.parseInt(what.substring("knife_ptry".length()))].split("/");
+            io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeWithPunchyTry =
+                    new float[]{Float.parseFloat(t[0]), Float.parseFloat(t[1])};
+        } else {
+            io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeWithPunchyTry = null;
+        }
         // The trail shot: a light attack in slow motion, a twentieth of its speed, so each of the few frames a second
         // this renderer draws moves the knife about as far as a frame at 60 FPS does; shot at its strike (0.15 s in, as
         // the light attack shot holds it: three seconds at this speed).
@@ -1352,7 +1408,7 @@ public final class SolScenario {
             // name: the left button's number differs from 26.3 on (SDL).
             net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.getKey("key.mouse.left"));
         }
-        if (phaseTick == SETTLE - 15 && !what.equals("knife_trail")) {
+        if (phaseTick == SETTLE - 15 && !what.equals("knife_trail") && !what.equals("knife_pinspect")) {
             switch (what) {
                 case "knife_draw" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("draw", 0.25f);
                 case "knife_light" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("light", 0.15f);

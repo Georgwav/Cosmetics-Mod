@@ -59,10 +59,17 @@ void main() {
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
         return;
     }
+    vec3 base = col;
     // A theme that dims its own day dims the world (the sky and the light it adds stay bright).
     col *= P(58);
     vec3 pos = viewAt(texCoord, depth);
     float dist = length(pos);
+    // Where the depth buffer's land ends while far land goes on (P(59) blocks; along the view axis to the game's far
+    // plane with Voxy, whose land past it reads as sky, or out from the eye to the last chunks with Distant Horizons,
+    // whose land never reaches it): Sol's light on the land fades out before it, so that land and the far land after
+    // it meet without a line. Without either, the game's land ends well short of it.
+    float reach = (P(60) > 0.5 ? -pos.z : dist) / max(16.0, P(59));
+    float landFade = 1.0 - smoothstep(0.55, 0.97, reach);
     vec3 dir = pos / max(dist, 1e-4);
     vec3 sunV = normalize(P3(3));
     float cosS = dot(dir, sunV);
@@ -169,5 +176,5 @@ void main() {
     // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
     float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
     col = mix(col, scat, clamp(amount + haze * 0.4, 0.0, 0.85));
-    fragColor = vec4(col + shafts, 1.0);
+    fragColor = vec4(mix(base, col, landFade) + shafts, 1.0);
 }

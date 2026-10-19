@@ -294,7 +294,7 @@ public final class KnifeRenderer {
             // are right-handed), pixels to blocks, the eye at the origin. Kept as a matrix the vertices take, so the
             // hand's pose is handed over as it is (no pose pushed).
             local(player, partialTick, lower, player.getMainArm() == HumanoidArm.LEFT, view.eye);
-            preset = PunchyModule.knifePreset(poseStack);
+            preset = PunchyModule.knifePreset(poseStack, player.getMainArm() == HumanoidArm.LEFT);
             trail(poseStack.last(), view, player.getMainArm() != HumanoidArm.LEFT);
             //? if >=1.21.9 {
             buffers.submitCustomGeometry(poseStack, knifeType, PASSES[0]);

@@ -122,10 +122,17 @@ void main() {
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
         return;
     }
+    vec3 base = col;
     // A theme that dims its own day dims the world (the sky and the light it adds stay bright).
     col *= P(58);
     vec3 pos = viewAt(texCoord, depth);
     float dist = length(pos);
+    // Where the depth buffer's land ends while far land goes on (P(59) blocks; along the view axis to the game's far
+    // plane with Voxy, whose land past it reads as sky, or out from the eye to the last chunks with Distant Horizons,
+    // whose land never reaches it): Sol's light on the land fades out before it, so that land and the far land after
+    // it meet without a line. Without either, the game's land ends well short of it.
+    float reach = (P(60) > 0.5 ? -pos.z : dist) / max(16.0, P(59));
+    float landFade = 1.0 - smoothstep(0.55, 0.97, reach);
     vec3 dir = pos / max(dist, 1e-4);
     vec3 sunV = normalize(P3(3));
     float cosS = dot(dir, sunV);
@@ -232,7 +239,7 @@ void main() {
     // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
     float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
     col = mix(col, scat, clamp(amount + haze * 0.4, 0.0, 0.85));
-    fragColor = vec4(col + shafts, 1.0);
+    fragColor = vec4(mix(base, col, landFade) + shafts, 1.0);
 }
 """),
     # What blooms: the bright parts at half resolution, with a soft knee, four taps against flicker.
@@ -626,9 +633,10 @@ void main() {
     }
     float lit = clamp(glow * grade * s, 0.0, 1.5);
     // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
-    // deep gold where it fades out, the colour itself, then pale bright gold where it's strongest, at the hands.
-    vec3 outer = col * mix(vec3(1.0), vec3(1.0, 0.8, 0.45), P(116));
-    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), P(115));
+    // a deeper shade of the colour where it fades out (deep amber for gold), the colour itself, then a pale bright
+    // shade of it where it's strongest, at the hands (cream for gold). Both come from the colour, so white stays white.
+    vec3 outer = col * mix(vec3(1.0), col, P(116));
+    vec3 hot = mix(col, vec3(1.0), 0.75 * P(115));
     vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, lit)), hot, smoothstep(0.55, 1.0, lit));
     c = soft(c * (1.0 - 0.45 * min(lit, 1.0)) + light * lit * 1.15);
     // The outline: pale in the golden light (cream for gold), nearly the colour itself on its own.
