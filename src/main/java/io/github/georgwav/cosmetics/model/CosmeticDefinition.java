@@ -25,6 +25,9 @@ import java.util.List;
  * @param kind          what it counts as when a player wears one of a kind at a time ("hat", "ears", ...), or
  *                      null for its slot (or "wings" for wings)
  * @param bones         the bones of its Blockbench model and their animations, when it has any; else null
+ * @param icon          a picture for its Wardrobe card in place of a render of the model, or null
+ * @param group         the name it's listed under with others sharing it (a knife's finishes), or null
+ * @param melee         for a knife (slot {@code melee}), its model, animations and fixes; else null
  */
 public record CosmeticDefinition(
         String id,
@@ -44,7 +47,10 @@ public record CosmeticDefinition(
         PetPosition petPosition,
         String kind,
         BoneRig bones,
-        boolean firstPersonTurned
+        boolean firstPersonTurned,
+        String icon,
+        String group,
+        Melee melee
 ) {
     public static final int WHITE = 0xFFFFFF;
     public static final int LEFT = 1;
@@ -53,7 +59,29 @@ public record CosmeticDefinition(
     public CosmeticDefinition(String id, String name, CosmeticSlot slot, String texture, int textureWidth,
                               int textureHeight, List<Part> parts) {
         this(id, name, slot, texture, textureWidth, textureHeight, parts, CosmeticOption.ALL, WHITE, null, null, List.of(),
-                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null, null, false);
+                slot.defaultSides(), false, PetPosition.LEFT_SHOULDER, null, null, false, null, null, null);
+    }
+
+    /**
+     * A knife from a gunpack (see {@code melee/GunpackMount}): a Bedrock model and its animations, drawn by the knife
+     * renderer with your arms. Locations are full file locations ({@code namespace:path/file.json}).
+     *
+     * @param model      its Bedrock geometry
+     * @param animations its Bedrock animations ({@code draw}, {@code melee_1}, {@code inspect}, ...)
+     * @param sounds     the namespace its animations' sound keys play from
+     * @param pack       the gunpack it came from, for its Wardrobe page; may be empty
+     * @param handScale  the arms' size around the fist (1 as the pack has them)
+     * @param camera     the eye moved by (x, y, z) pixels (right, up, back), or null
+     * @param angel      which set a knife with {@code *_angel} animations shows: "random" each draw, "devil" or "angel"
+     * @param grip       the right arm moved onto the handle by (x, z) pixels in its bone's frame, or null to work it
+     *                   out from the model
+     * @param thirdRight the third-person right-hand transform (rotation x, y, z degrees, translation x, y, z
+     *                   pixels, scale x, y, z), or null for none
+     * @param thirdLeft  the same for the left hand, or null
+     */
+    public record Melee(String model, String animations, String sounds, String pack, float handScale, float[] camera,
+                        String angel, float[] grip, float[] thirdRight, float[] thirdLeft) {
+        public static final String RANDOM = "random", DEVIL = "devil", ANGEL = "angel";
     }
 
     /**

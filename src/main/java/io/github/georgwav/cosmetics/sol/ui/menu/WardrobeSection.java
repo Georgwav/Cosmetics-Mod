@@ -37,8 +37,8 @@ final class WardrobeSection implements Section {
     /** The kinds a chip can show, in the Wardrobe's order. */
     private static final WardrobeScreen.View[] KINDS = {WardrobeScreen.View.WEARING, WardrobeScreen.View.ALL,
             WardrobeScreen.View.CAPES, WardrobeScreen.View.WINGS, WardrobeScreen.View.HATS, WardrobeScreen.View.FACE,
-            WardrobeScreen.View.BODY, WardrobeScreen.View.BACK, WardrobeScreen.View.SHIELDS, WardrobeScreen.View.AURAS,
-            WardrobeScreen.View.PETS, WardrobeScreen.View.LIMBS};
+            WardrobeScreen.View.BODY, WardrobeScreen.View.BACK, WardrobeScreen.View.SHIELDS, WardrobeScreen.View.KNIVES,
+            WardrobeScreen.View.AURAS, WardrobeScreen.View.PETS, WardrobeScreen.View.LIMBS};
 
     private WardrobeScreen.View kind = WardrobeScreen.View.ALL;
     private final Scroll scroll = new Scroll();
@@ -219,6 +219,7 @@ final class WardrobeSection implements Section {
             case AURA -> "flame";
             case PET -> "heart";
             case SHIELD -> "shield";
+            case MELEE -> "sword";
             default -> "shirt";
         };
     }

@@ -382,7 +382,8 @@ public final class CosmeticsConfig {
     /** The options players may change on a cosmetic: what its file allows, plus colour with {@link #colorAnyCosmetic}. */
     public int allowedOptions(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
         int allowed = cosmetic.definition().options();
-        return colorAnyCosmetic ? allowed | COLOR_OPTIONS : allowed;
+        // Knives keep their packs' own colours.
+        return colorAnyCosmetic && cosmetic.slot() != CosmeticSlot.MELEE ? allowed | COLOR_OPTIONS : allowed;
     }
 
     public boolean allows(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic,
@@ -615,6 +616,9 @@ public final class CosmeticsConfig {
         }
         slotVisible.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
+            if (newerSlot(slot)) {
+                continue;
+            }
             slotPriority.putIfAbsent(slot, defaultPriority(slot));
             slotVisible.putIfAbsent(slot, true);
         }
@@ -690,10 +694,20 @@ public final class CosmeticsConfig {
         return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
     }
 
+    /**
+     * Slots added after format 5 (knives): kept out of the slot maps until set (their getters default), so a file
+     * from the cosmetics mod saves back unchanged.
+     */
+    private static boolean newerSlot(CosmeticSlot slot) {
+        return slot == CosmeticSlot.MELEE;
+    }
+
     private static Map<CosmeticSlot, SlotPriority> defaultPriorities() {
         Map<CosmeticSlot, SlotPriority> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, defaultPriority(slot));
+            if (!newerSlot(slot)) {
+                map.put(slot, defaultPriority(slot));
+            }
         }
         return map;
     }
@@ -706,7 +720,9 @@ public final class CosmeticsConfig {
     private static Map<CosmeticSlot, Boolean> defaultVisibility() {
         Map<CosmeticSlot, Boolean> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, true);
+            if (!newerSlot(slot)) {
+                map.put(slot, true);
+            }
         }
         return map;
     }

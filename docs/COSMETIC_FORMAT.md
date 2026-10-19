@@ -28,7 +28,7 @@ stops the game or the other cosmetics.
 
 | Key | Required | Meaning |
 |---|---|---|
-| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `aura`, `pet`, `arm` or `feet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
+| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `melee`, `aura`, `pet`, `arm` or `feet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. A `melee` cosmetic is a knife: see [Knives](#knives). |
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
 | `parts` | yes, unless `model` is set | One or more parts. |
@@ -45,6 +45,9 @@ stops the game or the other cosmetics.
 | `kind` | no | What the cosmetic counts as when players wear one of a kind at a time, e.g. `"hat"` and `"ears"` so a hat and ears can be worn together. Default: `"wings"` for wings, else the slot. See [Equipping](#equipping). |
 | `first_person_turned` | no | `true`: a held cosmetic (a shield) made to face the other way round in first person than in third; it is turned half around its middle there. |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
+| `icon` | no | A picture (`namespace:path.png`) for the cosmetic's Wardrobe card, shown as it is instead of a render of the model. |
+| `group` | no | A name the Wardrobe lists the cosmetic under, with others that share it (a knife's finishes). |
+| `melee` | for the `melee` slot | The knife's model, animations and fixes. See [Knives](#knives). |
 
 ## Parts
 
@@ -616,6 +619,57 @@ In `config/cosmeticsmod.json`:
 
 Putting a cosmetic on in the Wardrobe takes off the one of its `kind` you wore (new wings replace your wings,
 not your backpack), unless "Wear several of one kind" is on in Display (`severalOfAKind` in the config).
+
+## Knives
+
+A cosmetic in the `melee` slot is a knife: hold a sword and you see it in first person, with your own arms, playing
+its draw, attacks and inspects (see the Punchy module's Knives settings). It isn't built from `parts`; its `melee`
+block names a Bedrock model and animations made the way gunpacks for TACZ / LR Tactical make them, and the knife
+renderer draws them as TACZ does. Inventory, dropped items and item frames keep the vanilla sword.
+
+You don't usually write these files. Drop gunpacks (zips or folders, or a zip of several) into `client/melee/` in the
+main folder and the client mounts each `display/melee/<id>.json` as a knife, in a resource pack it generates
+("Sol Client: your knives", always on). Names, skipped knives and per-knife fixes go in `client/melee/knives.json`,
+written with the defaults the first time:
+
+```json
+{
+  "skip": ["delta_wt:null_annihil"],
+  "knives": {
+    "cs2_wt:cs2_m9emerald": { "name": "M9 Bayonet | Emerald" },
+    "wtyj:desire_blade": { "name": "VCT Lock In", "hand_scale": 0.72 },
+    "wtyj:eternal_karambit": { "name": "Prime Karambit", "camera": [1, -1, 4] }
+  }
+}
+```
+
+A name `Knife | Finish` lists the knife under `Knife` in the Wardrobe, with its other finishes. The packs' files are
+only read on your computer; nothing of them is ever part of the mod.
+
+The `melee` block:
+
+| Key | Required | Meaning |
+|---|---|---|
+| `model` | yes | The Bedrock geometry file, `namespace:path.json`. |
+| `animations` | yes | The Bedrock animations file. The animation names the knife uses: `static_idle` (and `static_idle_1`, taking turns), `idle`, `draw`, `draw_1`, ..., `melee_1`, `melee_2` (light attacks, alternating), `melee_3` (the heavy attack, on critical hits), `inspect`, `inspect_1`, ..., and `run_start`, `run`, `run_end` or `walk*`. `*_angel` versions are a second set (Devil or Angel). |
+| `sounds` | no | The namespace the animations' `sound_effects` keys play from. Default: the file's namespace. |
+| `pack` | no | The gunpack it came from, shown on its Wardrobe page. |
+| `hand_scale` | no | The arms' size around the fist, 0.25 to 4. Default 1. |
+| `camera` | no | Moves the eye from the model's `idle_view` bone by `[x, y, z]` pixels: x to the right, y up, z back. |
+| `angel` | no | For a knife with `*_angel` animations: `random` (default, picked on each draw), `devil` or `angel`. |
+| `grip` | no | Moves the right arm onto the handle by `[x, z]` pixels across the arm (in the `righthand_pos` bone's frame). Default: worked out from the model, at most 2 px. |
+| `transforms` | no | Third-person placement: `thirdperson_righthand` / `thirdperson_lefthand`, each with `rotation` (degrees), `translation` (pixels) and `scale`, relative to the model's `thirdperson_hand` bone. |
+
+How the model is read:
+
+- UVs are divided by the geometry's own `texture_width` / `texture_height`, not the picture's size. A face's
+  rectangle is `uv` to `uv + uv_size` (a negative size flips it); `uv_rotation` is ignored.
+- Bones named `*illuminated*` (or under one) draw at full light. `1p_effect*`, `effect*` and `glint*` are slash
+  trails and glints, shown only while an animation scales them up. `*_pos` bones are where your arms go (your skin,
+  right arm x -8 to -4, y 0 to 12 with the fist at +y, z -2 to 2; the left mirrored); their own cubes are never
+  drawn. `camera` keys in an attack shake the view a little; `camera`, `view`, `idle_view`, `iron_view`,
+  `refit_view`, `positioning`, `ground`, `fixed`, `thirdperson_hand` and `constraint` draw nothing.
+- Animated rotation applies after the bone's own rotation. A catmull-rom segment starts from its first key's `pre`.
 
 ## Emotes
 

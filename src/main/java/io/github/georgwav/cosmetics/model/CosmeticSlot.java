@@ -22,6 +22,11 @@ public enum CosmeticSlot {
      * x -6..6, y -11..11, z -2..-1, its front facing -Z.
      */
     SHIELD(Anchor.HELD),
+    /**
+     * Knives: shown in first person in place of a held sword, with their own arms and animations (see the
+     * {@code melee} block in docs/COSMETIC_FORMAT.md). Drawn by the knife renderer, never baked like other slots.
+     */
+    MELEE(Anchor.HELD),
     /** Auras: particles around the player, usually without a model. */
     AURA(Anchor.BODY),
     /** Pets: sit on the wearer's left shoulder; modelled standing on the origin, which is the top of that shoulder. */

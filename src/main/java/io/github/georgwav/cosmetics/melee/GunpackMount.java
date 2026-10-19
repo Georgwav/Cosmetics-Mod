@@ -84,6 +84,8 @@ public final class GunpackMount {
     public static Path mount(Path folder, Result[] out) throws IOException {
         Files.createDirectories(folder);
         Path target = folder.resolve(MOUNTED);
+        // Read first: writing the default overrides changes the folder.
+        JsonObject overrides = overrides(folder);
         String stamp = stamp(folder);
         Path stampFile = target.resolve(".stamp");
         if (Files.exists(stampFile) && Files.readString(stampFile).equals(stamp)) {
@@ -93,7 +95,11 @@ public final class GunpackMount {
             return Files.exists(target.resolve("pack.mcmeta")) ? target : null;
         }
         List<Pack> packs = read(folder);
-        Result r = write(packs, overrides(folder), target);
+        Result r = write(packs, overrides, target);
+        if (r.cosmetics().isEmpty()) {
+            // No knives: no pack for the game to list (the stamp still saves looking again).
+            Files.deleteIfExists(target.resolve("pack.mcmeta"));
+        }
         Files.writeString(stampFile, stamp);
         if (out != null) {
             out[0] = r;

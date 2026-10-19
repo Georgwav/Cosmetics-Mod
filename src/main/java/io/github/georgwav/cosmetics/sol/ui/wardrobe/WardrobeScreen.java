@@ -48,7 +48,7 @@ import java.util.Locale;
 public final class WardrobeScreen extends SolScreen {
     /** The rail's views, in the Cosmetics screen's order, then outfits, emotes, skins and the settings. */
     public enum View {
-        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, AURAS, PETS, LIMBS, OUTFITS, EMOTES, SKINS, SETTINGS;
+        WEARING, ALL, CAPES, WINGS, HATS, FACE, BODY, BACK, SHIELDS, KNIVES, AURAS, PETS, LIMBS, OUTFITS, EMOTES, SKINS, SETTINGS;
 
         public boolean includes(BakedCosmetic c, List<String> wearing) {
             return switch (this) {
@@ -61,6 +61,7 @@ public final class WardrobeScreen extends SolScreen {
                 case BODY -> c.slot() == CosmeticSlot.BODY;
                 case BACK -> c.slot() == CosmeticSlot.BACK && !isWings(c);
                 case SHIELDS -> c.slot() == CosmeticSlot.SHIELD;
+                case KNIVES -> c.slot() == CosmeticSlot.MELEE;
                 case AURAS -> c.slot() == CosmeticSlot.AURA;
                 case PETS -> c.slot() == CosmeticSlot.PET;
                 case LIMBS -> c.slot() == CosmeticSlot.ARM || c.slot() == CosmeticSlot.FEET;
@@ -83,6 +84,7 @@ public final class WardrobeScreen extends SolScreen {
                 case BODY -> "shirt";
                 case BACK -> "box";
                 case SHIELDS -> "shield";
+                case KNIVES -> "sword";
                 case AURAS -> "flame";
                 case PETS -> "heart";
                 case LIMBS -> "run";

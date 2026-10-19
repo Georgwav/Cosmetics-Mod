@@ -1,7 +1,12 @@
 package io.github.georgwav.cosmetics.melee;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import io.github.georgwav.cosmetics.model.CosmeticBaker;
+import io.github.georgwav.cosmetics.model.CosmeticDefinition;
+import io.github.georgwav.cosmetics.model.CosmeticParser;
+import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,6 +20,8 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GunpackMountTest {
@@ -77,6 +84,47 @@ class GunpackMountTest {
         long before = Files.getLastModifiedTime(pack.resolve("pack.mcmeta")).toMillis();
         assertNotNull(GunpackMount.mount(dir, r));
         assertEquals(before, Files.getLastModifiedTime(pack.resolve("pack.mcmeta")).toMillis());
+    }
+
+    @Test
+    void theMountedCosmeticLoadsAsAKnife(@TempDir Path dir) throws IOException {
+        StandInKnife.write(dir);
+        Path pack = GunpackMount.mount(dir, null);
+        String ns = StandInKnife.NAMESPACE;
+        JsonObject json = JsonParser.parseString(Files.readString(pack.resolve("assets").resolve(ns)
+                .resolve("cosmetics/melee/standin.json"))).getAsJsonObject();
+        CosmeticDefinition d = CosmeticParser.parse(ns + ":melee/standin", json);
+        assertEquals(CosmeticSlot.MELEE, d.slot());
+        assertTrue(d.parts().isEmpty(), "drawn by the knife renderer, not baked");
+        assertEquals(0, d.options(), "no colour, size or place options");
+        assertEquals(ns + ":textures/melee/slot/standin.png", d.icon());
+        CosmeticDefinition.Melee m = d.melee();
+        assertNotNull(m);
+        assertTrue(m.model().startsWith(ns + ":knives/models/"), m.model());
+        assertEquals(ns, m.sounds());
+        assertEquals(1f, m.handScale(), 1e-6f);
+        assertEquals(CosmeticDefinition.Melee.RANDOM, m.angel());
+        assertNotNull(m.thirdRight());
+        assertEquals(1f, m.thirdRight()[6], 1e-6f);
+        assertEquals(0, CosmeticBaker.bake(d).layers().length);
+    }
+
+    @Test
+    void aKnifeNeedsItsBlockAndOnlyAKnifeHasOne() {
+        assertThrows(JsonParseException.class, () -> CosmeticParser.parse("t:a",
+                JsonParser.parseString("{\"slot\":\"melee\",\"texture\":\"t:x.png\"}").getAsJsonObject()));
+        assertThrows(JsonParseException.class, () -> CosmeticParser.parse("t:a", JsonParser.parseString(
+                "{\"slot\":\"head\",\"texture\":\"t:x.png\",\"melee\":{\"model\":\"t:m.json\",\"animations\":\"t:a.json\"},"
+                        + "\"parts\":[{\"cubes\":[{\"from\":[0,0,0],\"to\":[1,1,1],\"uv\":[0,0]}]}]}").getAsJsonObject()));
+        assertThrows(JsonParseException.class, () -> CosmeticParser.parse("t:a", JsonParser.parseString(
+                "{\"slot\":\"melee\",\"texture\":\"t:x.png\",\"melee\":{\"model\":\"t:m.json\",\"animations\":\"t:a.json\","
+                        + "\"angel\":\"both\"}}").getAsJsonObject()));
+    }
+
+    @Test
+    void anEmptyFolderMountsNothing(@TempDir Path dir) throws IOException {
+        assertNull(GunpackMount.mount(dir, null));
+        assertNull(GunpackMount.mount(dir, null), "and still nothing when nothing changed");
     }
 
     @Test
