@@ -58,6 +58,8 @@ def main(argv):
                 r = why(name)
                 if r:
                     found.append(f"{jar} holds {name}: {r}")
+                elif name.startswith("solknives/"):
+                    found.append(f"{jar} holds {name}: a personal build's bundled knives")
     if found:
         print("Knife pack files where they mustn't be (the packs are all rights reserved):")
         for f in found:

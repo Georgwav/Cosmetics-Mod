@@ -134,6 +134,37 @@ if (bundleDir) {
     }
 }
 
+// Personal builds: -Pcosmetics.bundleKnives=<knives folder> (what you'd drop into client/melee) zips the knife packs
+// in it into this jar; the mod unpacks them next to your own knives and mounts them the same way. The packs are all
+// rights reserved, so this is for your own jars only: normal CI never does it, and ci/pack_guard.py fails a jar
+// that holds them. Names the jar "...-personal.jar" too.
+def knivesDir = providers.gradleProperty('cosmetics.bundleKnives').orNull
+if (knivesDir) {
+    def knivesFolder = rootProject.file(knivesDir)
+    if (!knivesFolder.isDirectory()) {
+        throw new GradleException("cosmetics.bundleKnives: ${knivesFolder} is not a folder (point it at your knives folder)")
+    }
+    def knivesZip = tasks.register('bundleKnivesZip', Zip) {
+        from(knivesFolder) {
+            // The mount's own folders, the dev stand-in and your overrides stay out.
+            exclude '.mounted/**', '.bundled/**', 'StandIn/**', 'knives.json'
+        }
+        archiveFileName = 'knives.zip'
+        destinationDirectory = layout.buildDirectory.dir('bundled-knives')
+        // The same packs give the same zip, so the mod only unpacks it again when they change.
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+    processResources {
+        from(knivesZip) {
+            into 'solknives'
+        }
+    }
+    modJar.configure {
+        archiveClassifier.set('personal')
+    }
+}
+
 // Copies every version's jar into <root>/build/libs so CI and releases find them in one place.
 tasks.register('collectJar', Copy) {
     group = 'build'

@@ -45,6 +45,8 @@ public final class GunpackMount {
     public static final String OVERRIDES = "knives.json";
     /** The mounted pack's folder name (hidden) inside the knives folder. */
     public static final String MOUNTED = ".mounted";
+    /** Where a personal build's knives are unpacked (hidden), inside the knives folder: mounted like the player's own. */
+    public static final String BUNDLED = ".bundled";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Pattern DISPLAY = Pattern.compile("^(.*?)display/melee/([^/]+)\\.json$");
     private static final Pattern NAMESPACE = Pattern.compile("[a-z0-9_.-]+");
@@ -95,6 +97,8 @@ public final class GunpackMount {
             return Files.exists(target.resolve("pack.mcmeta")) ? target : null;
         }
         List<Pack> packs = read(folder);
+        // The player's own packs before the ones built into the jar, so their copy of a knife wins.
+        packs.sort(Comparator.comparing((Pack p) -> p.source.startsWith(BUNDLED + "/")));
         Result r = write(packs, overrides, target);
         if (r.cosmetics().isEmpty()) {
             // No knives: no pack for the game to list (the stamp still saves looking again).
@@ -121,6 +125,26 @@ public final class GunpackMount {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * A personal build's knives ({@code bundled}: the zip built into the jar, or null for none) into the knives folder,
+     * written only when they differ from what's there; with none, any unpacked before are removed.
+     */
+    public static void unpackBundled(Path folder, InputStream bundled) throws IOException {
+        Path to = folder.resolve(BUNDLED).resolve("knives.zip");
+        if (bundled == null) {
+            Files.deleteIfExists(to);
+            return;
+        }
+        byte[] data = bundled.readAllBytes();
+        if (Files.exists(to) && Files.size(to) == data.length && java.util.Arrays.equals(Files.readAllBytes(to), data)) {
+            return;
+        }
+        Files.createDirectories(to.getParent());
+        Path part = to.resolveSibling("knives.zip.part");
+        Files.write(part, data);
+        Files.move(part, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     }
 
     // ------------------------------------------------------------------ reading
@@ -346,7 +370,7 @@ public final class GunpackMount {
         for (Pack p : packs) {
             byNamespace.putIfAbsent(p.namespace, p);
         }
-        java.util.Set<String> copied = new java.util.HashSet<>();
+        java.util.Set<String> copied = new java.util.HashSet<>(), seen = new java.util.HashSet<>();
         for (Pack p : packs) {
             String ns = p.namespace;
             Path assets = target.resolve("assets").resolve(ns);
@@ -357,7 +381,8 @@ public final class GunpackMount {
                 }
                 String id = m.group(1);
                 String cid = ns + ":" + id;
-                if (skip.contains(cid)) {
+                // A knife a pack earlier in the list already gave (the player's own copy of a bundled pack).
+                if (skip.contains(cid) || !seen.add(cid)) {
                     continue;
                 }
                 try {

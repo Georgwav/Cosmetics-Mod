@@ -18,6 +18,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -187,6 +188,48 @@ class GunpackMountTest {
         assertTrue(Files.exists(pack.resolve("assets").resolve(ns).resolve(anims.substring(ns.length() + 1))));
         assertEquals(ns, melee.get("sounds").getAsString(), "the animations' sound keys are their pack's");
         assertTrue(melee.get("model").getAsString().startsWith("mine:"));
+    }
+
+    @Test
+    void aPersonalBuildsKnivesAreUnpackedOnlyWhenTheyChangeAndRemovedWithoutThem(@TempDir Path dir) throws IOException {
+        Path zip = dir.resolve(GunpackMount.BUNDLED).resolve("knives.zip");
+        GunpackMount.unpackBundled(dir, new java.io.ByteArrayInputStream(new byte[]{1, 2, 3}));
+        assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(zip));
+        Files.setLastModifiedTime(zip, java.nio.file.attribute.FileTime.fromMillis(1000));
+        GunpackMount.unpackBundled(dir, new java.io.ByteArrayInputStream(new byte[]{1, 2, 3}));
+        assertEquals(1000, Files.getLastModifiedTime(zip).toMillis(), "the same knives aren't written again");
+        GunpackMount.unpackBundled(dir, new java.io.ByteArrayInputStream(new byte[]{4, 5}));
+        assertArrayEquals(new byte[]{4, 5}, Files.readAllBytes(zip));
+        GunpackMount.unpackBundled(dir, null);
+        assertTrue(!Files.exists(zip), "a jar without knives leaves none behind");
+    }
+
+    @Test
+    void bundledKnivesMountAndThePlayersOwnCopyWins(@TempDir Path dir, @TempDir Path work) throws IOException {
+        StandInKnife.write(work);
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes); Stream<Path> s = Files.walk(work)) {
+            for (Path p : s.filter(Files::isRegularFile).toList()) {
+                zip.putNextEntry(new ZipEntry(work.relativize(p).toString().replace('\\', '/')));
+                zip.write(Files.readAllBytes(p));
+                zip.closeEntry();
+            }
+        }
+        GunpackMount.unpackBundled(dir, new java.io.ByteArrayInputStream(bytes.toByteArray()));
+        GunpackMount.Result[] r = new GunpackMount.Result[1];
+        Path pack = GunpackMount.mount(dir, r);
+        String ns = StandInKnife.NAMESPACE;
+        assertEquals(java.util.List.of(ns + ":melee/standin"), r[0].cosmetics(), r[0].problems().toString());
+        JsonObject melee = JsonParser.parseString(Files.readString(pack.resolve("assets").resolve(ns)
+                .resolve("cosmetics/melee/standin.json"))).getAsJsonObject().getAsJsonObject("melee");
+        assertTrue(melee.get("pack").getAsString().startsWith(GunpackMount.BUNDLED + "/"), melee.toString());
+        // The player drops the same pack in themselves: one knife, theirs.
+        StandInKnife.write(dir);
+        pack = GunpackMount.mount(dir, r);
+        assertEquals(java.util.List.of(ns + ":melee/standin"), r[0].cosmetics());
+        melee = JsonParser.parseString(Files.readString(pack.resolve("assets").resolve(ns)
+                .resolve("cosmetics/melee/standin.json"))).getAsJsonObject().getAsJsonObject("melee");
+        assertTrue(melee.get("pack").getAsString().startsWith("StandIn/"), melee.toString());
     }
 
     @Test

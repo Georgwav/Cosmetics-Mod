@@ -346,6 +346,12 @@ badlion-import bundle solclient-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badli
 - Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
   checks this mechanism with a tiny made-up pack.
 
+**Your knives inside the jar too:** `-Pcosmetics.bundleKnives=<your knives folder>` (what you'd drop into
+`client/melee`, packs and add-ons alike) zips them into the jar, which is then `-personal` as well. On start the mod
+unpacks them to `client/melee/.bundled` and mounts them with your own, and a pack you also dropped in yourself wins.
+The knife packs are all rights reserved, so build these jars on your own computer and keep them to yourself: they
+never go into this repository, its CI or its releases, and `ci/pack_guard.py` fails a jar that holds them.
+
 **In GitHub Actions**, the manual "Personal release" workflow (`.github/workflows/personal-release.yml`) builds every
 Minecraft version with the pack and publishes the `-personal` jars as a release of this repository. It refuses to
 run unless this repository is private (its releases are private too), runs no tests, keeps Gradle's output out of

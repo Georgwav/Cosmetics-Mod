@@ -16,8 +16,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The knives the player dropped into {@code client/melee} in the main folder, as a resource pack the game loads with
- * the others: mounted by {@link GunpackMount} each time the game looks for packs (at start and on F3+T; an unchanged
+ * The knives the player dropped into {@code client/melee} in the main folder (and a personal build's own, unpacked
+ * there), as a resource pack the game loads with the others: mounted by {@link GunpackMount} each time the game looks for packs (at start and on F3+T; an unchanged
  * folder isn't mounted again), always on and above the other packs. Nothing when there are no knives.
  */
 public final class KnifePacks {
@@ -44,6 +44,10 @@ public final class KnifePacks {
             Path folder = folder();
             if (STAND_IN && !Files.exists(folder.resolve("StandIn"))) {
                 StandInKnife.write(folder);
+            }
+            // A personal build's own knives, next to the player's.
+            try (java.io.InputStream bundled = KnifePacks.class.getResourceAsStream("/solknives/knives.zip")) {
+                GunpackMount.unpackBundled(folder, bundled);
             }
             GunpackMount.Result[] result = new GunpackMount.Result[1];
             mounted = GunpackMount.mount(folder, result);
