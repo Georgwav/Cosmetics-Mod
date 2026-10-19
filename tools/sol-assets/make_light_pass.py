@@ -392,7 +392,7 @@ void main() {
 """),
     # Then down its column: red, the true distance to the nearest hand (rows, over 16), from each row's nearest along
     # it. Green, the rising glow's distance (Clarity's look): only to hands below, a row up counting a third and a row
-    # across two and a half, so it reaches about seven times as far up as to the side (rows, over 16).
+    # across four, so it reaches about twelve times as far up as to the side (rows, over 16).
     "sol_hand_dist": (["Dx", "Params"], PARAMS + r"""
 void main() {
     float here = texture(DxSampler, texCoord).r * 16.0;
@@ -406,13 +406,13 @@ void main() {
         float d = min(texture(DxSampler, texCoord + o).r, texture(DxSampler, texCoord - o).r) * 16.0;
         best = min(best, sqrt(d * d + dy * dy));
     }
-    float rise = min(16.0, here * 2.5);
+    float rise = min(16.0, here * 4.0);
     for (int i = 1; i <= 48; i++) {
         float dy = float(i) / 3.0;
         if (dy >= rise) {
             break;
         }
-        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) / 540.0)).r * 16.0 * 2.5;
+        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) / 540.0)).r * 16.0 * 4.0;
         rise = min(rise, sqrt(d * d + dy * dy));
     }
     fragColor = vec4(best / 16.0, rise / 16.0, 0.0, 1.0);

@@ -43,13 +43,13 @@ void main() {
         float d = min(texture(DxSampler, texCoord + o).r, texture(DxSampler, texCoord - o).r) * 16.0;
         best = min(best, sqrt(d * d + dy * dy));
     }
-    float rise = min(16.0, here * 2.5);
+    float rise = min(16.0, here * 4.0);
     for (int i = 1; i <= 48; i++) {
         float dy = float(i) / 3.0;
         if (dy >= rise) {
             break;
         }
-        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) / 540.0)).r * 16.0 * 2.5;
+        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) / 540.0)).r * 16.0 * 4.0;
         rise = min(rise, sqrt(d * d + dy * dy));
     }
     fragColor = vec4(best / 16.0, rise / 16.0, 0.0, 1.0);
