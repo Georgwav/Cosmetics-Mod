@@ -465,7 +465,9 @@ public final class SolScenario {
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
             holdSpot(mc, play, s.name());
             knifeForShot(s.name().startsWith("ui_") ? s.name().substring(3) : "", s.name());
-            if (play && phaseTick == SETTLE - 10) {
+            if (play && phaseTick == SETTLE - 20) {
+                // A second ahead, so frames draw it before the check even when the game runs slowly (it shows for
+                // two seconds before it fades).
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
             }
             if (play && phaseTick == SETTLE - 2) {
@@ -1157,7 +1159,8 @@ public final class SolScenario {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
         var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
         boolean on = what.startsWith("knife");
-        int pick = what.contains("_k") ? Integer.parseInt(what.substring(what.lastIndexOf("_k") + 2)) : -1;
+        // A local run's knife (ui_knife_<action>_k<n>); no other shot's name is read this way.
+        int pick = on && what.matches(".*_k\\d+") ? Integer.parseInt(what.substring(what.lastIndexOf("_k") + 2)) : -1;
         if (pick >= 0) {
             what = what.substring(0, what.lastIndexOf("_k"));
         }
@@ -1312,11 +1315,12 @@ public final class SolScenario {
             solUiBefore = cfg.solUi;
             // Hunger first (food 20 to about 15 in 2 s), so the hearts don't heal back before the shot; the golden
             // apple in hand shows the shanks it would fill.
-            // Easy, so the hearts don't heal back as they do in peaceful. The game rule's name changed in 1.21.11; one
-            // of the two works.
+            // Easy, so the hearts don't heal back as they do in peaceful, with no mobs spawning (a slime from the flat
+            // world once ended a long run). The game rules' names changed in 1.21.11; one of each pair works.
             difficultyBefore = mc.level == null ? "peaceful" : mc.level.getDifficulty().getSerializedName();
             chatShown = true;
             asPlayer(mc, List.of("gamerule announceAdvancements false", "gamerule show_advancement_messages false",
+                    "gamerule doMobSpawning false", "gamerule spawn_mobs false", "kill @e[type=minecraft:slime]",
                     "difficulty easy", "gamemode survival @s", "clear @s", "effect clear @s",
                     "effect give @s minecraft:hunger 2 199 true",
                     "item replace entity @s hotbar.0 with golden_apple 5", "item replace entity @s hotbar.1 with bow[enchantment_glint_override=true]",
@@ -1350,7 +1354,7 @@ public final class SolScenario {
             asPlayer(mc, List.of("clear @s", "effect clear @s", "xp set @s 0 levels", "xp set @s 0 points",
                     "bossbar remove cosmeticsmod:show", "scoreboard objectives remove solshow",
                     "gamerule announceAdvancements true", "gamerule show_advancement_messages true",
-                    "difficulty " + difficultyBefore,
+                    "gamerule doMobSpawning true", "gamerule spawn_mobs true", "difficulty " + difficultyBefore,
                     "effect give @s minecraft:instant_health 1 10 true", "gamemode " + modeBefore.getName() + " @s"));
             modeBefore = null;
         }
