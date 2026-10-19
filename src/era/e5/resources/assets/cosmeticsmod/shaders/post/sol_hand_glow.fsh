@@ -76,8 +76,8 @@ void main() {
         glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
     }
     float rising = clamp(glow * grade * s, 0.0, 1.5);
-    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler right at the hands.
-    vec3 warm = mix(col, vec3(1.0), 0.45 * smoothstep(0.6, 1.0, glow));
+    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
+    vec3 warm = mix(col, vec3(1.0), 0.45 * e.r * (1.0 - e.b));
     c = mix(c, warm, clamp(rising * 1.25, 0.0, 0.96));
     c = soft(c + warm * rising * 0.35);
     // The line, pale (cream for gold).

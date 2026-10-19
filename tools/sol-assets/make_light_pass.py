@@ -493,55 +493,73 @@ void main() {
 }
 """),
     # The motion trail (Clarity's look): last frame's trail fading (by the frame's time, so it lasts as long at any frame
-    # rate), and the whole path each hand took since then filled in. For each hand that moved (HandMotion: the map
-    # from where things are now to where they were), the pixel is followed back along that path in steps of a few
-    # pixels; at each step, what the hand leaves there (its glow, and its own shape filled) counts, faded more the
-    # further back it is. So a swing leaves one smooth golden smear, not a copy per frame. In green.
+    # rate), and the whole path each hand took since then filled in. For each hand that moved (HandMotion: a turn, a
+    # stretch and a shift from where things are now to where they were), the pixel is followed back along that path,
+    # turning as the hand turned, in steps of a few pixels; at each step, what the hand leaves there (its glow, and
+    # faintly its own shape) counts, faded more the further back it is, as long as that point really was part of this
+    # hand the frame before (so a still hand isn't dragged along by the other one). So a swing leaves one smooth
+    # golden smear, not a copy per frame. Red: what the hands leave this frame (checked against next frame); green: the
+    # trail.
     "sol_hand_trail": (["Edge", "Prev", "Params"], PARAMS + r"""
-// What the hands leave behind at a point of this frame: their own shape, filled, and their glow.
+// What the hands leave behind at a point of this frame: their glow, and faintly their own shape.
 float leaves(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.85 : e.g;
+    return e.b > 0.5 ? 0.35 : e.g;
+}
+
+// What they left at a point the frame before.
+float left(vec2 uv) {
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+        return 0.0;
+    }
+    return texture(PrevSampler, uv).r;
+}
+
+mat2 turn(float a) {
+    return mat2(cos(a), sin(a), -sin(a), cos(a));
 }
 
 void main() {
+    float own = leaves(texCoord);
     // Less a half step, so an 8-bit target fades all the way out.
     float trail = max(texture(PrevSampler, texCoord).g * P(89) - 0.5 / 255.0, 0.0);
     vec2 asp = vec2(P(28), 1.0);
+    vec2 q = texCoord * asp;
     for (int h = 0; h < 2; h++) {
-        int o = 92 + h * 10;
+        int o = 92 + h * 11;
         if (P(o) < 0.5) {
             continue;
         }
-        mat2 a = mat2(P(o + 1), P(o + 2), P(o + 3), P(o + 4));
-        vec2 t = vec2(P(o + 5), P(o + 6));
-        vec2 mine = vec2(P(o + 7), P(o + 8)) * asp;
-        vec2 other = vec2(P(102 - h * 10 + 7), P(102 - h * 10 + 8)) * asp;
-        float steps = P(o + 9);
+        float a = P(o + 1);
+        mat2 stretch = mat2(P(o + 2), P(o + 3), P(o + 4), P(o + 5));
+        vec2 was = vec2(P(o + 6), P(o + 7));
+        vec2 mid = vec2(P(o + 8), P(o + 9));
+        mat2 back = turn(a) * stretch;
+        float steps = P(o + 10);
         for (int k = 1; k < 24; k++) {
             if (float(k) >= steps) {
                 break;
             }
             // s of the way from where it was (0) to now (1): the point of this frame that was here then.
             float s = float(k) / steps;
-            mat2 m = a * (1.0 - s) + mat2(s);
+            mat2 m = turn(a * (1.0 - s)) * (stretch * (1.0 - s) + mat2(s));
             float det = m[0][0] * m[1][1] - m[1][0] * m[0][1];
-            if (abs(det) < 1e-6) {
+            if (abs(det) < 1e-5) {
                 continue;
             }
-            vec2 r = texCoord - t * (1.0 - s);
-            vec2 q = vec2(m[1][1] * r.x - m[1][0] * r.y, m[0][0] * r.y - m[0][1] * r.x) / det;
-            // Only this hand's: nearer its anchor than the other hand's.
-            if (distance(q * asp, mine) > distance(q * asp, other)) {
+            vec2 r = q - mix(was, mid, s);
+            vec2 x = mid + vec2(m[1][1] * r.x - m[1][0] * r.y, m[0][0] * r.y - m[0][1] * r.x) / det;
+            // That point, where it was the frame before: it must have been this hand's then too.
+            if (left((was + back * (x - mid)) / asp) < 0.12) {
                 continue;
             }
-            trail = max(trail, leaves(q) * mix(P(89), 1.0, s));
+            trail = max(trail, leaves(x / asp) * mix(P(89), 1.0, s));
         }
     }
-    fragColor = vec4(0.0, trail, 0.0, 1.0);
+    fragColor = vec4(own, max(trail, own), 0.0, 1.0);
 }
 """),
     # The hand glow (Clarity's look, from Georg's picture): the glow rising off the top edges of the hands and what
@@ -593,8 +611,8 @@ void main() {
         glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
     }
     float rising = clamp(glow * grade * s, 0.0, 1.5);
-    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler right at the hands.
-    vec3 warm = mix(col, vec3(1.0), 0.45 * smoothstep(0.6, 1.0, glow));
+    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler only right at the hands.
+    vec3 warm = mix(col, vec3(1.0), 0.45 * e.r * (1.0 - e.b));
     c = mix(c, warm, clamp(rising * 1.25, 0.0, 0.96));
     c = soft(c + warm * rising * 0.35);
     // The line, pale (cream for gold).

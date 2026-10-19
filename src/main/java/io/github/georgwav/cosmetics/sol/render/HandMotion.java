@@ -6,16 +6,22 @@ import org.joml.Vector4f;
 /**
  * Where each first-person hand moved on screen since the last frame, so the hand glow's trail fills the whole path
  * between its positions: one smooth fade at any frame rate, not a copy of the hands per frame. The game's pose for the
- * hand (hand space to view space) is taken as it draws it, and three points of it are projected the way the hands are
- * (70 degrees up and down). The light pass gets, per hand, the map from where things are now to where they were.
+ * hand (hand space to view space) is taken as it draws it, and seven points spread round the hand and what it holds
+ * are projected the way the hands are (70 degrees up and down). The light pass gets, per hand, the best fitting move
+ * from where things are now to where they were: a turn, a stretch and a shift, so a swing's path can be followed as an
+ * arc. Screen positions here are in screen heights, across and up (so a turn is a true turn on any window shape).
  */
 public final class HandMotion {
-    /** The three points of a hand's pose that are followed (blocks, in hand space). */
-    private static final float[][] POINTS = {{0f, 0f, 0f}, {0.2f, 0f, 0f}, {0f, 0.2f, 0f}};
-    /** The farthest a hand's anchor may move in a frame (screen heights) before it counts as a jump, not a move. */
-    private static final float JUMP = 0.5f;
-    private static final float[][] now = new float[2][6];
-    private static final float[][] before = new float[2][6];
+    /** The points of a hand's pose that are followed (blocks, in hand space): its grip and round it. */
+    private static final float[][] POINTS = {{0f, 0f, 0f}, {0.4f, 0f, 0f}, {-0.4f, 0f, 0f}, {0f, 0.4f, 0f}, {0f, -0.4f, 0f},
+            {0f, 0f, 0.4f}, {0f, 0f, -0.4f}};
+    private static final int N = POINTS.length;
+    /** The farthest a hand may move in a frame (screen heights) before it counts as a jump, not a move. */
+    private static final float JUMP = 0.6f;
+    private static final float[][] now = new float[2][N * 2];
+    private static final float[][] before = new float[2][N * 2];
+    private static final boolean[][] okNow = new boolean[2][N];
+    private static final boolean[][] okBefore = new boolean[2][N];
     private static final boolean[] seenNow = new boolean[2];
     private static final boolean[] seenBefore = new boolean[2];
     /** The frames {@link #now} and {@link #before} are from. */
@@ -30,7 +36,8 @@ public final class HandMotion {
         if (FrameInfo.frame != frameNow) {
             // The first hand of a frame: the last frame's hands become the ones before.
             for (int s = 0; s < 2; s++) {
-                System.arraycopy(now[s], 0, before[s], 0, 6);
+                System.arraycopy(now[s], 0, before[s], 0, N * 2);
+                System.arraycopy(okNow[s], 0, okBefore[s], 0, N);
                 seenBefore[s] = seenNow[s];
                 seenNow[s] = false;
             }
@@ -40,61 +47,102 @@ public final class HandMotion {
         int side = right ? 0 : 1;
         float aspect = FrameInfo.width / Math.max(1f, FrameInfo.height);
         float f = 1f / (float) Math.tan(Math.toRadians(35.0));
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < N; i++) {
             pose.transform(p.set(POINTS[i][0], POINTS[i][1], POINTS[i][2], 1f));
-            if (p.z > -0.01f) {
-                return;
+            okNow[side][i] = p.z < -0.02f;
+            if (okNow[side][i]) {
+                now[side][i * 2] = (0.5f + 0.5f * f / aspect * p.x / -p.z) * aspect;
+                now[side][i * 2 + 1] = 0.5f + 0.5f * f * p.y / -p.z;
             }
-            now[side][i * 2] = 0.5f + 0.5f * f / aspect * p.x / -p.z;
-            now[side][i * 2 + 1] = 0.5f + 0.5f * f * p.y / -p.z;
         }
         seenNow[side] = true;
     }
 
     /**
-     * After the hands are drawn: from {@code at}, for the right hand then the left, whether it moved (1 or 0), the map
-     * from now to where it was the frame before (a 2x2 matrix by columns, then the offset, in screen units), its anchor
-     * now, and how many steps the trail takes along its path (one every few pixels).
+     * After the hands are drawn: from {@code at}, 11 values for the right hand then 11 for the left. Whether it moved
+     * (1 or 0); the move from now to where it was the frame before, as a turn (radians) and a stretch (a 2x2 matrix by
+     * columns) about its middle now, which was at the given place before; its middle now; and how many steps the trail
+     * takes along its path (one every few pixels).
      */
     public static void params(float[] v, int at) {
         boolean fresh = frameNow == FrameInfo.frame && frameBefore == frameNow - 1;
         for (int side = 0; side < 2; side++) {
-            int o = at + side * 10;
-            java.util.Arrays.fill(v, o, o + 10, 0f);
-            v[o + 1] = 1f;
-            v[o + 4] = 1f;
-            float[] c = now[side], b = before[side];
-            if (fresh && seenNow[side] && seenBefore[side] && Math.hypot(c[0] - b[0], c[1] - b[1]) < JUMP) {
-                // The map A with A(c_i) = b_i: [b1 - b0, b2 - b0] times the inverse of [c1 - c0, c2 - c0].
-                float cx1 = c[2] - c[0], cy1 = c[3] - c[1], cx2 = c[4] - c[0], cy2 = c[5] - c[1];
-                float det = cx1 * cy2 - cx2 * cy1;
-                if (Math.abs(det) > 1e-7f) {
-                    float bx1 = b[2] - b[0], by1 = b[3] - b[1], bx2 = b[4] - b[0], by2 = b[5] - b[1];
-                    float i00 = cy2 / det, i01 = -cx2 / det, i10 = -cy1 / det, i11 = cx1 / det;
-                    float a00 = bx1 * i00 + bx2 * i10, a01 = bx1 * i01 + bx2 * i11;
-                    float a10 = by1 * i00 + by2 * i10, a11 = by1 * i01 + by2 * i11;
-                    v[o] = 1f;
-                    v[o + 1] = a00;
-                    v[o + 2] = a10;
-                    v[o + 3] = a01;
-                    v[o + 4] = a11;
-                    v[o + 5] = b[0] - (a00 * c[0] + a01 * c[1]);
-                    v[o + 6] = b[1] - (a10 * c[0] + a11 * c[1]);
-                    // How far things a sword's length from the hand moved (in 1080p pixels; a turn moves the tip more
-                    // than the grip): a step every 5 of them, 2 to 24 steps.
-                    float aspect = FrameInfo.width / Math.max(1f, FrameInfo.height);
-                    float most = 0f;
-                    for (int i = 0; i < 4; i++) {
-                        float x = c[0] + (i == 0 ? 0.35f : i == 1 ? -0.35f : 0f) / aspect;
-                        float y = c[1] + (i == 2 ? 0.35f : i == 3 ? -0.35f : 0f);
-                        float dx = a00 * x + a01 * y + v[o + 5] - x, dy = a10 * x + a11 * y + v[o + 6] - y;
-                        most = Math.max(most, (float) Math.hypot(dx * aspect, dy));
-                    }
-                    v[o + 9] = Math.max(2f, Math.min(24f, most * 1080f / 5f));
-                }
+            int o = at + side * 11;
+            java.util.Arrays.fill(v, o, o + 11, 0f);
+            v[o + 2] = 1f;
+            v[o + 5] = 1f;
+            if (fresh && seenNow[side] && seenBefore[side]) {
+                fit(side, v, o);
             }
-            v[o + 7] = fresh && seenNow[side] ? c[0] : -10f;
-            v[o + 8] = fresh && seenNow[side] ? c[1] : -10f;
         }
+    }
+
+    /** The least-squares move from the points now to the same points before, split into a turn and a stretch. */
+    private static void fit(int side, float[] v, int o) {
+        float[] c = now[side], b = before[side];
+        float cx = 0f, cy = 0f, bx = 0f, by = 0f;
+        int n = 0;
+        for (int i = 0; i < N; i++) {
+            if (okNow[side][i] && okBefore[side][i]) {
+                cx += c[i * 2];
+                cy += c[i * 2 + 1];
+                bx += b[i * 2];
+                by += b[i * 2 + 1];
+                n++;
+            }
+        }
+        if (n < 3) {
+            return;
+        }
+        cx /= n;
+        cy /= n;
+        bx /= n;
+        by /= n;
+        if (Math.hypot(bx - cx, by - cy) > JUMP) {
+            return;
+        }
+        // L = (sum of db dc^T) times the inverse of (sum of dc dc^T).
+        float sxx = 0f, sxy = 0f, syy = 0f, m00 = 0f, m01 = 0f, m10 = 0f, m11 = 0f;
+        for (int i = 0; i < N; i++) {
+            if (okNow[side][i] && okBefore[side][i]) {
+                float dx = c[i * 2] - cx, dy = c[i * 2 + 1] - cy, ex = b[i * 2] - bx, ey = b[i * 2 + 1] - by;
+                sxx += dx * dx;
+                sxy += dx * dy;
+                syy += dy * dy;
+                m00 += ex * dx;
+                m01 += ex * dy;
+                m10 += ey * dx;
+                m11 += ey * dy;
+            }
+        }
+        float det = sxx * syy - sxy * sxy;
+        if (Math.abs(det) < 1e-9f) {
+            return;
+        }
+        float i00 = syy / det, i01 = -sxy / det, i11 = sxx / det;
+        float l00 = m00 * i00 + m01 * i01, l01 = m00 * i01 + m01 * i11;
+        float l10 = m10 * i00 + m11 * i01, l11 = m10 * i01 + m11 * i11;
+        // The turn closest to L, and what's left of L once it's taken out (S = R(-a) L).
+        float a = (float) Math.atan2(l10 - l01, l00 + l11);
+        float cos = (float) Math.cos(-a), sin = (float) Math.sin(-a);
+        v[o] = 1f;
+        v[o + 1] = a;
+        v[o + 2] = cos * l00 - sin * l10;
+        v[o + 3] = sin * l00 + cos * l10;
+        v[o + 4] = cos * l01 - sin * l11;
+        v[o + 5] = sin * l01 + cos * l11;
+        v[o + 6] = bx;
+        v[o + 7] = by;
+        v[o + 8] = cx;
+        v[o + 9] = cy;
+        // How far the farthest followed point moved, in 1080p pixels (half again, for the tip of a long item): a step
+        // every 5 of them, 2 to 24 steps.
+        float most = 0f;
+        for (int i = 0; i < N; i++) {
+            if (okNow[side][i] && okBefore[side][i]) {
+                most = Math.max(most, (float) Math.hypot(c[i * 2] - b[i * 2], c[i * 2 + 1] - b[i * 2 + 1]));
+            }
+        }
+        v[o + 10] = Math.max(2f, Math.min(24f, most * 1.5f * 1080f / 5f));
     }
 }

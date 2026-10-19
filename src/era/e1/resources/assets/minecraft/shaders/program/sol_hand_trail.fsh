@@ -33,48 +33,63 @@ float luma(vec3 c) {
     return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// What the hands leave behind at a point of this frame: their own shape, filled, and their glow.
+// What the hands leave behind at a point of this frame: their glow, and faintly their own shape.
 float leaves(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.85 : e.g;
+    return e.b > 0.5 ? 0.35 : e.g;
+}
+
+// What they left at a point the frame before.
+float left(vec2 uv) {
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+        return 0.0;
+    }
+    return texture(PrevSampler, uv).r;
+}
+
+mat2 turn(float a) {
+    return mat2(cos(a), sin(a), -sin(a), cos(a));
 }
 
 void main() {
+    float own = leaves(texCoord);
     // Less a half step, so an 8-bit target fades all the way out.
     float trail = max(texture(PrevSampler, texCoord).g * P(89) - 0.5 / 255.0, 0.0);
     vec2 asp = vec2(P(28), 1.0);
+    vec2 q = texCoord * asp;
     for (int h = 0; h < 2; h++) {
-        int o = 92 + h * 10;
+        int o = 92 + h * 11;
         if (P(o) < 0.5) {
             continue;
         }
-        mat2 a = mat2(P(o + 1), P(o + 2), P(o + 3), P(o + 4));
-        vec2 t = vec2(P(o + 5), P(o + 6));
-        vec2 mine = vec2(P(o + 7), P(o + 8)) * asp;
-        vec2 other = vec2(P(102 - h * 10 + 7), P(102 - h * 10 + 8)) * asp;
-        float steps = P(o + 9);
+        float a = P(o + 1);
+        mat2 stretch = mat2(P(o + 2), P(o + 3), P(o + 4), P(o + 5));
+        vec2 was = vec2(P(o + 6), P(o + 7));
+        vec2 mid = vec2(P(o + 8), P(o + 9));
+        mat2 back = turn(a) * stretch;
+        float steps = P(o + 10);
         for (int k = 1; k < 24; k++) {
             if (float(k) >= steps) {
                 break;
             }
             // s of the way from where it was (0) to now (1): the point of this frame that was here then.
             float s = float(k) / steps;
-            mat2 m = a * (1.0 - s) + mat2(s);
+            mat2 m = turn(a * (1.0 - s)) * (stretch * (1.0 - s) + mat2(s));
             float det = m[0][0] * m[1][1] - m[1][0] * m[0][1];
-            if (abs(det) < 1e-6) {
+            if (abs(det) < 1e-5) {
                 continue;
             }
-            vec2 r = texCoord - t * (1.0 - s);
-            vec2 q = vec2(m[1][1] * r.x - m[1][0] * r.y, m[0][0] * r.y - m[0][1] * r.x) / det;
-            // Only this hand's: nearer its anchor than the other hand's.
-            if (distance(q * asp, mine) > distance(q * asp, other)) {
+            vec2 r = q - mix(was, mid, s);
+            vec2 x = mid + vec2(m[1][1] * r.x - m[1][0] * r.y, m[0][0] * r.y - m[0][1] * r.x) / det;
+            // That point, where it was the frame before: it must have been this hand's then too.
+            if (left((was + back * (x - mid)) / asp) < 0.12) {
                 continue;
             }
-            trail = max(trail, leaves(q) * mix(P(89), 1.0, s));
+            trail = max(trail, leaves(x / asp) * mix(P(89), 1.0, s));
         }
     }
-    fragColor = vec4(0.0, trail, 0.0, 1.0);
+    fragColor = vec4(own, max(trail, own), 0.0, 1.0);
 }
