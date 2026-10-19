@@ -22,6 +22,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SolCloudsMixin");
         all.add("SolGameRendererMixin");
         all.add("PunchyArmsMixin");
+        all.add("DarkArmsMixin");
         all.add("TitleSwapMixin");
         all.add("LoadingLookMixin");
         all.add("ButtonLookMixin");

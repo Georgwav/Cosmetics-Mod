@@ -5,11 +5,14 @@ import io.github.georgwav.cosmetics.client.modules.PunchyModule;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * The Punchy module's arms: the pose the game hands to the first-person hands is moved back first, so the hands (the
- * game's or Punchy's, which draws with the same pose) look smaller and closer to the middle of the screen.
+ * game's or Punchy's, which draws with the same pose) look smaller and closer to the middle of the screen; while they
+ * are drawn, DarkArmsMixin can swap your skin for the dark arms' texture.
  */
 @Mixin(GameRenderer.class)
 abstract class PunchyArmsMixin {
@@ -28,5 +31,11 @@ abstract class PunchyArmsMixin {
     *///?}
     private PoseStack cosmeticsmod$arms(PoseStack pose) {
         return PunchyModule.arms(pose);
+    }
+
+    /** The hands are drawn: your skin is your skin again. */
+    @Inject(method = "renderItemInHand", at = @At("RETURN"))
+    private void cosmeticsmod$handsDrawn(CallbackInfo ci) {
+        PunchyModule.handsDrawn();
     }
 }

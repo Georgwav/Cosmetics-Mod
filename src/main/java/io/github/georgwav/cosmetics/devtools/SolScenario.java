@@ -1050,10 +1050,11 @@ public final class SolScenario {
 
     /** Whether the Punchy module was on before the hands shot (null while it isn't on). */
     private static Boolean punchyWas;
+    private static boolean handEmpty;
 
     /**
      * The hands shots, with an enchanted sword in hand: the Punchy module on (Sol's arms, the glow), off (the game's
-     * own hands, to compare), and on again at night.
+     * own hands, to compare), and on again at night with an empty hand (the dark arm with its outline).
      */
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
@@ -1065,6 +1066,12 @@ public final class SolScenario {
         }
         if (on) {
             punchy.setEnabled(!what.equals("hands_plain"));
+            // At night the hand is empty, so the arm shows (dark, outlined).
+            if (what.equals("hands_night") != handEmpty) {
+                handEmpty = what.equals("hands_night");
+                asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with "
+                        + (handEmpty ? "air" : "diamond_sword[enchantment_glint_override=true]")));
+            }
         } else if (punchyWas != null) {
             punchy.setEnabled(punchyWas);
             punchyWas = null;

@@ -20,8 +20,9 @@ import java.util.Map;
  * Punchy: your hands in first person. With the Punchy mod installed this module switches its animations on and off
  * (off while the module is off). Sol's arms make the arms and what they hold a little smaller, farther away and
  * closer to the middle of the screen; PvP mode calms Punchy's animations down and makes the arms smaller still, for
- * more of the screen. And a glow round the hands and the held item, in the theme's colours by default. The arms and
- * the glow work without Punchy too.
+ * more of the screen. And a glow round the hands and the held item, in the theme's colours by default: a crisp
+ * bright outline on their edge fading out (or a soft haze), with the arms drawn as dark silhouettes if you like (as in
+ * Georg's picture). The arms and the glow work without Punchy too.
  */
 public final class PunchyModule extends Module {
     /** How far in front of the eye the hands are (blocks), roughly: what the arms are moved back from. */
@@ -30,7 +31,11 @@ public final class PunchyModule extends Module {
     private final Setting.Toggle solArms = add(new Setting.Toggle("sol_arms", true).group("arms"));
     private final Setting.Slider armSize = add(new Setting.Slider("arm_size", 82, 60, 100, 1, v -> Math.round(v) + "%").group("arms"));
     private final Setting.Toggle pvp = add(new Setting.Toggle("pvp", false).group("pvp"));
+    /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
+    private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
+    /** A crisp bright outline on the edge fading out, or only the soft haze. */
+    private final Setting.Choice glowStyle = add(new Setting.Choice("glow_style", "outline", List.of("outline", "soft")).group("glow"));
     private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
     private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFF60D0).group("glow"));
@@ -109,6 +114,7 @@ public final class PunchyModule extends Module {
      */
     public static PoseStack arms(PoseStack pose) {
         PunchyModule m = Modules.PUNCHY;
+        drawingHands = m.enabled() && m.darkArms.get();
         if (!m.enabled() || (!m.solArms.get() && !m.pvp.get())) {
             return pose;
         }
@@ -126,6 +132,55 @@ public final class PunchyModule extends Module {
         // And both arms drawn in toward the middle: the right one to the left, the left one to the right.
         pose.scale(1f - (1f - s) * 0.6f, 1f, 1f);
         return pose;
+    }
+
+    // ------------------------------------------------------------------ dark arms
+
+    /** Whether the game is drawing the first-person hands now with the arms dark. */
+    private static boolean drawingHands;
+    private static io.github.georgwav.cosmetics.sol.render.SolTexture dark;
+    private static int darkColour;
+
+    /** The game finished drawing the hands. */
+    public static void handsDrawn() {
+        drawingHands = false;
+    }
+
+    /**
+     * A texture a render type is made with: while the hands are drawn with dark arms, your skin becomes a dark one
+     * (so the game's arms and Punchy's both turn into silhouettes); anything else (the items) stays.
+     */
+    //? if >=1.21.11 {
+    public static net.minecraft.resources.Identifier skinOrDark(net.minecraft.resources.Identifier texture) {
+    //?} else {
+    /*public static net.minecraft.resources.ResourceLocation skinOrDark(net.minecraft.resources.ResourceLocation texture) {
+    *///?}
+        if (!drawingHands || texture == null) {
+            return texture;
+        }
+        var player = Minecraft.getInstance().player;
+        //? if >=1.21.9 {
+        var skin = player == null ? null : player.getSkin().body().texturePath();
+        //?} else {
+        /*var skin = player == null ? null : player.getSkin().texture();
+        *///?}
+        return texture.equals(skin) ? darkTexture().id : texture;
+    }
+
+    /** A skin of one very dark colour, a touch of the theme's glow in it. */
+    private static io.github.georgwav.cosmetics.sol.render.SolTexture darkTexture() {
+        int colour = Colors.mix(0xFF060609, io.github.georgwav.cosmetics.sol.theme.ThemeState.tokens().glow | 0xFF000000, 0.07f);
+        if (dark == null || dark.released()) {
+            dark = new io.github.georgwav.cosmetics.sol.render.SolTexture("punchy_dark_arms", 64, 64, false);
+            darkColour = 0;
+        }
+        if (colour != darkColour) {
+            int[] px = new int[64 * 64];
+            java.util.Arrays.fill(px, colour);
+            dark.upload(px);
+            darkColour = colour;
+        }
+        return dark;
     }
 
     // ------------------------------------------------------------------ the glow
@@ -146,8 +201,8 @@ public final class PunchyModule extends Module {
 
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
-     * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, and
-     * the lines of light moving through it.
+     * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the
+     * lines of light moving through it, and the style (1 outline, 0 soft).
      */
     public static void glowParams(float[] v, int at, Tokens tk) {
         PunchyModule m = Modules.PUNCHY;
@@ -181,6 +236,7 @@ public final class PunchyModule extends Module {
         v[at + 9] = 0.06f;
         v[at + 10] = (float) (m.glowSize.get() / 100.0);
         v[at + 11] = m.glowLines.get() ? 1f : 0f;
+        v[at + 12] = m.glowStyle.get().equals("outline") ? 1f : 0f;
     }
 
     private static void rgb(float[] v, int at, int c) {

@@ -360,7 +360,9 @@ void main() {
 }
 """),
     # The hand glow: the blurred mask round the hands and item, fading out softly, breathing, with lines of light
-    # rising and waving through it; only a faint sheen on the hand itself.
+    # rising and waving through it; only a faint sheen on the hand itself. The outline style adds a crisp bright edge
+    # right on the silhouette (found at full resolution from the depth, three rings of taps), a thin line just inside
+    # it, and keeps the haze behind it tighter.
     "sol_hand_glow": (["In", "Glow", "Depth", "Params"], PARAMS + DEPTH + r"""
 float hash(float n) {
     return fract(sin(n * 91.345) * 47453.21);
@@ -378,21 +380,55 @@ float lines(vec2 w, float t) {
     return body * thin * step(0.3, r2);
 }
 
+float handAt(vec2 uv) {
+    return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
+}
+
 void main() {
     vec3 c = texture(InSampler, texCoord).rgb;
-    float hand = isSky(texture(DepthSampler, texCoord).r) ? 0.0 : 1.0;
+    float hand = handAt(texCoord);
     vec3 g = texture(GlowSampler, texCoord).rgb;
     float t = P(22);
     float m = max(max(g.r, g.g), max(g.b, 1e-4));
+    bool outline = P(88) > 0.5;
     vec2 w = texCoord * vec2(P(28), 1.0);
     float pulse = 1.0 + P(84) * (0.18 * sin(t * 2.3) + 0.08 * sin(t * 5.1 + 1.3));
     // Brightness falling off smoothly all the way out (no flat bright band round the hands), the hue kept.
     float k = 1.0 - exp(-m * 1.1 * pulse);
     k = k * k * mix(1.0, P(85), hand);
+    if (outline) {
+        // Behind the outline the haze is shorter and fainter.
+        k = pow(k, 1.6) * 0.6;
+    }
     vec3 col = mix(g / m, vec3(1.0), 0.25 * k * k * k);
     float s = min(P(82), 2.0);
     vec3 glow = clamp(col * k * s * 0.7, 0.0, 1.0);
     c = 1.0 - (1.0 - c) * (1.0 - glow);
+    if (outline) {
+        // How much of each ring round this pixel is hand: a solid band right on the edge (as thick as the two
+        // nearest rings), fading over the next two; on the hand itself, a thin line just inside the edge.
+        vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
+        float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0) * (0.6 + 0.8 * P(86));
+        float cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
+        for (int i = 0; i < 8; i++) {
+            float a = float(i) * 0.7853982 + 0.2;
+            vec2 d = vec2(cos(a), sin(a)) * px * scale;
+            cov0 += handAt(texCoord + d * 1.8) * 0.125;
+            cov1 += handAt(texCoord + d * 3.8) * 0.125;
+            cov2 += handAt(texCoord + d * 7.0) * 0.125;
+            cov3 += handAt(texCoord + d * 11.0) * 0.125;
+        }
+        float rim = hand > 0.5 ? (1.0 - cov0) * 0.85
+                : max(max(min(1.0, cov0 * 2.5), min(1.0, cov1 * 2.5) * 0.92), max(min(1.0, cov2 * 2.5) * 0.5, min(1.0, cov3 * 2.5) * 0.22));
+        rim *= 0.88 + 0.12 * pulse;
+        vec3 tint = m > 0.02 ? g / m : P3(76);
+        // Hot toward the edge, in the glow's colour further out.
+        vec3 edge = mix(tint, vec3(1.0), 0.12 + 0.3 * rim * rim);
+        float s2 = min(P(82), 2.0);
+        // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark.
+        c = mix(c, edge, clamp(rim * s2 * 0.9, 0.0, 1.0));
+        c += edge * rim * rim * s2 * 0.15;
+    }
     // The lines show in the glow round the hands, brightest partway out, not over the hand.
     if (P(87) > 0.0) {
         float band = smoothstep(0.03, 0.25, k) * (1.0 - smoothstep(0.55, 0.9, k)) * (1.0 - hand);
