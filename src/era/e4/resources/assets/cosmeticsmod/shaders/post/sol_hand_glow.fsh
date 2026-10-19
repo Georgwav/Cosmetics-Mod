@@ -68,24 +68,20 @@ void main() {
     // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
     float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
     float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
-    // Green is the inner edge inside the hands and the rising glow outside them; with the trail, the glow the hands
-    // left behind as they moved.
+    // Green is the inner edge inside the hands and the rising glow outside them; with the trail, what the hands left
+    // behind on their way here.
     float inner = e.b > 0.5 ? e.g : 0.0;
     float glow = e.b > 0.5 ? 0.0 : e.g;
     if (P(90) > 0.0) {
         glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
     }
     float rising = clamp(glow * grade * s, 0.0, 1.5);
-    // Gold, paler right at the edge.
-    vec3 warm = mix(col, vec3(1.0), 0.4 * pow(min(glow, 1.0), 4.0));
-    c = mix(c, warm, clamp(rising * 0.95, 0.0, 0.92));
-    c = soft(c + warm * rising * 0.8);
+    // Nearly opaque where it's strong, the colour itself (Clarity's gold by default), paler right at the hands.
+    vec3 warm = mix(col, vec3(1.0), 0.45 * smoothstep(0.6, 1.0, glow));
+    c = mix(c, warm, clamp(rising * 1.25, 0.0, 0.96));
+    c = soft(c + warm * rising * 0.35);
     // The line, pale (cream for gold).
-    float k = (e.r + inner) * grade;
-    if (P(90) > 0.0) {
-        k = max(k, max(texture(TrailSampler, texCoord).r - e.r, 0.0) * (1.0 - e.b) * P(90) * grade);
-    }
-    k = clamp(k * s, 0.0, 1.5);
+    float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
     vec3 pale = mix(col, vec3(1.0), 0.55);
     c = mix(c, pale, clamp(k * 0.6, 0.0, 0.8));
     c = soft(c + pale * k * 0.3);

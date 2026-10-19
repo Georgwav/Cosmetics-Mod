@@ -176,6 +176,9 @@ public final class LightPass {
             if (lastUpdate != FrameInfo.frame) {
                 update();
             }
+            // How the hands moved, now that they're drawn (the trail fills their path).
+            HandMotion.params(values, 92);
+            pack();
             run("sol_hand_glow");
         })) {
             handGlowFrames++;
@@ -483,12 +486,7 @@ public final class LightPass {
         v[75] = night * in;
         // The glow round the hands (the Punchy module).
         io.github.georgwav.cosmetics.client.modules.PunchyModule.glowParams(v, 76, tk, lastGlowFrame == FrameInfo.frame - 1);
-        for (int i = 0; i < PARAMS; i++) {
-            int bits = Float.floatToRawIntBits(v[i]);
-            int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
-            params[i] = (b3 << 24) | (b0 << 16) | (b1 << 8) | b2;
-        }
-        paramsTexture.upload(params);
+        pack();
 
         String key = tk.lut + "|" + tk.gradeHighlights + "|" + tk.gradeShadows + "|" + tk.saturation + "|" + tk.contrast
                 + "|" + tune("grade") * Atmosphere.intensity();
@@ -497,6 +495,16 @@ public final class LightPass {
             lut = buildLut(tk, lut);
             lutTexture.upload(lut);
         }
+    }
+
+    /** The values into the parameter texture (each float's bytes in a texel) and up to the GPU. */
+    private static void pack() {
+        for (int i = 0; i < PARAMS; i++) {
+            int bits = Float.floatToRawIntBits(values[i]);
+            int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
+            params[i] = (b3 << 24) | (b0 << 16) | (b1 << 8) | b2;
+        }
+        paramsTexture.upload(params);
     }
 
     private static void rgb(float[] v, int at, int c) {
