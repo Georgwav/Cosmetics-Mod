@@ -76,6 +76,11 @@ final class CosmeticPage {
             case "pet" -> cosmetic.slot() == CosmeticSlot.PET;
             case "cape" -> cosmetic.slot() == CosmeticSlot.CAPE;
             case "shield" -> cosmetic.slot() == CosmeticSlot.SHIELD;
+            case "knife" -> cosmetic.slot() == CosmeticSlot.MELEE;
+            case "knife_angel" -> {
+                io.github.georgwav.cosmetics.melee.Knife k = io.github.georgwav.cosmetics.melee.KnifeRegistry.get(id);
+                yield k != null && k.rig.angelSet;
+            }
             case "rainbow_on" -> config.options(id).rainbow;
             case "tint_or_rainbow" -> config.allows(cosmetic, CosmeticOption.TINT) || config.allows(cosmetic, CosmeticOption.RAINBOW);
             case "palette" -> palette.length > 0;

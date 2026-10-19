@@ -52,7 +52,7 @@ import java.util.Locale;
  * the first time the knife is shown (the pack's own texture meanwhile). Render thread only; nothing allocated per frame.
  */
 public final class KnifeRenderer {
-    private static final int NORMAL = 0, LIT = 1, ARMS = 2;
+    static final int NORMAL = 0, LIT = 1, ARMS = 2;
     private static final long EPOCH = System.nanoTime();
     private static final java.util.Random RANDOM = new java.util.Random();
 
@@ -101,6 +101,12 @@ public final class KnifeRenderer {
 
     /** Dev runs (the test scenario's shots): the knives' clock held at this time, or NaN while it runs. */
     private static float pinned = Float.NaN;
+
+    /** The bright colour of the knife in your hand (ARGB), for the glow's "item" colours; 0 when none shows yet. */
+    public static int brightColour() {
+        KnifeView v = current();
+        return v == null ? 0 : v.knife.bright;
+    }
 
     /** Seconds on the knives' clock. */
     public static float now() {
@@ -219,7 +225,8 @@ public final class KnifeRenderer {
             float[] grip = spec.grip() != null ? spec.grip() : knife.rig.grip;
             drawing = view;
             light = packedLight;
-            handScale = spec.handScale();
+            Float hands = io.github.georgwav.cosmetics.config.CosmeticsConfig.get().options(knife.id).knifeHands;
+            handScale = spec.handScale() * (hands != null ? hands : 1f);
             gripX = grip[0];
             gripZ = grip[1];
             poseStack.pushPose();
@@ -367,7 +374,8 @@ public final class KnifeRenderer {
 
     /** The Dark Star set the knife shows: 0 random each draw, 1 Devil, 2 Angel. */
     private static int angelChoice(Knife knife) {
-        return switch (knife.spec.angel()) {
+        String own = io.github.georgwav.cosmetics.config.CosmeticsConfig.get().options(knife.id).knifeSet;
+        return switch (own != null ? own : knife.spec.angel()) {
             case CosmeticDefinition.Melee.DEVIL -> 1;
             case CosmeticDefinition.Melee.ANGEL -> 2;
             default -> 0;
@@ -384,7 +392,7 @@ public final class KnifeRenderer {
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
         try {
-            emitPass(pose, consumer, pass, v);
+            emitPass(pose, consumer, pass, v.pose, light, false);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(v.knife.id, e);
         }
@@ -393,7 +401,11 @@ public final class KnifeRenderer {
         }
     }
 
-    private static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifeView v) {
+    /**
+     * One pass of a posed knife into a consumer: {@code pass} {@link #NORMAL} or {@link #LIT} faces, or {@link #ARMS};
+     * {@code third}: as held in third person (no slash effects or glints).
+     */
+    static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifePose p, int light, boolean third) {
         // `var`: Matrix4fc/Matrix3fc on newer versions, Matrix4f/Matrix3f on older ones.
         var m = pose.pose();
         var nm = pose.normal();
@@ -405,14 +417,13 @@ public final class KnifeRenderer {
         float n20 = nm.m02(), n21 = nm.m12(), n22 = nm.m22();
         boolean oneCall = !Compat.isShaderPackActive();
         int packed = pass == LIT ? MeshEmitter.FULL_BRIGHT : light;
-        KnifePose p = v.pose;
         KnifeGeo.Bone[] bones = p.geo.bones;
         float[] w = p.world;
         int vertices = 0;
         for (int b = 0; b < bones.length; b++) {
             KnifeGeo.Bone bone = bones[b];
             if (bone.marker || (pass == ARMS) != (bone.arm != 0) || pass != ARMS && bone.lit != (pass == LIT)
-                    || !p.shown(b)) {
+                    || third && bone.effect || !p.shown(b)) {
                 continue;
             }
             float[] quads = pass == ARMS ? ArmGeo.quads(bone.arm > 0, slim) : bone.quads;
@@ -474,7 +485,7 @@ public final class KnifeRenderer {
     // ------------------------------------------------------------------ the texture
 
     /** The knife's render type: its texture cut at half alpha once that's made, the pack's own until then. */
-    private static RenderType knifeType(Knife k) {
+    static RenderType knifeType(Knife k) {
         if (k.cutTexture == null) {
             int[] px = k.cutPixels;
             if (px != null) {

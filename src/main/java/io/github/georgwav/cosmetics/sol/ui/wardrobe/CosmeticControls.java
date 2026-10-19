@@ -220,6 +220,12 @@ public final class CosmeticControls {
                     (o, v) -> o.animate = v),
             new OwnSlider("effects", "animation_speed", "animationSpeed", new Gate(CosmeticOption.ANIMATION, "animated"), 0.1, 3, 0.1,
                     o -> o.animationSpeed, (o, v) -> o.animationSpeed = (float) v, "times"),
+            // Knives: Dark Star's model (Devil or Angel) and the arms' size.
+            new OwnChoice<>("knife", "knife_set", "knifeSet", new Gate(null, "knife_angel"), Arrays.asList(null, "random", "devil", "angel"),
+                    o -> o.knifeSet, (o, v) -> o.knifeSet = v, v -> "knife_set." + (v == null ? "auto" : v)),
+            new OwnSlider("knife", "knife_hands", "knifeHands", new Gate(null, "knife"), 0.5, 1.5, 0.02,
+                    o -> o.knifeHands == null ? 1.0 : o.knifeHands, (o, v) -> o.knifeHands = Math.abs(v - 1.0) < 1e-4 ? null : (float) v,
+                    "percent"),
             new OwnToggle("cosmetic_particles", "cosmetic_particles", "particles", new Gate(null, "particles"), o -> o.particles,
                     (o, v) -> o.particles = v),
             new OwnSlider("cosmetic_particles", "particle_amount", "particleAmount", new Gate(null, "particles"), 0, 3, 0.1,

@@ -278,6 +278,13 @@ public final class CosmeticsConfig {
          * white in Deep Field and orange in Ember; null (the default, and never written) keeps its own colour.
          */
         public String themeColor = null;
+        /**
+         * Sol Client, for a knife with a second set of animations (Dark Star's Devil and Angel): "random" each draw,
+         * "devil" or "angel"; null (never written) for what the knife's own file says.
+         */
+        public String knifeSet = null;
+        /** Sol Client, for a knife: its arms' size times this (around the fist); null (never written) for as made. */
+        public Float knifeHands = null;
 
         /** A copy, to keep in an outfit (or take out of one) without the two changing together. */
         public CosmeticOptions copy() {
@@ -309,7 +316,7 @@ public final class CosmeticsConfig {
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && elytra == d.elytra && particles == d.particles && particleAmount == d.particleAmount
                     && particleSize == d.particleSize && petPosition == null && turned == d.turned && upsideDown == d.upsideDown
-                    && colorStyle == null && themeColor == null
+                    && colorStyle == null && themeColor == null && knifeSet == null && knifeHands == null
                     && !swapsAny();
         }
 
@@ -335,6 +342,15 @@ public final class CosmeticsConfig {
             particleSize = clamp(particleSize, 0.25f, 3f, 1f);
             if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow")) {
                 themeColor = null;
+            }
+            if (knifeSet != null && !knifeSet.equals("random") && !knifeSet.equals("devil") && !knifeSet.equals("angel")) {
+                knifeSet = null;
+            }
+            if (knifeHands != null) {
+                knifeHands = clamp(knifeHands, 0.5f, 1.5f, 1f);
+                if (knifeHands == 1f) {
+                    knifeHands = null;
+                }
             }
             if (swaps != null) {
                 swaps.removeIf(java.util.Objects::isNull);

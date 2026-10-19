@@ -39,7 +39,8 @@ public final class StandInKnife {
         display.addProperty("state_machine", NAMESPACE + ":melee_default_state_machine");
         JsonObject transforms = new JsonObject();
         JsonObject third = new JsonObject();
-        third.add("rotation", arr(0, 0, 0));
+        // The blade (knife space -Z) turned to point out of the fist, as a held sword does.
+        third.add("rotation", arr(90, 0, 0));
         third.add("translation", arr(0, 0, 0));
         third.add("scale", arr(1, 1, 1));
         transforms.add("thirdperson_righthand", third);
@@ -71,6 +72,8 @@ public final class StandInKnife {
         cubes.add(cube(-6.25f, 53.25f, -30f, 0.5f, 1.5f, 10f, 0, 8));
         weapon.add("cubes", cubes);
         bones.add(weapon);
+        // Where the hand holds it in third person.
+        bones.add(bone("thirdperson_hand", "weapon", -6, 54, -18, null));
         JsonObject edge = bone("blade_illuminated", "weapon", -6, 54, -18, null);
         JsonArray ec = new JsonArray();
         ec.add(cube(-6.2f, 54.75f, -30f, 0.4f, 0.25f, 10f, 0, 24));

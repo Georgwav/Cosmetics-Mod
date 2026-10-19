@@ -43,7 +43,7 @@ public final class SolScenario {
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
-            "knife_inspect", "knife_glow", "knife_pvp", "servers", "whats_new", "packs"};
+            "knife_inspect", "knife_glow", "knife_pvp", "knife_third", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -1005,7 +1005,7 @@ public final class SolScenario {
         if (name.equals("ui_hands") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
             problems.add(name + ": the hand glow didn't run");
         }
-        if (name.startsWith("ui_knife") && io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn == 0) {
+        if (name.startsWith("ui_knife") && !name.equals("ui_knife_third") && io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn == 0) {
             problems.add(name + ": the knife never drew");
         }
         if (name.equals("ui_knife_glow") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
@@ -1198,6 +1198,7 @@ public final class SolScenario {
             worn.addAll(knifeWornBefore);
             knifeWornBefore = null;
             knifeWorn = null;
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
             punchy.setEnabled(knifePunchyWas);
             if (knifePvp != null) {
@@ -1205,8 +1206,16 @@ public final class SolScenario {
             }
             io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
         }
+        var camera = what.equals("knife_third") ? net.minecraft.client.CameraType.THIRD_PERSON_FRONT
+                : net.minecraft.client.CameraType.FIRST_PERSON;
+        if (on && mc.options.getCameraType() != camera) {
+            mc.options.setCameraType(camera);
+        }
         if (!on) {
             return;
+        }
+        if (phaseTick == SETTLE && what.equals("knife_third") && io.github.georgwav.cosmetics.melee.KnifeThirdPerson.drawn == 0) {
+            problems.add(name + ": the knife wasn't drawn in third person");
         }
         boolean module = what.equals("knife_glow") || what.equals("knife_pvp");
         if (punchy.enabled() != module) {

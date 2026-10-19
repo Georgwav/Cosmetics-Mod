@@ -283,9 +283,16 @@ public final class PunchyModule extends Module {
                 b = Colors.mix(a, 0xFFFFFFFF, 0.35f);
             }
             case "item" -> {
-                a = tk.accent;
-                b = tk.glow;
-                mode = 1f;
+                int knife = io.github.georgwav.cosmetics.melee.KnifeRenderer.brightColour();
+                if (knife != 0) {
+                    // A knife in hand: its texture's bright colour (worked out with its texture).
+                    a = knife;
+                    b = Colors.mix(knife, 0xFFFFFFFF, 0.35f);
+                } else {
+                    a = tk.accent;
+                    b = tk.glow;
+                    mode = 1f;
+                }
             }
             case "rainbow" -> {
                 a = tk.accent;

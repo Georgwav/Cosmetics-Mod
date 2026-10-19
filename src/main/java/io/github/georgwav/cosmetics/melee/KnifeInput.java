@@ -73,9 +73,21 @@ public final class KnifeInput {
         }
     }
 
+    private static boolean conflictChecked;
+
     /** Each tick: the inspect key, and what stops an inspect (switching items, a screen). */
     public static void tick(Minecraft mc) {
         var key = Modules.PUNCHY.key("inspect");
+        if (!conflictChecked && key != null && mc.player != null && !KnifeRegistry.all().isEmpty()) {
+            // Once, with knives loaded: say so if another key bind (another mod's) shares the inspect key.
+            conflictChecked = true;
+            if (io.github.georgwav.cosmetics.ui.KeyBinds.conflicts(key)) {
+                io.github.georgwav.cosmetics.CosmeticsMod.LOGGER.warn("Knives: the inspect key ({}) is also bound to another key bind",
+                        key.getTranslatedKeyMessage().getString());
+                io.github.georgwav.cosmetics.sol.ui.kit.Notifications.post(net.minecraft.network.chat.Component.translatable(
+                        "sol.notify.knife_key", key.getTranslatedKeyMessage().getString()).getString());
+            }
+        }
         KnifeView v = KnifeRenderer.current();
         while (key != null && key.consumeClick()) {
             if (v != null && io.github.georgwav.cosmetics.ui.ScreenOpener.current() == null) {

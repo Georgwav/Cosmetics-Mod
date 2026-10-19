@@ -513,6 +513,23 @@ public final class WardrobeScreen extends SolScreen {
                             pointed = inSlot.get((int) out[1]).id();
                         }
                     }
+                } else if (view == View.KNIVES) {
+                    // A knife's finishes together, under its name.
+                    java.util.Map<String, List<BakedCosmetic>> groups = new java.util.LinkedHashMap<>();
+                    for (BakedCosmetic c : list) {
+                        String group = c.definition().group() != null ? c.definition().group() : c.name();
+                        groups.computeIfAbsent(group, k -> new java.util.ArrayList<>()).add(c);
+                    }
+                    for (var e : groups.entrySet()) {
+                        SolFont head = g.font(SolFont.Family.MONO, 11f);
+                        g.textSpaced(head, e.getKey().toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, 0x80FFFFFF);
+                        y += 22f;
+                        float[] out = tiles(g, tk, e.getValue(), y, top, h);
+                        y = out[0];
+                        if (out[1] >= 0) {
+                            pointed = e.getValue().get((int) out[1]).id();
+                        }
+                    }
                 } else {
                     float[] out = tiles(g, tk, list, y, top, h);
                     y = out[0];

@@ -65,6 +65,11 @@ public final class HeldItems {
         enter(CosmeticsLayer.entity(entityId), context);
     }
 
+    /** The entity behind a render state's entity id, or null. */
+    public static net.minecraft.world.entity.Entity entityOf(int entityId) {
+        return CosmeticsLayer.entity(entityId);
+    }
+
     public static void exit() {
         holder = null;
     }

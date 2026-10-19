@@ -23,6 +23,17 @@ public final class Knife {
     public volatile int[] cutPixels;
     public volatile int cutWidth, cutHeight;
 
+    private KnifePose third;
+
+    /** The knife as held in third person: {@code static_idle}'s pose, made the first time it's asked for. */
+    public KnifePose thirdPose() {
+        if (third == null) {
+            third = new KnifePose(rig.geo);
+            third.pose(rig.staticIdle, 0f, null, 0f, null, 0f, 1f, null);
+        }
+        return third;
+    }
+
     public Knife(String id, CosmeticDefinition.Melee spec, String texture, KnifeRig rig) {
         this.id = id;
         this.spec = spec;
