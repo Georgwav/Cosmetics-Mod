@@ -766,6 +766,55 @@ def crash_summary(game_dir, max_lines=40):
     return out[:max_lines]
 
 
+def read_png(path):
+    """Width, height and RGB rows of a PNG this script wrote (8-bit RGB, every row unfiltered)."""
+    data = Path(path).read_bytes()
+    width, height = struct.unpack(">II", data[16:24])
+    idat, at = b"", 8
+    while at < len(data):
+        (length,) = struct.unpack(">I", data[at:at + 4])
+        if data[at + 4:at + 8] == b"IDAT":
+            idat += data[at + 8:at + 8 + length]
+        at += 12 + length
+    raw, stride = zlib.decompress(idat), width * 3 + 1
+    return width, height, [raw[y * stride + 1:(y + 1) * stride] for y in range(height)]
+
+
+# Glow shots and their twins without the glow (the same frame, the Punchy glow off).
+GLOW_TWINS = (("ui_hands_gold", "ui_hands_gold_bare"), ("ui_hands_night", "ui_hands_night_bare"))
+
+
+def glow_problems(game_dir, shots):
+    """
+    The hand glow must show: in the lower half of the screen, enough pixels right next to the dark arm (within 4 px,
+    in the frame without the glow) must be brighter with it (the count scales with the screen area);
+    what else moves between the two frames (particles, the action bar) mostly isn't next to the arm.
+    """
+    problems = []
+    for name, bare in GLOW_TWINS:
+        if f"screenshot-{name}.png" not in shots or f"screenshot-{bare}.png" not in shots:
+            continue
+        w, h, on = read_png(game_dir / f"screenshot-{name}.png")
+        w2, h2, off = read_png(game_dir / f"screenshot-{bare}.png")
+        if (w, h) != (w2, h2):
+            problems.append(f"{name} and {bare} aren't the same size")
+            continue
+        def dark(x, y):
+            return 0 <= x < w and 0 <= y < h and sum(off[y][x * 3:x * 3 + 3]) < 60
+
+        lit = 0
+        for y in range(h // 2, h):
+            a, b = on[y], off[y]
+            for x in range(0, w * 3, 3):
+                if ((a[x] * 2 + a[x + 1] * 7 + a[x + 2]) - (b[x] * 2 + b[x + 1] * 7 + b[x + 2]) >= 400
+                        and any(dark(x // 3 + dx, y + dy) for dx, dy in ((4, 0), (-4, 0), (0, 4), (0, -4), (2, 0), (-2, 0), (0, 2), (0, -2)))):
+                    lit += 1
+        need = int(2000 * (h / 1080) ** 2)  # with the glow about 4,000 to 7,000 at 1080p; without it under 1,100
+        if lit < need:
+            problems.append(f"the hand glow didn't show in {name}: {lit} pixels lit by it, at least {need} expected")
+    return problems
+
+
 def our_log_problems(game_dir):
     """The log gate, on our own log file: unexpected warnings and errors, expected ones more than once, and any
     identical line more than REPEAT_LIMIT times (per-frame or per-tick logging)."""
@@ -823,6 +872,8 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
     if ours:
         problems.append(f"{len(ours)} error line(s) from this mod, e.g. {ours[0]}")
     problems.extend(our_log_problems(game_dir))
+    if mode == "sol":
+        problems.extend(glow_problems(game_dir, shots))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()

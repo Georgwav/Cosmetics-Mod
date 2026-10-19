@@ -134,7 +134,18 @@ public final class LightPass {
     public static void grade() {
         if (preset != OFF && lastWorldFrame == FrameInfo.frame) {
             long t0 = System.nanoTime();
+            //? if <1.21.5 {
+            /*boolean keep = glowWanted();
+            if (keep) {
+                keepDepth(true);
+            }
+            *///?}
             Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
+            //? if <1.21.5 {
+            /*if (keep) {
+                keepDepth(false);
+            }
+            *///?}
             nanos += System.nanoTime() - t0;
         }
         handGlow();
@@ -157,8 +168,7 @@ public final class LightPass {
      * Runs whether Atmosphere is on or not; it stands aside for a shader pack (which draws the hands its own way).
      */
     private static void handGlow() {
-        if (!FrameInfo.inWorld || Compat.isShaderPackActive() || !Guard.on(Feature.HAND_GLOW)
-                || io.github.georgwav.cosmetics.client.modules.PunchyModule.glowNow() <= 0f) {
+        if (!glowWanted()) {
             return;
         }
         long t0 = System.nanoTime();
@@ -173,6 +183,41 @@ public final class LightPass {
         lastGlowFrame = FrameInfo.frame;
         nanos += System.nanoTime() - t0;
     }
+
+    private static boolean glowWanted() {
+        return FrameInfo.inWorld && !Compat.isShaderPackActive() && Guard.on(Feature.HAND_GLOW)
+                && io.github.georgwav.cosmetics.client.modules.PunchyModule.glowNow() > 0f;
+    }
+
+    //? if <1.21.5 {
+    /*/^* The main target's depth while the grade runs (null until the glow first needs it). ^/
+    private static com.mojang.blaze3d.pipeline.RenderTarget depthKept;
+
+    /^*
+     * Keeps the main target's depth over the grade ({@code save}) and puts it back after: 1.21.1 to 1.21.4's post passes
+     * clear the depth of the target they draw to, and the glow after the grade finds the hands by it.
+     ^/
+    private static void keepDepth(boolean save) {
+        var main = Mc.mainTarget();
+        if (save) {
+            if (depthKept != null && (depthKept.width != main.width || depthKept.height != main.height)) {
+                depthKept.destroyBuffers();
+                depthKept = null;
+            }
+            if (depthKept == null) {
+                //? if <1.21.2 {
+                depthKept = new com.mojang.blaze3d.pipeline.TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
+                //?} else {
+                /^depthKept = new com.mojang.blaze3d.pipeline.TextureTarget(main.width, main.height, true);
+                ^///?}
+            }
+            depthKept.copyDepthFrom(main);
+        } else {
+            main.copyDepthFrom(depthKept);
+        }
+        main.bindWrite(false);
+    }
+    *///?}
 
     // ------------------------------------------------------------------ motion blur
 
