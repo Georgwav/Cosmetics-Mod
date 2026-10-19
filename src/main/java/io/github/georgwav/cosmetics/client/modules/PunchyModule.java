@@ -44,11 +44,16 @@ public final class PunchyModule extends Module {
     private final Setting.Choice glowStyle = add(new Setting.Choice("glow_style", "outline", List.of("outline", "soft")).group("glow"));
     private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
-    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFF60D0).group("glow"));
+    /** The custom colour: the gold of Georg's pictures until you pick another. */
+    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFD21F).group("glow"));
     private final Setting.Slider glowStrength = add(new Setting.Slider("glow_strength", 100, 10, 200, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 65, 0, 100, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", true).group("glow"));
-    private final Setting.Toggle glowLines = add(new Setting.Toggle("glow_lines", true).group("glow"));
+    /**
+     * Thin lines of light rising through the soft glow; off by default (the "movement lines" Georg asked for turned
+     * out to be the motion trail).
+     */
+    private final Setting.Toggle glowLines = add(new Setting.Toggle("rising_lines", false).group("glow"));
     /** While the hands move (a swing), their outlines stay a moment behind them: a fan of lines fading out. */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
@@ -176,9 +181,9 @@ public final class PunchyModule extends Module {
         return texture.equals(skin) ? darkTexture().id : texture;
     }
 
-    /** A skin of one very dark colour, a touch of the theme's glow in it. */
+    /** A skin of solid black: the arms as flat silhouettes, as in Georg's pictures. */
     private static io.github.georgwav.cosmetics.sol.render.SolTexture darkTexture() {
-        int colour = Colors.mix(0xFF060609, io.github.georgwav.cosmetics.sol.theme.ThemeState.tokens().glow | 0xFF000000, 0.07f);
+        int colour = 0xFF000000;
         if (dark == null || dark.released()) {
             dark = new io.github.georgwav.cosmetics.sol.render.SolTexture("punchy_dark_arms", 64, 64, false);
             darkColour = 0;

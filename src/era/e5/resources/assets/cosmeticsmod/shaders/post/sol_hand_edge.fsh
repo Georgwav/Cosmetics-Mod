@@ -54,19 +54,20 @@ void main() {
     float hand = handAt(texCoord);
     vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
     float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0) * (0.6 + 0.8 * P(86));
-    float cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
+    float covA = 0.0, cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
     for (int i = 0; i < 8; i++) {
         float a = float(i) * 0.7853982 + 0.2;
         vec2 d = vec2(cos(a), sin(a)) * px * scale;
-        cov0 += handAt(texCoord + d * 1.8) * 0.125;
-        cov1 += handAt(texCoord + d * 3.8) * 0.125;
-        cov2 += handAt(texCoord + d * 7.0) * 0.125;
-        cov3 += handAt(texCoord + d * 11.0) * 0.125;
+        covA += handAt(texCoord + d * 1.2) * 0.125;
+        cov0 += handAt(texCoord + d * 2.6) * 0.125;
+        cov1 += handAt(texCoord + d * 4.0) * 0.125;
+        cov2 += handAt(texCoord + d * 6.5) * 0.125;
+        cov3 += handAt(texCoord + d * 9.5) * 0.125;
     }
-    float line = hand > 0.5 ? 0.0 : min(1.0, cov0 * 2.5);
+    float line = hand > 0.5 ? 0.0 : min(1.0, max(covA, cov0) * 3.0);
     float band = hand > 0.5 ? 0.0
-            : max(max(line, min(1.0, cov1 * 2.5) * 0.92), max(min(1.0, cov2 * 2.5) * 0.5, min(1.0, cov3 * 2.5) * 0.22));
-    float inner = hand > 0.5 ? (1.0 - cov0) * 0.85 : 0.0;
+            : max(max(line, min(1.0, cov1 * 2.5) * 0.75), max(min(1.0, cov2 * 2.5) * 0.35, min(1.0, cov3 * 2.5) * 0.12));
+    float inner = 0.0;
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
     fragColor = vec4(line, band, inner, max(texture(InSampler, texCoord).a, 1.0));
 }

@@ -360,8 +360,9 @@ void main() {
 }
 """),
     # The hand glow's outline, found once a frame at full resolution from the depth: how much of each of four rings
-    # round a pixel is hand. Red: the crisp line right on the edge; green: the band that fades out from it; blue: the
-    # thin line just inside the edge, on the hand itself.
+    # round a pixel is hand. Red: the crisp line right on the edge (two to three pixels at 1080p); green: the short
+    # glow that fades out from it (as in Georg's pictures: a sharp bright line, a little light round it, nothing on
+    # the hand itself).
     "sol_hand_edge": (["In", "Depth", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
@@ -371,19 +372,20 @@ void main() {
     float hand = handAt(texCoord);
     vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
     float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0) * (0.6 + 0.8 * P(86));
-    float cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
+    float covA = 0.0, cov0 = 0.0, cov1 = 0.0, cov2 = 0.0, cov3 = 0.0;
     for (int i = 0; i < 8; i++) {
         float a = float(i) * 0.7853982 + 0.2;
         vec2 d = vec2(cos(a), sin(a)) * px * scale;
-        cov0 += handAt(texCoord + d * 1.8) * 0.125;
-        cov1 += handAt(texCoord + d * 3.8) * 0.125;
-        cov2 += handAt(texCoord + d * 7.0) * 0.125;
-        cov3 += handAt(texCoord + d * 11.0) * 0.125;
+        covA += handAt(texCoord + d * 1.2) * 0.125;
+        cov0 += handAt(texCoord + d * 2.6) * 0.125;
+        cov1 += handAt(texCoord + d * 4.0) * 0.125;
+        cov2 += handAt(texCoord + d * 6.5) * 0.125;
+        cov3 += handAt(texCoord + d * 9.5) * 0.125;
     }
-    float line = hand > 0.5 ? 0.0 : min(1.0, cov0 * 2.5);
+    float line = hand > 0.5 ? 0.0 : min(1.0, max(covA, cov0) * 3.0);
     float band = hand > 0.5 ? 0.0
-            : max(max(line, min(1.0, cov1 * 2.5) * 0.92), max(min(1.0, cov2 * 2.5) * 0.5, min(1.0, cov3 * 2.5) * 0.22));
-    float inner = hand > 0.5 ? (1.0 - cov0) * 0.85 : 0.0;
+            : max(max(line, min(1.0, cov1 * 2.5) * 0.75), max(min(1.0, cov2 * 2.5) * 0.35, min(1.0, cov3 * 2.5) * 0.12));
+    float inner = 0.0;
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
     fragColor = vec4(line, band, inner, max(texture(InSampler, texCoord).a, 1.0));
 }
@@ -398,10 +400,10 @@ void main() {
     fragColor = vec4(max(p, e), 0.0, 1.0);
 }
 """),
-    # The hand glow: the blurred mask round the hands and item, fading out softly, breathing, with lines of light
-    # rising and waving through it; only a faint sheen on the hand itself. The outline style adds a crisp bright edge
-    # right on the silhouette (found at full resolution from the depth, three rings of taps), a thin line just inside
-    # it, and keeps the haze behind it tighter.
+    # The hand glow: the blurred mask round the hands and item, fading out softly, breathing, with (if picked) lines
+    # of light rising and waving through it; only a faint sheen on the hand itself. The outline style (Georg's
+    # pictures) is instead a crisp bright line right on the silhouette with a short glow round it (found at full
+    # resolution from the depth, rings of taps), nothing on the hands, and a motion trail of the outline's copies.
     "sol_hand_glow": (["In", "Glow", "Edge", "Trail", "Depth", "Params"], PARAMS + DEPTH + r"""
 float hash(float n) {
     return fract(sin(n * 91.345) * 47453.21);
@@ -436,25 +438,23 @@ void main() {
     float k = 1.0 - exp(-m * 1.1 * pulse);
     k = k * k * mix(1.0, P(85), hand);
     if (outline) {
-        // Behind the outline the haze is shorter and fainter.
-        k = pow(k, 1.6) * 0.6;
+        // Behind the outline only a breath of haze, and none on the hands (they stay black).
+        k = pow(k, 1.6) * 0.18 * (1.0 - hand);
     }
     vec3 col = mix(g / m, vec3(1.0), 0.25 * k * k * k);
     float s = min(P(82), 2.0);
     vec3 glow = clamp(col * k * s * 0.7, 0.0, 1.0);
     c = 1.0 - (1.0 - c) * (1.0 - glow);
     if (outline) {
-        // The band right on the edge fading out, or the thin line just inside it (see sol_hand_edge).
+        // The line right on the edge, solid and hot, and the short glow fading out from it (see sol_hand_edge).
         vec3 e = texture(EdgeSampler, texCoord).rgb;
-        float rim = hand > 0.5 ? e.b : e.g;
-        rim *= 0.88 + 0.12 * pulse;
+        float line = e.r * (0.92 + 0.08 * pulse), band = e.g * (0.85 + 0.15 * pulse);
         vec3 tint = m > 0.02 ? g / m : P3(76);
-        // Hot toward the edge, in the glow's colour further out.
-        vec3 edge = mix(tint, vec3(1.0), 0.12 + 0.3 * rim * rim);
         float s2 = min(P(82), 2.0);
-        // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark.
-        c = mix(c, edge, clamp(rim * s2 * 0.9, 0.0, 1.0));
-        c += edge * rim * rim * s2 * 0.15;
+        // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark:
+        // the glow first, then the line on top, whiter at its core.
+        c = mix(c, tint, clamp(band * s2 * 0.6, 0.0, 1.0));
+        c = mix(c, mix(tint, vec3(1.0), 0.5), clamp(line * s2, 0.0, 1.0));
     }
     // The motion trail: what's left of the outlines where the hands were, not over the hands themselves; nothing
     // while they keep still (the trail is then the outline itself).
@@ -463,10 +463,11 @@ void main() {
         vec3 tint = m > 0.02 ? g / m : P3(76);
         vec3 tc = mix(tint, vec3(1.0), 0.3);
         float s3 = min(P(82), 2.0);
+        // A faint fill over the swept area, the outlines' copies bright over it.
+        c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.y * s3 * 0.45, 0.0, 1.0));
         if (outline) {
-            c = mix(c, tc, clamp(tr.x * s3 * 0.85, 0.0, 1.0));
+            c = mix(c, tc, clamp(tr.x * s3, 0.0, 1.0));
         }
-        c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.y * s3 * 0.4, 0.0, 1.0));
     }
     // The lines show in the glow round the hands, brightest partway out, not over the hand.
     if (P(87) > 0.0) {

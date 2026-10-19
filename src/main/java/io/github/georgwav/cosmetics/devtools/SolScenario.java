@@ -1083,9 +1083,19 @@ public final class SolScenario {
      * own hands, to compare), swinging (the outline's motion trail), and on again at night with an empty hand (the
      * dark arm with its outline).
      */
+    /** Whether the swing shot slowed the game (so the slow test renderer draws the trail's copies close together). */
+    private static boolean slowed;
+
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
         boolean on = what.startsWith("hands");
+        // The swing shot runs the game at a quarter speed: this renderer draws a few frames a second, so at full speed
+        // a swing would leave one copy of the outline; slowed, it leaves the fan it does at a real frame rate.
+        boolean slow = what.equals("hands_swing");
+        if (slow != slowed) {
+            slowed = slow;
+            asPlayer(Minecraft.getInstance(), List.of("tick rate " + (slow ? 5 : 20)));
+        }
         if (on && punchyWas == null) {
             punchyWas = punchy.enabled();
             asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with diamond_sword[enchantment_glint_override=true]"));
