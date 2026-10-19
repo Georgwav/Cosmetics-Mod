@@ -31,6 +31,30 @@ public final class BodyRender {
     private BodyRender() {
     }
 
+    /**
+     * Where a point on a body's map (longitude and latitude, degrees) is in its picture when it's turned to
+     * {@code pa}, tilted by {@code tilt} and has spun {@code spin} (as in {@link Light}): a unit vector, x right, y up,
+     * z toward you (on the far side when z is below 0). The same axes {@link #render} paints with.
+     */
+    public static void surface(double pa, double tilt, double spin, double lon, double lat, double[] out) {
+        double sB = Math.sin(tilt), cB = Math.cos(tilt);
+        double px = -Math.sin(pa) * cB, py = Math.cos(pa) * cB, pz = sB;
+        double e1x = -py, e1y = px, l1 = Math.sqrt(e1x * e1x + e1y * e1y);
+        if (l1 < 1e-3) {
+            e1x = 1;
+            e1y = 0;
+            l1 = 1;
+        }
+        e1x /= l1;
+        e1y /= l1;
+        double e2x = -pz * e1y, e2y = pz * e1x, e2z = px * e1y - py * e1x;
+        double la = Math.toRadians(lat), phi = Math.toRadians(lon) - spin;
+        double cl = Math.cos(la), sl = Math.sin(la), c = Math.cos(phi), s = Math.sin(phi);
+        out[0] = sl * px + cl * (c * e2x - s * e1x);
+        out[1] = sl * py + cl * (c * e2y - s * e1y);
+        out[2] = sl * pz + cl * c * e2z;
+    }
+
     /** The picture's side in pixels for a body {@code n} pixels across. */
     public static int size(Bodies.Body b, int n) {
         return Math.max(3, (int) Math.round(n * b.box()));

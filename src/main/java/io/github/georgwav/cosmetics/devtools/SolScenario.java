@@ -54,6 +54,8 @@ public final class SolScenario {
     /** Night sky shots through the spyglass, on a planet. */
     private static final String ZOOM = "sol_night_zoom_";
     private static final String EVENTS = "sol_night_events_";
+    /** A shot whose view keeps turning (left and right, a little), to show the sky's things turning with the sky. */
+    private static final String SPIN = "_spin";
     private static boolean holdingSpyglass;
     /** The shot from inside a closed room (built in the air above the beach, taken away after). */
     private static final String UNDERGROUND = "sol_ember_underground";
@@ -133,6 +135,8 @@ public final class SolScenario {
 
     /** Only these themes' shots (comma-separated ids; empty for all), for quick looks while tuning. */
     private static final String THEMES = System.getProperty("cosmeticsmod.solThemes", "");
+    /** Only the shots whose names hold one of these (comma-separated; empty for all), for quick looks. */
+    private static final String ONLY = System.getProperty("cosmeticsmod.solOnly", "");
 
     /** CI's mock Cider is running (ci/mock_cider.py): the music shots show its song and are checked. */
     private static final boolean MOCK_CIDER = Boolean.getBoolean("cosmeticsmod.mockCider");
@@ -159,6 +163,10 @@ public final class SolScenario {
         if (!THEMES.isBlank()) {
             java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(THEMES.split(",")));
             shots.removeIf(s -> !keep.contains(s.theme()) && !s.name().equals("sol_ember_sunlab"));
+        }
+        if (!ONLY.isBlank()) {
+            List<String> only = java.util.Arrays.asList(ONLY.split(","));
+            shots.removeIf(s -> only.stream().noneMatch(s.name()::contains));
         }
     }
 
@@ -204,6 +212,12 @@ public final class SolScenario {
             shots.add(new Shot(EVENTS + "comet", "maple_afternoon", 0f, false, comet[0], comet[1], newMoon + dusk));
             float[] death = aimAt("deathstar", 0.75, 0.5f);
             shots.add(new Shot(EVENTS + "ships", "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            // The same while the view turns: the beam stays on the Death Star's dish, not on the screen.
+            shots.add(new Shot(EVENTS + "ships" + SPIN, "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            // Looking up at Halo where it's highest, the view turning: it turns with the stars round it.
+            long high = highest("halo", newMoon);
+            float[] halo = aimAt("halo", high / 24000.0, celestial(high));
+            shots.add(new Shot("sol_night_halo" + SPIN, "maple_afternoon", 0f, false, halo[0], Math.max(-89f, halo[1] - 25f), high));
             if ("clip".equals(System.getProperty("cosmeticsmod.solEvents", ""))) {
                 // The events clip: sixteen frames a fifth of a second apart, round the Death Star.
                 for (int k = 0; k < 16; k++) {
@@ -430,9 +444,12 @@ public final class SolScenario {
         phaseTick++;
         if (index >= 0 && index < shots.size()) {
             Shot s = shots.get(index);
-            // The motion blur shot turns the view a little each tick (the blur needs movement to show).
-            float yaw = s.name().equals("sol_motion_blur") ? s.yaw() + phaseTick * 2.5f : s.yaw();
-            mc.player.yRotO = s.name().equals("sol_motion_blur") ? yaw - 2.5f : yaw;
+            // The motion blur shot turns the view a little each tick (the blur needs movement to show); a spin shot
+            // turns it left and right.
+            float yaw = s.name().equals("sol_motion_blur") ? s.yaw() + phaseTick * 2.5f
+                    : s.name().endsWith(SPIN) ? s.yaw() + 30f * (float) Math.sin(phaseTick * 0.06) : s.yaw();
+            mc.player.yRotO = s.name().equals("sol_motion_blur") ? yaw - 2.5f
+                    : s.name().endsWith(SPIN) ? s.yaw() + 30f * (float) Math.sin((phaseTick - 1) * 0.06) : yaw;
             mc.player.setYRot(yaw);
             mc.player.setXRot(s.pitch());
             mc.player.xRotO = s.pitch();
@@ -1274,6 +1291,20 @@ public final class SolScenario {
         sky.toWorld(eq[0], eq[1], eq[2], w);
         // A little above it, so the tails rising away from the set sun are in the frame.
         return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1])) - 8f};
+    }
+
+    /** The day time on the night from {@code day} (a day's first tick) when a planet stands highest. */
+    private static long highest(String id, long day) {
+        long best = day + 18000L;
+        float top = Float.MAX_VALUE;
+        for (long t = day + 13000L; t <= day + 23000L; t += 250L) {
+            float pitch = aimAt(id, t / 24000.0, celestial(t))[1];
+            if (pitch < top) {
+                top = pitch;
+                best = t;
+            }
+        }
+        return best;
     }
 
     /** The view (yaw, pitch) onto a planet on a day of the sky's year at a time of day (0 noon). */

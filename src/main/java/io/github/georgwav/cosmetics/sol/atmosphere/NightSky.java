@@ -264,6 +264,49 @@ public final class NightSky {
         vertex(x1, y0, u1, v0, argb);
     }
 
+    /**
+     * A parallelogram on the screen with part of the texture: centre (cx, cy), {@code (ax, ay)} from the centre to
+     * the middle of its right edge and {@code (bx, by)} to the middle of its top edge (pixels, y down). For a picture
+     * turned or squashed with the sky rather than square to the screen.
+     */
+    static void para(float cx, float cy, float ax, float ay, float bx, float by, float u0, float v0, float u1, float v1, int argb) {
+        vertex(cx + bx - ax, cy + by - ay, u0, v0, argb);
+        vertex(cx - bx - ax, cy - by - ay, u0, v1, argb);
+        vertex(cx - bx + ax, cy - by + ay, u1, v1, argb);
+        vertex(cx + bx + ax, cy + by + ay, u1, v0, argb);
+    }
+
+    /**
+     * A rectangle turned on the screen: centre (cx, cy), half its width and height, and {@code (ux, uy)} the unit
+     * direction its top faces (pixels, y down; (0, -1) for square to the screen).
+     */
+    static void quad(float cx, float cy, float hw, float hh, float ux, float uy, float u0, float v0, float u1, float v1, int argb) {
+        para(cx, cy, -uy * hw, ux * hw, ux * hh, uy * hh, u0, v0, u1, v1, argb);
+    }
+
+    /**
+     * The unit direction on the screen (y down) from world direction (wx, wy, wz), at screen point (px, py), toward
+     * the top of the sky: which way is up there. Into {@code out}; straight up the screen if it can't tell.
+     */
+    static void skyUp(float wx, float wy, float wz, float px, float py, float[] out) {
+        out[0] = 0f;
+        out[1] = -1f;
+        // A step toward the zenith along the sky from there.
+        float tx = -wx * wy, ty = 1f - wy * wy, tz = -wz * wy, tl = (float) Math.sqrt(tx * tx + ty * ty + tz * tz);
+        if (tl < 1e-4f) {
+            return;
+        }
+        float sx = wx + tx / tl * 0.02f, sy = wy + ty / tl * 0.02f, sz = wz + tz / tl * 0.02f, sl = (float) Math.sqrt(sx * sx + sy * sy + sz * sz);
+        if (!projectWorld(sx / sl, sy / sl, sz / sl)) {
+            return;
+        }
+        float dx = screen[0] - px, dy = screen[1] - py, m = (float) Math.sqrt(dx * dx + dy * dy);
+        if (m > 1e-6f) {
+            out[0] = dx / m;
+            out[1] = dy / m;
+        }
+    }
+
     /** Projects an equatorial unit vector: world direction into {@link #world}, screen pixels into {@link #screen}. */
     static boolean project(float ex, float ey, float ez) {
         float[] m = SPHERE.m;
