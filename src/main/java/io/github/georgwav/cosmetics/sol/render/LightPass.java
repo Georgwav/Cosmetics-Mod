@@ -56,6 +56,8 @@ public final class LightPass {
     public static final int OFF = 0, MEDIUM = 1, HIGH = 2;
     private static final int PARAMS = 128;
     private static final float SEA_LEVEL = 63f;
+    /** Distant Horizons is installed: its land never reaches the depth buffer (see the skyline rim). */
+    private static final boolean DISTANT_HORIZONS = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("distanthorizons");
     private static final int LUT_W = 1024, LUT_H = 32;
 
     private static final float[] values = new float[PARAMS];
@@ -439,7 +441,9 @@ public final class LightPass {
         v[21] = (Atmosphere.INSTANCE != null && Atmosphere.INSTANCE.rays.get() ? KeyLight.shafts : 0f)
                 * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts") * in * open;
         v[22] = FrameInfo.time;
-        v[23] = 0.3f * KeyLight.rim * tune("rim") * in * open;
+        // The skyline rim at the end of the world; none with Distant Horizons, whose land the depth buffer never
+        // holds (the game's last chunks would get a line drawn across its land).
+        v[23] = DISTANT_HORIZONS ? 0f : 0.3f * KeyLight.rim * tune("rim") * in * open;
         v[24] = view.m10();
         v[25] = view.m11();
         v[26] = view.m12();
@@ -459,7 +463,7 @@ public final class LightPass {
         // stays dim: its light shows in the rims and the colour, not in a lift.
         float dark = Math.max(tk.night, 1f - SkyTime.worldLight);
         v[49] = 1.3f * KeyLight.strength * dark * in * tune("exposure") * open;
-        v[50] = KeyLight.rimAll * in * open;
+        v[50] = DISTANT_HORIZONS ? 0f : KeyLight.rimAll * in * open;
         // The second light colour sweeping over the ground in bands, and the world's east in view space (the
         // bands' reference).
         rgb(v, 51, KeyLight.color2);
@@ -513,8 +517,12 @@ public final class LightPass {
         v[at + 2] = Colors.b(c) / 255f;
     }
 
+    /**
+     * Whether the depth buffer runs 0 to 1 (clip control): from 26.2 the game turns it on wherever the GPU can, which
+     * read as -1 to 1 put every block a million blocks away (a hard haze line at the horizon, no sunlight on blocks).
+     */
     private static boolean zeroToOne() {
-        //? if >=26.3 {
+        //? if >=26.2 {
         /*return com.mojang.blaze3d.systems.RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         *///?} else {
         return false;

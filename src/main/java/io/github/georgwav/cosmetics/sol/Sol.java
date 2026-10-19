@@ -77,6 +77,9 @@ public final class Sol {
         }
         if (mc.level == null) {
             FrameInfo.inWorld = false;
+            // No world, no level render to bring the theme's colours up to date: here, at the theme's own time of
+            // day, or every Sol screen before the first world (the title's pills) drew with all-zero colours.
+            ThemeState.update(Float.NaN);
         }
         io.github.georgwav.cosmetics.sol.config.SolProfiles.tick();
         io.github.georgwav.cosmetics.sol.hud.SolHud.tick(mc);

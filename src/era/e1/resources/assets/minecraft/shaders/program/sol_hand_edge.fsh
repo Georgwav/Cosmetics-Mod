@@ -40,7 +40,9 @@ bool isSky(float depth) {
 
 // Distance along the view axis from a depth-buffer value (the projection's own mapping, reversed or not).
 float linearDepth(float depth) {
-    return 1.0 / max(1e-6, depth * P(8) + P(9));
+    // A depth the projection can't give (a range mismatch) reads as the end of the world, not a million blocks away.
+    float d = depth * P(8) + P(9);
+    return d > 1e-6 ? 1.0 / d : max(16.0, P(30));
 }
 
 vec3 viewAt(vec2 uv, float depth) {

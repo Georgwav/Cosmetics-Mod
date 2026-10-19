@@ -129,6 +129,14 @@ public abstract class Module {
         return false;
     }
 
+    /**
+     * After its saved settings load: whether it turns itself on this once (its default changed to on since they were
+     * saved). Asked once per load.
+     */
+    public boolean turnOnOnce() {
+        return false;
+    }
+
     /** Its other keys' names, in the order declared. */
     public java.util.Set<String> keyNames() {
         return keys.keySet();

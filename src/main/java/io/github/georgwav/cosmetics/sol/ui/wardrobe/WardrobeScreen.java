@@ -1129,8 +1129,9 @@ public final class WardrobeScreen extends SolScreen {
                     openCosmetic(pick.id());
                 }
             }
-            case "drawer_cape", "drawer_pet" -> {
-                CosmeticSlot slot = state.endsWith("cape") ? CosmeticSlot.CAPE : CosmeticSlot.PET;
+            case "drawer_cape", "drawer_pet", "drawer_knife" -> {
+                CosmeticSlot slot = state.endsWith("cape") ? CosmeticSlot.CAPE : state.endsWith("pet") ? CosmeticSlot.PET
+                        : CosmeticSlot.MELEE;
                 BakedCosmetic pick = null;
                 for (BakedCosmetic c : wardrobe()) {
                     if (c.slot() == slot && (pick == null || c.hasEmissive())) {

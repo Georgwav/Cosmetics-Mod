@@ -207,7 +207,10 @@ public final class CosmeticParser {
         }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
         // A knife has none of the model options (colour, size, place): its pack draws it as it is.
-        int options = json.has("options") ? parseOptions(json.get("options")) : melee != null ? 0 : CosmeticOption.ALL;
+        // A knife takes colour (its texture recoloured), not size or place (its pack's animation places it).
+        int options = json.has("options") ? parseOptions(json.get("options"))
+                : melee != null ? CosmeticOption.TINT.bit() | CosmeticOption.RAINBOW.bit() | CosmeticOption.SATURATION.bit()
+                : CosmeticOption.ALL;
         int defaultColor = json.has("default_color") ? color(json.get("default_color"), "default_color")
                 : CosmeticDefinition.WHITE;
         String defaultStyle = null;

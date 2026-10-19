@@ -41,6 +41,18 @@ float leaves(vec2 uv) {
     return e.b > 0.5 ? 0.1 : max(e.g, e.r);
 }
 
+// The trail so far round a point, a little blurred: each frame softens what's older, so a swing fades out as one
+// blurred streak of light instead of keeping each frame's edges.
+float trailBefore(vec2 uv) {
+    vec2 t = 1.25 / vec2(textureSize(PrevSampler, 0));
+    float c = texture(PrevSampler, uv).g * 0.36;
+    c += (texture(PrevSampler, uv + vec2(t.x, 0.0)).g + texture(PrevSampler, uv - vec2(t.x, 0.0)).g
+            + texture(PrevSampler, uv + vec2(0.0, t.y)).g + texture(PrevSampler, uv - vec2(0.0, t.y)).g) * 0.11;
+    c += (texture(PrevSampler, uv + t).g + texture(PrevSampler, uv - t).g
+            + texture(PrevSampler, uv + vec2(t.x, -t.y)).g + texture(PrevSampler, uv - vec2(t.x, -t.y)).g) * 0.05;
+    return c;
+}
+
 // What they left at a point the frame before.
 float left(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
@@ -56,7 +68,11 @@ mat2 turn(float a) {
 void main() {
     float own = leaves(texCoord);
     // Less a half step, so an 8-bit target fades all the way out.
-    float trail = max(texture(PrevSampler, texCoord).g * P(89) - 0.5 / 255.0, 0.0);
+    float trail = max(trailBefore(texCoord) * P(89) - 0.5 / 255.0, 0.0);
+    // Where along the path each step samples, shifted a little per pixel: the gaps between steps on a fast swing turn
+    // into a fine grain the next frame's blur smooths away, not copies of the hand. Interleaved gradient noise: its
+    // grain is even, so a small blur takes it out (a hash's clumps showed as specks).
+    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     vec2 asp = vec2(P(28), 1.0);
     vec2 q = texCoord * asp;
     for (int h = 0; h < 2; h++) {
@@ -75,7 +91,7 @@ void main() {
                 break;
             }
             // s of the way from where it was (0) to now (1): the point of this frame that was here then.
-            float s = float(k) / steps;
+            float s = (float(k) - jitter + 0.5) / steps;
             mat2 m = turn(a * (1.0 - s)) * (stretch * (1.0 - s) + mat2(s));
             float det = m[0][0] * m[1][1] - m[1][0] * m[0][1];
             if (abs(det) < 1e-5) {

@@ -222,6 +222,9 @@ public final class Modules {
                     JsonObject saved = modules.getAsJsonObject(m.id);
                     m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
                     loadSettings(m, saved);
+                    if (m.turnOnOnce()) {
+                        m.loadEnabled(true);
+                    }
                 }
             }
         } catch (IOException | RuntimeException e) {

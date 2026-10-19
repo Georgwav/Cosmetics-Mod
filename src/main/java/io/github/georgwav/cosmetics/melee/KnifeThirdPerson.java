@@ -69,13 +69,14 @@ public final class KnifeThirdPerson {
                 || !(owner instanceof AbstractClientPlayer p)) {
             return false;
         }
+        // The hook is reached (the knife or, as it is by default, the sword drawn after it).
+        io.github.georgwav.cosmetics.sol.Hooks.KNIFE_THIRD.hit();
         boolean left = context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
         if (left != (p.getMainArm() == HumanoidArm.LEFT)) {
             return false;
         }
         ItemStack main = p.getMainHandItem();
         if ((stack == main || ItemStack.matches(stack, main)) && knifeOf(p) != null) {
-            io.github.georgwav.cosmetics.sol.Hooks.KNIFE_THIRD.hit();
             return true;
         }
         return false;

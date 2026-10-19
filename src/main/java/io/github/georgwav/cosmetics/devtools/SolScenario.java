@@ -39,7 +39,7 @@ public final class SolScenario {
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
             "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
-            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
+            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
@@ -284,6 +284,10 @@ public final class SolScenario {
                 if (only.contains(ui)) {
                     shots.add(new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
                 }
+            }
+            // Local: the hands at other sizes (-Dcosmeticsmod.handTries=size/centre,...), to match a look.
+            for (int i = 0; i < HAND_TRIES.length; i++) {
+                shots.add(new Shot("ui_hands_try" + i, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
             }
         }
         if (!KNIFE_IDS.isEmpty()) {
@@ -1121,9 +1125,25 @@ public final class SolScenario {
     /** The glow's style before an "_outline" shot (the Outline style instead of Golden), or null. */
     private static String lookWas;
 
+    /** The local hand tries (see {@code ui_hands_try<n>}): size and centring, in percent. */
+    private static final String[] HAND_TRIES = System.getProperty("cosmeticsmod.handTries", "").isBlank() ? new String[0]
+            : System.getProperty("cosmeticsmod.handTries").split(",");
+
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
         boolean on = what.startsWith("hands");
+        int tryIndex = what.startsWith("hands_try") ? Integer.parseInt(what.substring("hands_try".length())) : -1;
+        for (var st : punchy.settings()) {
+            if (st instanceof io.github.georgwav.cosmetics.client.Setting.Slider slider
+                    && (st.id.equals("hand_size") || st.id.equals("hands_centre"))) {
+                if (tryIndex >= 0) {
+                    String[] t = HAND_TRIES[tryIndex].split("/");
+                    slider.set(Double.parseDouble(t[st.id.equals("hand_size") ? 0 : 1]));
+                } else if (HAND_TRIES.length > 0) {
+                    slider.reset();
+                }
+            }
+        }
         // The swing shot runs the game at a quarter speed: this renderer draws a few frames a second, so at full speed
         // a swing would leave one copy of the outline; slowed, it leaves the fan it does at a real frame rate.
         boolean slow = what.startsWith("hands_swing");
@@ -1255,7 +1275,9 @@ public final class SolScenario {
                 worn.add(knife);
                 io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
             }
-            asPlayer(mc, List.of("item replace entity @s weapon.mainhand with diamond_sword"));
+            // A shield in the other hand: it must not show while the knife is out.
+            asPlayer(mc, List.of("item replace entity @s weapon.mainhand with diamond_sword",
+                    "item replace entity @s weapon.offhand with shield"));
             if (pick >= 0) {
                 // The local runs with many knives are long: no mob comes to end them.
                 asPlayer(mc, List.of("difficulty peaceful"));
@@ -1272,6 +1294,7 @@ public final class SolScenario {
             worn.addAll(knifeWornBefore);
             knifeWornBefore = null;
             knifeWorn = null;
+            asPlayer(mc, List.of("item replace entity @s weapon.offhand with air"));
             mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
             punchy.setEnabled(knifePunchyWas);
@@ -1289,8 +1312,10 @@ public final class SolScenario {
         if (!on) {
             return;
         }
-        if (phaseTick == SETTLE && what.equals("knife_third") && io.github.georgwav.cosmetics.melee.KnifeThirdPerson.drawn == 0) {
-            problems.add(name + ": the knife wasn't drawn in third person");
+        if (phaseTick == SETTLE && what.equals("knife_third") && io.github.georgwav.cosmetics.melee.KnifeThirdPerson.drawn
+                != 0 && !io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeInThirdPerson()) {
+            // Third person shows the sword unless the knife is asked for there.
+            problems.add(name + ": the knife was drawn in third person, which is off");
         }
         boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail");
         // The trail shot: a light attack in slow motion, a twentieth of its speed, so each of the few frames a second
@@ -1309,6 +1334,14 @@ public final class SolScenario {
         if (phaseTick == 1) {
             io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
             io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        if (knifeWorn != null) {
+            // The colour shot (local knifeActions=tint): the knife picked blue in its Wardrobe page; back after.
+            var options = config.options(knifeWorn);
+            Integer blue = what.equals("knife_tint") ? 0x2F7BFF : null;
+            if (!java.util.Objects.equals(options.color, blue)) {
+                options.color = blue;
+            }
         }
         if (phaseTick == SETTLE - 25 && what.equals("knife_spam")) {
             // Spam-inspect: an inspect, then the key again mid-way (a fresh one at once, below).

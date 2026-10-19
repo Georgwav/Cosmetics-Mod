@@ -56,7 +56,9 @@ final class CosmeticPage {
             o.color = (v & 0xFFFFFF) == (def & 0xFFFFFF) ? null : v & 0xFFFFFF;
             o.themeColor = null;
         });
-        this.palette = RecoloredTextures.palette(Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture).distinct().toList());
+        // A knife has no layers: its colours are its texture's.
+        this.palette = RecoloredTextures.palette(cosmetic.slot() == CosmeticSlot.MELEE ? List.of(cosmetic.definition().texture())
+                : Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture).distinct().toList());
     }
 
     private boolean shows(CosmeticControls.Gate gate) {

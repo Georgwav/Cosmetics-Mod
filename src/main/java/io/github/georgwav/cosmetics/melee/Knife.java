@@ -24,6 +24,13 @@ public final class Knife {
     public volatile int cutWidth, cutHeight;
     /** Per bone, its faces that show something with the cut texture (see {@link #solidQuads}); null until it's cut. */
     public volatile float[][] solid;
+    /** The cut texture's pixels, kept for recolouring, and the share of them that are coloured. */
+    public volatile int[] cutSource;
+    public volatile float coloured;
+    /** Render-thread caches: the texture recoloured as the player's settings ask, what with and when, and its type. */
+    public Object recolorTexture, recolorType, recolorWith;
+    public int[] recolorPixels;
+    public long recolorMade;
 
     private KnifePose third;
 

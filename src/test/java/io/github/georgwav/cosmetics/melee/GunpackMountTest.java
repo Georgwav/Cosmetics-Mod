@@ -97,7 +97,8 @@ class GunpackMountTest {
         CosmeticDefinition d = CosmeticParser.parse(ns + ":melee/standin", json);
         assertEquals(CosmeticSlot.MELEE, d.slot());
         assertTrue(d.parts().isEmpty(), "drawn by the knife renderer, not baked");
-        assertEquals(0, d.options(), "no colour, size or place options");
+        assertEquals(io.github.georgwav.cosmetics.model.CosmeticOption.TINT.bit() | io.github.georgwav.cosmetics.model.CosmeticOption.RAINBOW.bit()
+                | io.github.georgwav.cosmetics.model.CosmeticOption.SATURATION.bit(), d.options(), "colour, but no size or place options");
         assertEquals(ns + ":textures/melee/slot/standin.png", d.icon());
         CosmeticDefinition.Melee m = d.melee();
         assertNotNull(m);

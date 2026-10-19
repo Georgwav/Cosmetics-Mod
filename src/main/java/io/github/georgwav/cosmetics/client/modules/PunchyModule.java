@@ -18,11 +18,12 @@ import java.util.Map;
 
 /**
  * Punchy: your hands in first person. With the Punchy mod installed this module switches its animations on and off
- * (off while the module is off). Sol's arms make the arms and what they hold a little smaller, farther away and
- * closer to the middle of the screen; PvP mode calms Punchy's animations down and makes the arms smaller still, for
- * more of the screen. And a glow round the hands and the held item, in the theme's colours by default: a crisp
- * bright outline on their edge fading out (or a soft haze), with the arms drawn as dark silhouettes if you like (as in
- * Georg's picture). The arms and the glow work without Punchy too.
+ * (off while the module is off), and gives it Sol's tuning once (smaller hands nearer the middle). Sol's arms make the
+ * arms and what they hold smaller and closer to the middle of the screen, the same look without Punchy; with it, the
+ * size sliders move Punchy's hands on from its tuning. PvP mode tones all of Punchy's animations down. And a glow round
+ * the hands and the held item, in the theme's colours by default: a crisp bright outline on their edge fading out (or a
+ * soft haze), with the arms drawn as dark silhouettes if you like (as in Georg's picture). The arms and the glow work
+ * without Punchy too.
  */
 public final class PunchyModule extends Module {
     /**
@@ -35,7 +36,10 @@ public final class PunchyModule extends Module {
     private static final float HAND_DEPTH = 0.72f, HAND_DROP = 0.52f;
 
     private final Setting.Toggle solArms = add(new Setting.Toggle("sol_arms", true).group("arms"));
-    private final Setting.Slider armSize = add(new Setting.Slider("arm_size", 82, 60, 100, 1, v -> Math.round(v) + "%").group("arms"));
+    /** How big the hands look (new ids: the preset changed to smaller hands nearer the middle). */
+    private final Setting.Slider handSize = add(new Setting.Slider("hand_size", 60, 40, 100, 1, v -> Math.round(v) + "%").group("arms"));
+    /** How far toward the middle of the screen they sit. */
+    private final Setting.Slider handsCentre = add(new Setting.Slider("hands_centre", 50, 0, 100, 5, v -> Math.round(v) + "%").group("arms"));
     private final Setting.Toggle pvp = add(new Setting.Toggle("pvp", false).group("pvp"));
     /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
     private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
@@ -71,8 +75,11 @@ public final class PunchyModule extends Module {
     /** The thin outline round the hands as well; off, as the outline would sit in the light. */
     private final Setting.Toggle goldenLine = add(new Setting.Toggle("golden_line", false).group("golden"));
     // Knives (a melee cosmetic held in place of a sword).
-    /** Fit the knives' animations to Minecraft's sword, or play them at their own pace. */
-    private final Setting.Choice knifeTiming = add(new Setting.Choice("knife_timing", "fit", List.of("fit", "original")).group("knives"));
+    /**
+     * Play the knives' animations at their own pace (the default: fitted to the sword they ran up to 3x as fast), or
+     * fitted to Minecraft's sword. A new id, so the new default reaches saved settings.
+     */
+    private final Setting.Choice knifeTiming = add(new Setting.Choice("knife_pace", "original", List.of("original", "fit")).group("knives"));
     /** Critical hits play the heavy attack (each game's right-click attack). */
     private final Setting.Toggle knifeHeavy = add(new Setting.Toggle("knife_heavy", true).group("knives"));
     private final Setting.Slider knifeShake = add(new Setting.Slider("knife_shake", 100, 0, 200, 5, v -> Math.round(v) + "%").group("knives"));
@@ -80,14 +87,34 @@ public final class PunchyModule extends Module {
     private final Setting.Slider knifeVolume = add(new Setting.Slider("knife_volume", 100, 0, 100, 5, v -> Math.round(v) + "%").group("knives"));
     /** Show the hands some packs hide (VCT Lock In's), at the size their other animations have them. */
     private final Setting.Toggle knifeHands = add(new Setting.Toggle("knife_hands", true).group("knives"));
-    private final Setting.Toggle knifeThirdPerson = add(new Setting.Toggle("knife_third_person", true).group("knives"));
+    /** The knife in third person too; off, so third person shows the sword (a new id, so it's off for everyone). */
+    private final Setting.Toggle knifeThirdPerson = add(new Setting.Toggle("knife_third", false).group("knives"));
     private final Setting.Choice knifeUseOn = add(new Setting.Choice("knife_use_on", "swords", List.of("swords", "swords_axes")).group("knives"));
     /** Punchy's own values of what PvP mode changes, put back when it goes off. */
     private final Map<String, Object> own = new LinkedHashMap<>();
 
+    /** Whether the saved settings already had this module on by default (see {@link #turnOnOnce}). */
+    private boolean onByDefaultSeen = true;
+    /** Whether Sol's hand preset was given to Punchy (once: after that the player's own Punchy tuning stays). */
+    private boolean tuningGiven;
+
     public PunchyModule() {
         super("punchy", Category.VIEW, "flame");
         addKey("inspect", com.mojang.blaze3d.platform.InputConstants.KEY_V);
+    }
+
+    /** On in a fresh install: the arms, the glow and the knives live here (the Punchy mod itself stays optional). */
+    @Override
+    public boolean onByDefault() {
+        return true;
+    }
+
+    /** Settings saved while this module was off by default turn it on once; turning it off after that sticks. */
+    @Override
+    public boolean turnOnOnce() {
+        boolean once = !onByDefaultSeen;
+        onByDefaultSeen = true;
+        return once;
     }
 
     @Override
@@ -116,6 +143,19 @@ public final class PunchyModule extends Module {
         sync();
     }
 
+    /**
+     * In the first world after Punchy is installed (its tuning loaded with the resources by then): Punchy's hands get
+     * Sol's preset, once.
+     */
+    @Override
+    protected void tick(Minecraft mc) {
+        if (!tuningGiven && Compat.PUNCHY && mc.player != null) {
+            tuningGiven = true;
+            PunchyCompat.applyTuning(io.github.georgwav.cosmetics.client.MainFolder.clientFolder());
+            Modules.save();
+        }
+    }
+
     private void sync() {
         Compat.setPunchy(enabled(), enabled() && pvp.get(), own);
         Modules.save();
@@ -126,10 +166,14 @@ public final class PunchyModule extends Module {
         JsonObject o = new JsonObject();
         own.forEach((k, v) -> o.add(k, v instanceof Boolean b ? new JsonPrimitive(b) : new JsonPrimitive((Number) v)));
         state.add("punchy_own", o);
+        state.addProperty("on_by_default", true);
+        state.addProperty("punchy_tuning_given", tuningGiven);
     }
 
     @Override
     protected void loadState(JsonObject state) {
+        onByDefaultSeen = state.has("on_by_default");
+        tuningGiven = state.has("punchy_tuning_given") && state.get("punchy_tuning_given").getAsBoolean();
         own.clear();
         if (state.has("punchy_own") && state.get("punchy_own").isJsonObject()) {
             for (var e : state.getAsJsonObject("punchy_own").entrySet()) {
@@ -155,22 +199,50 @@ public final class PunchyModule extends Module {
     public static PoseStack arms(PoseStack pose) {
         PunchyModule m = Modules.PUNCHY;
         drawingHands = m.enabled() && m.darkArms.get();
-        if (!m.enabled() || (!m.solArms.get() && !m.pvp.get())) {
+        if (!m.enabled() || !m.solArms.get()) {
             return pose;
         }
-        float s = m.solArms.get() ? (float) (m.armSize.get() / 100.0) : 1f;
-        if (m.pvp.get()) {
-            s *= 0.82f;
+        float s = (float) (m.handSize.get() / 100.0), c = (float) (m.handsCentre.get() / 100.0);
+        if (Compat.PUNCHY) {
+            // Punchy's tuning (Sol's preset, given to it once) already has the hands smaller and nearer the middle:
+            // the sliders move them on from there, so at their defaults Punchy's hands are as tuned (not shrunk twice).
+            s /= PRESET_SIZE;
+            c -= PRESET_CENTRE;
         }
-        if (s >= 0.999f) {
+        return place(pose, s, c);
+    }
+
+    /**
+     * With Punchy installed the sliders start from its tuning, which doesn't reach a knife's hands (the knife draws its
+     * own): Sol's preset is put on the knife's pose here (pushed: the caller pops it when this says so).
+     */
+    public static boolean knifePreset(PoseStack pose) {
+        PunchyModule m = Modules.PUNCHY;
+        if (!Compat.PUNCHY || !m.enabled() || !m.solArms.get()) {
+            return false;
+        }
+        pose.pushPose();
+        place(pose, PRESET_SIZE, PRESET_CENTRE);
+        return true;
+    }
+
+    /** The hand size and centring Sol's preset has (the sliders' defaults), which Punchy's tuning matches. */
+    static final float PRESET_SIZE = 0.60f, PRESET_CENTRE = 0.50f;
+
+    /**
+     * The hands at {@code size} (1 as the game has them) and {@code centre} (0 as the game has them, 1 nearest the
+     * middle; below 0 farther out): moved back and down, and both drawn in toward the middle.
+     */
+    public static PoseStack place(PoseStack pose, float size, float centre) {
+        if (Math.abs(size - 1f) < 0.001f && Math.abs(centre) < 0.001f) {
             return pose;
         }
-        float back = HAND_DEPTH * (1f / s - 1f);
-        // Moving back lifts the arms toward the middle of the screen too; most of that is taken back.
-        float down = HAND_DROP * (1f / s - 1f) * 0.7f;
+        float back = HAND_DEPTH * (1f / size - 1f);
+        // Moving back lifts the arms toward the middle of the screen too; how much of that stays is the centring.
+        float down = HAND_DROP * (1f / size - 1f) * (1f - 0.6f * centre);
         pose.translate(0f, -down, -back);
         // And both arms drawn in toward the middle: the right one to the left, the left one to the right.
-        pose.scale(1f - (1f - s) * 0.6f, 1f, 1f);
+        pose.scale(1f - (1f - size) * 0.6f - 0.18f * centre, 1f, 1f);
         return pose;
     }
 

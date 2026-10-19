@@ -11,7 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Knives: the main hand holding a sword is drawn as your knife ({@link KnifeRenderer}) instead of the game's arm and
- * sword. The offhand, and every other item, are left to the game (or Punchy). Applied early (priority 500), so it runs
+ * sword, and the offhand is left out while it shows (the knife's pack draws both hands). Every other item is left to
+ * the game (or Punchy). Applied early (priority 500), so it runs
  * before Punchy's hook on the same method and Punchy never draws the knife's hand.
  */
 //? if >=26.3 {
@@ -44,6 +45,10 @@ abstract class KnifeHandMixin {
                                     net.minecraft.client.renderer.MultiBufferSource buffers, int light, CallbackInfo ci) {
     *///?}
         if (hand != InteractionHand.MAIN_HAND) {
+            // The knife's pack draws your other hand itself: no second one, and no shield or totem over it.
+            if (KnifeRenderer.hidesOffhand()) {
+                ci.cancel();
+            }
             return;
         }
         io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND.hit();

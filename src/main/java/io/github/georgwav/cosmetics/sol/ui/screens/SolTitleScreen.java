@@ -245,7 +245,8 @@ public final class SolTitleScreen extends SolScreen {
         int fi = ui.click(x, y, w, h, action);
         boolean hover = ui.over(x, y, w, h);
         g.glow(x, y, w, h, h / 2f, hover ? 18f : 12f, Colors.withAlpha(accent ? tk.accent : tk.glow, hover ? 0.32f : 0.14f));
-        g.round(x, y, w, h, h / 2f, accent ? Colors.withAlpha(tk.accent, hover ? 1f : 0.92f)
+        // The accent pill is solid: see-through, the scene's edges behind it showed as a seam across it.
+        g.round(x, y, w, h, h / 2f, accent ? Colors.withAlpha(tk.accent, 1f)
                 : Colors.withAlpha(tk.panel, Math.max(0.62f, tk.glass)));
         g.stroke(x, y, w, h, h / 2f, Math.max(1f, g.d.u), accent ? Colors.mix(tk.accent, 0xFFFFFFFF, 0.3f) : hover ? tk.rim : 0x33FFFFFF);
         g.highlight(x, y, w, h, h / 2f, accent ? 0x59FFFFFF : 0x38FFFFFF);

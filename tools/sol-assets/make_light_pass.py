@@ -60,7 +60,9 @@ bool isSky(float depth) {
 
 // Distance along the view axis from a depth-buffer value (the projection's own mapping, reversed or not).
 float linearDepth(float depth) {
-    return 1.0 / max(1e-6, depth * P(8) + P(9));
+    // A depth the projection can't give (a range mismatch) reads as the end of the world, not a million blocks away.
+    float d = depth * P(8) + P(9);
+    return d > 1e-6 ? 1.0 / d : max(16.0, P(30));
 }
 
 vec3 viewAt(vec2 uv, float depth) {
@@ -184,9 +186,12 @@ void main() {
         edge = max(edge, isSky(dD) ? 1.0 : 0.0);
         // Only the land's skyline: clouds (far above the eye) keep plain edges.
         edge *= 1.0 - smoothstep(24.0, 48.0, dot(pos, P3(24)));
-        // And only at the end of the world: a hill, a player or a tree in front of farther land (Distant Horizons'
-        // or Voxy's, which the depth buffer doesn't hold) or of the sky keeps a plain edge.
-        edge *= smoothstep(0.82, 0.94, dist / max(16.0, P(30)));
+        // And only at the end of the game's own land (its chunks reach out to their corners, 1.42 render distances): a
+        // hill, a player or a tree in front of farther land or of the sky keeps a plain edge. Voxy's land past the
+        // game's far plane reads as sky in the depth buffer: where its land crosses that plane (a few render
+        // distances out) and round its hills in front of it, no line is drawn on the land.
+        float atEnd = dist / max(16.0, P(30));
+        edge *= smoothstep(0.82, 0.94, atEnd) * (1.0 - smoothstep(1.45, 1.6, atEnd));
         col += mix(P3(41), sunCol, 0.35) * edge * P(23) * smoothstep(0.7, 0.99, cosS) * P(2) * (1.0 - fogged * 0.5);
         // At night the light's glow lines every skyline (the prototypes' lit horizon edges).
         col += mix(P3(41), sunCol, 0.5) * edge * P(50) * 0.55;
@@ -222,7 +227,7 @@ void main() {
     vec3 scat = mix(P3(38), P3(41), clamp(phase * 1.4, 0.0, 1.0));
     // Night thins the scattering, unless the theme's own light (the rune, the moon) is lighting the fog.
     float amount = (1.0 - exp(-dist / fogFar * 2.0)) * P(16) * (0.12 + phase) * 0.6 * (1.0 - 0.5 * P(29) * (1.0 - P(12)));
-    float h = dot(pos, P3(24));
+    float h = clamp(dot(pos, P3(24)), -256.0, 256.0);
     // Haze lies low over the land: thickest near sea level, thinning over some 20 blocks of height in the world,
     // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
     float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
@@ -503,6 +508,18 @@ float leaves(vec2 uv) {
     return e.b > 0.5 ? 0.1 : max(e.g, e.r);
 }
 
+// The trail so far round a point, a little blurred: each frame softens what's older, so a swing fades out as one
+// blurred streak of light instead of keeping each frame's edges.
+float trailBefore(vec2 uv) {
+    vec2 t = 1.25 / vec2(textureSize(PrevSampler, 0));
+    float c = texture(PrevSampler, uv).g * 0.36;
+    c += (texture(PrevSampler, uv + vec2(t.x, 0.0)).g + texture(PrevSampler, uv - vec2(t.x, 0.0)).g
+            + texture(PrevSampler, uv + vec2(0.0, t.y)).g + texture(PrevSampler, uv - vec2(0.0, t.y)).g) * 0.11;
+    c += (texture(PrevSampler, uv + t).g + texture(PrevSampler, uv - t).g
+            + texture(PrevSampler, uv + vec2(t.x, -t.y)).g + texture(PrevSampler, uv - vec2(t.x, -t.y)).g) * 0.05;
+    return c;
+}
+
 // What they left at a point the frame before.
 float left(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
@@ -518,7 +535,11 @@ mat2 turn(float a) {
 void main() {
     float own = leaves(texCoord);
     // Less a half step, so an 8-bit target fades all the way out.
-    float trail = max(texture(PrevSampler, texCoord).g * P(89) - 0.5 / 255.0, 0.0);
+    float trail = max(trailBefore(texCoord) * P(89) - 0.5 / 255.0, 0.0);
+    // Where along the path each step samples, shifted a little per pixel: the gaps between steps on a fast swing turn
+    // into a fine grain the next frame's blur smooths away, not copies of the hand. Interleaved gradient noise: its
+    // grain is even, so a small blur takes it out (a hash's clumps showed as specks).
+    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     vec2 asp = vec2(P(28), 1.0);
     vec2 q = texCoord * asp;
     for (int h = 0; h < 2; h++) {
@@ -537,7 +558,7 @@ void main() {
                 break;
             }
             // s of the way from where it was (0) to now (1): the point of this frame that was here then.
-            float s = float(k) / steps;
+            float s = (float(k) - jitter + 0.5) / steps;
             mat2 m = turn(a * (1.0 - s)) * (stretch * (1.0 - s) + mat2(s));
             float det = m[0][0] * m[1][1] - m[1][0] * m[0][1];
             if (abs(det) < 1e-5) {

@@ -215,6 +215,7 @@ public final class KnifeRenderer {
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
         boolean bench = BENCH && ++shownFrames > WARM_UP;
         long benchStart = bench ? System.nanoTime() : 0L, benchAlloc = bench ? allocated() : 0L;
+        boolean preset = false;
         try {
             float now = now();
             if (view == null || view.knife != knife) {
@@ -254,7 +255,8 @@ public final class KnifeRenderer {
             shakeY = view.pose.camera[1] * shake;
             shakeZ = view.pose.camera[2] * shake;
 
-            RenderType knifeType = knifeType(knife);
+            colours(knife, now);
+            RenderType knifeType = colouredType(knife);
             if (player.tickCount != skinTick) {
                 // Your skin, looked up once a tick (the lookup allocates).
                 skinTick = player.tickCount;
@@ -292,6 +294,7 @@ public final class KnifeRenderer {
             // are right-handed), pixels to blocks, the eye at the origin. Kept as a matrix the vertices take, so the
             // hand's pose is handed over as it is (no pose pushed).
             local(player, partialTick, lower, player.getMainArm() == HumanoidArm.LEFT, view.eye);
+            preset = PunchyModule.knifePreset(poseStack);
             trail(poseStack.last(), view, player.getMainArm() != HumanoidArm.LEFT);
             //? if >=1.21.9 {
             buffers.submitCustomGeometry(poseStack, knifeType, PASSES[0]);
@@ -308,6 +311,9 @@ public final class KnifeRenderer {
             shownLastFrame = false;
             return false;
         } finally {
+            if (preset) {
+                poseStack.popPose();
+            }
             if (RenderStats.TIMING) {
                 RenderStats.nanos += System.nanoTime() - start;
             }
@@ -326,40 +332,24 @@ public final class KnifeRenderer {
         return Compat.PUNCHY && io.github.georgwav.cosmetics.client.Modules.PUNCHY.enabled();
     }
 
-    /** While Punchy draws its own hands this frame and the main one is a knife: its main arm and item are skipped. */
-    private static boolean punchyPass;
+    /**
+     * Whether the hands are the knife alone this frame, {@code shown} being the main-hand item the game is about to
+     * draw: Punchy draws its own model at the start of the hands (its own way, not through the game's arm and item
+     * methods), so while a knife is coming out or in hand the knife is drawn there instead and the rest is skipped:
+     * the knife draws both hands as its pack animates them, so there's never a second arm, sword or offhand item.
+     */
+    public static boolean drawsAlone(ItemStack shown) {
+        var p = Minecraft.getInstance().player;
+        return p != null && punchyActive() && !p.isScoping() && shown == p.getMainHandItem() && knifeFor(p, shown) != null;
+    }
 
     /**
-     * The game starts drawing the hands, {@code shown} being the main-hand item it draws: when Punchy draws its own
-     * model first and that item is a knife coming out or in hand, Punchy's main arm and item are left out of its model
-     * (the knife draws them), so there's never a second arm or sword. Punchy keeps the offhand and every other item.
+     * Whether the game's offhand (its arm or what it holds, a shield or a totem) is left out this frame: the knife
+     * in your main hand is showing, and its pack draws your other hand itself.
      */
-    public static void handsStart(ItemStack shown) {
+    public static boolean hidesOffhand() {
         var p = Minecraft.getInstance().player;
-        punchyPass = p != null && punchyActive() && shown == p.getMainHandItem() && knifeFor(p, shown) != null;
-    }
-
-    /** Punchy's model is done (the game draws its own hands next). */
-    public static void handsEnd() {
-        punchyPass = false;
-    }
-
-    /** Whether Punchy's model leaves out this arm now. */
-    public static boolean skipPunchyArm(HumanoidArm arm) {
-        var p = Minecraft.getInstance().player;
-        return punchyPass && p != null && arm == p.getMainArm();
-    }
-
-    /** Whether Punchy's model leaves out this item now: the main-hand item, held in the main arm. */
-    public static boolean skipPunchyItem(net.minecraft.world.entity.LivingEntity entity, ItemStack stack,
-                                         net.minecraft.world.item.ItemDisplayContext context) {
-        var p = Minecraft.getInstance().player;
-        if (!punchyPass || p == null || entity != p) {
-            return false;
-        }
-        boolean left = context == net.minecraft.world.item.ItemDisplayContext.FIRST_PERSON_LEFT_HAND
-                || context == net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
-        return left == (p.getMainArm() == HumanoidArm.LEFT) && (stack == p.getMainHandItem() || ItemStack.matches(stack, p.getMainHandItem()));
+        return shownLastFrame && view != null && p != null && knifeFor(p, p.getMainHandItem()) != null;
     }
 
     // ------------------------------------------------------------------ sway, shake and movement
@@ -443,11 +433,15 @@ public final class KnifeRenderer {
         float w = v.move.weight;
         v.move.weight = target > w ? Math.min(target, w + dt * 5f) : Math.max(target, w - dt * 5f);
         v.move.clip = rig.angel(clip, v.behaviour.angel());
+        // One loop of the clip a stride: the game swings the legs on cos(position * 0.6662), so a stride is 2 pi / 0.6662
+        // of its walk position (a loop every 2 of it raced the clip some 8 times a second: the knife wiggled).
         float steps = p.walkAnimation.position(pt);
-        v.move.time = v.move.clip.length > 0f ? (steps % 2f) / 2f * v.move.clip.length : 0f;
+        v.move.time = v.move.clip.length > 0f ? (steps % STRIDE) / STRIDE * v.move.clip.length : 0f;
     }
 
     private static final float DEG = (float) (Math.PI / 180.0);
+    /** The game's walk position over one stride (both legs). */
+    static final float STRIDE = (float) (2.0 * Math.PI / 0.6662);
 
     /** The Dark Star set the knife shows: 0 random each draw, 1 Devil, 2 Angel. */
     private static int angelChoice(Knife knife) {
@@ -574,6 +568,8 @@ public final class KnifeRenderer {
             n20 = b20; n21 = b21; n22 = b22;
         }
         boolean oneCall = !Compat.isShaderPackActive();
+        // The player's tint on the knife in hand (third person and the arms keep their own colours).
+        int colour = pass == ARMS || third ? 0xFFFFFFFF : tint;
         int packed = pass == LIT ? MeshEmitter.FULL_BRIGHT : light;
         KnifeGeo.Bone[] bones = p.geo.bones;
         float[] w = p.world;
@@ -632,7 +628,7 @@ public final class KnifeRenderer {
                             c00 * x + c01 * y + c02 * z + c03,
                             c10 * x + c11 * y + c12 * z + c13,
                             c20 * x + c21 * y + c22 * z + c23,
-                            0xFFFFFFFF, quads[i + 3], quads[i + 4], packed, nx, ny, nz);
+                            colour, quads[i + 3], quads[i + 4], packed, nx, ny, nz);
                 }
                 vertices += 4;
             }
@@ -663,6 +659,62 @@ public final class KnifeRenderer {
         return (RenderType) k.renderType;
     }
 
+    /** The knife in hand's render type in the player's colours ({@link #colours} worked them out this frame). */
+    private static RenderType colouredType(Knife k) {
+        RenderType plain = knifeType(k);
+        io.github.georgwav.cosmetics.render.Recolor r = recolor;
+        int[] source = k.cutSource;
+        if (r == null || source == null || !(k.cutTexture instanceof SolTexture)) {
+            return plain;
+        }
+        // The player's colours: the cut texture recoloured (again at most every eighth of a second while a slider moves).
+        long now = System.nanoTime();
+        if (k.recolorTexture == null || !r.equals(k.recolorWith) && now - k.recolorMade > 120_000_000L) {
+            if (k.recolorPixels == null) {
+                k.recolorPixels = new int[source.length];
+            }
+            r.applyAll(source, k.recolorPixels);
+            if (k.recolorTexture instanceof SolTexture t) {
+                t.upload(k.recolorPixels);
+            } else {
+                SolTexture t = SolTexture.of("knife/" + k.id.replace(':', '/').toLowerCase(Locale.ROOT) + "_colour",
+                        k.cutWidth, k.cutHeight, false, k.recolorPixels);
+                k.recolorTexture = t;
+                k.recolorType = CosmeticRenderTypes.create(t.id.toString(), RenderMode.CUTOUT);
+            }
+            k.recolorWith = r;
+            k.recolorMade = now;
+        }
+        return (RenderType) k.recolorType;
+    }
+
+    /** The recolour the knife in hand is drawn with this frame (null: as its pack made it), and its tint (ARGB). */
+    private static io.github.georgwav.cosmetics.render.Recolor recolor;
+    private static int tint = 0xFFFFFFFF;
+
+    /** The knife's colours from its Wardrobe settings, as other cosmetics take theirs (see CosmeticRenderer). */
+    private static void colours(Knife k, float now) {
+        var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
+        var baked = io.github.georgwav.cosmetics.model.CosmeticRegistry.get(k.id);
+        if (baked == null) {
+            recolor = null;
+            tint = 0xFFFFFFFF;
+            return;
+        }
+        var options = config.options(k.id);
+        int allowed = config.allowedOptions(baked);
+        var base = io.github.georgwav.cosmetics.render.Recolor.of(options, allowed, 0xFFFFFF);
+        boolean picked = io.github.georgwav.cosmetics.render.Tint.picked(options, allowed);
+        boolean rainbow = io.github.georgwav.cosmetics.render.Tint.rainbow(options, allowed);
+        int colour = io.github.georgwav.cosmetics.render.Tint.argb(options, baked, now);
+        int[] source = k.cutSource;
+        var paint = picked && source != null ? io.github.georgwav.cosmetics.render.Recolor.paintFor(options.colorStyle, true,
+                rainbow, k.coloured, source.length) : io.github.georgwav.cosmetics.render.Recolor.Paint.NONE;
+        recolor = io.github.georgwav.cosmetics.render.Recolor.painted(base, paint,
+                rainbow ? io.github.georgwav.cosmetics.render.Recolor.rainbowStep(colour) : colour);
+        tint = picked && paint != io.github.georgwav.cosmetics.render.Recolor.Paint.COLORED ? colour | 0xFF000000 : 0xFFFFFFFF;
+    }
+
     /** Reads the knife's texture and cuts it (off the game's thread). */
     private static void cut(Knife k) {
         try {
@@ -679,6 +731,8 @@ public final class KnifeRenderer {
                 k.cutWidth = image.getWidth();
                 k.cutHeight = image.getHeight();
                 k.solid = Knife.solidQuads(k.rig.geo, out, image.getWidth(), image.getHeight());
+                k.coloured = io.github.georgwav.cosmetics.render.Recolor.coloured(out);
+                k.cutSource = out.clone();
                 k.cutPixels = out;
             }
         } catch (Exception e) {

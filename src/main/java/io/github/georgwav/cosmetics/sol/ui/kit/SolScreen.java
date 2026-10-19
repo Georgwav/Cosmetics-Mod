@@ -145,6 +145,11 @@ public abstract class SolScreen extends Screen {
         canvas.push();
         canvas.scale((float) (1.0 / gs), (float) (1.0 / gs));
         g.begin(canvas);
+        if (minecraft.level == null) {
+            // Before any world (the title screen at launch): the theme's colours from the first frame, and a theme
+            // change animating every frame.
+            io.github.georgwav.cosmetics.sol.theme.ThemeState.update(Float.NaN);
+        }
         boolean ok = Guard.on(feature) && Guard.run(feature, () -> frame(g));
         g.end();
         canvas.pop();

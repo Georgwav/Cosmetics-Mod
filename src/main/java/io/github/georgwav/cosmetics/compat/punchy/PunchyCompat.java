@@ -89,6 +89,35 @@ public final class PunchyCompat {
         }
     }
 
+    /**
+     * Sol's preset for Punchy's hands (Georg's tuning: smaller and nearer the middle, swords and blocks set right),
+     * applied through Punchy's public tuning API ({@code PunchyTuningConfig.applyProfileFromFileLight} then
+     * {@code saveCurrent}), so it becomes Punchy's own and stays until the player changes it there. Whether it was
+     * applied (false when Punchy has no such API: then it isn't tried again).
+     */
+    public static boolean applyTuning(java.nio.file.Path folder) {
+        try (java.io.InputStream in = PunchyCompat.class.getResourceAsStream("/assets/cosmeticsmod/punchy/sol_tuning.json")) {
+            if (in == null) {
+                return false;
+            }
+            Class<?> tuning = Class.forName("punchy.config.PunchyTuningConfig");
+            Method apply = tuning.getMethod("applyProfileFromFileLight", java.nio.file.Path.class);
+            Method save = tuning.getMethod("saveCurrent");
+            java.nio.file.Files.createDirectories(folder);
+            java.nio.file.Path file = folder.resolve("punchy_sol_tuning.json");
+            java.nio.file.Files.write(file, in.readAllBytes());
+            boolean ok = Boolean.TRUE.equals(apply.invoke(null, file));
+            if (ok) {
+                save.invoke(null);
+            }
+            CosmeticsMod.LOGGER.info("[Sol] Punchy's hands set to Sol's preset{}", ok ? "" : " (Punchy didn't take it)");
+            return ok;
+        } catch (ReflectiveOperationException | LinkageError | java.io.IOException | RuntimeException e) {
+            CosmeticsMod.LOGGER.warn("[Sol] Couldn't give Punchy Sol's hand preset: {}", e.toString());
+            return false;
+        }
+    }
+
     /** The settings PvP mode changes, for reading saved values back with the right type. */
     public static boolean calms(String field) {
         return CALM.containsKey(field);
