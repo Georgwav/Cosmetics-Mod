@@ -422,7 +422,7 @@ void main() {
     # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
     # size setting, up to 3x), from the distance field; or, for the soft style, a softer fade with no bright core,
     # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the glow rising
-    # off their top edges, about 45 px up and a few to the side (times the size, up to 60 px), its top flickering like
+    # off their top edges, about 50 px up and a few to the side (times the size, up to 65 px), its top flickering like
     # a flame. Blue: the hands themselves (never filled).
     "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
@@ -478,9 +478,9 @@ void main() {
         // The rising glow: strong for about half its height, then fading softly; its reach wavers in narrow tongues
         // that rise, so its top flickers like a flame.
         vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(20.0, 15.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 9.0, w.y / 18.0 - P(22) * 2.6)));
+        float reach = min(22.0, 18.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 14.0, w.y / 24.0 - P(22) * 2.4)));
         // The field stops at 32 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.45 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        float rising = (1.0 - smoothstep(0.35 * reach, reach, dists.y)) * step(dists.y, 30.0);
         green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
