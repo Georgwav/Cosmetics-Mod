@@ -708,6 +708,25 @@ public final class Gfx {
         GuiDraw.vertex(x1, y0, u1, v0, c);
     }
 
+    /**
+     * A texture over a shape bounded by two polylines (screen pixels, as {@link #fillBetween}), each point with its
+     * own place on the texture: a picture seen through an annulus sector.
+     */
+    public void imageBetween(SolTexture t, float[] ix, float[] iy, float[] ox, float[] oy, float[] iu, float[] iv,
+                             float[] ou, float[] ov, int n, int argb) {
+        if (t == null || t.released() || Colors.a(argb) == 0) {
+            return;
+        }
+        use(t, false);
+        int c = a(argb);
+        for (int i = 0; i + 1 < n; i++) {
+            GuiDraw.vertex(ix[i], iy[i], iu[i], iv[i], c);
+            GuiDraw.vertex(ox[i], oy[i], ou[i], ov[i], c);
+            GuiDraw.vertex(ox[i + 1], oy[i + 1], ou[i + 1], ov[i + 1], c);
+            GuiDraw.vertex(ix[i + 1], iy[i + 1], iu[i + 1], iv[i + 1], c);
+        }
+    }
+
     /** A texture quad with free corners (rotated sprites), screen pixels. */
     public void imageQuad(SolTexture t, float[] xs, float[] ys, int argb, boolean additive) {
         if (t == null || t.released() || Colors.a(argb) == 0) {

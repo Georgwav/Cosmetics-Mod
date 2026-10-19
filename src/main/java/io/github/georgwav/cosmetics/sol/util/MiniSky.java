@@ -42,6 +42,11 @@ public final class MiniSky {
 
     /** The theme's frame at {@code w} x {@code h} pixels (the prototypes' cards are 112 x 46 at 2x). */
     public static PixelCanvas render(ThemeSpec th, String id, int w, int h, float t) {
+        return render(th, id, w, h, t, true);
+    }
+
+    /** The same, with or without the theme's particles (left out where they are drawn live over the picture). */
+    public static PixelCanvas render(ThemeSpec th, String id, int w, int h, float t, boolean particles) {
         PixelCanvas g = new PixelCanvas(w, h);
         float W = w, H = h, sc = H / 560f, hz = H * 0.64f;
         int[] sky = {th.sky().top(), th.sky().middle(), th.sky().horizon()};
@@ -192,7 +197,7 @@ public final class MiniSky {
         if (fd > 0.6f) {
             g.fillRect(0, hz, W, H - hz, Colors.withAlpha(fog, (fd - 0.6f) * 0.9f));
         }
-        for (Part p : parts) {
+        for (Part p : particles ? parts : List.<Part>of()) {
             part(g, p, W, H, sc, fd, t);
         }
         g.setGlobalAlpha(1f);

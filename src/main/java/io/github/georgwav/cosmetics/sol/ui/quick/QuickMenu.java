@@ -102,6 +102,11 @@ public final class QuickMenu extends SolScreen {
     private final List<Hit> hits = new ArrayList<>();
     private float presetScroll = Float.NaN;
     private final PresetThumbs thumbs = new PresetThumbs();
+    private final WheelSkies skies = new WheelSkies();
+    /** For the dev scenario: the theme whose sector stays pointed at, or null. */
+    private String stagedHot;
+    /** Per wheel item, how far it is pointed at (0..1, eased), for its lift and light. */
+    private final float[] hotK = new float[128];
     private Wheel wheel = Wheel.NONE;
     private float wheelT;
     /** The wheel's items this frame, and the one pointed at (-1 none). */
@@ -121,6 +126,8 @@ public final class QuickMenu extends SolScreen {
         int inner, outer;
         boolean current;
         ThemeRegistry.Entry theme;
+        /** The theme whose sky fills the sector (a theme's own, or the one a profile wears), or null. */
+        ThemeRegistry.Entry sky;
         Emote emote;
         int slot = -1;
         Runnable action, alt;
@@ -190,7 +197,7 @@ public final class QuickMenu extends SolScreen {
                 meHover = true;
                 meFresh = false;
             }
-            case "presets", "emotes", "emote_picker" -> {
+            case "presets", "presets_hot", "emotes", "emote_picker" -> {
                 if (!meRing) {
                     toggleMe();
                 }
@@ -199,6 +206,9 @@ public final class QuickMenu extends SolScreen {
                 openWheel(state.startsWith("emote") ? Wheel.EMOTES : Wheel.PRESETS);
                 if (state.equals("emote_picker")) {
                     picker = new EmotePicker(elytraWheel, 0);
+                }
+                if (state.equals("presets_hot")) {
+                    stagedHot = "ember_solstice";
                 }
             }
             case "back" -> {
@@ -1002,6 +1012,7 @@ public final class QuickMenu extends SolScreen {
                 it.inner = k != null ? Colors.mix(k.horizon(), 0xFF0C0E14, 0.45f) : 0xFF1A1C24;
                 it.outer = k != null ? Colors.mix(k.top(), 0xFF0C0E14, 0.45f) : 0xFF0C0E14;
                 it.current = name.equals(active);
+                it.sky = t;
                 it.action = () -> SolProfiles.switchTo(name);
                 own.add(it);
             }
@@ -1061,6 +1072,7 @@ public final class QuickMenu extends SolScreen {
         it.inner = Colors.mix(k.horizon(), k.glow(), 0.25f);
         it.outer = Colors.mix(k.top(), 0xFF000000, 0.2f);
         it.current = e.id().equals(current);
+        it.sky = e;
         String id = e.id();
         it.action = () -> applyPreset(id);
         return it;
@@ -1080,6 +1092,11 @@ public final class QuickMenu extends SolScreen {
 
     private void wheelLayer(Gfx g, Tokens tk) {
         buildWheel();
+        for (int i = 0; stagedHot != null && i < items.size(); i++) {
+            if (items.get(i).theme != null && items.get(i).theme.id().equals(stagedHot)) {
+                wheelHot = i;
+            }
+        }
         if (wheelHot >= items.size()) {
             wheelHot = -1;
         }
@@ -1095,6 +1112,14 @@ public final class QuickMenu extends SolScreen {
             boolean hot = i == wheelHot;
             float s = 0.86f + 0.14f * pop(in);
             g.alpha = base * Math.min(1f, in * 1.6f);
+            if (i < hotK.length) {
+                float k = hot ? 1f : 0f;
+                hotK[i] = calm() ? k : hotK[i] + (k - hotK[i]) * Math.min(1f, dt * 12f);
+            }
+            if (wheel == Wheel.PRESETS && it.sky != null) {
+                skySector(g, tk, it, i, s, i < hotK.length ? hotK[i] : 0f, name);
+                continue;
+            }
             band.cx = g.d.sx(CX);
             band.cy = g.d.sy(CY);
             band.r0 = it.r0 * s * g.d.u;
@@ -1193,6 +1218,219 @@ public final class QuickMenu extends SolScreen {
             py[n + 1 + i] = iy[n - i];
         }
         g.strokePath(px, py, (n + 1) * 2, true, width * g.d.u, g.flat(edge));
+    }
+
+    // Scratch for the sky sectors (reused, so the wheel allocates nothing a frame).
+    private final float[] sIx = new float[64], sIy = new float[64], sOx = new float[64], sOy = new float[64];
+    private final float[] sIu = new float[64], sIv = new float[64], sOu = new float[64], sOv = new float[64];
+    private final float[] sPx = new float[128], sPy = new float[128];
+
+    /**
+     * A sector with its theme's sky in it: the picture upright, as through a window, drifting slowly, with the theme's
+     * particles alive over it. Pointed at ({@code k} 1), it lifts out of the ring, lights up and its sky moves; the
+     * others dim a little meanwhile.
+     */
+    private void skySector(Gfx g, Tokens tk, Item it, int index, float s, float k, SolFont font) {
+        double mid = Math.toRadians(it.mid());
+        float lift = 8f * k, cx = CX + lift * (float) Math.cos(mid), cy = CY + lift * (float) Math.sin(mid);
+        float r0 = it.r0 * s, r1 = it.r1 * s;
+        int n = Math.min(63, Math.max(6, Math.round((it.a1 - it.a0) / 2.5f)));
+        float bx0 = Float.MAX_VALUE, by0 = Float.MAX_VALUE, bx1 = -Float.MAX_VALUE, by1 = -Float.MAX_VALUE;
+        for (int j = 0; j <= n; j++) {
+            double t = Math.toRadians(it.a0 + (it.a1 - it.a0) * j / n);
+            float c = (float) Math.cos(t), sn = (float) Math.sin(t);
+            sIx[j] = cx + r0 * c;
+            sIy[j] = cy + r0 * sn;
+            sOx[j] = cx + r1 * c;
+            sOy[j] = cy + r1 * sn;
+            bx0 = Math.min(bx0, Math.min(sIx[j], sOx[j]));
+            bx1 = Math.max(bx1, Math.max(sIx[j], sOx[j]));
+            by0 = Math.min(by0, Math.min(sIy[j], sOy[j]));
+            by1 = Math.max(by1, Math.max(sIy[j], sOy[j]));
+        }
+        // The picture covers the sector's box with a little to spare, and drifts within that.
+        float bw = bx1 - bx0, bh = by1 - by0, aspect = (float) WheelSkies.W / WheelSkies.H;
+        float pw = Math.max(bw, bh * aspect) * 1.14f, ph = pw / aspect;
+        float drift = calm() ? 0f : 0.4f;
+        float px0 = (bx0 + bx1 - pw) / 2f + (pw - bw) / 2f * drift * (float) Math.sin(wheelT * 0.11f + index * 1.3f);
+        float py0 = (by0 + by1 - ph) / 2f + (ph - bh) / 2f * drift * (float) Math.cos(wheelT * 0.09f + index * 2.1f);
+        for (int j = 0; j <= n; j++) {
+            sIu[j] = (sIx[j] - px0) / pw;
+            sIv[j] = (sIy[j] - py0) / ph;
+            sOu[j] = (sOx[j] - px0) / pw;
+            sOv[j] = (sOy[j] - py0) / ph;
+            sIx[j] = g.d.sx(sIx[j]);
+            sIy[j] = g.d.sy(sIy[j]);
+            sOx[j] = g.d.sx(sOx[j]);
+            sOy[j] = g.d.sy(sOy[j]);
+        }
+        float dim = wheelHot >= 0 ? 0.6f : 0.84f;
+        float bright = it.current ? Math.max(dim, 0.92f) : dim;
+        bright += (1f - bright) * k;
+        SolTexture sky = skies.get(it.sky, wheelT, k > 0.5f || it.current);
+        if (sky != null) {
+            int v = Math.round(bright * 255f);
+            g.imageBetween(sky, sIx, sIy, sOx, sOy, sIu, sIv, sOu, sOv, n + 1, 0xFF000000 | v << 16 | v << 8 | v);
+        } else {
+            band.cx = g.d.sx(cx);
+            band.cy = g.d.sy(cy);
+            band.r0 = r0 * g.d.u;
+            band.r1 = r1 * g.d.u;
+            band.c0 = Colors.withAlpha(it.inner, 0.9f);
+            band.c1 = Colors.withAlpha(it.outer, 0.92f);
+            g.fillBetween(sIx, sIy, sOx, sOy, n + 1, band);
+        }
+        for (int pass = 0; pass < 2; pass++) {
+            liveParticles(g, it, cx, cy, r0, r1, bx0, by0, bw, bh, bright, pass == 0);
+        }
+        // Its rim, a halo spilling out while pointed at, and the theme in use breathing in the accent.
+        for (int j = 0; j <= n; j++) {
+            sPx[j] = sOx[j];
+            sPy[j] = sOy[j];
+            sPx[n + 1 + j] = sIx[n - j];
+            sPy[n + 1 + j] = sIy[n - j];
+        }
+        int edge = it.current ? tk.accent : Colors.mix(0x40FFFFFF, Colors.withAlpha(light.lightRgb, 0.95f), k);
+        g.strokePath(sPx, sPy, (n + 1) * 2, true, (it.current || k > 0.5f ? 1.5f : 1f) * g.d.u, g.flat(edge));
+        float ex = CX + (r1 + lift) * (float) Math.cos(mid), ey = CY + (r1 + lift) * (float) Math.sin(mid);
+        if (k > 0.01f) {
+            g.glowSprite(ex, ey, 52f, 52f, Colors.withAlpha(light.lightRgb, 0.24f * k));
+        }
+        if (it.current) {
+            float breathe = calm() ? 0.5f : 0.5f + 0.5f * (float) Math.sin(wheelT * 1.8f);
+            g.glowSprite(ex, ey, 46f, 46f, Colors.withAlpha(tk.glow, 0.1f + 0.08f * breathe));
+        }
+        // The name over a soft shade, so it reads on the brightest sky.
+        float rm = (r0 + r1) / 2f;
+        float x = cx + rm * (float) Math.cos(mid), y = cy + rm * (float) Math.sin(mid);
+        float room = Math.min(110f, (float) Math.toRadians(it.a1 - it.a0) * rm - 8f);
+        g.radial(x, y, Math.min(46f, room / 2f + 10f), 18f, g.radialA.set(0f, 0f, 1f).stop(0f, 0x73000000).stop(0.55f, 0x40000000)
+                .stop(1f, 0x00000000), 20);
+        boolean shadow = g.shadow;
+        g.shadow = true;
+        lines(g, font, it.title, x, y, room, it.current || k > 0.5f ? 0xFFFFFFFF : 0xE6FFFFFF);
+        g.shadow = shadow;
+    }
+
+    /** A number in [0, 1) made up from two others: a particle's fixed traits, from its theme and its number. */
+    private static float hash01(int a, int b) {
+        int h = a * 0x9E3779B1 + b * 0x85EBCA77;
+        h ^= h >>> 15;
+        h *= 0x2C1B3C6D;
+        h ^= h >>> 12;
+        h *= 0x297A2D39;
+        h ^= h >>> 15;
+        return (h >>> 8) / 16777216f;
+    }
+
+    private static float frac(float x) {
+        return x - (float) Math.floor(x);
+    }
+
+    /**
+     * The theme's particles over its sector, moving as they do in its sky: embers rising and flickering, fireflies
+     * wandering low and blinking, petals and leaves fluttering down, snow and ash drifting, rain streaking, dust
+     * hanging, sparkles twinkling; night themes add a few twinkling stars. Only what falls inside the sector shows,
+     * fading at its edges. {@code glowing}: this pass draws the glowing ones (added light), else the solid ones.
+     */
+    private void liveParticles(Gfx g, Item it, float cx, float cy, float r0, float r1, float bx, float by, float bw,
+                               float bh, float bright, boolean glowing) {
+        ThemeSpec th = it.sky.base();
+        List<ThemeSpec.Emitter> emitters = th.particles();
+        int total = 0;
+        for (ThemeSpec.Emitter e : emitters) {
+            total += e.count();
+        }
+        int seed = it.sky.id().hashCode();
+        float time = calm() ? 0f : wheelT, sizeK = bh / 140f, half = (it.a1 - it.a0) / 2f;
+        float tau = (float) (Math.PI * 2);
+        int k = 0;
+        for (int ei = 0; ei <= emitters.size(); ei++) {
+            boolean stars = ei == emitters.size();
+            if (stars && !"night".equals(th.show().phase())) {
+                break;
+            }
+            ThemeSpec.Emitter e = stars ? null : emitters.get(ei);
+            String type = stars ? "star" : e.type();
+            int count = stars ? 5 : total == 0 ? 0 : Math.max(2, Math.round(Math.min(14f, Math.max(5f, total * 0.12f)) * e.count() / total));
+            for (int j = 0; j < count; j++, k++) {
+                float q1 = hash01(seed, k * 5), q2 = hash01(seed, k * 5 + 1), q3 = hash01(seed, k * 5 + 2);
+                float q4 = hash01(seed, k * 5 + 3), q5 = hash01(seed, k * 5 + 4);
+                float u, v, a = 1f;
+                boolean glow = true, streak = false;
+                switch (type) {
+                    case "ember" -> {
+                        v = 1f - frac(q2 + time * 0.07f * (0.6f + q3));
+                        u = q1 + 0.04f * (float) Math.sin(time * 1.3f + q4 * tau);
+                        a = 0.55f + 0.45f * (float) Math.sin(time * 6f + q5 * tau);
+                    }
+                    case "firefly" -> {
+                        u = q1 + 0.06f * (float) Math.sin(time * 0.5f + q4 * tau);
+                        v = 0.58f + 0.36f * q2 + 0.04f * (float) Math.cos(time * 0.7f + q5 * tau);
+                        float b = Math.max(0f, (float) Math.sin(time * 1.6f + q3 * tau));
+                        a = b * b * b;
+                    }
+                    case "rain" -> {
+                        v = frac(q2 + time * 0.9f * (0.8f + q3));
+                        u = q1 - v * 0.05f;
+                        glow = false;
+                        streak = true;
+                        a = 0.55f;
+                    }
+                    case "petal", "blossom", "leaf" -> {
+                        v = frac(q2 + time * 0.06f * (0.6f + q3));
+                        u = q1 + 0.05f * (float) Math.sin(time * 1.1f + q4 * tau) + time * 0.012f;
+                        a = 0.65f + 0.35f * Math.abs((float) Math.cos(time * 2f + q5 * tau));
+                        glow = false;
+                    }
+                    case "snow", "flake", "ash" -> {
+                        v = frac(q2 + time * 0.045f * (0.6f + q3));
+                        u = q1 + 0.03f * (float) Math.sin(time * 0.9f + q4 * tau);
+                        glow = "flake".equals(type);
+                        a = 0.85f;
+                    }
+                    case "dust" -> {
+                        u = q1 + 0.03f * (float) Math.sin(time * 0.3f + q4 * tau);
+                        v = q2 + 0.03f * (float) Math.cos(time * 0.25f + q5 * tau);
+                        a = 0.5f + 0.3f * (float) Math.sin(time * 1.2f + q3 * tau);
+                        glow = false;
+                    }
+                    case "star" -> {
+                        u = q1;
+                        v = q2 * 0.5f;
+                        float tw = 0.5f + 0.5f * (float) Math.sin(time * (1.5f + q3 * 2f) + q5 * tau);
+                        a = tw * tw;
+                    }
+                    default -> {
+                        u = q1;
+                        v = q2 * 0.9f;
+                        float tw = 0.5f + 0.5f * (float) Math.sin(time * 2.2f + q5 * tau);
+                        a = tw * tw;
+                    }
+                }
+                if (glow != glowing || a <= 0.02f) {
+                    continue;
+                }
+                float x = bx + frac(u) * bw, y = by + Math.max(0f, Math.min(1f, v)) * bh;
+                float dx = x - cx, dy = y - cy, d = (float) Math.hypot(dx, dy);
+                float off = Math.abs(QuickLight.norm((float) Math.toDegrees(Math.atan2(dy, dx)) - it.mid()));
+                float fade = Math.min(Math.min(d - r0 - 2f, r1 - 2f - d) / 6f, (half - 1f - off) / 3f);
+                if (fade <= 0f) {
+                    continue;
+                }
+                a *= Math.min(1f, fade) * (0.45f + 0.55f * bright);
+                int c = stars ? 0xFFFFFFFF : e.colors()[Math.min(e.colors().length - 1, (int) (q3 * e.colors().length))];
+                float size = stars ? 1.1f
+                        : Math.max(0.8f, Math.min(3.2f, (e.minSize() + (e.maxSize() - e.minSize()) * q4) * sizeK));
+                if (glow) {
+                    g.glowSprite(x, y, size * 2.8f, size * 2.8f, Colors.withAlpha(c, Math.min(1f, a)));
+                } else if (streak) {
+                    g.line(x, y, x - 1.2f, y + 6f * sizeK + 3f, Math.max(1f, g.d.u * 0.8f), Colors.withAlpha(c, Math.min(1f, a)));
+                } else {
+                    g.disc(x, y, size * 0.6f, g.flat(Colors.withAlpha(c, Math.min(1f, a))));
+                }
+            }
+        }
     }
 
     /** Under a wheel: the preset pointed at as a picture, or the emote wheel's pages. */
@@ -1606,6 +1844,7 @@ public final class QuickMenu extends SolScreen {
             sunTex.release();
         }
         thumbs.release();
+        skies.release();
         pictures.close();
     }
 

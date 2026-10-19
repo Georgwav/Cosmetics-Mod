@@ -34,7 +34,7 @@ public final class SolScenario {
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
-            "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
+            "quick_mods", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
