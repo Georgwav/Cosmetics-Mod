@@ -34,7 +34,9 @@ float luma(vec3 c) {
 }
 
 void main() {
-    vec2 e = texture(EdgeSampler, texCoord).rg;
-    vec2 p = texture(PrevSampler, texCoord).rg * P(89);
-    fragColor = vec4(max(p, e), 0.0, 1.0);
+    // The outline, its glow and the hands' shape where they are now, over what's left of them from before (less a
+    // half step, so an 8-bit target fades all the way out).
+    vec3 e = texture(EdgeSampler, texCoord).rgb;
+    vec3 p = max(texture(PrevSampler, texCoord).rgb * P(89) - 0.5 / 255.0, 0.0);
+    fragColor = vec4(max(p, e), 1.0);
 }

@@ -54,7 +54,10 @@ public final class PunchyModule extends Module {
      * out to be the motion trail).
      */
     private final Setting.Toggle glowLines = add(new Setting.Toggle("rising_lines", false).group("glow"));
-    /** While the hands move (a swing), their outlines stay a moment behind them: a fan of lines fading out. */
+    /**
+     * While the hands move (a swing, or just walking), where they were stays a moment behind them: see-through copies
+     * of them with their outlines, fading out.
+     */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
     // Knives (a melee cosmetic held in place of a sword).
@@ -325,10 +328,11 @@ public final class PunchyModule extends Module {
         // How much of the trail is left after this frame: half of it goes in a time set by its length, so it lasts
         // as long at any frame rate; none when the glow wasn't drawn last frame (no stale trail when it comes back).
         boolean trail = m.motionTrail.get() && continuous;
-        float halfLife = 0.03f + 0.17f * (float) (m.trailLength.get() / 100.0);
+        float halfLife = 0.04f + 0.26f * (float) (m.trailLength.get() / 100.0);
         float dt = TRAIL_DT > 0f ? TRAIL_DT : Math.min(0.25f, io.github.georgwav.cosmetics.sol.render.FrameInfo.frameSeconds);
         v[at + 13] = trail ? (float) Math.pow(0.5, dt / halfLife) : 0f;
-        v[at + 14] = m.motionTrail.get() ? 1f : 0f;
+        // The trail needs a picture kept from one frame to the next, which 1.21.2 to 1.21.5's post chains don't keep.
+        v[at + 14] = m.motionTrail.get() && io.github.georgwav.cosmetics.sol.render.LightPass.blurSupported() ? 1f : 0f;
     }
 
     private static void rgb(float[] v, int at, int c) {

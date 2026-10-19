@@ -89,6 +89,22 @@ void main() {
     float s = min(P(82), 2.0);
     vec3 glow = clamp(col * k * s * 0.7, 0.0, 1.0);
     c = 1.0 - (1.0 - c) * (1.0 - glow);
+    // The motion trail, under the outline: where the hands were, a see-through copy of them in the glow's colour with
+    // their outlines bright round it, all fading out as it ages; never over the hands themselves, and nothing while
+    // they keep still (the trail is then the hands themselves).
+    if (P(90) > 0.0) {
+        vec3 tr = max(texture(TrailSampler, texCoord).rgb - texture(EdgeSampler, texCoord).rgb, vec3(0.0)) * (1.0 - hand) * P(90);
+        vec3 tint = m > 0.02 ? g / m : P3(76);
+        vec3 tc = mix(tint, vec3(1.0), 0.3);
+        float s3 = min(P(82), 2.0);
+        c = mix(c, tint, clamp(tr.z * 0.42 * s3, 0.0, 0.7));
+        c = mix(c, tc, clamp(tr.y * 0.3 * s3, 0.0, 1.0));
+        if (outline) {
+            c = mix(c, mix(tc, vec3(1.0), 0.3), clamp(tr.x * s3, 0.0, 1.0));
+        } else {
+            c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.x * s3 * 0.6, 0.0, 1.0));
+        }
+    }
     if (outline) {
         // The line right on the edge, solid and hot, and the short glow fading out from it (see sol_hand_edge).
         vec3 e = texture(EdgeSampler, texCoord).rgb;
@@ -97,21 +113,8 @@ void main() {
         float s2 = min(P(82), 2.0);
         // Laid over what's behind in its own colour, so it shows on bright sand and snow as well as in the dark:
         // the glow first, then the line on top, whiter at its core.
-        c = mix(c, tint, clamp(band * s2 * 0.6, 0.0, 1.0));
-        c = mix(c, mix(tint, vec3(1.0), 0.5), clamp(line * s2, 0.0, 1.0));
-    }
-    // The motion trail: what's left of the outlines where the hands were, not over the hands themselves; nothing
-    // while they keep still (the trail is then the outline itself).
-    if (P(90) > 0.0) {
-        vec2 tr = max(texture(TrailSampler, texCoord).rg - texture(EdgeSampler, texCoord).rg, vec2(0.0)) * (1.0 - hand) * P(90);
-        vec3 tint = m > 0.02 ? g / m : P3(76);
-        vec3 tc = mix(tint, vec3(1.0), 0.3);
-        float s3 = min(P(82), 2.0);
-        // A faint fill over the swept area, the outlines' copies bright over it.
-        c = 1.0 - (1.0 - c) * (1.0 - clamp(tc * tr.y * s3 * 0.45, 0.0, 1.0));
-        if (outline) {
-            c = mix(c, tc, clamp(tr.x * s3, 0.0, 1.0));
-        }
+        c = mix(c, tint, clamp(band * s2 * 0.75, 0.0, 1.0));
+        c = mix(c, mix(tint, vec3(1.0), 0.35), clamp(line * s2, 0.0, 1.0));
     }
     // The lines show in the glow round the hands, brightest partway out, not over the hand.
     if (P(87) > 0.0) {

@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
@@ -270,8 +270,10 @@ public final class SolScenario {
                 if (!only.get(0).isBlank() && !only.contains(ui)) {
                     continue;
                 }
-                // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night).
-                shots.add(inPlay(ui) && !ui.equals("hands_night")
+                // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night, and the gold
+                // swing, as in Georg's video, at Ember's night).
+                shots.add(ui.equals("hands_swing_gold") ? new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH)
+                        : inPlay(ui) && !ui.equals("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
@@ -418,7 +420,7 @@ public final class SolScenario {
             return;
         }
         // The swing shot swings the sword over and over, so the outline's motion trail shows.
-        if (index >= 0 && index < shots.size() && shots.get(index).name().equals("ui_hands_swing") && tick % 7 == 0) {
+        if (index >= 0 && index < shots.size() && shots.get(index).name().startsWith("ui_hands_swing") && tick % 7 == 0) {
             //? if >=26.3 {
             /*mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
             *///?} else {
@@ -1103,13 +1105,15 @@ public final class SolScenario {
      */
     /** Whether the swing shot slowed the game (so the slow test renderer draws the trail's copies close together). */
     private static boolean slowed;
+    /** The glow's colours before the gold swing shot (null while it isn't on). */
+    private static String coloursWas;
 
     private static void handsForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
         boolean on = what.startsWith("hands");
         // The swing shot runs the game at a quarter speed: this renderer draws a few frames a second, so at full speed
         // a swing would leave one copy of the outline; slowed, it leaves the fan it does at a real frame rate.
-        boolean slow = what.equals("hands_swing");
+        boolean slow = what.startsWith("hands_swing");
         if (slow != slowed) {
             slowed = slow;
             asPlayer(Minecraft.getInstance(), List.of("tick rate " + (slow ? 5 : 20)));
@@ -1118,6 +1122,21 @@ public final class SolScenario {
             punchyWas = punchy.enabled();
             asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with diamond_sword[enchantment_glint_override=true]"));
             io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        // The gold swing: the glow in your own colour (gold until you pick another), as in Georg's video.
+        for (var st : punchy.settings()) {
+            if (st.id.equals("glow_colours")) {
+                @SuppressWarnings("unchecked")
+                var colours = (io.github.georgwav.cosmetics.client.Setting<String>) st;
+                boolean gold = what.equals("hands_swing_gold");
+                if (gold && coloursWas == null) {
+                    coloursWas = colours.get();
+                    colours.set("custom");
+                } else if (!gold && coloursWas != null) {
+                    colours.set(coloursWas);
+                    coloursWas = null;
+                }
+            }
         }
         if (on) {
             punchy.setEnabled(!what.equals("hands_plain"));

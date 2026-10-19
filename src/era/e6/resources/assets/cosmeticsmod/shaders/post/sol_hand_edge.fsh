@@ -59,16 +59,17 @@ void main() {
     for (int i = 0; i < 8; i++) {
         float a = float(i) * 0.7853982 + 0.2;
         vec2 d = vec2(cos(a), sin(a)) * px * scale;
-        covA += handAt(texCoord + d * 1.2) * 0.125;
-        cov0 += handAt(texCoord + d * 2.6) * 0.125;
-        cov1 += handAt(texCoord + d * 4.0) * 0.125;
+        covA += handAt(texCoord + d * 1.4) * 0.125;
+        cov0 += handAt(texCoord + d * 3.0) * 0.125;
+        cov1 += handAt(texCoord + d * 4.6) * 0.125;
         cov2 += handAt(texCoord + d * 6.5) * 0.125;
         cov3 += handAt(texCoord + d * 9.5) * 0.125;
     }
     float line = hand > 0.5 ? 0.0 : min(1.0, max(covA, cov0) * 3.0);
     float band = hand > 0.5 ? 0.0
-            : max(max(line, min(1.0, cov1 * 2.5) * 0.75), max(min(1.0, cov2 * 2.5) * 0.35, min(1.0, cov3 * 2.5) * 0.12));
-    float inner = 0.0;
+            : max(max(line, min(1.0, cov1 * 2.5) * 0.7), max(min(1.0, cov2 * 2.5) * 0.28, min(1.0, cov3 * 2.5) * 0.08));
+    // The hands' own shape, for the motion trail's see-through copies of them.
+    float inner = hand;
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
     fragColor = vec4(line, band, inner, max(texture(InSampler, texCoord).a, 1.0));
 }

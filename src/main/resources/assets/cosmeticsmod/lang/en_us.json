@@ -1488,7 +1488,7 @@
   "cosmeticsmod.module.punchy.rising_lines": "Rising lines",
   "cosmeticsmod.module.punchy.rising_lines.hint": "Thin lines of light rising and waving through the soft glow",
   "cosmeticsmod.module.punchy.motion_trail": "Motion trail",
-  "cosmeticsmod.module.punchy.motion_trail.hint": "When you swing, the outline stays a moment behind your hands",
+  "cosmeticsmod.module.punchy.motion_trail.hint": "As your hands move, a see-through copy of them in the glow's colour and its outline stay a moment behind, fading out",
   "cosmeticsmod.module.punchy.trail_length": "Trail length",
   "cosmeticsmod.module.punchy.trail_length.hint": "How long the trail takes to fade (no trail on 1.21.2 to 1.21.5)",
   "cosmeticsmod.module.punchy.knife_timing": "Timing",
