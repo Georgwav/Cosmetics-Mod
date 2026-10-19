@@ -32,6 +32,16 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
         all.add("KnifePackMixin");
+        all.add("KnifeHandMixin");
+        all.add("KnifeInputMixin");
+        //? if <26.3 {
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("punchy")) {
+            all.add("KnifePunchyMixin");
+        }
+        //?}
+        //? if >=1.21.11 {
+        all.add("PlayerCritAccess");
+        //?}
         all.add("PackEntryAccess");
         all.add("PackSearchMixin");
         all.add("TotemSizeMixin");

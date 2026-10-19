@@ -42,7 +42,8 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "servers", "whats_new", "packs"};
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "knife_inspect", "knife_glow", "knife_pvp", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -275,6 +276,14 @@ public final class SolScenario {
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
             }
         }
+        if (!KNIFE_IDS.isEmpty()) {
+            // Local checks with real knives (-Dcosmeticsmod.knifeIds=ns:melee/a,... and knifeActions=idle,draw,...).
+            for (int i = 0; i < KNIFE_IDS.size(); i++) {
+                for (String action : System.getProperty("cosmeticsmod.knifeActions", "idle").split(",")) {
+                    shots.add(new Shot("ui_knife_" + action + "_k" + i, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH));
+                }
+            }
+        }
         if (MOCK_CIDER && !"sheet".equals(SHOTS) && !"bench".equals(MODE)) {
             java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
             if (only.get(0).isBlank() || only.contains("music_viz") || only.contains("music_stars")) {
@@ -455,6 +464,7 @@ public final class SolScenario {
             mc.player.xRotO = s.pitch();
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
             holdSpot(mc, play, s.name());
+            knifeForShot(s.name().startsWith("ui_") ? s.name().substring(3) : "", s.name());
             if (play && phaseTick == SETTLE - 10) {
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
             }
@@ -995,6 +1005,12 @@ public final class SolScenario {
         if (name.equals("ui_hands") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
             problems.add(name + ": the hand glow didn't run");
         }
+        if (name.startsWith("ui_knife") && io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn == 0) {
+            problems.add(name + ": the knife never drew");
+        }
+        if (name.equals("ui_knife_glow") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run on the knife");
+        }
         if (name.equals("ui_hud_off")) {
             for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
                 if (drawn[p.ordinal()] > 0) {
@@ -1038,7 +1054,7 @@ public final class SolScenario {
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
         return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
-                || what.startsWith("hands") || what.equals("hud_styles");
+                || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles");
     }
 
     /** The settings the HUD styles shot changed, to put back after it. */
@@ -1112,6 +1128,105 @@ public final class SolScenario {
         } else if (punchyWas != null) {
             punchy.setEnabled(punchyWas);
             punchyWas = null;
+        }
+    }
+
+    /** Knives to shoot one by one (local checks with real packs), by cosmetic id. */
+    private static final List<String> KNIFE_IDS = System.getProperty("cosmeticsmod.knifeIds", "").isBlank() ? List.of()
+            : List.of(System.getProperty("cosmeticsmod.knifeIds").split(","));
+    private static String knifeWorn;
+
+    /** What was worn and whether the Punchy module was on before the knife shots (null while they aren't on). */
+    private static java.util.List<String> knifeWornBefore;
+    private static boolean knifePunchyWas;
+    private static io.github.georgwav.cosmetics.client.Setting<Boolean> knifePvp;
+
+    /**
+     * The knife shots: the stand-in knife (or the first knife loaded) worn, a sword in hand, and the knife held at a
+     * moment of an animation (its clock stopped, so the frame is the same everywhere): at rest, mid-draw, a light and a
+     * heavy hit at their strike, mid-inspect; then at rest with the Punchy module on (glow, dark arms) and in PvP mode.
+     */
+    @SuppressWarnings("unchecked")
+    private void knifeForShot(String what, String name) {
+        Minecraft mc = Minecraft.getInstance();
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
+        boolean on = what.startsWith("knife");
+        int pick = what.contains("_k") ? Integer.parseInt(what.substring(what.lastIndexOf("_k") + 2)) : -1;
+        if (pick >= 0) {
+            what = what.substring(0, what.lastIndexOf("_k"));
+        }
+        String wanted = pick >= 0 && pick < KNIFE_IDS.size() ? KNIFE_IDS.get(pick) : null;
+        if (on && (knifeWornBefore == null || wanted != null && !wanted.equals(knifeWorn))) {
+            java.util.List<String> worn = config.localEquipped();
+            if (knifeWornBefore == null) {
+                knifeWornBefore = new java.util.ArrayList<>(worn);
+                knifePunchyWas = punchy.enabled();
+            }
+            String knife = wanted;
+            for (var c : io.github.georgwav.cosmetics.model.CosmeticRegistry.all()) {
+                if (wanted == null && c.slot() == io.github.georgwav.cosmetics.model.CosmeticSlot.MELEE
+                        && (knife == null || c.id().startsWith(io.github.georgwav.cosmetics.melee.StandInKnife.NAMESPACE + ":"))) {
+                    knife = c.id();
+                }
+            }
+            if (knife != null && io.github.georgwav.cosmetics.model.CosmeticRegistry.get(knife) == null) {
+                problems.add(name + ": no knife " + knife);
+                knife = null;
+            }
+            knifeWorn = knife;
+            if (knife == null) {
+                problems.add(name + ": no knife loaded (the stand-in pack didn't mount)");
+            } else {
+                worn.removeIf(id -> {
+                    var c = io.github.georgwav.cosmetics.model.CosmeticRegistry.get(id);
+                    return c != null && c.slot() == io.github.georgwav.cosmetics.model.CosmeticSlot.MELEE;
+                });
+                worn.add(knife);
+                io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+            }
+            asPlayer(mc, List.of("item replace entity @s weapon.mainhand with diamond_sword"));
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn = 0;
+            for (var st : punchy.settings()) {
+                if (st.id.equals("pvp")) {
+                    knifePvp = (io.github.georgwav.cosmetics.client.Setting<Boolean>) st;
+                }
+            }
+        } else if (!on && knifeWornBefore != null) {
+            java.util.List<String> worn = config.localEquipped();
+            worn.clear();
+            worn.addAll(knifeWornBefore);
+            knifeWornBefore = null;
+            knifeWorn = null;
+            io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+            punchy.setEnabled(knifePunchyWas);
+            if (knifePvp != null) {
+                knifePvp.reset();
+            }
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
+        }
+        if (!on) {
+            return;
+        }
+        boolean module = what.equals("knife_glow") || what.equals("knife_pvp");
+        if (punchy.enabled() != module) {
+            punchy.setEnabled(module);
+        }
+        if (knifePvp != null && knifePvp.get() != what.equals("knife_pvp")) {
+            knifePvp.set(what.equals("knife_pvp"));
+        }
+        if (phaseTick == 1) {
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
+            io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        if (phaseTick == SETTLE - 15) {
+            switch (what) {
+                case "knife_draw" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("draw", 0.25f);
+                case "knife_light" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("light", 0.15f);
+                case "knife_heavy" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("heavy", 0.15f);
+                case "knife_inspect" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("inspect", 0.5f);
+                default -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("idle", 0f);
+            }
         }
     }
 

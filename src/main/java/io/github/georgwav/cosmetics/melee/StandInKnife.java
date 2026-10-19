@@ -81,9 +81,10 @@ public final class StandInKnife {
         fc.add(cube(-14f, 50f, -32f, 16f, 8f, 0.1f, 0, 32));
         fx.add("cubes", fc);
         bones.add(fx);
+        // The left arm the same way at the lower left, its fist in sight near the bottom of the screen.
         bones.add(bone("mag_and_lefthand", "root", 10, 52, -6, null));
-        bones.add(bone("lefthand", "mag_and_lefthand", 16, 40, -6, rot(30, 0, 0)));
-        bones.add(bone("lefthand_pos", "lefthand", 16, 40, -6, null));
+        bones.add(bone("lefthand", "mag_and_lefthand", 15, 50, -6, rot(75, 0, 0)));
+        bones.add(bone("lefthand_pos", "lefthand", 15, 50, -6, null));
         bones.add(bone("camera", null, 0, 64, 0, null));
         bones.add(bone("view", null, 0, 64, 0, null));
         bones.add(bone("idle_view", "view", 0, 64, 0, null));

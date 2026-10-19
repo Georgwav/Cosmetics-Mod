@@ -57,11 +57,24 @@ public final class PunchyModule extends Module {
     /** While the hands move (a swing), their outlines stay a moment behind them: a fan of lines fading out. */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
+    // Knives (a melee cosmetic held in place of a sword).
+    /** Fit the knives' animations to Minecraft's sword, or play them at their own pace. */
+    private final Setting.Choice knifeTiming = add(new Setting.Choice("knife_timing", "fit", List.of("fit", "original")).group("knives"));
+    /** Critical hits play the heavy attack (each game's right-click attack). */
+    private final Setting.Toggle knifeHeavy = add(new Setting.Toggle("knife_heavy", true).group("knives"));
+    private final Setting.Slider knifeShake = add(new Setting.Slider("knife_shake", 100, 0, 200, 5, v -> Math.round(v) + "%").group("knives"));
+    private final Setting.Slider knifeSway = add(new Setting.Slider("knife_sway", 100, 0, 200, 5, v -> Math.round(v) + "%").group("knives"));
+    private final Setting.Slider knifeVolume = add(new Setting.Slider("knife_volume", 100, 0, 100, 5, v -> Math.round(v) + "%").group("knives"));
+    /** Show the hands some packs hide (VCT Lock In's), at the size their other animations have them. */
+    private final Setting.Toggle knifeHands = add(new Setting.Toggle("knife_hands", true).group("knives"));
+    private final Setting.Toggle knifeThirdPerson = add(new Setting.Toggle("knife_third_person", true).group("knives"));
+    private final Setting.Choice knifeUseOn = add(new Setting.Choice("knife_use_on", "swords", List.of("swords", "swords_axes")).group("knives"));
     /** Punchy's own values of what PvP mode changes, put back when it goes off. */
     private final Map<String, Object> own = new LinkedHashMap<>();
 
     public PunchyModule() {
         super("punchy", Category.VIEW, "flame");
+        addKey("inspect", com.mojang.blaze3d.platform.InputConstants.KEY_V);
     }
 
     @Override
@@ -146,6 +159,47 @@ public final class PunchyModule extends Module {
         // And both arms drawn in toward the middle: the right one to the left, the left one to the right.
         pose.scale(1f - (1f - s) * 0.6f, 1f, 1f);
         return pose;
+    }
+
+    // ------------------------------------------------------------------ knives
+
+    /** Knives: their animations fitted to Minecraft's sword (else at their own pace). */
+    public static boolean knifeFit() {
+        return Modules.PUNCHY.knifeTiming.get().equals("fit");
+    }
+
+    public static boolean knifeHeavyOnCrits() {
+        return Modules.PUNCHY.knifeHeavy.get();
+    }
+
+    /** How strong the knives' camera shake is (0 to 2); none in PvP mode. */
+    public static float knifeShake() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() && m.pvp.get() ? 0f : (float) (m.knifeShake.get() / 100.0);
+    }
+
+    /** How much the knives sway with your view (0 to 2); 30% of it in PvP mode. */
+    public static float knifeSway() {
+        PunchyModule m = Modules.PUNCHY;
+        float s = (float) (m.knifeSway.get() / 100.0);
+        return m.enabled() && m.pvp.get() ? s * 0.3f : s;
+    }
+
+    public static float knifeVolume() {
+        return (float) (Modules.PUNCHY.knifeVolume.get() / 100.0);
+    }
+
+    public static boolean knifeShowsHands() {
+        return Modules.PUNCHY.knifeHands.get();
+    }
+
+    public static boolean knifeInThirdPerson() {
+        return Modules.PUNCHY.knifeThirdPerson.get();
+    }
+
+    /** Knives on axes as well as swords. */
+    public static boolean knifeOnAxes() {
+        return Modules.PUNCHY.knifeUseOn.get().equals("swords_axes");
     }
 
     // ------------------------------------------------------------------ dark arms

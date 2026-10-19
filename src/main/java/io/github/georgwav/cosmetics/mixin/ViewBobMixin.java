@@ -13,7 +13,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 *///?}
 
 /**
- * The hurt tilt (PvP Tweaks: scaled from none to the game's), around the game's own bobHurt calls.
+ * The hurt tilt (PvP Tweaks: scaled from none to the game's), around the game's own bobHurt calls; in the world's,
+ * the knives' camera shake too.
  */
 @Mixin(GameRenderer.class)
 abstract class ViewBobMixin {
@@ -23,7 +24,15 @@ abstract class ViewBobMixin {
         throw new AssertionError();
     }
 
-    @Redirect(method = {"renderLevel", "renderItemInHand"}, at = @At(value = "INVOKE", target =
+    @Redirect(method = "renderLevel", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V"),
+            require = 0)
+    private void cosmeticsmod$hurtWorld(GameRenderer self, CameraRenderState camera, PoseStack pose) {
+        cosmeticsmod$hurt(self, camera, pose);
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.shake(pose);
+    }
+
+    @Redirect(method = "renderItemInHand", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V"),
             require = 0)
     private void cosmeticsmod$hurt(GameRenderer self, CameraRenderState camera, PoseStack pose) {
@@ -43,7 +52,15 @@ abstract class ViewBobMixin {
         throw new AssertionError();
     }
 
-    @Redirect(method = {"renderLevel", "renderItemInHand"}, at = @At(value = "INVOKE", target =
+    @Redirect(method = "renderLevel", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lcom/mojang/blaze3d/vertex/PoseStack;F)V"), require = 0)
+    private void cosmeticsmod$hurtWorld(GameRenderer self, PoseStack pose, float partialTick) {
+        cosmeticsmod$hurt(self, pose, partialTick);
+        // The knives' camera shake turns the world's view only.
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.shake(pose);
+    }
+
+    @Redirect(method = "renderItemInHand", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lcom/mojang/blaze3d/vertex/PoseStack;F)V"), require = 0)
     private void cosmeticsmod$hurt(GameRenderer self, PoseStack pose, float partialTick) {
         io.github.georgwav.cosmetics.sol.Hooks.HURT_BOB.hit();

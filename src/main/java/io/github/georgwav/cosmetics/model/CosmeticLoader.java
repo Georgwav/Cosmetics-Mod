@@ -52,7 +52,8 @@ public final class CosmeticLoader {
 
     /** What a reload read, ready to put in place on the game's thread. */
     public record Prepared(Map<String, BakedCosmetic> loaded, List<String> failures, List<String> outdated,
-                           Map<String, Emote> emotes, long millis) {
+                           Map<String, Emote> emotes, Map<String, io.github.georgwav.cosmetics.melee.Knife> knives,
+                           long millis) {
     }
 
     /** Reads and bakes everything now and puts it in place: for a caller already off the game's thread, or a test. */
@@ -135,13 +136,18 @@ public final class CosmeticLoader {
                 failedList.add(f);
             }
         }
+        // Knives: their models and animations, read and measured once; one that can't be read is left out.
+        Map<String, io.github.georgwav.cosmetics.melee.Knife> knives = io.github.georgwav.cosmetics.melee.KnifeRegistry.prepare(
+                loaded.values().stream().map(BakedCosmetic::definition).toList(), files::open, failedList);
+        loaded.values().removeIf(c -> c.definition().melee() != null && !knives.containsKey(c.id()));
         long millis = (System.nanoTime() - start) / 1_000_000;
-        return new Prepared(loaded, List.copyOf(failedList), outdated(manager, ids), Emotes.prepare(manager), millis);
+        return new Prepared(loaded, List.copyOf(failedList), outdated(manager, ids), Emotes.prepare(manager), knives, millis);
     }
 
     /** Puts what {@link #prepare} read in place; on the game's thread. */
     public static void apply(Prepared prepared) {
         CosmeticRegistry.replace(prepared.loaded());
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.reload(prepared.knives());
         failures = prepared.failures();
         outdatedImports = prepared.outdated();
         RenderGuard.reset();

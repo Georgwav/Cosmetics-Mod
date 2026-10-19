@@ -71,7 +71,7 @@ public final class MeshEmitter {
      * writes straight to memory. With one, Iris's wider vertex format takes that call slower than the
      * element-by-element writes (the benchmark measured about 10% more time), so those stay.
      */
-    private static void vertex(VertexConsumer consumer, boolean oneCall, float x, float y, float z, int color, float u,
+    public static void vertex(VertexConsumer consumer, boolean oneCall, float x, float y, float z, int color, float u,
                                float v, int light, float nx, float ny, float nz) {
         if (oneCall) {
             consumer.addVertex(x, y, z, color, u, v, NO_OVERLAY, light, nx, ny, nz);

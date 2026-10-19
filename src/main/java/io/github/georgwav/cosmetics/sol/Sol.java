@@ -59,6 +59,7 @@ public final class Sol {
     }
 
     private static void tick(Minecraft mc) {
+        io.github.georgwav.cosmetics.melee.KnifeInput.tick(mc);
         if (!started && mc.options != null) {
             started = true;
             SolConfig cfg = SolConfig.get();

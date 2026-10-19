@@ -29,9 +29,12 @@ public final class KnifePacks {
     private KnifePacks() {
     }
 
+    /** Dev runs: another knives folder (local checks with real packs, which never go into CI). */
+    private static final String FOLDER = System.getProperty("cosmeticsmod.knivesFolder", "");
+
     /** Where players drop their gunpacks. */
     public static Path folder() {
-        return MainFolder.clientFolder().resolve("melee");
+        return FOLDER.isEmpty() ? MainFolder.clientFolder().resolve("melee") : Path.of(FOLDER);
     }
 
     /** Mounts the knives and hands their pack to the game, when there are any. Never throws. */

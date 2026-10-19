@@ -31,6 +31,8 @@ public final class KnifeRig {
     public final float[] grip = new float[2];
     /** Per animation: its impact (seconds into it) and when it settles back to idle. */
     public final Map<String, float[]> timing = new java.util.HashMap<>();
+    /** Each clip's Angel version, where it has one. */
+    private final Map<KnifeClip, KnifeClip> angels = new java.util.IdentityHashMap<>();
     /** The bones that hold nothing but arms, and the scale to show them at when an animation hides them. */
     final float[][] handFix;
 
@@ -64,6 +66,12 @@ public final class KnifeRig {
         this.walkBackward = clips.get("walk_backward");
         this.walkSideway = clips.get("walk_sideway");
         this.angelSet = clips.keySet().stream().anyMatch(n -> n.endsWith("_angel"));
+        for (KnifeClip c : clips.values()) {
+            KnifeClip a = clips.get(c.name + "_angel");
+            if (a != null) {
+                angels.put(c, a);
+            }
+        }
         this.handFix = handFix(geo, clips);
         KnifePose pose = new KnifePose(geo);
         pose.handFix = handFix;
@@ -86,12 +94,12 @@ public final class KnifeRig {
         return a != null ? a : clips.get(name);
     }
 
-    /** The Angel version of a clip if {@code angel} and there is one, else the clip itself. */
+    /** The Angel version of a clip if {@code angel} and there is one, else the clip itself. No allocation. */
     public KnifeClip angel(KnifeClip c, boolean angel) {
         if (!angel || c == null) {
             return c;
         }
-        KnifeClip a = clips.get(c.name + "_angel");
+        KnifeClip a = angels.get(c);
         return a != null ? a : c;
     }
 

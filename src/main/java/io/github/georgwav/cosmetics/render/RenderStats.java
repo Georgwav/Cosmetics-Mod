@@ -49,7 +49,7 @@ public final class RenderStats {
         vertices = 0;
     }
 
-    static void countVertices(int count) {
+    public static void countVertices(int count) {
         if (TIMING) {
             vertices += count;
         }
