@@ -54,7 +54,7 @@ public final class PunchyModule extends Module {
      * out to be the motion trail).
      */
     private final Setting.Toggle glowLines = add(new Setting.Toggle("rising_lines", false).group("glow"));
-    /** While the hands move (a swing, or just walking), their line stays a moment behind them, fading. */
+    /** While the hands move (a swing, or just walking), their glow stays a moment behind them, fading. */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
     // Knives (a melee cosmetic held in place of a sword).

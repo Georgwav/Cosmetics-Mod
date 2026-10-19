@@ -69,13 +69,18 @@ void main() {
     // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
     float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
     float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
-    // Green is the inner edge inside the hands and the rising glow outside them.
+    // Green is the inner edge inside the hands and the rising glow outside them; with the trail, the glow the hands
+    // left behind as they moved.
     float inner = e.b > 0.5 ? e.g : 0.0;
-    float rising = clamp((e.b > 0.5 ? 0.0 : e.g) * grade * s, 0.0, 1.5);
-    // Gold, a little paler right at the edge.
-    vec3 warm = mix(col, vec3(1.0), 0.35 * pow(min(e.b > 0.5 ? 0.0 : e.g, 1.0), 6.0));
-    c = mix(c, warm, clamp(rising * 0.85, 0.0, 0.9));
-    c = soft(c + warm * rising * 0.6);
+    float glow = e.b > 0.5 ? 0.0 : e.g;
+    if (P(90) > 0.0) {
+        glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
+    }
+    float rising = clamp(glow * grade * s, 0.0, 1.5);
+    // Gold, paler right at the edge.
+    vec3 warm = mix(col, vec3(1.0), 0.4 * pow(min(glow, 1.0), 4.0));
+    c = mix(c, warm, clamp(rising * 0.95, 0.0, 0.92));
+    c = soft(c + warm * rising * 0.8);
     // The line, pale (cream for gold).
     float k = (e.r + inner) * grade;
     if (P(90) > 0.0) {

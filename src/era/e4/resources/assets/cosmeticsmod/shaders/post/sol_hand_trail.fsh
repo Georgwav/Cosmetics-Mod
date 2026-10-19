@@ -33,7 +33,8 @@ float luma(vec3 c) {
 }
 
 void main() {
+    vec3 e = texture(EdgeSampler, texCoord).rgb;
     // Less a half step, so an 8-bit target fades all the way out.
-    float p = max(texture(PrevSampler, texCoord).r * P(89) - 0.5 / 255.0, 0.0);
-    fragColor = vec4(max(p, texture(EdgeSampler, texCoord).r), 0.0, 0.0, 1.0);
+    vec2 p = max(texture(PrevSampler, texCoord).rg * P(89) - 0.5 / 255.0, vec2(0.0));
+    fragColor = vec4(max(p.x, e.r), max(p.y, e.b > 0.5 ? 0.0 : e.g), 0.0, 1.0);
 }

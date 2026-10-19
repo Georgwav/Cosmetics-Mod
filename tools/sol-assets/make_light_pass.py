@@ -391,8 +391,8 @@ void main() {
 }
 """),
     # Then down its column: red, the true distance to the nearest hand (rows, over 16), from each row's nearest along
-    # it. Green, the rising glow's distance (Clarity's look): only to hands below, a row up counting a third and a row
-    # across four, so it reaches about twelve times as far up as to the side (rows, over 16).
+    # it. Green, the rising glow's distance (Clarity's look): only to hands below (every second row, up to 72), a row up
+    # counting a third and a row across four, so it reaches about twelve times as far up as to the side (rows, over 24).
     "sol_hand_dist": (["Dx", "Params"], PARAMS + r"""
 void main() {
     float here = texture(DxSampler, texCoord).r * 16.0;
@@ -406,23 +406,23 @@ void main() {
         float d = min(texture(DxSampler, texCoord + o).r, texture(DxSampler, texCoord - o).r) * 16.0;
         best = min(best, sqrt(d * d + dy * dy));
     }
-    float rise = min(16.0, here * 4.0);
-    for (int i = 1; i <= 48; i++) {
-        float dy = float(i) / 3.0;
+    float rise = min(24.0, here * 4.0);
+    for (int i = 1; i <= 36; i++) {
+        float dy = float(i) * 2.0 / 3.0;
         if (dy >= rise) {
             break;
         }
-        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) / 540.0)).r * 16.0 * 4.0;
+        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) * 2.0 / 540.0)).r * 16.0 * 4.0;
         rise = min(rise, sqrt(d * d + dy * dy));
     }
-    fragColor = vec4(best / 16.0, rise / 16.0, 0.0, 1.0);
+    fragColor = vec4(best / 16.0, rise / 24.0, 0.0, 1.0);
 }
 """),
     # The hand glow (Clarity's look, from Georg's picture), at full resolution. Red: the line round the hands, full
     # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
     # size setting, up to 3x), from the distance field; or, for the soft style, a softer fade with no bright core,
     # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the glow rising
-    # off their top edges, about 50 px up and a few to the side (times the size, up to 65 px), its top flickering like
+    # off their top edges, about 75 px up and a few to the side (times the size, up to 100 px), its top flickering like
     # a flame. Blue: the hands themselves (never filled).
     "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
@@ -439,8 +439,9 @@ vec2 distAt(vec2 uv) {
     vec2 t = 1.0 / size;
     vec2 d = mix(mix(texture(DistSampler, b).rg, texture(DistSampler, b + vec2(t.x, 0.0)).rg, f.x),
             mix(texture(DistSampler, b + vec2(0.0, t.y)).rg, texture(DistSampler, b + t).rg, f.x), f.y);
-    // Rows of 540 are 2 px at 1080p; measured from texel centres, so half a texel nearer the edge.
-    return max(vec2(0.0), d * 32.0 - 1.0);
+    // Rows of 540 are 2 px at 1080p (the first over 16 rows, the rising one over 24); measured from texel centres, so
+    // half a texel nearer the edge.
+    return max(vec2(0.0), d * vec2(32.0, 48.0) - 1.0);
 }
 
 float hash(vec2 p) {
@@ -475,12 +476,12 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for about half its height, then fading softly; its reach wavers in narrow tongues
-        // that rise, so its top flickers like a flame.
+        // The rising glow: strong for half its height, then fading softly; its reach wavers in tongues that rise, so
+        // its top flickers like a flame.
         vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(22.0, 18.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 14.0, w.y / 24.0 - P(22) * 2.4)));
-        // The field stops at 32 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.35 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        float reach = min(32.0, 24.0 * size) * (0.7 + 0.6 * noise(vec2(w.x / 16.0, w.y / 28.0 - P(22) * 2.4)));
+        // The field stops at 48 px (no hand that near below): no glow there.
+        float rising = (1.0 - smoothstep(0.5 * reach, 1.15 * reach, dists.y)) * step(dists.y, 46.0);
         green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
@@ -491,21 +492,22 @@ void main() {
     fragColor = vec4(rim, green, hand, max(texture(InSampler, texCoord).a, 1.0));
 }
 """),
-    # The motion trail: last frame's trail fading (by the frame's time, so it lasts as long at any frame rate), the rim
-    # drawn into it again. Where the hands move, their rim stays a moment behind them.
+    # The motion trail: last frame's trail fading (by the frame's time, so it lasts as long at any frame rate), the line
+    # (red) and the rising glow (green) drawn into it again. Where the hands move, both stay a moment behind them.
     "sol_hand_trail": (["Edge", "Prev", "Params"], PARAMS + r"""
 void main() {
+    vec3 e = texture(EdgeSampler, texCoord).rgb;
     // Less a half step, so an 8-bit target fades all the way out.
-    float p = max(texture(PrevSampler, texCoord).r * P(89) - 0.5 / 255.0, 0.0);
-    fragColor = vec4(max(p, texture(EdgeSampler, texCoord).r), 0.0, 0.0, 1.0);
+    vec2 p = max(texture(PrevSampler, texCoord).rg * P(89) - 0.5 / 255.0, vec2(0.0));
+    fragColor = vec4(max(p.x, e.r), max(p.y, e.b > 0.5 ? 0.0 : e.g), 0.0, 1.0);
 }
 """),
     # The hand glow (Clarity's look, from Georg's picture): the glow rising off the top edges of the hands and what
     # they hold, in the glow's colour and paler where it's strongest, then a thin pale line round them; brightest at
     # the fist and dimmer where the arm leaves the screen; the hands themselves flat, with their 1 px inner edge; the
-    # motion trail (the line) behind them. Each is laid over what's behind (so the hue holds on any sky), then added
-    # with a soft clamp that keeps the hue, so no channel clips unless the colour itself is white. The soft style can
-    # have lines of light rising through its fade.
+    # motion trail (the line and the glow) behind them. Each is laid over what's behind (so the hue holds on any sky),
+    # then added with a soft clamp that keeps the hue, so no channel clips unless the colour itself is white. The soft
+    # style can have lines of light rising through its fade.
     "sol_hand_glow": (["In", "Glow", "Edge", "Trail", "Params"], PARAMS + r"""
 float hash(float n) {
     return fract(sin(n * 91.345) * 47453.21);
@@ -541,13 +543,18 @@ void main() {
     // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
     float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
     float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
-    // Green is the inner edge inside the hands and the rising glow outside them.
+    // Green is the inner edge inside the hands and the rising glow outside them; with the trail, the glow the hands
+    // left behind as they moved.
     float inner = e.b > 0.5 ? e.g : 0.0;
-    float rising = clamp((e.b > 0.5 ? 0.0 : e.g) * grade * s, 0.0, 1.5);
-    // Gold, a little paler right at the edge.
-    vec3 warm = mix(col, vec3(1.0), 0.35 * pow(min(e.b > 0.5 ? 0.0 : e.g, 1.0), 6.0));
-    c = mix(c, warm, clamp(rising * 0.85, 0.0, 0.9));
-    c = soft(c + warm * rising * 0.6);
+    float glow = e.b > 0.5 ? 0.0 : e.g;
+    if (P(90) > 0.0) {
+        glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
+    }
+    float rising = clamp(glow * grade * s, 0.0, 1.5);
+    // Gold, paler right at the edge.
+    vec3 warm = mix(col, vec3(1.0), 0.4 * pow(min(glow, 1.0), 4.0));
+    c = mix(c, warm, clamp(rising * 0.95, 0.0, 0.92));
+    c = soft(c + warm * rising * 0.8);
     // The line, pale (cream for gold).
     float k = (e.r + inner) * grade;
     if (P(90) > 0.0) {

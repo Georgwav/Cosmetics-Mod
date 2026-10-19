@@ -62,8 +62,9 @@ vec2 distAt(vec2 uv) {
     vec2 t = 1.0 / size;
     vec2 d = mix(mix(texture(DistSampler, b).rg, texture(DistSampler, b + vec2(t.x, 0.0)).rg, f.x),
             mix(texture(DistSampler, b + vec2(0.0, t.y)).rg, texture(DistSampler, b + t).rg, f.x), f.y);
-    // Rows of 540 are 2 px at 1080p; measured from texel centres, so half a texel nearer the edge.
-    return max(vec2(0.0), d * 32.0 - 1.0);
+    // Rows of 540 are 2 px at 1080p (the first over 16 rows, the rising one over 24); measured from texel centres, so
+    // half a texel nearer the edge.
+    return max(vec2(0.0), d * vec2(32.0, 48.0) - 1.0);
 }
 
 float hash(vec2 p) {
@@ -98,12 +99,12 @@ void main() {
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The rising glow: strong for about half its height, then fading softly; its reach wavers in narrow tongues
-        // that rise, so its top flickers like a flame.
+        // The rising glow: strong for half its height, then fading softly; its reach wavers in tongues that rise, so
+        // its top flickers like a flame.
         vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
-        float reach = min(22.0, 18.0 * size) * (0.65 + 0.7 * noise(vec2(w.x / 14.0, w.y / 24.0 - P(22) * 2.4)));
-        // The field stops at 32 px (no hand that near below): no glow there.
-        float rising = (1.0 - smoothstep(0.35 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        float reach = min(32.0, 24.0 * size) * (0.7 + 0.6 * noise(vec2(w.x / 16.0, w.y / 28.0 - P(22) * 2.4)));
+        // The field stops at 48 px (no hand that near below): no glow there.
+        float rising = (1.0 - smoothstep(0.5 * reach, 1.15 * reach, dists.y)) * step(dists.y, 46.0);
         green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
