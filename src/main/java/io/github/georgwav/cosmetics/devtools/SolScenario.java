@@ -1133,6 +1133,9 @@ public final class SolScenario {
     /** The glow's style before an "_outline" shot (the Outline style instead of Golden), or null. */
     private static String lookWas;
 
+    /** Dark arms before the gold and night hand shots (null while they aren't on). */
+    private static Boolean darkWas;
+
     /** The glow's own colour before the white shot (null while it isn't on). */
     private static Integer colourWas;
 
@@ -1179,6 +1182,20 @@ public final class SolScenario {
                 } else if (!gold && coloursWas != null) {
                     colours.set(coloursWas);
                     coloursWas = null;
+                }
+            }
+            if (st.id.equals("arms_dark")) {
+                // The gold and night hand shots show the arm dark and outlined (dark arms are off by default); the
+                // run's glow check finds the arm by its dark pixels.
+                @SuppressWarnings("unchecked")
+                var dark = (io.github.georgwav.cosmetics.client.Setting<Boolean>) st;
+                boolean want = what.startsWith("hands_gold") || what.startsWith("hands_night");
+                if (want && darkWas == null) {
+                    darkWas = dark.get();
+                    dark.set(true);
+                } else if (!want && darkWas != null) {
+                    dark.set(darkWas);
+                    darkWas = null;
                 }
             }
             if (st.id.equals("glow_colour")) {
