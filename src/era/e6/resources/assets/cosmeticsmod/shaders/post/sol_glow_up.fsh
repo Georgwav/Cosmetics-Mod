@@ -39,5 +39,5 @@ void main() {
             + texture(UpSampler, texCoord + vec2(0.0, -2.0 * h.y)).rgb + texture(UpSampler, texCoord + vec2(0.0, 2.0 * h.y)).rgb
             + (texture(UpSampler, texCoord + vec2(-h.x, h.y)).rgb + texture(UpSampler, texCoord + vec2(h.x, h.y)).rgb
             + texture(UpSampler, texCoord + vec2(h.x, -h.y)).rgb + texture(UpSampler, texCoord + vec2(-h.x, -h.y)).rgb) * 2.0;
-    fragColor = vec4(s / 12.0 + texture(CurSampler, texCoord).rgb * mix(0.7, 0.15, P(86)), 1.0);
+    fragColor = vec4(s / 12.0 + texture(CurSampler, texCoord).rgb * 0.45, 1.0);
 }

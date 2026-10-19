@@ -442,9 +442,11 @@ class Display:
             cls._shared = cls()
         return cls._shared
 
-    def __init__(self, number=None, size="1280x720"):
+    def __init__(self, number=None, size=None):
         # MCCI_DISPLAY: another display number, so runs side by side don't draw on (and screenshot) one screen.
         number = number if number is not None else int(os.environ.get("MCCI_DISPLAY", "99"))
+        # MCCI_SCREEN=WxH: a bigger virtual screen (with MCCI_WINDOW the same size), for shots measured at 1080p.
+        size = size or os.environ.get("MCCI_SCREEN", "1280x720")
         self.name = f":{number}"
         self.size = size
         self.proc = subprocess.Popen(["Xvfb", self.name, "-screen", "0", f"{size}x24", "-nolisten", "tcp"],

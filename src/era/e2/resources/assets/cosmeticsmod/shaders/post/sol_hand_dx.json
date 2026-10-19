@@ -1,0 +1,49 @@
+{
+  "vertex": "cosmeticsmod:post/sol_quad",
+  "fragment": "cosmeticsmod:post/sol_hand_dx",
+  "samplers": [
+    {
+      "name": "InSampler"
+    },
+    {
+      "name": "DepthSampler"
+    },
+    {
+      "name": "ParamsSampler"
+    }
+  ],
+  "uniforms": [
+    {
+      "name": "ProjMat",
+      "type": "matrix4x4",
+      "count": 16,
+      "values": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "name": "OutSize",
+      "type": "float",
+      "count": 2,
+      "values": [
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

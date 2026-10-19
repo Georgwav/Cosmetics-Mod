@@ -5,7 +5,6 @@ uniform sampler2D DiffuseSampler;
 uniform sampler2D GlowSampler;
 uniform sampler2D EdgeSampler;
 uniform sampler2D TrailSampler;
-uniform sampler2D DepthSampler;
 uniform sampler2D ParamsSampler;
 
 in vec2 texCoord;
@@ -36,32 +35,6 @@ float luma(vec3 c) {
     return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-bool isSky(float depth) {
-    return abs(depth - P(10)) < 1e-6;
-}
-
-// Distance along the view axis from a depth-buffer value (the projection's own mapping, reversed or not).
-float linearDepth(float depth) {
-    return 1.0 / max(1e-6, depth * P(8) + P(9));
-}
-
-vec3 viewAt(vec2 uv, float depth) {
-    float z = linearDepth(depth);
-    return vec3((uv * 2.0 - 1.0) * vec2(P(6), P(7)) * z, -z);
-}
-
-float hash2(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-// Smooth value noise, 0 to 1.
-float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-
-
 float hash(float n) {
     return fract(sin(n * 91.345) * 47453.21);
 }
@@ -78,45 +51,35 @@ float lines(vec2 w, float t) {
     return body * thin * step(0.3, r2);
 }
 
-float handAt(vec2 uv) {
-    return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
+// Unchanged up to 0.8; past it the whole colour is scaled so its brightest channel eases towards 1 without reaching
+// it, which keeps the hue (gold stays gold rather than going yellow, then white).
+vec3 soft(vec3 x) {
+    float m = max(max(x.r, x.g), x.b);
+    return m > 0.8 ? x * ((0.8 + 0.2 * (1.0 - exp((0.8 - m) / 0.2))) / m) : x;
 }
 
 void main() {
     vec3 c = texture(InSampler, texCoord).rgb;
-    float hand = handAt(texCoord);
+    vec3 e = texture(EdgeSampler, texCoord).rgb;
     vec3 g = texture(GlowSampler, texCoord).rgb;
-    float t = P(22);
     float m = max(max(g.r, g.g), max(g.b, 1e-4));
-    vec2 w = texCoord * vec2(P(28), 1.0);
-    float pulse = 1.0 + P(84) * (0.18 * sin(t * 2.3) + 0.08 * sin(t * 5.1 + 1.3));
-    float s = min(P(82), 2.0);
-    if (P(88) > 0.5) {
-        vec3 sm = P(90) > 0.0 ? texture(TrailSampler, texCoord).rgb
-                : min(g, vec3(1.0)) * (0.7 + 0.6 * noise(w * 40.0 + vec2(0.0, -t * 1.8)));
-        float d = max(max(sm.r, sm.g), max(sm.b, 1e-4));
-        vec3 tint = d > 0.02 ? sm / d : m > 0.02 ? g / m : P3(76);
-        // Raised first, so a thin sword glows as brightly at its edge as a whole arm does.
-        float dd = min(1.0, d * 1.8);
-        float a = (1.0 - exp(-dd * dd * 3.0 * pulse * s)) * (1.0 - hand);
-        // Its own colour, saturated, only a little whiter where it's thickest.
-        vec3 col = mix(tint, vec3(1.0), 0.18 * a * a);
-        // Laid over what's behind (so it shows on bright skies), and glowing.
-        c = mix(c, col, clamp(a * 0.4, 0.0, 1.0));
-        c = 1.0 - (1.0 - c) * (1.0 - clamp(col * a * 0.75, 0.0, 1.0));
-        vec3 edgeTint = m > 0.02 ? g / m : tint;
-        c = mix(c, mix(edgeTint, vec3(1.0), 0.55), clamp(texture(EdgeSampler, texCoord).r * 0.9 * min(s, 1.0), 0.0, 1.0));
-    } else {
-        // Brightness falling off smoothly all the way out (no flat bright band round the hands), the hue kept.
-        float k = 1.0 - exp(-m * 1.1 * pulse);
-        k = k * k * mix(1.0, P(85), hand);
-        vec3 col = mix(g / m, vec3(1.0), 0.25 * k * k * k);
-        c = 1.0 - (1.0 - c) * (1.0 - clamp(col * k * s * 0.7, 0.0, 1.0));
-        // The lines show in the glow round the hands, brightest partway out, not over the hand.
-        if (P(87) > 0.0) {
-            float band = smoothstep(0.03, 0.25, k) * (1.0 - smoothstep(0.55, 0.9, k)) * (1.0 - hand);
-            c += mix(g / m, vec3(1.0), 0.35) * lines(w, t) * band * s * 0.85 * P(87);
-        }
+    vec3 col = m > 0.02 ? g / m : P3(76);
+    float t = P(22);
+    float s = min(P(82), 2.0) * (1.0 + P(84) * 0.12 * sin(t * 2.3));
+    // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
+    float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
+    float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
+    float k = (e.r + e.g) * grade;
+    if (P(90) > 0.0) {
+        k = max(k, max(texture(TrailSampler, texCoord).r - e.r, 0.0) * (1.0 - e.b) * P(90) * grade);
+    }
+    k = clamp(k * s, 0.0, 1.5);
+    c = mix(c, col, clamp(k * 0.7, 0.0, 0.85));
+    c = soft(c + col * k * 0.45);
+    // The lines show in the soft style's fade, not over the hand.
+    if (P(87) > 0.0 && P(88) < 0.5) {
+        float band = smoothstep(0.05, 0.3, e.r) * (1.0 - smoothstep(0.6, 0.9, e.r)) * (1.0 - e.b);
+        c = soft(c + col * lines(texCoord * vec2(P(28), 1.0), t) * band * s * 0.6 * P(87));
     }
     fragColor = vec4(c, 1.0);
 }

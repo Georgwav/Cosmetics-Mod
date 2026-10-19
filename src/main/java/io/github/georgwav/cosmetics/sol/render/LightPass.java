@@ -44,7 +44,7 @@ import java.util.Map;
  *   the ground, and light shafts (a quarter-resolution radial blur of the bright sky toward the sun);</li>
  *   <li>after the hand ({@link #grade()}): bloom (the bright parts at half resolution, blurred through a five-level
  *   dual-filter mip chain and added back in the theme's bloom tint), the theme's colour grade (a 32x32x32 LUT built
- *   from its colours, or one it ships) and a subtle vignette.</li>
+ *   from its colours, or one it ships), a subtle vignette, then the Punchy module's rim round the hands.</li>
  * </ul>
  *
  * <p>Presets follow Atmosphere's quality: Low has no pass, Medium the bloom, grade and scattering (at most
@@ -127,14 +127,17 @@ public final class LightPass {
         nanos = System.nanoTime() - t0;
     }
 
-    /** After the hand: the glow round the hands, then bloom, grade, vignette; then motion blur over the finished frame. */
+    /**
+     * After the hand: bloom, grade, vignette, then the glow round the hands (after them, so the bloom doesn't spread
+     * the rim into a haze and the grade doesn't shift its colour); then motion blur over the finished frame.
+     */
     public static void grade() {
-        handGlow();
         if (preset != OFF && lastWorldFrame == FrameInfo.frame) {
             long t0 = System.nanoTime();
             Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
             nanos += System.nanoTime() - t0;
         }
+        handGlow();
         motionBlur();
         //? if >=1.21.2 {
         pool.endFrame();
@@ -150,8 +153,8 @@ public final class LightPass {
 
     /**
      * The Punchy module's glow round the first-person hands and held item: everything drawn after the game cleared
-     * the depth for the hands is the mask, blurred wide and laid round them. Runs whether Atmosphere is on or not; it
-     * stands aside for a shader pack (which draws the hands its own way).
+     * the depth for the hands is the mask, and a thin rim is laid round it from each pixel's distance to its edge.
+     * Runs whether Atmosphere is on or not; it stands aside for a shader pack (which draws the hands its own way).
      */
     private static void handGlow() {
         if (!FrameInfo.inWorld || Compat.isShaderPackActive() || !Guard.on(Feature.HAND_GLOW)

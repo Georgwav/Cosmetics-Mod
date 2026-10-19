@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
@@ -272,7 +272,8 @@ public final class SolScenario {
                 }
                 // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night, and the gold
                 // swing, as in Georg's video, at Ember's night).
-                shots.add(ui.equals("hands_swing_gold") ? new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH)
+                shots.add(ui.equals("hands_swing_gold") || ui.equals("hands_gold")
+                        ? new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH)
                         : inPlay(ui) && !ui.equals("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
@@ -1128,7 +1129,7 @@ public final class SolScenario {
             if (st.id.equals("glow_colours")) {
                 @SuppressWarnings("unchecked")
                 var colours = (io.github.georgwav.cosmetics.client.Setting<String>) st;
-                boolean gold = what.equals("hands_swing_gold");
+                boolean gold = what.equals("hands_swing_gold") || what.equals("hands_gold");
                 if (gold && coloursWas == null) {
                     coloursWas = colours.get();
                     colours.set("custom");
@@ -1140,9 +1141,10 @@ public final class SolScenario {
         }
         if (on) {
             punchy.setEnabled(!what.equals("hands_plain"));
-            // At night the hand is empty, so the arm shows (dark, outlined).
-            if (what.equals("hands_night") != handEmpty) {
-                handEmpty = what.equals("hands_night");
+            // At night (and in gold at rest) the hand is empty, so the arm shows (dark, outlined).
+            boolean empty = what.equals("hands_night") || what.equals("hands_gold");
+            if (empty != handEmpty) {
+                handEmpty = empty;
                 asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with "
                         + (handEmpty ? "air" : "diamond_sword[enchantment_glint_override=true]")));
             }

@@ -23,9 +23,6 @@
       "name": "TrailSampler"
     },
     {
-      "name": "DepthSampler"
-    },
-    {
       "name": "ParamsSampler"
     }
   ],

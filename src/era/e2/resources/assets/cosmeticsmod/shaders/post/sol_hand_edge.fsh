@@ -2,6 +2,7 @@
 
 uniform sampler2D InSampler;
 uniform sampler2D DepthSampler;
+uniform sampler2D DistSampler;
 uniform sampler2D ParamsSampler;
 
 in vec2 texCoord;
@@ -50,16 +51,46 @@ float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
 }
 
+// The distance field read with bilinear filtering by hand (1.21.1 filters every input of a pass alike, and the depth
+// must stay unfiltered): in 1080p pixels.
+float distAt(vec2 uv) {
+    vec2 size = vec2(textureSize(DistSampler, 0));
+    vec2 p = uv * size - 0.5;
+    vec2 f = fract(p);
+    vec2 b = (floor(p) + 0.5) / size;
+    vec2 t = 1.0 / size;
+    float d = mix(mix(texture(DistSampler, b).r, texture(DistSampler, b + vec2(t.x, 0.0)).r, f.x),
+            mix(texture(DistSampler, b + vec2(0.0, t.y)).r, texture(DistSampler, b + t).r, f.x), f.y);
+    // Rows of 540 are 2 px at 1080p; measured from texel centres, so half a texel nearer the edge.
+    return max(0.0, d * 32.0 - 1.0);
+}
+
 void main() {
     float hand = handAt(texCoord);
     vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
-    float scale = max(1.0, float(textureSize(DepthSampler, 0).y) / 720.0);
-    float cov = 0.0;
+    float s = float(textureSize(DepthSampler, 0).y) / 1080.0;
+    float near = 0.0, edge = 0.0, out1 = 0.0;
     for (int i = 0; i < 8; i++) {
-        float a = float(i) * 0.7853982 + 0.2;
-        cov += handAt(texCoord + vec2(cos(a), sin(a)) * px * scale * 1.3) * 0.125;
+        float a = float(i) * 0.7853982 + 0.39;
+        vec2 d = vec2(cos(a), sin(a)) * px;
+        near += handAt(texCoord + d * max(1.0, 2.0 * s));
+        edge += handAt(texCoord + d * max(1.5, 2.8 * s));
+        out1 += 1.0 - handAt(texCoord + d * max(1.0, s));
     }
-    float line = hand > 0.5 ? 0.0 : min(1.0, cov * 3.0);
+    float size = clamp(P(86), 1.0, 3.0);
+    float dist = distAt(texCoord);
+    float rim, inner;
+    if (P(88) > 0.5) {
+        // The core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times the size).
+        float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
+        float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
+        rim = hand > 0.5 ? 0.0 : max(core, fade);
+        inner = hand > 0.5 && out1 > 0.0 ? 0.5 : 0.0;
+    } else {
+        float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
+        rim = hand > 0.5 ? 0.0 : f * f * 0.8;
+        inner = 0.0;
+    }
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
-    fragColor = vec4(line, 0.0, hand, max(texture(InSampler, texCoord).a, 1.0));
+    fragColor = vec4(rim, inner, hand, max(texture(InSampler, texCoord).a, 1.0));
 }

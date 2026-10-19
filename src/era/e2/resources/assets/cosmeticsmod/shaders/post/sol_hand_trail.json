@@ -3,10 +3,7 @@
   "fragment": "cosmeticsmod:post/sol_hand_trail",
   "samplers": [
     {
-      "name": "GlowSampler"
-    },
-    {
-      "name": "MaskSampler"
+      "name": "EdgeSampler"
     },
     {
       "name": "PrevSampler"

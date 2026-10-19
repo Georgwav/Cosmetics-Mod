@@ -9,6 +9,9 @@
       "name": "DepthSampler"
     },
     {
+      "name": "DistSampler"
+    },
+    {
       "name": "ParamsSampler"
     }
   ],

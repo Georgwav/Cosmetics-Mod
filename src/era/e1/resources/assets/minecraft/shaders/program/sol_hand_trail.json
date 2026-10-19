@@ -14,9 +14,6 @@
       "name": "DiffuseSampler"
     },
     {
-      "name": "MaskSampler"
-    },
-    {
       "name": "PrevSampler"
     },
     {

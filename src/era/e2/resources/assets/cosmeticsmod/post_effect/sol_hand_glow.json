@@ -37,6 +37,14 @@
       "width": 30,
       "height": 17
     },
+    "hdx": {
+      "width": 960,
+      "height": 540
+    },
+    "hdist": {
+      "width": 960,
+      "height": 540
+    },
     "hedge": {}
   },
   "passes": [
@@ -195,6 +203,45 @@
       "output": "hu0"
     },
     {
+      "program": "cosmeticsmod:post/sol_hand_dx",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Depth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hdx"
+    },
+    {
+      "program": "cosmeticsmod:post/sol_hand_dist",
+      "inputs": [
+        {
+          "sampler_name": "Dx",
+          "target": "hdx"
+        },
+        {
+          "sampler_name": "Params",
+          "location": "cosmeticsmod:sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ],
+      "output": "hdist"
+    },
+    {
       "program": "cosmeticsmod:post/sol_hand_edge",
       "inputs": [
         {
@@ -205,6 +252,10 @@
           "sampler_name": "Depth",
           "target": "minecraft:main",
           "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Dist",
+          "target": "hdist"
         },
         {
           "sampler_name": "Params",
@@ -235,11 +286,6 @@
         {
           "sampler_name": "Trail",
           "target": "hedge"
-        },
-        {
-          "sampler_name": "Depth",
-          "target": "minecraft:main",
-          "use_depth_buffer": true
         },
         {
           "sampler_name": "Params",

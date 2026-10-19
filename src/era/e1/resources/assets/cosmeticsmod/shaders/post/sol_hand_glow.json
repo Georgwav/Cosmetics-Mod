@@ -46,6 +46,16 @@
       "width": 30,
       "height": 17
     },
+    {
+      "name": "hdx",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "name": "hdist",
+      "width": 960,
+      "height": 540
+    },
     "hedge",
     "htrail",
     "htrailn"
@@ -171,9 +181,9 @@
       ]
     },
     {
-      "name": "sol_hand_edge",
+      "name": "sol_hand_dx",
       "intarget": "minecraft:main",
-      "outtarget": "hedge",
+      "outtarget": "hdx",
       "use_linear_filter": false,
       "auxtargets": [
         {
@@ -190,15 +200,49 @@
       ]
     },
     {
-      "name": "sol_hand_trail",
-      "intarget": "hu0",
-      "outtarget": "htrailn",
-      "use_linear_filter": true,
+      "name": "sol_hand_dist",
+      "intarget": "hdx",
+      "outtarget": "hdist",
+      "use_linear_filter": false,
       "auxtargets": [
         {
-          "name": "MaskSampler",
-          "id": "hmask"
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_edge",
+      "intarget": "minecraft:main",
+      "outtarget": "hedge",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
         },
+        {
+          "name": "DistSampler",
+          "id": "hdist"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_trail",
+      "intarget": "hedge",
+      "outtarget": "htrailn",
+      "use_linear_filter": false,
+      "auxtargets": [
         {
           "name": "PrevSampler",
           "id": "htrail"
@@ -235,10 +279,6 @@
         {
           "name": "TrailSampler",
           "id": "htrailn"
-        },
-        {
-          "name": "DepthSampler",
-          "id": "minecraft:main:depth"
         },
         {
           "name": "ParamsSampler",
