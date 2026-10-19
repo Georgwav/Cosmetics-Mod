@@ -43,7 +43,11 @@ abstract class KnifeHandMixin {
                                     InteractionHand hand, float swing, ItemStack stack, float equip, PoseStack poseStack,
                                     net.minecraft.client.renderer.MultiBufferSource buffers, int light, CallbackInfo ci) {
     *///?}
-        if (hand == InteractionHand.MAIN_HAND && KnifeRenderer.mainHand(stack, equip, partialTick, poseStack, buffers, light)) {
+        if (hand != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND.hit();
+        if (KnifeRenderer.mainHand(stack, equip, partialTick, poseStack, buffers, light)) {
             ci.cancel();
         }
     }

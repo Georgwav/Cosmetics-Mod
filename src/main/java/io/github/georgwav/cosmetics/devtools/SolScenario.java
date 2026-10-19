@@ -43,7 +43,7 @@ public final class SolScenario {
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_plain", "hands_night", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
-            "knife_inspect", "knife_glow", "knife_pvp", "knife_third", "servers", "whats_new", "packs"};
+            "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -1131,6 +1131,11 @@ public final class SolScenario {
         }
     }
 
+    /** Whether this run has the shot called {@code name}. */
+    private boolean shot(String name) {
+        return shots.stream().anyMatch(x -> x.name().equals(name));
+    }
+
     /** Knives to shoot one by one (local checks with real packs), by cosmetic id. */
     private static final List<String> KNIFE_IDS = System.getProperty("cosmeticsmod.knifeIds", "").isBlank() ? List.of()
             : List.of(System.getProperty("cosmeticsmod.knifeIds").split(","));
@@ -1205,6 +1210,7 @@ public final class SolScenario {
                 knifePvp.reset();
             }
             io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(1f);
         }
         var camera = what.equals("knife_third") ? net.minecraft.client.CameraType.THIRD_PERSON_FRONT
                 : net.minecraft.client.CameraType.FIRST_PERSON;
@@ -1217,7 +1223,12 @@ public final class SolScenario {
         if (phaseTick == SETTLE && what.equals("knife_third") && io.github.georgwav.cosmetics.melee.KnifeThirdPerson.drawn == 0) {
             problems.add(name + ": the knife wasn't drawn in third person");
         }
-        boolean module = what.equals("knife_glow") || what.equals("knife_pvp");
+        boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail");
+        // The trail shot: light attacks over and over in slow motion (this renderer draws a few frames a second).
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(what.equals("knife_trail") ? 0.2f : 1f);
+        if (what.equals("knife_trail") && phaseTick > 10 && phaseTick % 12 == 0) {
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.play("light");
+        }
         if (punchy.enabled() != module) {
             punchy.setEnabled(module);
         }
@@ -1228,7 +1239,12 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
             io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
         }
-        if (phaseTick == SETTLE - 15) {
+        if (phaseTick == SETTLE - 17 && what.equals("knife_light")) {
+            // A real attack click (the knife's input hook), then the light attack held at its strike. The key by its
+            // name: the left button's number differs from 26.3 on (SDL).
+            net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.getKey("key.mouse.left"));
+        }
+        if (phaseTick == SETTLE - 15 && !what.equals("knife_trail")) {
             switch (what) {
                 case "knife_draw" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("draw", 0.25f);
                 case "knife_light" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("light", 0.15f);
@@ -1528,9 +1544,44 @@ public final class SolScenario {
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
         }
+        // The knife's own cost, steady: at most 0.2 ms a frame, and nothing allocated per frame.
+        java.util.List<io.github.georgwav.cosmetics.melee.Knife> benchKnives = new java.util.ArrayList<>();
+        for (String id : KNIFE_IDS.isEmpty() ? List.of(io.github.georgwav.cosmetics.melee.StandInKnife.NAMESPACE + ":melee/"
+                + io.github.georgwav.cosmetics.melee.StandInKnife.ID) : KNIFE_IDS) {
+            var k = io.github.georgwav.cosmetics.melee.KnifeRegistry.get(id);
+            if (k != null) {
+                benchKnives.add(k);
+            }
+        }
+        if (shot("ui_knife_idle") || !KNIFE_IDS.isEmpty()) {
+            for (var k : benchKnives) {
+                double[] cost = io.github.georgwav.cosmetics.melee.KnifeBench.run(k, 20_000, 3_000);
+                CosmeticsMod.LOGGER.info("[Sol] knife bench, steady: {}: {} ms and {} bytes a frame", k.id,
+                        String.format(java.util.Locale.ROOT, "%.4f", cost[0]), String.format(java.util.Locale.ROOT, "%.1f", cost[1]));
+                if (cost[0] > 0.2) {
+                    problems.add("knife " + k.id + " took " + String.format(java.util.Locale.ROOT, "%.3f", cost[0])
+                            + " ms a frame (budget 0.2)");
+                }
+                if (cost[1] > 1.0) {
+                    problems.add("knife " + k.id + " allocated " + String.format(java.util.Locale.ROOT, "%.0f", cost[1]) + " bytes a frame");
+                }
+            }
+        }
+        // And in the shots' own frames (this software renderer, so for information): its hand-over and vertices.
+        if (io.github.georgwav.cosmetics.melee.KnifeRenderer.benchFrames > 0) {
+            int frames = io.github.georgwav.cosmetics.melee.KnifeRenderer.benchFrames;
+            double ms = io.github.georgwav.cosmetics.melee.KnifeRenderer.benchNanos / 1.0e6 / frames;
+            double bytes = (double) io.github.georgwav.cosmetics.melee.KnifeRenderer.benchBytes / frames;
+            CosmeticsMod.LOGGER.info("[Sol] knife bench, in the shots: {} ms and {} bytes a frame over {} frames (with the game's hand-over)",
+                    String.format(java.util.Locale.ROOT, "%.4f", ms), String.format(java.util.Locale.ROOT, "%.1f", bytes), frames);
+        }
         // Every module hook each frame passes through was reached; the chat's too (the HUD shots post messages).
         for (io.github.georgwav.cosmetics.sol.Hooks hook : io.github.georgwav.cosmetics.sol.Hooks.values()) {
-            boolean expected = hook.everyFrame || hook == io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD && chatShown;
+            boolean expected = hook.everyFrame || hook == io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD && chatShown
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_PACKS
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND && shot("ui_knife_idle")
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_INPUT && shot("ui_knife_light")
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_THIRD && shot("ui_knife_third");
             if (expected && hook.count() == 0) {
                 problems.add("the " + hook.name().toLowerCase(java.util.Locale.ROOT) + " hook was never reached");
             }

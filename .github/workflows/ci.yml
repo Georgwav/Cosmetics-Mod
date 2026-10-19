@@ -55,6 +55,10 @@ jobs:
       - name: Build and unit-test every Minecraft version
         # --continue: one broken version doesn't hide the others' results.
         run: ./gradlew build --continue
+      - name: No knife pack in the repo or the jars
+        # The knife packs are all rights reserved; CI uses a stand-in knife the mod generates.
+        if: ${{ !cancelled() }}
+        run: python3 ci/pack_guard.py --jars build/libs/*.jar
       - name: Upload jars
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

@@ -7,7 +7,9 @@ package io.github.georgwav.cosmetics.sol;
  */
 public enum Hooks {
     CAMERA_SETUP(true), HURT_BOB(true), CHAT_ADD(false), FIRE(false), FREELOOK_TURN(false), HELD_ITEM(false), CRYSTAL_SIZE(false),
-    CRYSTAL_SPIN(false);
+    CRYSTAL_SPIN(false),
+    /** Knives: the pack folder's packs looked for, the main hand drawn, an attack click, a held item left out in F5. */
+    KNIFE_PACKS(false), KNIFE_HAND(false), KNIFE_INPUT(false), KNIFE_THIRD(false);
 
     /** Whether every frame in a world passes through it (so the scenario can expect it). */
     public final boolean everyFrame;

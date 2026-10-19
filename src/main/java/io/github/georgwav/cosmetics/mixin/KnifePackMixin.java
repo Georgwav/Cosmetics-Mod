@@ -36,6 +36,7 @@ public abstract class KnifePackMixin {
         }
         Path root = Minecraft.getInstance().getResourcePackDirectory();
         if (root != null && folder.toAbsolutePath().normalize().equals(root.toAbsolutePath().normalize())) {
+            io.github.georgwav.cosmetics.sol.Hooks.KNIFE_PACKS.hit();
             KnifePacks.load(out);
         }
     }

@@ -63,6 +63,28 @@ public final class KnifeRenderer {
     /** Draws since the game started (read by the in-game test). */
     public static int drawn;
 
+    // The knife's own cost (test runs): render-thread time and bytes allocated drawing it, per frame, after it warmed up.
+    private static final boolean BENCH = System.getProperty("cosmeticsmod.solScenario") != null
+            || Boolean.getBoolean("cosmeticsmod.knifeBench");
+    private static final java.lang.management.ThreadMXBean THREADS = java.lang.management.ManagementFactory.getThreadMXBean();
+    private static final int WARM_UP = 30;
+    private static int shownFrames;
+    public static long benchNanos, benchBytes;
+    public static int benchFrames;
+
+    static long allocated() {
+        return THREADS instanceof com.sun.management.ThreadMXBean t ? t.getCurrentThreadAllocatedBytes() : 0L;
+    }
+
+    /** Your skin's texture and whether it's slim, and the tick they were looked up. */
+    //? if >=1.21.11 {
+    private static net.minecraft.resources.Identifier skin;
+    //?} else {
+    /*private static net.minecraft.resources.ResourceLocation skin;
+    *///?}
+    private static int skinTick = Integer.MIN_VALUE;
+    /** Knife space into the hand's this frame (rows of a 3x4 matrix), see {@link #local}. */
+    private static final float[] LOCAL = new float[12];
     /** The arms' render type, and the texture it was made with. */
     private static RenderType armType;
     private static Object armTypeTexture;
@@ -74,9 +96,12 @@ public final class KnifeRenderer {
     private static float handScale, gripX, gripZ;
 
     //? if >=1.21.9 {
+    /** The knife's own faces (both passes, one hand-over), and the arms. */
     private static final SubmitNodeCollector.CustomGeometryRenderer[] PASSES = {
-            (pose, consumer) -> emit(pose, consumer, NORMAL),
-            (pose, consumer) -> emit(pose, consumer, LIT),
+            (pose, consumer) -> {
+                emit(pose, consumer, NORMAL);
+                emit(pose, consumer, LIT);
+            },
             (pose, consumer) -> emit(pose, consumer, ARMS)};
     //?}
 
@@ -108,9 +133,25 @@ public final class KnifeRenderer {
         return v == null ? 0 : v.knife.bright;
     }
 
+    /** Dev runs: how fast the knives' clock runs (slow motion for the trail shot), and where it was rebased. */
+    private static float timeScale = 1f;
+    private static double clockAt;
+    private static long clockNanos = EPOCH;
+
     /** Seconds on the knives' clock. */
     public static float now() {
-        return Float.isNaN(pinned) ? (System.nanoTime() - EPOCH) * 1.0e-9f : pinned;
+        if (!Float.isNaN(pinned)) {
+            return pinned;
+        }
+        return (float) (clockAt + (System.nanoTime() - clockNanos) * 1.0e-9 * timeScale);
+    }
+
+    /** Dev runs: the knives' clock runs at {@code scale} times real time from now on. */
+    public static void timeScale(float scale) {
+        long n = System.nanoTime();
+        clockAt += (n - clockNanos) * 1.0e-9 * timeScale;
+        clockNanos = n;
+        timeScale = scale;
     }
 
     /**
@@ -119,9 +160,17 @@ public final class KnifeRenderer {
      */
     public static void hold(String action, float at) {
         pinned = Float.NaN;
+        float t = play(action);
+        if (!Float.isNaN(t)) {
+            pinned = t + at;
+        }
+    }
+
+    /** Dev runs: the knife in hand plays {@code action} now; the time it started, or NaN with no knife in hand. */
+    public static float play(String action) {
         KnifeView v = view;
         if (v == null) {
-            return;
+            return Float.NaN;
         }
         float t = now();
         float cooldown = KnifeTiming.cooldown(1.6), swing = KnifeTiming.swing(0, 0);
@@ -134,7 +183,7 @@ public final class KnifeRenderer {
             default -> {
             }
         }
-        pinned = t + at;
+        return t;
     }
 
     /** Dev runs: the knives' clock runs again. */
@@ -161,9 +210,12 @@ public final class KnifeRenderer {
             return false;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
+        boolean bench = BENCH && ++shownFrames > WARM_UP;
+        long benchStart = bench ? System.nanoTime() : 0L, benchAlloc = bench ? allocated() : 0L;
         try {
             float now = now();
             if (view == null || view.knife != knife) {
+                shownFrames = 0;
                 view = new KnifeView(knife, RANDOM, new KnifeSounds(knife.spec.sounds()));
                 shownLastFrame = false;
             }
@@ -200,18 +252,22 @@ public final class KnifeRenderer {
             shakeZ = view.pose.camera[2] * shake;
 
             RenderType knifeType = knifeType(knife);
-            //? if >=1.21.9 {
-            var skinInfo = player.getSkin();
-            var skin = skinInfo.body().texturePath();
-            slim = skinInfo.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM;
-            //?} else {
-            /*var skinInfo = player.getSkin();
-            var skin = skinInfo.texture();
-            slim = skinInfo.model() == net.minecraft.client.resources.PlayerSkin.Model.SLIM;
-            *///?}
+            if (player.tickCount != skinTick) {
+                // Your skin, looked up once a tick (the lookup allocates).
+                skinTick = player.tickCount;
+                //? if >=1.21.9 {
+                var skinInfo = player.getSkin();
+                skin = skinInfo.body().texturePath();
+                slim = skinInfo.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM;
+                //?} else {
+                /*var skinInfo = player.getSkin();
+                skin = skinInfo.texture();
+                slim = skinInfo.model() == net.minecraft.client.resources.PlayerSkin.Model.SLIM;
+                *///?}
+            }
             // Your skin, or the dark arms' texture while the Punchy module draws the arms dark; the render type kept
             // until that changes (the game's own arm render type, so the hand glow and the rest take it as a hand).
-            var armTexture = PunchyModule.skinOrDark(skin);
+            var armTexture = PunchyModule.skinNow(skin);
             if (armTexture != armTypeTexture) {
                 armTypeTexture = armTexture;
                 //? if >=1.21.11 {
@@ -229,27 +285,18 @@ public final class KnifeRenderer {
             handScale = spec.handScale() * (hands != null ? hands : 1f);
             gripX = grip[0];
             gripZ = grip[1];
-            poseStack.pushPose();
-            sway(poseStack, player, partialTick);
-            if (lower > 0f) {
-                poseStack.translate(0f, -0.6f * lower, 0f);
-            }
-            if (player.getMainArm() == HumanoidArm.LEFT) {
-                // The packs are right-handed: mirrored for a left main hand.
-                poseStack.scale(-1f, 1f, 1f);
-            }
-            poseStack.scale(1f / 16f, 1f / 16f, 1f / 16f);
-            poseStack.translate(-view.eye[0], -view.eye[1], -view.eye[2]);
+            // Knife space into the hand's: the sway, lowered while put away, mirrored for a left main hand (the packs
+            // are right-handed), pixels to blocks, the eye at the origin. Kept as a matrix the vertices take, so the
+            // hand's pose is handed over as it is (no pose pushed).
+            local(player, partialTick, lower, player.getMainArm() == HumanoidArm.LEFT, view.eye);
             //? if >=1.21.9 {
-            buffers.submitCustomGeometry(poseStack, knifeType, PASSES[NORMAL]);
-            buffers.submitCustomGeometry(poseStack, knifeType, PASSES[LIT]);
-            buffers.submitCustomGeometry(poseStack, armType, PASSES[ARMS]);
+            buffers.submitCustomGeometry(poseStack, knifeType, PASSES[0]);
+            buffers.submitCustomGeometry(poseStack, armType, PASSES[1]);
             //?} else {
             /*emit(poseStack.last(), buffers.getBuffer(knifeType), NORMAL);
             emit(poseStack.last(), buffers.getBuffer(knifeType), LIT);
             emit(poseStack.last(), buffers.getBuffer(armType), ARMS);
             *///?}
-            poseStack.popPose();
             drawn++;
             return true;
         } catch (RuntimeException | LinkageError e) {
@@ -259,6 +306,11 @@ public final class KnifeRenderer {
         } finally {
             if (RenderStats.TIMING) {
                 RenderStats.nanos += System.nanoTime() - start;
+            }
+            if (bench) {
+                benchNanos += System.nanoTime() - benchStart;
+                benchBytes += allocated() - benchAlloc;
+                benchFrames++;
             }
         }
     }
@@ -333,13 +385,34 @@ public final class KnifeRenderer {
      * straight on) is taken off and put back eased (tanh, at most {@link #LAG_CAP} degrees), times the sway setting.
      * The game's walking bob, already in the pose, carries over.
      */
-    private static void sway(PoseStack pose, net.minecraft.client.player.LocalPlayer p, float pt) {
+    private static void local(net.minecraft.client.player.LocalPlayer p, float pt, float lower, boolean mirror, float[] eye) {
         float xBob = p.xBobO + (p.xBob - p.xBobO) * pt, yBob = p.yBobO + (p.yBob - p.yBobO) * pt;
         float lagX = (p.getViewXRot(pt) - xBob) * 0.1f, lagY = (p.getViewYRot(pt) - yBob) * 0.1f;
         float s = PunchyModule.knifeSway();
         float x = s * LAG_CAP * (float) Math.tanh(lagX / LAG_CAP), y = s * LAG_CAP * (float) Math.tanh(lagY / LAG_CAP);
-        CosmeticRenderer.rotate(pose, TURN.rotationY((y - lagY) * DEG));
-        CosmeticRenderer.rotate(pose, TURN.rotationX((x - lagX) * DEG));
+        // The turn: about Y, then X (as the game's own lag is applied).
+        float ay = (y - lagY) * DEG, ax = (x - lagX) * DEG;
+        float cy = (float) Math.cos(ay), sy = (float) Math.sin(ay), cx = (float) Math.cos(ax), sx = (float) Math.sin(ax);
+        // R = Ry * Rx.
+        float r00 = cy, r01 = sy * sx, r02 = sy * cx;
+        float r10 = 0f, r11 = cx, r12 = -sx;
+        float r20 = -sy, r21 = cy * sx, r22 = cy * cx;
+        // Then lowered: t = R * (0, -0.6 lower, 0).
+        float dy = -0.6f * lower;
+        float t0 = r01 * dy, t1 = r11 * dy, t2 = r21 * dy;
+        // Then mirrored and to blocks: R's columns scaled.
+        float kx = (mirror ? -1f : 1f) / 16f, k = 1f / 16f;
+        r00 *= kx; r10 *= kx; r20 *= kx;
+        r01 *= k; r11 *= k; r21 *= k;
+        r02 *= k; r12 *= k; r22 *= k;
+        // Then the eye to the origin: t += R * -eye.
+        t0 -= r00 * eye[0] + r01 * eye[1] + r02 * eye[2];
+        t1 -= r10 * eye[0] + r11 * eye[1] + r12 * eye[2];
+        t2 -= r20 * eye[0] + r21 * eye[1] + r22 * eye[2];
+        float[] l = LOCAL;
+        l[0] = r00; l[1] = r01; l[2] = r02; l[3] = t0;
+        l[4] = r10; l[5] = r11; l[6] = r12; l[7] = t1;
+        l[8] = r20; l[9] = r21; l[10] = r22; l[11] = t2;
     }
 
     /**
@@ -391,13 +464,20 @@ public final class KnifeRenderer {
             return;
         }
         long start = RenderStats.TIMING ? System.nanoTime() : 0L;
+        boolean bench = BENCH && shownFrames > WARM_UP;
+        long benchStart = bench ? System.nanoTime() : 0L, benchAlloc = bench ? allocated() : 0L;
         try {
-            emitPass(pose, consumer, pass, v.pose, light, false);
+            emitPass(pose, consumer, pass, v.pose, light, false, LOCAL);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.cosmeticFailed(v.knife.id, e);
         }
         if (RenderStats.TIMING) {
             RenderStats.nanos += System.nanoTime() - start;
+        }
+        if (bench) {
+            // Counted with the frame's hand-over (the vertices are written after it from 1.21.9).
+            benchNanos += System.nanoTime() - benchStart;
+            benchBytes += allocated() - benchAlloc;
         }
     }
 
@@ -405,7 +485,8 @@ public final class KnifeRenderer {
      * One pass of a posed knife into a consumer: {@code pass} {@link #NORMAL} or {@link #LIT} faces, or {@link #ARMS};
      * {@code third}: as held in third person (no slash effects or glints).
      */
-    static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifePose p, int light, boolean third) {
+    static void emitPass(PoseStack.Pose pose, VertexConsumer consumer, int pass, KnifePose p, int light, boolean third,
+                         float[] local) {
         // `var`: Matrix4fc/Matrix3fc on newer versions, Matrix4f/Matrix3f on older ones.
         var m = pose.pose();
         var nm = pose.normal();
@@ -415,6 +496,25 @@ public final class KnifeRenderer {
         float n00 = nm.m00(), n01 = nm.m10(), n02 = nm.m20();
         float n10 = nm.m01(), n11 = nm.m11(), n12 = nm.m21();
         float n20 = nm.m02(), n21 = nm.m12(), n22 = nm.m22();
+        if (local != null) {
+            // M = M * L, and the normals' N = N * L's turn.
+            float[] l = local;
+            float a00 = m00 * l[0] + m01 * l[4] + m02 * l[8], a01 = m00 * l[1] + m01 * l[5] + m02 * l[9];
+            float a02 = m00 * l[2] + m01 * l[6] + m02 * l[10], a03 = m00 * l[3] + m01 * l[7] + m02 * l[11] + m03;
+            float a10 = m10 * l[0] + m11 * l[4] + m12 * l[8], a11 = m10 * l[1] + m11 * l[5] + m12 * l[9];
+            float a12 = m10 * l[2] + m11 * l[6] + m12 * l[10], a13 = m10 * l[3] + m11 * l[7] + m12 * l[11] + m13;
+            float a20 = m20 * l[0] + m21 * l[4] + m22 * l[8], a21 = m20 * l[1] + m21 * l[5] + m22 * l[9];
+            float a22 = m20 * l[2] + m21 * l[6] + m22 * l[10], a23 = m20 * l[3] + m21 * l[7] + m22 * l[11] + m23;
+            m00 = a00; m01 = a01; m02 = a02; m03 = a03;
+            m10 = a10; m11 = a11; m12 = a12; m13 = a13;
+            m20 = a20; m21 = a21; m22 = a22; m23 = a23;
+            float b00 = n00 * l[0] + n01 * l[4] + n02 * l[8], b01 = n00 * l[1] + n01 * l[5] + n02 * l[9], b02 = n00 * l[2] + n01 * l[6] + n02 * l[10];
+            float b10 = n10 * l[0] + n11 * l[4] + n12 * l[8], b11 = n10 * l[1] + n11 * l[5] + n12 * l[9], b12 = n10 * l[2] + n11 * l[6] + n12 * l[10];
+            float b20 = n20 * l[0] + n21 * l[4] + n22 * l[8], b21 = n20 * l[1] + n21 * l[5] + n22 * l[9], b22 = n20 * l[2] + n21 * l[6] + n22 * l[10];
+            n00 = b00; n01 = b01; n02 = b02;
+            n10 = b10; n11 = b11; n12 = b12;
+            n20 = b20; n21 = b21; n22 = b22;
+        }
         boolean oneCall = !Compat.isShaderPackActive();
         int packed = pass == LIT ? MeshEmitter.FULL_BRIGHT : light;
         KnifeGeo.Bone[] bones = p.geo.bones;

@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class KnifeInputMixin {
     @Inject(method = "startAttack", at = @At("HEAD"))
     private void cosmeticsmod$click(CallbackInfoReturnable<Boolean> cir) {
+        io.github.georgwav.cosmetics.sol.Hooks.KNIFE_INPUT.hit();
         KnifeInput.clicked((Minecraft) (Object) this);
     }
 

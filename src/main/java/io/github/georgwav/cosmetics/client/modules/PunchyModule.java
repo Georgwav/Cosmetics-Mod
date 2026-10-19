@@ -214,6 +214,15 @@ public final class PunchyModule extends Module {
         drawingHands = false;
     }
 
+    /** Your skin's texture as the hands draw it now: the dark arms' while they're on (knives' arms; no skin lookup). */
+    //? if >=1.21.11 {
+    public static net.minecraft.resources.Identifier skinNow(net.minecraft.resources.Identifier skin) {
+    //?} else {
+    /*public static net.minecraft.resources.ResourceLocation skinNow(net.minecraft.resources.ResourceLocation skin) {
+    *///?}
+        return drawingHands ? darkTexture().id : skin;
+    }
+
     /**
      * A texture a render type is made with: while the hands are drawn with dark arms, your skin becomes a dark one
      * (so the game's arms and Punchy's both turn into silhouettes); anything else (the items) stays.
