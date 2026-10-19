@@ -56,6 +56,9 @@ MIXIN_PROBLEM = re.compile(
 # Startup failures the game never recovers from (26.2+ tries OpenGL, then Vulkan).
 STARTUP_FATAL = re.compile(r"Failed to create backend \w+")
 OUR_ERROR = re.compile(r"(?:/ERROR|ERROR\]).*CosmeticsMod|CosmeticsMod.*(?:/ERROR|ERROR\])")
+# Our shaders: in our namespace, or named sol_* (1.21.1 keeps its programs in the game's namespace).
+SHADER_PROBLEM = re.compile(r"(Couldn't (compile|link)|Could not (compile|link)|Failed to load shader|Invalid shader).*(cosmeticsmod|sol_)"
+                            r"|(cosmeticsmod|sol_)\S* was invalid")
 # A line of logs/cosmeticsmod.log (ci/log4j2-ci.xml): time, thread, level, our logger, message.
 OUR_LINE = re.compile(r"^\[\d\d:\d\d:\d\d\] \[(?P<thread>[^\]]*)/(?P<level>[A-Z]+)\] \(CosmeticsMod\): (?P<msg>.*)$")
 # Warnings a CI run is expected to log, each at most once; any other warning or error of ours fails the run.
@@ -872,6 +875,10 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
     if ours:
         problems.append(f"{len(ours)} error line(s) from this mod, e.g. {ours[0]}")
     problems.extend(our_log_problems(game_dir))
+    # One of our shaders that doesn't compile is logged by the game, not by us, and its pass then draws nothing.
+    broken = sorted({line.strip()[:240] for line in text.splitlines() if SHADER_PROBLEM.search(line)})
+    if broken:
+        problems.append(f"{len(broken)} shader(s) of this mod didn't compile, e.g. {broken[0]}")
     if mode == "sol":
         problems.extend(glow_problems(game_dir, shots))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
