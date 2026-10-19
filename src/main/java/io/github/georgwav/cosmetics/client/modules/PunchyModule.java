@@ -40,8 +40,11 @@ public final class PunchyModule extends Module {
     /** The arms as dark silhouettes (your skin swapped for a dark texture while the hands are drawn). */
     private final Setting.Toggle darkArms = add(new Setting.Toggle("dark_arms", true).group("arms"));
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
-    /** A thin line round the hands in a golden glow ("outline", its old id), or a softer glow all round. */
-    private final Setting.Choice glowStyle = add(new Setting.Choice("glow_style", "outline", List.of("outline", "soft")).group("glow"));
+    /**
+     * Golden light round the hands that their movement leaves behind (no outline unless asked for), a thin bright
+     * outline on its own, or a soft glow all round. A new id: "glow_style" meant something else before.
+     */
+    private final Setting.Choice glowStyle = add(new Setting.Choice("glow_look", "golden", List.of("golden", "outline", "soft")).group("glow"));
     /** Gold by default (your own colour, gold until you pick another), as in Georg's picture of Clarity's glow. */
     private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "custom",
             List.of("theme", "item", "rainbow", "custom")).group("glow"));
@@ -58,6 +61,15 @@ public final class PunchyModule extends Module {
     /** While the hands move (a swing, or just walking), their glow stays a moment behind them, fading. */
     private final Setting.Toggle motionTrail = add(new Setting.Toggle("motion_trail", true).group("glow"));
     private final Setting.Slider trailLength = add(new Setting.Slider("trail_length", 60, 10, 100, 5, v -> Math.round(v) + "%").group("glow"));
+    // The golden glow's own look.
+    /** How much further up than round the sides the golden light reaches (warm light rises); 0 for none. */
+    private final Setting.Slider goldenRise = add(new Setting.Slider("golden_rise", 100, 0, 200, 10, v -> Math.round(v) + "%").group("golden"));
+    /** How pale and bright the light is right at the hands. */
+    private final Setting.Slider goldenCore = add(new Setting.Slider("golden_core", 50, 0, 100, 5, v -> Math.round(v) + "%").group("golden"));
+    /** How deep (towards amber) the gold gets where the light fades out. */
+    private final Setting.Slider goldenEdge = add(new Setting.Slider("golden_edge", 100, 0, 100, 5, v -> Math.round(v) + "%").group("golden"));
+    /** The thin outline round the hands as well; off, as the outline would sit in the light. */
+    private final Setting.Toggle goldenLine = add(new Setting.Toggle("golden_line", false).group("golden"));
     // Knives (a melee cosmetic held in place of a sword).
     /** Fit the knives' animations to Minecraft's sword, or play them at their own pace. */
     private final Setting.Choice knifeTiming = add(new Setting.Choice("knife_timing", "fit", List.of("fit", "original")).group("knives"));
@@ -279,9 +291,9 @@ public final class PunchyModule extends Module {
 
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
-     * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the
-     * lines of light moving through it, the style (1 line and glow, 0 soft), how much of the trail is left after this frame,
-     * and whether the trail shows.
+     * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the lines of light
+     * moving through it, the style (2 golden, 1 outline, 0 soft), how much of the trail is left after this frame, and
+     * whether the trail shows; then, 38 on, the golden glow's own look.
      */
     public static void glowParams(float[] v, int at, Tokens tk, boolean continuous) {
         PunchyModule m = Modules.PUNCHY;
@@ -324,7 +336,19 @@ public final class PunchyModule extends Module {
         v[at + 9] = 0f;
         v[at + 10] = (float) (m.glowSize.get() / 100.0);
         v[at + 11] = m.glowLines.get() ? 1f : 0f;
-        v[at + 12] = m.glowStyle.get().equals("outline") ? 1f : 0f;
+        v[at + 12] = switch (m.glowStyle.get()) {
+            case "golden" -> 2f;
+            case "outline" -> 1f;
+            default -> 0f;
+        };
+        // The golden glow's look (from 114): how much it rises, its bright core, its deep edge, whether it has the
+        // outline too, and how pale the outline is (cream in the golden light, the colour itself on its own).
+        boolean golden = m.glowStyle.get().equals("golden");
+        v[at + 38] = (float) (m.goldenRise.get() / 100.0);
+        v[at + 39] = (float) (m.goldenCore.get() / 100.0);
+        v[at + 40] = (float) (m.goldenEdge.get() / 100.0);
+        v[at + 41] = !golden || m.goldenLine.get() ? 1f : 0f;
+        v[at + 42] = golden ? 0.55f : 0.15f;
         // How much of the trail is left after this frame: half of it goes in a time set by its length, so it lasts
         // as long at any frame rate; none when the glow wasn't drawn last frame (no stale trail when it comes back).
         boolean trail = m.motionTrail.get() && continuous;

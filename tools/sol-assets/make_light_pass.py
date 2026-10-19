@@ -418,12 +418,12 @@ void main() {
     fragColor = vec4(best / 16.0, rise / 24.0, 0.0, 1.0);
 }
 """),
-    # The hand glow (Clarity's look, from Georg's picture), at full resolution. Red: the line round the hands, full
+    # The hand glow (Clarity's look, from Georg's picture), at full resolution. Red: the outline round the hands, full
     # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
-    # size setting, up to 3x), from the distance field; or, for the soft style, a softer fade with no bright core,
-    # capped at 24 px. Green: inside the hands, a 1 px edge just inside them at half strength; outside, the golden glow,
-    # soft light all round them reaching a little further up, fading smoothly (times the size). Blue: the hands
-    # themselves (never filled).
+    # size setting, up to 3x), from the distance field (the golden style only has it when asked for); or, for the soft
+    # style, a softer fade with no bright core, capped at 24 px. Green: inside the hands, a 1 px edge just inside them
+    # at half strength (with the outline); outside, for the golden style, its light, all round them and reaching further
+    # up, fading smoothly (times the size). Blue: the hands themselves (never filled).
     "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
 float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
@@ -462,15 +462,20 @@ void main() {
     float dist = dists.x;
     float rim, green;
     if (P(88) > 0.5) {
-        // The core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times the size).
+        // The outline: the core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times
+        // the size).
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
-        rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The golden glow: soft light all round the hands, reaching a little further up (warm light rises), fading
-        // smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising (no hand that near).
-        float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
-        float up = exp(-dists.y / (12.0 * size)) * (1.0 - smoothstep(36.0, 46.0, dists.y));
-        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : max(halo, up * 0.85);
+        // On its own, or in the golden light only when asked for (P(117)).
+        rim = hand > 0.5 ? 0.0 : max(core, fade) * P(117);
+        green = hand > 0.5 && out1 > 0.0 ? 0.5 * P(117) : 0.0;
+        if (P(88) > 1.5 && hand < 0.5) {
+            // The golden glow: soft light all round the hands, reaching further up as warm light rises (P(114)),
+            // fading smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising.
+            float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
+            float up = exp(-dists.y / (12.0 * size * max(P(114), 0.05))) * (1.0 - smoothstep(36.0, 46.0, dists.y));
+            green = max(halo, up * 0.85 * min(P(114), 1.0));
+        }
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
         rim = hand > 0.5 ? 0.0 : f * f * 0.8;
@@ -489,13 +494,13 @@ void main() {
     # golden smear, not a copy per frame. Red: what the hands leave this frame (checked against next frame); green: the
     # trail.
     "sol_hand_trail": (["Edge", "Prev", "Params"], PARAMS + r"""
-// What the hands leave behind at a point of this frame: their glow, and faintly their own shape.
+// What the hands leave behind at a point of this frame: their glow or outline, and faintly their own shape.
 float leaves(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.1 : e.g;
+    return e.b > 0.5 ? 0.1 : max(e.g, e.r);
 }
 
 // What they left at a point the frame before.
@@ -601,13 +606,13 @@ void main() {
     float lit = clamp(glow * grade * s, 0.0, 1.5);
     // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
     // deep gold where it fades out, the colour itself, then pale bright gold where it's strongest, at the hands.
-    vec3 outer = col * vec3(1.0, 0.8, 0.45);
-    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), 0.5);
+    vec3 outer = col * mix(vec3(1.0), vec3(1.0, 0.8, 0.45), P(116));
+    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), P(115));
     vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, lit)), hot, smoothstep(0.55, 1.0, lit));
     c = soft(c * (1.0 - 0.45 * min(lit, 1.0)) + light * lit * 1.15);
-    // The line, pale (cream for gold).
+    // The outline: pale in the golden light (cream for gold), nearly the colour itself on its own.
     float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
-    vec3 pale = mix(col, vec3(1.0), 0.55);
+    vec3 pale = mix(col, vec3(1.0), P(118));
     c = mix(c, pale, clamp(k * 0.6, 0.0, 0.8));
     c = soft(c + pale * k * 0.3);
     // The lines show in the soft style's fade, not over the hand.

@@ -32,13 +32,13 @@ float luma(vec3 c) {
     return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// What the hands leave behind at a point of this frame: their glow, and faintly their own shape.
+// What the hands leave behind at a point of this frame: their glow or outline, and faintly their own shape.
 float leaves(vec2 uv) {
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
         return 0.0;
     }
     vec3 e = texture(EdgeSampler, uv).rgb;
-    return e.b > 0.5 ? 0.1 : e.g;
+    return e.b > 0.5 ? 0.1 : max(e.g, e.r);
 }
 
 // What they left at a point the frame before.

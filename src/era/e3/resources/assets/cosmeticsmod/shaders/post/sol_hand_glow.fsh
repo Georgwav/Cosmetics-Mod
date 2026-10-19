@@ -78,13 +78,13 @@ void main() {
     float lit = clamp(glow * grade * s, 0.0, 1.5);
     // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
     // deep gold where it fades out, the colour itself, then pale bright gold where it's strongest, at the hands.
-    vec3 outer = col * vec3(1.0, 0.8, 0.45);
-    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), 0.5);
+    vec3 outer = col * mix(vec3(1.0), vec3(1.0, 0.8, 0.45), P(116));
+    vec3 hot = mix(col, vec3(1.0, 0.96, 0.82), P(115));
     vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, lit)), hot, smoothstep(0.55, 1.0, lit));
     c = soft(c * (1.0 - 0.45 * min(lit, 1.0)) + light * lit * 1.15);
-    // The line, pale (cream for gold).
+    // The outline: pale in the golden light (cream for gold), nearly the colour itself on its own.
     float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
-    vec3 pale = mix(col, vec3(1.0), 0.55);
+    vec3 pale = mix(col, vec3(1.0), P(118));
     c = mix(c, pale, clamp(k * 0.6, 0.0, 0.8));
     c = soft(c + pale * k * 0.3);
     // The lines show in the soft style's fade, not over the hand.

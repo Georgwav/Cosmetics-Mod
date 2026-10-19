@@ -84,15 +84,20 @@ void main() {
     float dist = dists.x;
     float rim, green;
     if (P(88) > 0.5) {
-        // The core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times the size).
+        // The outline: the core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times
+        // the size).
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
-        rim = hand > 0.5 ? 0.0 : max(core, fade);
-        // The golden glow: soft light all round the hands, reaching a little further up (warm light rises), fading
-        // smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising (no hand that near).
-        float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
-        float up = exp(-dists.y / (12.0 * size)) * (1.0 - smoothstep(36.0, 46.0, dists.y));
-        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : max(halo, up * 0.85);
+        // On its own, or in the golden light only when asked for (P(117)).
+        rim = hand > 0.5 ? 0.0 : max(core, fade) * P(117);
+        green = hand > 0.5 && out1 > 0.0 ? 0.5 * P(117) : 0.0;
+        if (P(88) > 1.5 && hand < 0.5) {
+            // The golden glow: soft light all round the hands, reaching further up as warm light rises (P(114)),
+            // fading smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising.
+            float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
+            float up = exp(-dists.y / (12.0 * size * max(P(114), 0.05))) * (1.0 - smoothstep(36.0, 46.0, dists.y));
+            green = max(halo, up * 0.85 * min(P(114), 1.0));
+        }
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
         rim = hand > 0.5 ? 0.0 : f * f * 0.8;
