@@ -69,13 +69,21 @@ void main() {
     // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
     float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
     float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
-    float k = (e.r + e.g) * grade;
+    // Green is the inner edge inside the hands and the rising glow outside them.
+    float inner = e.b > 0.5 ? e.g : 0.0;
+    float rising = clamp((e.b > 0.5 ? 0.0 : e.g) * grade * s, 0.0, 1.5);
+    vec3 warm = mix(col, vec3(1.0), 0.45 * min(rising, 1.0) * min(rising, 1.0));
+    c = mix(c, warm, clamp(rising * 0.75, 0.0, 0.85));
+    c = soft(c + warm * rising * 0.5);
+    // The line, pale (cream for gold).
+    float k = (e.r + inner) * grade;
     if (P(90) > 0.0) {
         k = max(k, max(texture(TrailSampler, texCoord).r - e.r, 0.0) * (1.0 - e.b) * P(90) * grade);
     }
     k = clamp(k * s, 0.0, 1.5);
-    c = mix(c, col, clamp(k * 0.7, 0.0, 0.85));
-    c = soft(c + col * k * 0.45);
+    vec3 pale = mix(col, vec3(1.0), 0.55);
+    c = mix(c, pale, clamp(k * 0.6, 0.0, 0.8));
+    c = soft(c + pale * k * 0.3);
     // The lines show in the soft style's fade, not over the hand.
     if (P(87) > 0.0 && P(88) < 0.5) {
         float band = smoothstep(0.05, 0.3, e.r) * (1.0 - smoothstep(0.6, 0.9, e.r)) * (1.0 - e.b);

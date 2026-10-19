@@ -52,18 +52,29 @@ float handAt(vec2 uv) {
     return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
 }
 
-// The distance field read with bilinear filtering by hand (1.21.1 filters every input of a pass alike, and the depth
-// must stay unfiltered): in 1080p pixels.
-float distAt(vec2 uv) {
+// The distance field (both distances) read with bilinear filtering by hand (1.21.1 filters every input of a pass
+// alike, and the depth must stay unfiltered): in 1080p pixels.
+vec2 distAt(vec2 uv) {
     vec2 size = vec2(textureSize(DistSampler, 0));
     vec2 p = uv * size - 0.5;
     vec2 f = fract(p);
     vec2 b = (floor(p) + 0.5) / size;
     vec2 t = 1.0 / size;
-    float d = mix(mix(texture(DistSampler, b).r, texture(DistSampler, b + vec2(t.x, 0.0)).r, f.x),
-            mix(texture(DistSampler, b + vec2(0.0, t.y)).r, texture(DistSampler, b + t).r, f.x), f.y);
+    vec2 d = mix(mix(texture(DistSampler, b).rg, texture(DistSampler, b + vec2(t.x, 0.0)).rg, f.x),
+            mix(texture(DistSampler, b + vec2(0.0, t.y)).rg, texture(DistSampler, b + t).rg, f.x), f.y);
     // Rows of 540 are 2 px at 1080p; measured from texel centres, so half a texel nearer the edge.
-    return max(0.0, d * 32.0 - 1.0);
+    return max(vec2(0.0), d * 32.0 - 1.0);
+}
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void main() {
@@ -79,19 +90,25 @@ void main() {
         out1 += 1.0 - handAt(texCoord + d * max(1.0, s));
     }
     float size = clamp(P(86), 1.0, 3.0);
-    float dist = distAt(texCoord);
-    float rim, inner;
+    vec2 dists = distAt(texCoord);
+    float dist = dists.x;
+    float rim, green;
     if (P(88) > 0.5) {
         // The core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times the size).
         float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
         float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
         rim = hand > 0.5 ? 0.0 : max(core, fade);
-        inner = hand > 0.5 && out1 > 0.0 ? 0.5 : 0.0;
+        // The rising glow: strong for its first third, then fading; its reach wavers, rising, so its top flickers.
+        vec2 w = texCoord * vec2(P(28), 1.0) * 1080.0;
+        float reach = min(24.0, 13.0 * size) * (0.8 + 0.45 * noise(vec2(w.x / 16.0, w.y / 22.0 - P(22) * 2.2)));
+        // The field stops at 32 px (no hand that near below): no glow there.
+        float rising = (1.0 - smoothstep(0.3 * reach, reach, dists.y)) * step(dists.y, 30.0);
+        green = hand > 0.5 ? (out1 > 0.0 ? 0.5 : 0.0) : rising * rising;
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
         rim = hand > 0.5 ? 0.0 : f * f * 0.8;
-        inner = 0.0;
+        green = 0.0;
     }
     // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
-    fragColor = vec4(rim, inner, hand, max(texture(InSampler, texCoord).a, 1.0));
+    fragColor = vec4(rim, green, hand, max(texture(InSampler, texCoord).a, 1.0));
 }
