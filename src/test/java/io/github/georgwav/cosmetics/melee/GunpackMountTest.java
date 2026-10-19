@@ -128,6 +128,83 @@ class GunpackMountTest {
     }
 
     @Test
+    void aSolFinishIsMadeFromItsKnifeWithTheSameModelAndAnimations(@TempDir Path dir) throws IOException {
+        StandInKnife.write(dir);
+        String ns = StandInKnife.NAMESPACE;
+        Files.writeString(dir.resolve(GunpackMount.OVERRIDES), "{\"knives\":{\"" + ns + ":standin_ruby\":{\"name\":\"Test Blade | Ruby\","
+                + "\"finish_of\":\"" + ns + ":standin\",\"finish\":\"ruby\"}}}");
+        GunpackMount.Result[] r = new GunpackMount.Result[1];
+        Path pack = GunpackMount.mount(dir, r);
+        assertEquals(java.util.List.of(ns + ":melee/standin", ns + ":melee/standin_ruby"), r[0].cosmetics(), r[0].problems().toString());
+        Path assets = pack.resolve("assets").resolve(ns);
+        JsonObject base = JsonParser.parseString(Files.readString(assets.resolve("cosmetics/melee/standin.json"))).getAsJsonObject();
+        JsonObject ruby = JsonParser.parseString(Files.readString(assets.resolve("cosmetics/melee/standin_ruby.json"))).getAsJsonObject();
+        assertEquals("Test Blade", ruby.get("group").getAsString(), "the finish groups under its knife");
+        assertEquals(base.getAsJsonObject("melee").get("model"), ruby.getAsJsonObject("melee").get("model"));
+        assertEquals(base.getAsJsonObject("melee").get("animations"), ruby.getAsJsonObject("melee").get("animations"));
+        assertEquals(ns + ":textures/melee/sol_finish/standin_ruby.png", ruby.get("texture").getAsString());
+        assertEquals(ns + ":textures/melee/sol_finish/slot/standin_ruby.png", ruby.get("icon").getAsString());
+        byte[] made = Files.readAllBytes(assets.resolve("textures/melee/sol_finish/standin_ruby.png"));
+        assertTrue(made.length > 0);
+        assertTrue(!java.util.Arrays.equals(made, Files.readAllBytes(assets.resolve("textures/melee/standin.png"))), "recoloured");
+        assertTrue(Files.exists(assets.resolve("textures/melee/sol_finish/slot/standin_ruby.png")));
+    }
+
+    @Test
+    void aFinishOfAKnifeThatIsntThereOrOfAnUnknownKindIsLeftOut(@TempDir Path dir) throws IOException {
+        StandInKnife.write(dir);
+        String ns = StandInKnife.NAMESPACE;
+        Files.writeString(dir.resolve(GunpackMount.OVERRIDES), "{\"knives\":{\"" + ns + ":a\":{\"finish_of\":\"" + ns
+                + ":standin\",\"finish\":\"gold\"},\"" + ns + ":b\":{\"finish_of\":\"" + ns + ":nothing\",\"finish\":\"ruby\"}}}");
+        GunpackMount.Result[] r = new GunpackMount.Result[1];
+        GunpackMount.mount(dir, r);
+        assertEquals(java.util.List.of(ns + ":melee/standin"), r[0].cosmetics());
+        assertEquals(1, r[0].problems().size(), r[0].problems().toString());
+    }
+
+    @Test
+    void aPackCanPlayAnotherPacksAnimationsAndSounds(@TempDir Path dir) throws IOException {
+        StandInKnife.write(dir);
+        String ns = StandInKnife.NAMESPACE;
+        // A pack of its own model and pictures, playing the stand-in's animations: no animations of its own.
+        Path own = dir.resolve("Own").resolve("assets").resolve("mine");
+        Path standIn = dir.resolve("StandIn").resolve("assets").resolve(ns);
+        for (String f : new String[]{"geo_models/melee/standin_geo.json", "textures/melee/standin.png", "textures/melee/slot/standin.png"}) {
+            Path to = own.resolve(f.replace("standin", "blade"));
+            Files.createDirectories(to.getParent());
+            Files.copy(standIn.resolve(f), to);
+        }
+        Files.createDirectories(own.resolve("display/melee"));
+        Files.writeString(own.resolve("display/melee/blade.json"), "{\"model\":\"mine:melee/blade_geo\",\"animation\":\""
+                + ns + ":melee/standin\",\"texture\":\"mine:melee/blade\",\"slot_texture\":\"mine:melee/slot/blade\"}");
+        GunpackMount.Result[] r = new GunpackMount.Result[1];
+        Path pack = GunpackMount.mount(dir, r);
+        assertTrue(r[0].cosmetics().contains("mine:melee/blade"), r[0].cosmetics() + " " + r[0].problems());
+        JsonObject melee = JsonParser.parseString(Files.readString(pack.resolve("assets/mine/cosmetics/melee/blade.json")))
+                .getAsJsonObject().getAsJsonObject("melee");
+        String anims = melee.get("animations").getAsString();
+        assertTrue(anims.startsWith(ns + ":"), anims);
+        assertTrue(Files.exists(pack.resolve("assets").resolve(ns).resolve(anims.substring(ns.length() + 1))));
+        assertEquals(ns, melee.get("sounds").getAsString(), "the animations' sound keys are their pack's");
+        assertTrue(melee.get("model").getAsString().startsWith("mine:"));
+    }
+
+    @Test
+    void newDefaultsReachAPlayersOlderOverridesWhichStillWin() {
+        JsonObject own = JsonParser.parseString("{\"skip\":[\"x:y\"],\"knives\":{\"wtyj:desire_blade\":{\"hand_scale\":0.9},"
+                + "\"delta_wt:annihil\":{\"name\":\"Mine\"}}}").getAsJsonObject();
+        JsonObject m = GunpackMount.merged(own);
+        JsonObject knives = m.getAsJsonObject("knives");
+        assertEquals(0.9, knives.getAsJsonObject("wtyj:desire_blade").get("hand_scale").getAsDouble(), 1e-9);
+        assertEquals("VCT Lock In", knives.getAsJsonObject("wtyj:desire_blade").get("name").getAsString());
+        assertEquals("Mine", knives.getAsJsonObject("delta_wt:annihil").get("name").getAsString());
+        assertEquals("cs2_wt:cs2_skeleton", knives.getAsJsonObject("cs2_wt:cs2_skeleton_ruby").get("finish_of").getAsString());
+        assertEquals(0.72, knives.getAsJsonObject("sol:sol_xenohunter").get("hand_scale").getAsDouble(), 1e-9);
+        assertTrue(m.getAsJsonArray("skip").toString().contains("x:y"));
+        assertTrue(m.getAsJsonArray("skip").toString().contains("delta_wt:null_annihil"));
+    }
+
+    @Test
     void namesDefaultToGeorgsTable() {
         JsonObject d = GunpackMount.defaults();
         assertEquals("Dark Star", d.getAsJsonObject("knives").getAsJsonObject("delta_wt:annihil").get("name").getAsString());

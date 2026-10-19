@@ -638,13 +638,27 @@ written with the defaults the first time:
   "knives": {
     "cs2_wt:cs2_m9emerald": { "name": "M9 Bayonet | Emerald" },
     "wtyj:desire_blade": { "name": "VCT Lock In", "hand_scale": 0.72 },
-    "wtyj:eternal_karambit": { "name": "Prime Karambit", "camera": [1, -1, 4] }
+    "wtyj:eternal_karambit": { "name": "Prime Karambit", "camera": [1, -1, 4] },
+    "cs2_wt:cs2_skeleton_ruby": { "name": "Skeleton Knife | Ruby", "finish_of": "cs2_wt:cs2_skeleton", "finish": "ruby" }
   }
 }
 ```
 
+Defaults added in later versions still apply to an older file: per knife, what the file says wins, and a default
+knife or finish is turned off by putting its id in `skip`.
+
 A name `Knife | Finish` lists the knife under `Knife` in the Wardrobe, with its other finishes. The packs' files are
 only read on your computer; nothing of them is ever part of the mod.
+
+**Sol finishes.** An entry with `finish_of` (a knife's id, in the same namespace) and `finish` is a finish Sol makes
+from that knife: the same model and animations, with its texture and slot picture recoloured when the knives are
+mounted. `ruby` is the one there is: the metal through a ruby ramp with a Doppler finish's light and dark patches,
+the dark metal and the grip wrap near black.
+
+**Borrowed animations.** A display may name another pack's files by that pack's namespace, for a model of your own
+that plays another knife's animations: `"animation": "wtyj:melee/desire_blade"` in your pack's display plays VCT
+Lock In's draws, attacks and inspects (and their sounds) on your model, when the Valorant pack is in the folder too.
+The model needs the bones those animations move.
 
 The `melee` block:
 

@@ -107,9 +107,12 @@ public final class GunpackMount {
         return r.cosmetics().isEmpty() ? null : target;
     }
 
-    /** What the packs and overrides are now (names, sizes and times), so an unchanged folder isn't mounted again. */
+    /**
+     * What the packs and overrides are now (names, sizes and times), so an unchanged folder isn't mounted again; its
+     * first line changes when the mount itself does (v2: Sol's finishes and borrowed animations), to mount again.
+     */
     private static String stamp(Path folder) throws IOException {
-        StringBuilder sb = new StringBuilder("v1\n");
+        StringBuilder sb = new StringBuilder("v2\n");
         try (Stream<Path> s = Files.walk(folder, 6)) {
             for (Path p : s.filter(Files::isRegularFile).filter(p -> !folder.relativize(p).toString().replace('\\', '/').startsWith(MOUNTED))
                     .sorted(Comparator.comparing(Path::toString)).toList()) {
@@ -222,7 +225,7 @@ public final class GunpackMount {
         Path file = folder.resolve(OVERRIDES);
         if (Files.exists(file)) {
             try {
-                return JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+                return merged(JsonParser.parseString(Files.readString(file)).getAsJsonObject());
             } catch (RuntimeException e) {
                 // A broken file: the defaults, and the file left for the player to fix.
                 return defaults();
@@ -231,6 +234,34 @@ public final class GunpackMount {
         JsonObject d = defaults();
         Files.writeString(file, GSON.toJson(d));
         return d;
+    }
+
+    /**
+     * The player's overrides over the defaults, so knives and fixes added since their file was written still come
+     * (a default is turned off with {@code skip}): per knife, the player's settings win; both skip lists count.
+     */
+    static JsonObject merged(JsonObject own) {
+        JsonObject out = defaults();
+        if (own.has("skip") && own.get("skip").isJsonArray()) {
+            JsonArray skip = out.getAsJsonArray("skip");
+            for (JsonElement e : own.getAsJsonArray("skip")) {
+                if (!skip.contains(e)) {
+                    skip.add(e);
+                }
+            }
+        }
+        if (own.has("knives") && own.get("knives").isJsonObject()) {
+            JsonObject knives = out.getAsJsonObject("knives");
+            for (var e : own.getAsJsonObject("knives").entrySet()) {
+                if (!e.getValue().isJsonObject()) {
+                    continue;
+                }
+                JsonObject k = knives.has(e.getKey()) ? knives.getAsJsonObject(e.getKey()) : new JsonObject();
+                e.getValue().getAsJsonObject().entrySet().forEach(f -> k.add(f.getKey(), f.getValue()));
+                knives.add(e.getKey(), k);
+            }
+        }
+        return out;
     }
 
     /** Georg's names for the three packs' knives, and their fixes. */
@@ -270,6 +301,17 @@ public final class GunpackMount {
         cam.add(-1);
         cam.add(4);
         knives.getAsJsonObject("wtyj:eternal_karambit").add("camera", cam);
+        // Sol's own: a Ruby finish made from the Skeleton Knife, and the Xenohunter Knife (its model is a pack of its
+        // own that plays VCT Lock In's animations), with VCT Lock In's hands.
+        JsonObject ruby = new JsonObject();
+        ruby.addProperty("name", "Skeleton Knife | Ruby");
+        ruby.addProperty("finish_of", "cs2_wt:cs2_skeleton");
+        ruby.addProperty("finish", KnifeFinish.RUBY);
+        knives.add("cs2_wt:cs2_skeleton_ruby", ruby);
+        JsonObject xeno = new JsonObject();
+        xeno.addProperty("name", "Xenohunter Knife");
+        xeno.addProperty("hand_scale", 0.72);
+        knives.add("sol:sol_xenohunter", xeno);
         o.add("knives", knives);
         return o;
     }
@@ -298,10 +340,16 @@ public final class GunpackMount {
         }
         JsonObject knives = overrides.has("knives") && overrides.get("knives").isJsonObject() ? overrides.getAsJsonObject("knives") : new JsonObject();
         Map<String, JsonObject> sounds = new TreeMap<>();
+        // A display may name another pack's files by its namespace (a model of its own playing another knife's
+        // animations): the first pack with that namespace has them.
+        Map<String, Pack> byNamespace = new LinkedHashMap<>();
+        for (Pack p : packs) {
+            byNamespace.putIfAbsent(p.namespace, p);
+        }
+        java.util.Set<String> copied = new java.util.HashSet<>();
         for (Pack p : packs) {
             String ns = p.namespace;
             Path assets = target.resolve("assets").resolve(ns);
-            java.util.Set<String> copied = new java.util.HashSet<>();
             for (var f : p.files.entrySet()) {
                 Matcher m = Pattern.compile("^display/melee/([^/]+)\\.json$").matcher(f.getKey());
                 if (!m.matches()) {
@@ -315,7 +363,28 @@ public final class GunpackMount {
                 try {
                     JsonObject display = JsonParser.parseString(new String(f.getValue(), StandardCharsets.UTF_8)).getAsJsonObject();
                     JsonObject own = knives.has(cid) && knives.get(cid).isJsonObject() ? knives.getAsJsonObject(cid) : new JsonObject();
-                    made.add(cosmetic(p, ns, id, display, own, assets, copied, problems));
+                    made.add(cosmetic(byNamespace, p, ns, id, id, display, own, target, copied, null));
+                    // Sol's finishes of this knife.
+                    for (var k : knives.entrySet()) {
+                        if (!k.getValue().isJsonObject() || skip.contains(k.getKey())) {
+                            continue;
+                        }
+                        JsonObject fin = k.getValue().getAsJsonObject();
+                        if (!fin.has("finish_of") || !cid.equals(fin.get("finish_of").getAsString())) {
+                            continue;
+                        }
+                        String finish = fin.has("finish") ? fin.get("finish").getAsString() : "";
+                        String fid = k.getKey().substring(k.getKey().indexOf(':') + 1);
+                        if (!k.getKey().startsWith(ns + ":") || !KnifeFinish.known(finish) || !fid.matches("[a-z0-9_.-]+")) {
+                            problems.add(k.getKey() + ": a finish needs its knife's namespace, a plain id and a known finish");
+                            continue;
+                        }
+                        try {
+                            made.add(cosmetic(byNamespace, p, ns, id, fid, display, fin, target, copied, finish));
+                        } catch (RuntimeException | IOException e) {
+                            problems.add(p.source + " " + fid + ": " + e.getMessage());
+                        }
+                    }
                 } catch (RuntimeException | IOException e) {
                     problems.add(p.source + " " + id + ": " + e.getMessage());
                 }
@@ -351,49 +420,68 @@ public final class GunpackMount {
         return new Result(made, problems);
     }
 
-    /** One display as a cosmetic: its JSON, and its model, animations and pictures copied (once per pack). */
-    private static String cosmetic(Pack p, String ns, String id, JsonObject display, JsonObject own, Path assets,
-                                   java.util.Set<String> copied, List<String> problems) throws IOException {
+    /**
+     * One display ({@code displayId}) as a cosmetic: its JSON, and its model, animations and pictures copied (each file
+     * once). With {@code finish}, Sol's finish of the display's knife instead: cosmetic {@code id} with the same model
+     * and animations, and its texture and slot picture made from the knife's.
+     */
+    private static String cosmetic(Map<String, Pack> packs, Pack p, String ns, String displayId, String id, JsonObject display,
+                                   JsonObject own, Path target, java.util.Set<String> copied, String finish) throws IOException {
+        Pack mp = owner(display, "model", p, packs), ap = owner(display, "animation", p, packs), tp = owner(display, "texture", p, packs);
         String model = path(display, "model", ns);
         String anim = path(display, "animation", ns);
         String tex = path(display, "texture", ns);
         String slot = display.has("slot_texture") ? path(display, "slot_texture", ns)
                 : display.has("slot") ? path(display, "slot", ns) : null;
-        String geoFile = find(p, "geo_models/" + model, ".json", ".geo.json", "");
-        String animFile = find(p, "animations/" + anim, ".animation.json", ".json", "");
-        String texFile = find(p, "textures/" + tex, ".png", "");
+        Pack sp = slot == null ? p : owner(display, display.has("slot_texture") ? "slot_texture" : "slot", p, packs);
+        String geoFile = find(mp, "geo_models/" + model, ".json", ".geo.json", "");
+        String animFile = find(ap, "animations/" + anim, ".animation.json", ".json", "");
+        String texFile = find(tp, "textures/" + tex, ".png", "");
         if (geoFile == null || animFile == null || texFile == null) {
             throw new IOException("missing its " + (geoFile == null ? "model" : animFile == null ? "animations" : "texture"));
         }
         // Resource names are lower-case in the game.
         String modelOut = "knives/models/" + strip(geoFile.substring("geo_models/".length()), ".json").toLowerCase(Locale.ROOT);
         String animOut = "knives/animations/" + strip(animFile.substring("animations/".length()), ".json").toLowerCase(Locale.ROOT);
-        String texOut = texFile.toLowerCase(Locale.ROOT);
-        copy(p, geoFile, assets.resolve(modelOut + ".json"), copied);
-        copy(p, animFile, assets.resolve(animOut + ".json"), copied);
-        copy(p, texFile, assets.resolve(texOut), copied);
-        String slotFile = slot != null ? find(p, "textures/" + slot, ".png", "") : null;
+        copy(mp, geoFile, target, modelOut + ".json", copied);
+        copy(ap, animFile, target, animOut + ".json", copied);
+        String slotFile = slot != null ? find(sp, "textures/" + slot, ".png", "") : null;
         if (slotFile == null) {
-            slotFile = find(p, "textures/melee/slot/" + id, ".png");
+            sp = p;
+            slotFile = find(p, "textures/melee/slot/" + displayId, ".png");
         }
-        String slotOut = slotFile != null ? slotFile.toLowerCase(Locale.ROOT) : null;
-        if (slotFile != null) {
-            copy(p, slotFile, assets.resolve(slotOut), copied);
+        String texOut, slotOut = null;
+        String sid = id.toLowerCase(Locale.ROOT);
+        if (finish == null) {
+            texOut = texFile.toLowerCase(Locale.ROOT);
+            copy(tp, texFile, target, texOut, copied);
+            if (slotFile != null) {
+                slotOut = slotFile.toLowerCase(Locale.ROOT);
+                copy(sp, slotFile, target, slotOut, copied);
+            }
+        } else {
+            texOut = "textures/melee/sol_finish/" + sid + ".png";
+            write(target, tp.namespace, texOut, KnifeFinish.png(tp.file(texFile), finish));
+            if (slotFile != null) {
+                slotOut = "textures/melee/sol_finish/slot/" + sid + ".png";
+                write(target, sp.namespace, slotOut, KnifeFinish.png(sp.file(slotFile), finish));
+            }
         }
         String name = own.has("name") ? own.get("name").getAsString() : prettify(id);
         JsonObject c = new JsonObject();
         c.addProperty("slot", "melee");
         c.addProperty("name", name);
-        c.addProperty("texture", ns + ":" + texOut);
+        c.addProperty("texture", tp.namespace + ":" + texOut);
         if (slotOut != null) {
-            c.addProperty("icon", ns + ":" + slotOut);
+            c.addProperty("icon", sp.namespace + ":" + slotOut);
         }
         // Finishes share their knife's model and animations, so they group under it.
         c.addProperty("group", name.contains(" | ") ? name.substring(0, name.indexOf(" | ")) : name);
         JsonObject melee = new JsonObject();
-        melee.addProperty("model", ns + ":" + modelOut + ".json");
-        melee.addProperty("animations", ns + ":" + animOut + ".json");
-        melee.addProperty("sounds", ns);
+        melee.addProperty("model", mp.namespace + ":" + modelOut + ".json");
+        melee.addProperty("animations", ap.namespace + ":" + animOut + ".json");
+        // The animations' sounds are their own pack's.
+        melee.addProperty("sounds", ap.namespace);
         melee.addProperty("pack", p.source);
         for (String k : new String[]{"hand_scale", "camera", "angel", "grip"}) {
             if (own.has(k)) {
@@ -405,10 +493,27 @@ public final class GunpackMount {
             melee.add("transforms", transforms);
         }
         c.add("melee", melee);
-        Path to = assets.resolve("cosmetics/melee/" + id.toLowerCase(Locale.ROOT) + ".json");
+        write(target, ns, "cosmetics/melee/" + sid + ".json", GSON.toJson(c).getBytes(StandardCharsets.UTF_8));
+        return ns + ":melee/" + sid;
+    }
+
+    /** The pack a display's resource is in: the one its namespace names, when that's another pack's, else its own. */
+    private static Pack owner(JsonObject display, String key, Pack own, Map<String, Pack> packs) {
+        if (!display.has(key) || !display.get(key).isJsonPrimitive()) {
+            return own;
+        }
+        String v = display.get(key).getAsString();
+        if (!v.contains(":")) {
+            return own;
+        }
+        Pack named = packs.get(v.substring(0, v.indexOf(':')).toLowerCase(Locale.ROOT));
+        return named != null ? named : own;
+    }
+
+    private static void write(Path target, String ns, String path, byte[] data) throws IOException {
+        Path to = target.resolve("assets").resolve(ns).resolve(path);
         Files.createDirectories(to.getParent());
-        Files.writeString(to, GSON.toJson(c));
-        return ns + ":melee/" + id.toLowerCase(Locale.ROOT);
+        Files.write(to, data);
     }
 
     /** A display's resource ({@code ns:path} or {@code path}) as a path, lower-cased as the game wants. */
@@ -438,12 +543,10 @@ public final class GunpackMount {
         return null;
     }
 
-    private static void copy(Pack p, String from, Path to, java.util.Set<String> copied) throws IOException {
-        if (!copied.add(from)) {
-            return;
+    private static void copy(Pack p, String from, Path target, String to, java.util.Set<String> copied) throws IOException {
+        if (copied.add(p.namespace + ":" + from)) {
+            write(target, p.namespace, to, p.file(from));
         }
-        Files.createDirectories(to.getParent());
-        Files.write(to, p.file(from));
     }
 
     private static String strip(String s, String suffix) {
