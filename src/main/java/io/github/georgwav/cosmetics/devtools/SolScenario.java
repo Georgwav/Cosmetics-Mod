@@ -454,6 +454,7 @@ public final class SolScenario {
             mc.player.setXRot(s.pitch());
             mc.player.xRotO = s.pitch();
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
+            holdSpot(mc, play, s.name());
             if (play && phaseTick == SETTLE - 10) {
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
             }
@@ -1101,6 +1102,34 @@ public final class SolScenario {
         } else if (punchyWas != null) {
             punchy.setEnabled(punchyWas);
             punchyWas = null;
+        }
+    }
+
+    /** Where the player stands for the in-play shots (null while they aren't on). */
+    private static net.minecraft.world.phys.Vec3 playSpot;
+
+    /**
+     * Keeps the player on their spot through the in-play shots. They're in survival there, and in one CI run on
+     * 1.21.4 the player walked off into the lake during the hands shots (nothing of ours pressed a key; the cause
+     * wasn't found), which put every shot after it under water. Put back, and said in the log.
+     */
+    private void holdSpot(Minecraft mc, boolean play, String name) {
+        if (!play || mc.player == null) {
+            playSpot = null;
+            return;
+        }
+        if (playSpot == null) {
+            if (phaseTick > 5) {
+                playSpot = mc.player.position();
+            }
+            return;
+        }
+        double moved = mc.player.position().distanceTo(playSpot);
+        if (moved > 0.5 && phaseTick % 20 == 0) {
+            CosmeticsMod.LOGGER.info("[Sol] {}: the player had moved {} blocks from their spot; put back", name,
+                    String.format(java.util.Locale.ROOT, "%.1f", moved));
+            asPlayer(mc, List.of(String.format(java.util.Locale.ROOT, "tp @s %.3f %.3f %.3f", playSpot.x, playSpot.y, playSpot.z)));
+            mc.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         }
     }
 
