@@ -938,6 +938,8 @@
   "sol.quick.wheel.add_page": "+ Page",
   "sol.quick.wheel.remove_page": "Remove page",
   "sol.quick.wheel.elytra": "Elytra wheel",
+  "sol.quick.wheel.colour_default": "Default",
+  "sol.quick.wheel.colour_music": "Music",
   "sol.quick.wheel.stop": "Stop",
   "sol.theme.aurora.name": "Aurora",
   "sol.theme.deep_field.name": "Deep Field",

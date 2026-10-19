@@ -1201,7 +1201,7 @@ public final class QuickMenu extends SolScreen {
             Item hot = wheelHot >= 0 ? items.get(wheelHot) : null;
             ThemeRegistry.Entry e = hot != null && hot.theme != null ? hot.theme : null;
             float w = 146f, h = 60f, x = CX - w / 2f, y = labelY() + 32f;
-            if (e != null && y + h <= 716f) {
+            if (e != null && y + h <= COLOURS_Y - Widgets.Chip.H / 2f - 8f) {
                 SolTexture thumb = thumbs.get(e);
                 g.round(x, y, w, h, 10f, tk.panel);
                 if (thumb != null) {
@@ -1211,6 +1211,7 @@ public final class QuickMenu extends SolScreen {
                 }
                 g.stroke(x, y, w, h, 10f, Math.max(1f, g.d.u), 0x33FFFFFF);
             }
+            colours(g, tk);
             return;
         }
         int pages = Emotes.pages(elytraWheel);
@@ -1245,6 +1246,55 @@ public final class QuickMenu extends SolScreen {
             chips.add(Widgets.Chip.button(tr("sol.quick.wheel.stop"), EmotePlayer::stop));
         }
         rowOfChips(g, tk, chips, labelY() + 40f);
+    }
+
+    /** The accent colours the presets wheel offers along the bottom, after the theme's own and the song's. */
+    private static final int[] COLOURS = {0xFFFF4D4D, 0xFFFF8A3C, 0xFFFFD21F, 0xFF9BE15D, 0xFF2FD47A, 0xFF2FD4C8, 0xFF4DA8FF,
+            0xFF5B6CFF, 0xFFA06BFF, 0xFFFF5FC8, 0xFFF2F2F2};
+    /** Where that row's middle sits (design pixels). */
+    private static final float COLOURS_Y = 684f;
+
+    /**
+     * Along the bottom of the presets wheel: the colours. Default is the theme's own, Music the playing song's (the
+     * album colours, as on the Music page), then a row of colours, any of which becomes your accent.
+     */
+    private void colours(Gfx g, Tokens tk) {
+        var music = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music;
+        Integer accent = ThemeState.accentOverride();
+        Widgets.Chip own = Widgets.Chip.toggle(tr("sol.quick.wheel.colour_default"), accent == null && !music.albumUi, () -> {
+            music.albumUi = false;
+            SolProfiles.setAccent(null);
+            io.github.georgwav.cosmetics.sol.config.SolConfig.save();
+        });
+        Widgets.Chip song = Widgets.Chip.toggle(tr("sol.quick.wheel.colour_music"), accent == null && music.albumUi, () -> {
+            music.albumUi = true;
+            SolProfiles.setAccent(null);
+            io.github.georgwav.cosmetics.sol.config.SolConfig.save();
+        });
+        float r = 11f, gap = 8f, step = r * 2f + 7f;
+        float total = own.width(g) + gap + song.width(g) + gap * 2f + COLOURS.length * step - 7f;
+        float x = CX - total / 2f, top = COLOURS_Y - Widgets.Chip.H / 2f;
+        for (Widgets.Chip c : new Widgets.Chip[]{own, song}) {
+            c.draw(g, tk, x, top, false, mx, my);
+            hits.add(new Hit(x, top, c.width(g), Widgets.Chip.H, c.action()));
+            x += c.width(g) + gap;
+        }
+        x += gap;
+        for (int colour : COLOURS) {
+            float cx = x + r;
+            boolean picked = accent != null && (accent & 0xFFFFFF) == (colour & 0xFFFFFF);
+            boolean over = Math.hypot(mx - cx, my - COLOURS_Y) <= r + 2f;
+            g.disc(cx, COLOURS_Y, r, g.flat(colour));
+            if (picked || over) {
+                g.ring(g.d.sx(cx), g.d.sy(COLOURS_Y), (r + 3f) * g.d.u, Math.max(1f, 1.5f * g.d.u), picked ? 0xFFFFFFFF : 0x80FFFFFF);
+            }
+            hits.add(new Hit(cx - r - 2f, COLOURS_Y - r - 2f, r * 2f + 4f, r * 2f + 4f, () -> {
+                music.albumUi = false;
+                SolProfiles.setAccent(colour);
+                io.github.georgwav.cosmetics.sol.config.SolConfig.save();
+            }));
+            x += step;
+        }
     }
 
     private void turnPage(int by) {
