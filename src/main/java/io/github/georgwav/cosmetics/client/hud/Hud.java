@@ -136,8 +136,9 @@ public final class Hud {
     private static void draw(Canvas g) {
         Minecraft mc = Minecraft.getInstance();
         countClicks(mc);
-        // The game's HUD (and so this) isn't drawn while the HUD is hidden (F1).
-        if (editing || mc.player == null) {
+        // Not while the HUD is hidden (F1): from 1.21.6 the game skips this with its own HUD, but before that Fabric's
+        // HUD callback runs either way.
+        if (editing || mc.player == null || io.github.georgwav.cosmetics.sol.render.Mc.hudHidden()) {
             return;
         }
         framesDrawn++;
