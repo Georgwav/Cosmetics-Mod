@@ -33,3 +33,12 @@ From local runs at 1080p (1.21.11, and 26.2 for the title and the line). Knife s
 ## Round 5 (georgwav/cosmetics-mod#37)
 
 - `round5/arms-knife-glow.png`: Punchy's hands with Sol arms off, the stand-in knife at Punchy's hand size, the golden glow in white with and without Punchy, Sol arms without Punchy, and the knife inspecting from Punchy's inspect key (1.21.11, 1080p).
+
+## Round 6: the theme's colour everywhere (georgwav/cosmetics-mod#37)
+
+From local runs at 1080p (1.21.11; 1.21.1 and 26.3 for the eras), with a picked pink (#FF5FA8, not one of the row's colours).
+
+- `round6/colour-picker-under-the-wheel.png`: the presets wheel with the picker open beside it; the row's last swatch opens it.
+- `round6/hud-in-a-picked-colour.png`: one picked colour on the crosshair, the block outline, the hotbar, hearts, XP, armour, Stats, Coordinates, the music bar, the glint and the hand glow.
+- `round6/rings-before-after.png`: before, the ring round you was drawn off to the right at 1080p (and the hue swatch on the wheel); after, both in place.
+- `round6/eras-1.21.1-26.3.png`: the picker and the HUD on 1.21.1 (top) and 26.3 (bottom).
