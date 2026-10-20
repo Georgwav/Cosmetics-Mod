@@ -229,12 +229,14 @@ final class CosmeticPage {
                 }
             }
             case "follow_theme" -> {
+                // Default does as every cosmetic does (Settings › Theme colour on every cosmetic); Off keeps its own
+                // colours even then.
                 String cur = config.options(id).themeColor;
-                String[] names = {WardrobeScreen.tr("sol.wardrobe.follow.off"), WardrobeScreen.tr("sol.wardrobe.follow.accent"),
-                        WardrobeScreen.tr("sol.wardrobe.follow.glow")};
-                int sel = cur == null ? 0 : cur.equals("glow") ? 2 : 1;
+                String[] names = {WardrobeScreen.tr("sol.wardrobe.follow.default"), WardrobeScreen.tr("sol.wardrobe.follow.off"),
+                        WardrobeScreen.tr("sol.wardrobe.follow.accent"), WardrobeScreen.tr("sol.wardrobe.follow.glow")};
+                int sel = cur == null ? 0 : cur.equals("own") ? 1 : cur.equals("glow") ? 3 : 2;
                 rows.choice(WardrobeScreen.tr("sol.wardrobe.follow"), null, names, sel,
-                        i -> config.editOptions(id).themeColor = i == 0 ? null : i == 1 ? "accent" : "glow");
+                        i -> config.editOptions(id).themeColor = i == 0 ? null : i == 1 ? "own" : i == 2 ? "accent" : "glow");
             }
             case "swaps" -> swaps(g, ui, tk, rows, label, config);
             default -> {
@@ -267,7 +269,7 @@ final class CosmeticPage {
                     () -> swap(config, from, from), screen.dt());
         }
         CosmeticsConfig.CosmeticOptions o = config.options(id);
-        rows.text(WardrobeScreen.t(o.color != null || o.rainbow || o.themeColor != null ? "swaps.hint_painted" : "swaps.hint"),
+        rows.text(WardrobeScreen.t(o.color != null || o.rainbow || io.github.georgwav.cosmetics.render.Tint.follows(o) != null ? "swaps.hint_painted" : "swaps.hint"),
                 0x8CFFFFFF);
     }
 

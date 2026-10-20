@@ -96,8 +96,8 @@ public final class ColorPicker {
             applyHsv();
         });
         float cx = x + sat * SQUARE_W, cy = sy + (1f - val) * sh;
-        g.ring(g.d.sx(cx), g.d.sy(cy), 5f * g.d.u, 1.5f * g.d.u, 0xFFFFFFFF);
-        g.ring(g.d.sx(cx), g.d.sy(cy), 6.5f * g.d.u, Math.max(1f, g.d.u), 0x80000000);
+        g.ring(cx, cy, 5f, 1.5f * g.d.u, 0xFFFFFFFF);
+        g.ring(cx, cy, 6.5f, Math.max(1f, g.d.u), 0x80000000);
         // The hue bar, red at the top round to red at the bottom.
         float bx = x + SQUARE_W + 10f;
         for (int k = 0; k < 6; k++) {

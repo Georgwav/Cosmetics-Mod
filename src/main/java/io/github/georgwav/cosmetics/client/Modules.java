@@ -222,7 +222,8 @@ public final class Modules {
                     JsonObject saved = modules.getAsJsonObject(m.id);
                     m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
                     loadSettings(m, saved);
-                    if (m.turnOnOnce()) {
+                    int seen = defaultsSeen(saved);
+                    if (m.turnOnOnce() || m.onByDefault() && seen < m.onByDefaultSince()) {
                         m.loadEnabled(true);
                     }
                 }
@@ -234,13 +235,25 @@ public final class Modules {
         }
     }
 
+    /**
+     * The version of the defaults settings are saved with: 2 made the theme's colour every colour's default (and
+     * turned on the modules that show it). Saved settings still at an older default take the new one, once.
+     */
+    public static final int DEFAULTS = 2;
+
+    /** The defaults' version a module's saved settings were written with (1 before it was recorded). */
+    private static int defaultsSeen(JsonObject saved) {
+        return saved.has("defaults") && saved.get("defaults").isJsonPrimitive() ? saved.get("defaults").getAsInt() : 1;
+    }
+
     private static void loadSettings(Module m, JsonObject saved) {
         JsonObject values = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
         m.migrate(values);
+        boolean older = defaultsSeen(saved) < DEFAULTS;
         for (Setting<?> s : m.settings) {
             JsonElement v = values.get(s.id);
             if (v != null) {
-                s.load(v);
+                s.loadSaved(v, older);
             }
         }
         m.loadState(saved.has("state") ? saved.getAsJsonObject("state") : new JsonObject());
@@ -252,6 +265,7 @@ public final class Modules {
         for (Module m : ALL) {
             JsonObject saved = new JsonObject();
             saved.addProperty("enabled", m.enabled());
+            saved.addProperty("defaults", DEFAULTS);
             JsonObject values = new JsonObject();
             for (Setting<?> s : m.settings) {
                 JsonElement value = s.save();

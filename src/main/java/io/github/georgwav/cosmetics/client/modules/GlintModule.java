@@ -22,8 +22,8 @@ public final class GlintModule extends Module {
             "orange", 0xFFFF8A30, "gold", 0xFFFFD34A, "green", 0xFF4CFF6A, "cyan", 0xFF40E8FF, "blue", 0xFF4A7DFF,
             "pink", 0xFFFF60D0, "white", 0xFFFFFFFF);
     private final Setting.Choice mode = add(new Setting.Choice("mode", "theme", List.of("solid", "two", "rainbow", "theme")).group("colours"));
-    private final Setting.Color color = add(new Setting.Color("color", 0xFF40E8FF).names(NAMES).group("colours"));
-    private final Setting.Color color2 = add(new Setting.Color("color2", 0xFFFF60D0).names(NAMES).group("colours"));
+    private final Setting.Color color = add(new Setting.Color("color", Setting.Color.THEME).was(0xFF40E8FF).themed().names(NAMES).group("colours"));
+    private final Setting.Color color2 = add(new Setting.Color("color2", 0xFFFF60D0).themed().names(NAMES).group("colours"));
     private final Setting.Slider strength = add(new Setting.Slider("strength", 100, 30, 200, 10, v -> Math.round(v) + "%").group("colours"));
     /** Enchanted items in inventories and the hotbar: the glint, an outline round the item in its colour, or both. */
     private final Setting.Choice gui = add(new Setting.Choice("inventory", "glint", List.of("glint", "outline", "both")).group("inventory"));
@@ -35,6 +35,17 @@ public final class GlintModule extends Module {
 
     public GlintModule() {
         super("glint", Category.VIEW, "sparkle");
+    }
+
+    /** On by default: it shows the theme's colour (see Modules.DEFAULTS). */
+    @Override
+    public boolean onByDefault() {
+        return true;
+    }
+
+    @Override
+    public int onByDefaultSince() {
+        return 2;
     }
 
     private static int rgb(Setting.Color c) {

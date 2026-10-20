@@ -58,6 +58,9 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
 A sundial: the sun circles the dial and lights the screen.
 - **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there.
 - **Your own ring:** pointing at yourself starts the eclipse and opens your ring: Presets, Emotes and Wardrobe.
+- **Colours:** along the bottom of the presets wheel: Default (the theme's own), Music (the playing song's), a row of
+  colours and a picker for any colour (the square, the hue bar, a hex code). The colour you pick is the theme's
+  colour everywhere at once, live while you drag.
 - **The tray:** your pinned modules, presets with live sky thumbnails, profiles, and emotes.
 - **Search:** type anywhere.
 
@@ -94,7 +97,8 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
   - Whole cosmetic.
   - Coloured parts.
   - Classic tint.
-- **Follow theme colour:** off, the theme's accent, or its glow.
+- **Follow theme colour:** Default (as "Theme colour on every cosmetic" says), Off (its own colour), the theme's
+  accent, or its glow.
 - **Saturation, hue and brightness.**
 - **Its colours:** change one of its own colours and its shades; the others stay.
 - **Size, Turn around, Upside down,** and move it sideways, up and forward.
@@ -175,6 +179,17 @@ Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 A profile keeps every module's settings, the HUD layout, the pins, the theme, what you wear (cosmetics, outfit), your
 skin and your cape. Switching profiles puts all of it back: the skin is sent to Mojang and the cape worn on your
 account, only when they differ from what Sol last sent.
+
+**The theme's colour everywhere.** Every colour setting can follow the theme's colour, and for every colour the
+client draws, that's the default: the menus and HUD, the crosshair, the block outline, glint, the hit colour,
+hitboxes, the hand glow, text HUDs, the movement status. Pick a colour under the presets wheel and all of them change
+with it, at once. Colours there to stand out keep their own by default and can follow the theme too: the
+crosshair's outline (black) and its colour on a target (red), keystroke text (white), Crystal PvP's low-health warning
+(red). Crosshair, Block outline and Glint are on by default. Settings saved before this that were still at the old
+default (a white crosshair, a cyan glint, a gold hand glow) follow the theme now; colours you picked stay.
+Cosmetics keep their own colours unless you ask: "Theme colour on every cosmetic" (in the Cosmetics settings, off by
+default) gives all of them the accent or the glow, and each cosmetic's page can follow it, stay its own or follow
+the theme by itself.
 
 | Module | What it does |
 |---|---|
@@ -301,8 +316,9 @@ repaired on load.
 | `maxMeshTriangles` | `100000` | Most mesh triangles one cosmetic may have (1000 to 200000); wings count once per side. Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
 | `slotPriority` | `CAPE` `OVERRIDE`, the rest `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes, so a cape you put on is the one you see. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
+| `themeColorAll` | left out | `accent` or `glow`: every cosmetic without its own colour or follow setting takes the theme's colour. Left out: off. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1, the tint, or the texture when it has no tint), `hue` (degrees, -180 to 180) and `brightness` (0 to 2) of the texture, `swaps` (its own colours changed one by one: a list of `{"from": RGB, "to": RGB}`, one per colour of its texture, a kept one to itself), `colorStyle` (`WHOLE`, `COLORED_PARTS` or `CLASSIC`; left out = automatic), `scale` (0.5 to 3), `turned`, `upsideDown`, `elytra` (capes: shown on your elytra too, on by default), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1, the tint, or the texture when it has no tint), `hue` (degrees, -180 to 180) and `brightness` (0 to 2) of the texture, `swaps` (its own colours changed one by one: a list of `{"from": RGB, "to": RGB}`, one per colour of its texture, a kept one to itself), `colorStyle` (`WHOLE`, `COLORED_PARTS` or `CLASSIC`; left out = automatic), `scale` (0.5 to 3), `turned`, `upsideDown`, `elytra` (capes: shown on your elytra too, on by default), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets, `themeColor` (`accent` or `glow` to follow the theme, `own` to keep its own colour; left out = as `themeColorAll` says); a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 | `savedOutfits` | `[]` | Your outfits, in order: `name`, `cosmetics` (ids) and `options` (each cosmetic's settings as saved, as in `cosmeticOptions`; one left out had its creator's). Outfits from older files (`outfits`, names to ids) are moved here. |
 
 ## Building

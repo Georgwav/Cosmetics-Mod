@@ -35,8 +35,10 @@ public final class SolOverlay {
 
     private static void draw(Canvas g) {
         Minecraft mc = Minecraft.getInstance();
-        if (SolScenario.crosshairOnly && io.github.georgwav.cosmetics.ui.ScreenOpener.current() == null && mc.level != null) {
-            // The reference frames show the world and the crosshair, nothing else.
+        if (SolScenario.crosshairOnly && io.github.georgwav.cosmetics.sol.render.Mc.hudHidden()
+                && io.github.georgwav.cosmetics.ui.ScreenOpener.current() == null && mc.level != null) {
+            // The reference frames show the world and the crosshair, nothing else (with the HUD shown, the HUD's own
+            // crosshair is there).
             int w = mc.getWindow().getGuiScaledWidth(), h = mc.getWindow().getGuiScaledHeight();
             int cx = w / 2, cy = h / 2;
             g.fill(cx - 4, cy, cx + 5, cy + 1, 0xE6FFFFFF);

@@ -117,7 +117,7 @@ public final class HeldItems {
     private static long look(BakedCosmetic shield) {
         CosmeticsConfig.CosmeticOptions o = CosmeticsConfig.get().options(shield.id());
         long look = o.lookHash();
-        if (o.rainbow || o.themeColor != null || shield.hasAnimation()) {
+        if (o.rainbow || Tint.follows(o) != null || shield.hasAnimation()) {
             // Rainbow, a theme's colour or an animation: a new picture every game tick.
             look = look * 31 + System.nanoTime() / 50_000_000L;
         }

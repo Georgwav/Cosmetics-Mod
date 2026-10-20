@@ -13,7 +13,7 @@ public final class PvpTweaks extends Module {
     private final Setting.Slider fire = add(new Setting.Slider("fire", 100, 0, 100, 5, v -> Math.round(v) + "%").group("camera"));
     /** Whether entities flash at all when hit. */
     final Setting.Toggle hitFlash = add(new Setting.Toggle("hit_flash", true).group("hit_flash"));
-    final Setting.Color hitColor = add(new Setting.Color("hit_color", 0xFFFF0000).themed().names(java.util.Map.of(
+    final Setting.Color hitColor = add(new Setting.Color("hit_color", Setting.Color.THEME).was(0xFFFF0000).themed().names(java.util.Map.of(
             "red", 0xFFFF0000, "accent", Setting.Color.THEME, "white", 0xFFFFFFFF, "blue", 0xFF4A7DFF, "green", 0xFF44E05A,
             "purple", 0xFFA95CFF)).group("hit_flash"));
     /** How strongly the flash tints them (the game's is 70%). */

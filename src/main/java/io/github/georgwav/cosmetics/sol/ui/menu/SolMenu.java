@@ -386,12 +386,12 @@ public final class SolMenu extends SolScreen {
                 g.glowSprite(x, cy, 34f, 34f, Colors.withAlpha(tk.glow, 0.45f));
             }
             g.circle(x, cy, r, tk.panel);
-            g.ring(g.d.sx(x), g.d.sy(cy), r * g.d.u, Math.max(1f, g.d.u), on || hover ? tk.rim : 0x29FFFFFF);
+            g.ring(x, cy, r, Math.max(1f, g.d.u), on || hover ? tk.rim : 0x29FFFFFF);
             Icons.draw(g, ModuleIcons.SECTIONS.get(id), x - 9f * sc, cy - 9f * sc, 18f * sc, on ? tk.accent : 0xB8FFFFFF,
                     on ? Icons.FILL_ON : Icons.FILL, on ? Colors.withAlpha(tk.glow, 0.5f) : 0);
             g.textCentre(f, tr("sol.section." + id), x, cy + r + 13f, on ? 0xFFFFFFFF : 0xB8FFFFFF);
             if (ui.focused(fi)) {
-                g.ring(g.d.sx(x), g.d.sy(cy), (r + 5f) * g.d.u, 2f * g.d.u, tk.accent);
+                g.ring(x, cy, r + 5f, 2f * g.d.u, tk.accent);
             }
             g.alpha = base;
         }

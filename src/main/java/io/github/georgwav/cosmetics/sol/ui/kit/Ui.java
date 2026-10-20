@@ -207,7 +207,7 @@ public final class Ui {
         g.round(x, cy - 2f, w * v, 4f, 2f, tk.accent);
         g.circle(x + w * v, cy, 7f, 0xFFFFFFFF);
         if (focused(f)) {
-            g.ring(g.d.sx(x + w * v), g.d.sy(cy), 9f * g.d.u, 2f * g.d.u, tk.accent);
+            g.ring(x + w * v, cy, 9f, 2f * g.d.u, tk.accent);
         }
     }
 

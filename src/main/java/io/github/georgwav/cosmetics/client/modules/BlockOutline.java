@@ -10,7 +10,7 @@ import io.github.georgwav.cosmetics.client.Setting;
  * API has one, and on 26.x by giving the game's own outline this colour and width (see OutlineHook).
  */
 public final class BlockOutline extends Module {
-    private final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).themed().names(java.util.Map.of(
+    private final Setting.Color color = add(new Setting.Color("color", Setting.Color.THEME).was(0xFFFFFFFF).themed().names(java.util.Map.of(
             "black", 0xFF000000, "white", 0xFFFFFFFF, "red", 0xFFFF4040, "green", 0xFF4CFF4C, "cyan", 0xFF40E8FF,
             "yellow", 0xFFFFE040, "pink", 0xFFFF60D0)).group("colours"));
     private final Setting.Slider opacity = add(new Setting.Slider("opacity", 0.8, 0.1, 1.0, 0.05,
@@ -31,6 +31,17 @@ public final class BlockOutline extends Module {
 
     public BlockOutline() {
         super("outline", Category.VIEW, "box");
+    }
+
+    /** On by default: it shows the theme's colour (see Modules.DEFAULTS). */
+    @Override
+    public boolean onByDefault() {
+        return true;
+    }
+
+    @Override
+    public int onByDefaultSince() {
+        return 2;
     }
 
     /** Whether this Minecraft version can draw it yet. */

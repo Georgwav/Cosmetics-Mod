@@ -53,11 +53,14 @@ public final class PunchyModule extends Module {
      * outline on its own, or a soft glow all round. A new id: "glow_style" meant something else before.
      */
     private final Setting.Choice glowStyle = add(new Setting.Choice("glow_look", "golden", List.of("golden", "outline", "soft")).group("glow"));
-    /** Gold by default (your own colour, gold until you pick another), as in Georg's picture of Clarity's glow. */
-    private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "custom",
-            List.of("theme", "item", "rainbow", "custom")).group("glow"));
-    /** The custom colour: a rich gold (the glow runs from deep gold to pale gold round it). */
-    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFD84F).group("glow"));
+    /**
+     * The theme's colour by default, as every colour in the client (it was your own, gold, as in Georg's picture of
+     * Clarity's glow: a glow still at that default follows the theme now).
+     */
+    private final Setting.Choice glowColours = add(new Setting.Choice("glow_colours", "theme",
+            List.of("theme", "item", "rainbow", "custom")).was("custom").group("glow"));
+    /** The custom colour: a rich gold until you pick another (the glow runs from deep gold to pale gold round it). */
+    private final Setting.Color glowColour = add(new Setting.Color("glow_colour", 0xFFFFD84F).themed().group("glow"));
     private final Setting.Slider glowStrength = add(new Setting.Slider("glow_strength", 100, 10, 200, 5, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Slider glowSize = add(new Setting.Slider("glow_size", 100, 100, 300, 10, v -> Math.round(v) + "%").group("glow"));
     private final Setting.Toggle glowPulse = add(new Setting.Toggle("glow_pulse", false).group("glow"));

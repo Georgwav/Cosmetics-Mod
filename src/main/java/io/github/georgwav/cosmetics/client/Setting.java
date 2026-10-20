@@ -40,6 +40,18 @@ public abstract class Setting<T> {
         return (S) this;
     }
 
+    /**
+     * Its default before this one: a value saved by an older version that is still that default reads as the default
+     * now (once, see {@link Modules#DEFAULTS}), so a changed default reaches everyone who never picked their own.
+     */
+    Object oldDefault;
+
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S was(T oldDefault) {
+        this.oldDefault = oldDefault;
+        return (S) this;
+    }
+
     /** Marks this setting as advanced (folded away in the drawer). */
     @SuppressWarnings("unchecked")
     public <S extends Setting<T>> S advanced() {
@@ -72,6 +84,17 @@ public abstract class Setting<T> {
     abstract JsonElement save();
 
     abstract void load(JsonElement json);
+
+    /**
+     * Loads a saved value. Saved under older defaults ({@link Modules#DEFAULTS}) and still the old default, it takes
+     * today's default instead, as on a fresh install (nothing is saved or told).
+     */
+    void loadSaved(JsonElement json, boolean olderDefaults) {
+        load(json);
+        if (olderDefaults && oldDefault != null && java.util.Objects.equals(value, oldDefault)) {
+            value = def;
+        }
+    }
 
     /** On or off. */
     public static final class Toggle extends Setting<Boolean> {
@@ -209,6 +232,12 @@ public abstract class Setting<T> {
 
         public Color(String id, int def) {
             this(id, def, false);
+        }
+
+        /** Its default before this one (see {@link Setting#was}). */
+        public Color was(int oldDefault) {
+            this.oldDefault = alpha ? oldDefault : oldDefault | 0xFF000000;
+            return this;
         }
 
         /** Lets it follow the theme's accent (the "Theme" choice by its picker). */

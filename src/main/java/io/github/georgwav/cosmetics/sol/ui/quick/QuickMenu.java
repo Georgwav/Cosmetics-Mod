@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeRegistry;
 import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
+import io.github.georgwav.cosmetics.sol.ui.kit.ColorPicker;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.ModuleIcons;
@@ -115,6 +116,8 @@ public final class QuickMenu extends SolScreen {
     private boolean elytraWheel;
     private int emotePage;
     private EmotePicker picker;
+    /** Under the presets wheel: the picker for any accent colour, open from the colour row's last swatch (null while shut). */
+    private ColorPicker accentPicker;
     private final EmotePictures pictures = new EmotePictures();
     private final Ui ui = new Ui();
     private final Band band = new Band();
@@ -189,7 +192,7 @@ public final class QuickMenu extends SolScreen {
     /**
      * For the dev scenario: one of the states the prototype's reference shots show. A main section's id points at
      * it; "eclipse" points at you; "presets" and "emotes" open their wheels in your ring ("emote_picker" with its
-     * picker); "back" points at you from your ring.
+     * picker, "presets_colour" with the colour picker); "back" points at you from your ring.
      */
     public QuickMenu stage(String state) {
         switch (state) {
@@ -197,7 +200,7 @@ public final class QuickMenu extends SolScreen {
                 meHover = true;
                 meFresh = false;
             }
-            case "presets", "presets_hot", "emotes", "emote_picker" -> {
+            case "presets", "presets_hot", "presets_colour", "emotes", "emote_picker" -> {
                 if (!meRing) {
                     toggleMe();
                 }
@@ -209,6 +212,9 @@ public final class QuickMenu extends SolScreen {
                 }
                 if (state.equals("presets_hot")) {
                     stagedHot = "ember_solstice";
+                }
+                if (state.equals("presets_colour")) {
+                    accentPicker = newAccentPicker();
                 }
             }
             case "back" -> {
@@ -303,6 +309,7 @@ public final class QuickMenu extends SolScreen {
     private void closeWheel() {
         wheel = Wheel.NONE;
         picker = null;
+        accentPicker = null;
         wheelHot = -1;
         ringT = 0f;
         meFresh = true;
@@ -744,7 +751,7 @@ public final class QuickMenu extends SolScreen {
         float lit = light.lit;
         // Outer glow on the lit side and the faint ring.
         g.glowSprite(CX + light.ux * 14f, CY + light.uy * 14f, r + 40f, r + 40f, Colors.withAlpha(lc, lit * 0.6f * 0.6f));
-        g.ring(g.d.sx(CX), g.d.sy(CY), (r + 3f) * g.d.u, 6f * g.d.u, 0x0AFFFFFF);
+        g.ring(CX, CY, r + 3f, 6f * g.d.u, 0x0AFFFFFF);
         float hx = CX + light.ux * 0.44f * 2f * r, hy = CY + light.uy * 0.44f * 2f * r;
         float far = (float) Math.hypot(r + Math.abs(hx - CX), r + Math.abs(hy - CY));
         g.radialB.set(g.d.sx(hx), g.d.sy(hy), far * g.d.u).stop(0f, Colors.withAlpha(lc, lit * 0.36f)).stop(0.72f, 0xE608080C)
@@ -759,11 +766,11 @@ public final class QuickMenu extends SolScreen {
                     .stop((hole - 4.5f) / big, Colors.withAlpha(lc, 0f)).stop((hole + 4.5f) / big, rim).stop(1f, rim);
             g.disc(CX, CY, r, g.radialB);
         }
-        g.ring(g.d.sx(CX), g.d.sy(CY), r * g.d.u, Math.max(1f, g.d.u), light.rim);
+        g.ring(CX, CY, r, Math.max(1f, g.d.u), light.rim);
         float face = 56f * (0.5f + 0.5f * in);
         PlayerFace.draw(g, CX - face / 2f, CY - face / 2f, face, ec * 0.6f);
         if (focus == 0 && meFocus) {
-            g.ring(g.d.sx(CX), g.d.sy(CY), (r + 7f) * g.d.u, 1.5f * g.d.u, Colors.withAlpha(tk.accent, 0.7f));
+            g.ring(CX, CY, r + 7f, 1.5f * g.d.u, Colors.withAlpha(tk.accent, 0.7f));
         }
         g.alpha = base;
     }
@@ -1178,7 +1185,7 @@ public final class QuickMenu extends SolScreen {
         boolean over = Math.hypot(mx - x, my - y) <= h + 1f;
         int fill = red ? Colors.withAlpha(Tokens.RED, over ? 0.95f : 0.75f) : over ? 0xE62A2A33 : 0xD90A0A0E;
         g.disc(x, y, h, g.flat(fill));
-        g.ring(g.d.sx(x), g.d.sy(y), h * g.d.u, Math.max(1f, g.d.u), over ? tk.accent : 0x40FFFFFF);
+        g.ring(x, y, h, Math.max(1f, g.d.u), over ? tk.accent : 0x40FFFFFF);
         Icons.draw(g, icon, x - 6f, y - 6f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
         hits.add(new Hit(x - h, y - h, h * 2f, h * 2f, action));
     }
@@ -1492,9 +1499,14 @@ public final class QuickMenu extends SolScreen {
     /** Where that row's middle sits (design pixels). */
     private static final float COLOURS_Y = 684f;
 
+    /** The accent picker's panel, right of the presets wheel and just above the colour row (design pixels). */
+    private static final float PICK_X = 880f, PICK_W = 388f, PICK_H = ColorPicker.HEIGHT + 42f,
+            PICK_Y = COLOURS_Y - Widgets.Chip.H / 2f - 10f - PICK_H;
+
     /**
      * Along the bottom of the presets wheel: the colours. Default is the theme's own, Music the playing song's (the
-     * album colours, as on the Music page), then a row of colours, any of which becomes your accent.
+     * album colours, as on the Music page), then a row of colours, any of which becomes your accent, and last the
+     * picker for any other colour. Every colour in the client that follows the theme changes with it, live.
      */
     private void colours(Gfx g, Tokens tk) {
         var music = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music;
@@ -1510,7 +1522,7 @@ public final class QuickMenu extends SolScreen {
             io.github.georgwav.cosmetics.sol.config.SolConfig.save();
         });
         float r = 11f, gap = 8f, step = r * 2f + 7f;
-        float total = own.width(g) + gap + song.width(g) + gap * 2f + COLOURS.length * step - 7f;
+        float total = own.width(g) + gap + song.width(g) + gap * 2f + (COLOURS.length + 1) * step - 7f;
         float x = CX - total / 2f, top = COLOURS_Y - Widgets.Chip.H / 2f;
         for (Widgets.Chip c : new Widgets.Chip[]{own, song}) {
             c.draw(g, tk, x, top, false, mx, my);
@@ -1518,13 +1530,15 @@ public final class QuickMenu extends SolScreen {
             x += c.width(g) + gap;
         }
         x += gap;
+        boolean listed = false;
         for (int colour : COLOURS) {
             float cx = x + r;
             boolean picked = accent != null && (accent & 0xFFFFFF) == (colour & 0xFFFFFF);
+            listed |= picked;
             boolean over = Math.hypot(mx - cx, my - COLOURS_Y) <= r + 2f;
             g.disc(cx, COLOURS_Y, r, g.flat(colour));
             if (picked || over) {
-                g.ring(g.d.sx(cx), g.d.sy(COLOURS_Y), (r + 3f) * g.d.u, Math.max(1f, 1.5f * g.d.u), picked ? 0xFFFFFFFF : 0x80FFFFFF);
+                g.ring(cx, COLOURS_Y, r + 3f, Math.max(1f, 1.5f * g.d.u), picked ? 0xFFFFFFFF : 0x80FFFFFF);
             }
             hits.add(new Hit(cx - r - 2f, COLOURS_Y - r - 2f, r * 2f + 4f, r * 2f + 4f, () -> {
                 music.albumUi = false;
@@ -1533,6 +1547,78 @@ public final class QuickMenu extends SolScreen {
             }));
             x += step;
         }
+        // Any colour: a hue wheel, with your own colour in the middle once you've picked one that isn't listed.
+        float cx = x + r, scx = g.d.sx(cx), scy = g.d.sy(COLOURS_Y), sr = r * g.d.u;
+        for (int k = 0; k < 12; k++) {
+            // In screen pixels, as fillConvex takes them.
+            double a0 = Math.toRadians(k * 30.0 - 90.0), a1 = Math.toRadians((k + 1) * 30.0 - 90.0);
+            wedgeX[0] = scx;
+            wedgeY[0] = scy;
+            wedgeX[1] = scx + sr * (float) Math.cos(a0);
+            wedgeY[1] = scy + sr * (float) Math.sin(a0);
+            wedgeX[2] = scx + sr * (float) Math.cos(a1);
+            wedgeY[2] = scy + sr * (float) Math.sin(a1);
+            g.fillConvex(wedgeX, wedgeY, 3, g.flat(0xFF000000 | io.github.georgwav.cosmetics.render.Tint.hsvToRgb((k + 0.5f) / 12f, 0.85f, 1f)));
+        }
+        boolean custom = accent != null && !listed;
+        g.disc(cx, COLOURS_Y, r * 0.55f, g.flat(custom ? 0xFF000000 | accent : tk.panel));
+        if (!custom) {
+            g.line(cx - 3.5f, COLOURS_Y, cx + 3.5f, COLOURS_Y, Math.max(1f, 1.5f * g.d.u), 0xFFFFFFFF);
+            g.line(cx, COLOURS_Y - 3.5f, cx, COLOURS_Y + 3.5f, Math.max(1f, 1.5f * g.d.u), 0xFFFFFFFF);
+        }
+        boolean overCustom = Math.hypot(mx - cx, my - COLOURS_Y) <= r + 2f;
+        if (custom || overCustom || accentPicker != null) {
+            g.ring(cx, COLOURS_Y, r + 3f, Math.max(1f, 1.5f * g.d.u),
+                    custom || accentPicker != null ? 0xFFFFFFFF : 0x80FFFFFF);
+        }
+        hits.add(new Hit(cx - r - 2f, COLOURS_Y - r - 2f, r * 2f + 4f, r * 2f + 4f, () -> {
+            accentPicker = accentPicker == null ? newAccentPicker() : null;
+        }));
+        if (accentPicker != null) {
+            accentPanel(g, tk);
+        }
+    }
+
+    private final float[] wedgeX = new float[3], wedgeY = new float[3];
+
+    /** The picker: it shows the accent in use and sets your own, live, as it's dragged. */
+    private ColorPicker newAccentPicker() {
+        return new ColorPicker(() -> {
+            Integer a = ThemeState.accentOverride();
+            return a != null ? a : ThemeState.tokens().accent;
+        }, rgb -> {
+            var music = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music;
+            if (music.albumUi) {
+                music.albumUi = false;
+                io.github.georgwav.cosmetics.sol.config.SolConfig.save();
+            }
+            SolProfiles.setAccent(0xFF000000 | rgb);
+        });
+    }
+
+    private void accentPanel(Gfx g, Tokens tk) {
+        float px = PICK_X, py = PICK_Y, pw = PICK_W, ph = PICK_H;
+        g.glow(px, py, pw, ph, 16f, 28f, Colors.withAlpha(tk.glow, 0.14f));
+        g.round(px, py, pw, ph, 16f, Colors.withAlpha(tk.panel, 0.94f));
+        g.stroke(px, py, pw, ph, 16f, Math.max(1f, g.d.u), tk.rim);
+        g.highlight(px, py, pw, ph, 16f, 0x2EFFFFFF);
+        ui.area(px, py, pw, ph, () -> { });
+        SolFont h = g.font(SolFont.Family.SEMIBOLD, 13f), small = g.font(SolFont.Family.MEDIUM, 11f);
+        g.textMid(h, tr("sol.quick.wheel.colour_pick"), px + 14f, py + 18f, 0xFFFFFFFF);
+        g.textRight(small, tr("sol.quick.wheel.colour_pick_hint"), px + pw - 14f, py + 18f, Ui.text(true));
+        List<Integer> presets = new ArrayList<>(COLOURS.length);
+        for (int c : COLOURS) {
+            presets.add(c & 0xFFFFFF);
+        }
+        accentPicker.draw(g, ui, tk, px + 14f, py + 32f, pw - 28f, presets, tr("sol.quick.wheel.colour_default"), () -> {
+            io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = false;
+            SolProfiles.setAccent(null);
+            io.github.georgwav.cosmetics.sol.config.SolConfig.save();
+        }, dt);
+    }
+
+    private boolean overAccentPanel(float x, float y) {
+        return accentPicker != null && x >= PICK_X && x <= PICK_X + PICK_W && y >= PICK_Y && y <= PICK_Y + PICK_H;
     }
 
     private void turnPage(int by) {
@@ -1656,6 +1742,21 @@ public final class QuickMenu extends SolScreen {
         if (picker != null) {
             return ui.press(x, y);
         }
+        if (accentPicker != null) {
+            accentPicker.hexField().focus(false);
+            if (overAccentPanel(x, y)) {
+                return ui.press(x, y);
+            }
+            boolean onRow = false;
+            for (Hit h : hits) {
+                onRow |= h.contains(x, y) && h.y() >= COLOURS_Y - Widgets.Chip.H;
+            }
+            if (!onRow) {
+                // A click anywhere else shuts the picker first.
+                accentPicker = null;
+                return true;
+            }
+        }
         if (wheel != Wheel.NONE && button == 1) {
             int i = itemAt(x, y);
             if (i >= 0 && items.get(i).alt != null) {
@@ -1700,7 +1801,12 @@ public final class QuickMenu extends SolScreen {
 
     @Override
     protected boolean release(float x, float y, int button) {
-        return picker != null && ui.release();
+        return (picker != null || accentPicker != null) && ui.release();
+    }
+
+    @Override
+    protected boolean drag(float x, float y, int button) {
+        return (picker != null || accentPicker != null) && ui.dragTo(x, y);
     }
 
     @Override
@@ -1741,6 +1847,9 @@ public final class QuickMenu extends SolScreen {
         }
         if (picker != null) {
             return false;
+        }
+        if (accentPicker != null && accentPicker.key(key, ctrl)) {
+            return true;
         }
         if (wheel != Wheel.NONE && !items.isEmpty()) {
             switch (key) {
@@ -1814,6 +1923,10 @@ public final class QuickMenu extends SolScreen {
             picker = null;
             return true;
         }
+        if (accentPicker != null) {
+            accentPicker = null;
+            return true;
+        }
         if (wheel != Wheel.NONE) {
             closeWheel();
             return true;
@@ -1828,6 +1941,9 @@ public final class QuickMenu extends SolScreen {
 
     @Override
     protected boolean typed(String text) {
+        if (accentPicker != null) {
+            return accentPicker.typed(text);
+        }
         if (!SolConfig.get().searchNeedsCtrl && !text.isBlank()) {
             SolMenu.openSearch(parent, text);
             return true;

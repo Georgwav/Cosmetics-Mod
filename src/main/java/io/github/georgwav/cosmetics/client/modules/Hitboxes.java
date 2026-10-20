@@ -13,7 +13,7 @@ public final class Hitboxes extends Module {
     private Boolean before;
     /** The entity box's colour (the eyes and the look keep theirs). */
     private final io.github.georgwav.cosmetics.client.Setting.Color color = add(new io.github.georgwav.cosmetics.client.Setting.Color("color",
-            0xFFFFFFFF).themed().names(java.util.Map.of("white", 0xFFFFFFFF, "accent", io.github.georgwav.cosmetics.client.Setting.Color.THEME,
+            io.github.georgwav.cosmetics.client.Setting.Color.THEME).was(0xFFFFFFFF).themed().names(java.util.Map.of("white", 0xFFFFFFFF, "accent", io.github.georgwav.cosmetics.client.Setting.Color.THEME,
             "red", 0xFFFF4D4D, "green", 0xFF4CFF6A, "cyan", 0xFF40E8FF, "yellow", 0xFFFFE040, "pink", 0xFFFF60D0)).group("look"));
     /** Another colour for the one you look at. */
     private final io.github.georgwav.cosmetics.client.Setting.Toggle targetColour = add(new io.github.georgwav.cosmetics.client.Setting.Toggle(

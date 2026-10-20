@@ -130,6 +130,14 @@ public abstract class Module {
     }
 
     /**
+     * The version of the defaults ({@link Modules#DEFAULTS}) that made it on by default; 0 when it always was.
+     * Settings saved before that version turn it on once.
+     */
+    public int onByDefaultSince() {
+        return 0;
+    }
+
+    /**
      * After its saved settings load: whether it turns itself on this once (its default changed to on since they were
      * saved). Asked once per load.
      */

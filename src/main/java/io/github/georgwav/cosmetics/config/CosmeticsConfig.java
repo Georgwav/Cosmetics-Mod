@@ -58,6 +58,11 @@ public final class CosmeticsConfig {
      * wings, say). A cosmetic none of whose parts take colour is then coloured all over.
      */
     public boolean colorAnyCosmetic = true;
+    /**
+     * Sol Client: every cosmetic in the theme's colour ("accent" or "glow"), unless it has a colour of its own (picked,
+     * a rainbow, or its own follow-theme setting); null (the default, and never written) keeps their own colours.
+     */
+    public String themeColorAll = null;
     /** Your shield cosmetic also shows on the shield item in your inventory and hotbar. */
     public boolean shieldItemIcons = true;
     /** Hide capes while an elytra is worn, like the vanilla cape. */
@@ -275,7 +280,8 @@ public final class CosmeticsConfig {
         public List<ColorSwap> swaps = null;
         /**
          * Sol Client: the colour follows the theme ("accent" or "glow") instead of {@link #color}, so a halo turns
-         * white in Deep Field and orange in Ember; null (the default, and never written) keeps its own colour.
+         * white in Deep Field and orange in Ember, or "own" keeps its own colour even when every cosmetic follows the
+         * theme ({@link CosmeticsConfig#themeColorAll}); null (the default, and never written) does as that says.
          */
         public String themeColor = null;
         /**
@@ -340,7 +346,7 @@ public final class CosmeticsConfig {
             animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
             particleAmount = clamp(particleAmount, 0f, 3f, 1f);
             particleSize = clamp(particleSize, 0.25f, 3f, 1f);
-            if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow")) {
+            if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow") && !themeColor.equals("own")) {
                 themeColor = null;
             }
             if (knifeSet != null && !knifeSet.equals("random") && !knifeSet.equals("devil") && !knifeSet.equals("angel")) {
@@ -557,6 +563,7 @@ public final class CosmeticsConfig {
         hideHeadwearWithHelmet = defaults.hideHeadwearWithHelmet;
         severalOfAKind = defaults.severalOfAKind;
         colorAnyCosmetic = defaults.colorAnyCosmetic;
+        themeColorAll = defaults.themeColorAll;
         shieldItemIcons = defaults.shieldItemIcons;
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         elytraCloseToBack = defaults.elytraCloseToBack;
@@ -622,6 +629,9 @@ public final class CosmeticsConfig {
 
     /** Repairs a hand-edited or older file: fills missing entries, clamps numbers into range. */
     void sanitize() {
+        if (themeColorAll != null && !themeColorAll.equals("accent") && !themeColorAll.equals("glow")) {
+            themeColorAll = null;
+        }
         if (slotPriority == null) {
             slotPriority = defaultPriorities();
         }

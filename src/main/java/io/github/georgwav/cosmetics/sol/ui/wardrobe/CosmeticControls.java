@@ -71,6 +71,8 @@ public final class CosmeticControls {
                     toggle("general", "several_of_a_kind", "severalOfAKind", c -> c.severalOfAKind, (c, v) -> c.severalOfAKind = v),
                     toggle("general", "color_any_cosmetic", "colorAnyCosmetic", c -> c.colorAnyCosmetic,
                             (c, v) -> c.colorAnyCosmetic = v),
+                    new Choice<>("general", "theme_color_all", "themeColorAll", Arrays.asList(null, "accent", "glow"),
+                            c -> c.themeColorAll, (c, v) -> c.themeColorAll = v, v -> "theme_color_all." + (v == null ? "off" : v)),
                     toggle("general", "shield_item_icons", "shieldItemIcons", c -> c.shieldItemIcons, (c, v) -> c.shieldItemIcons = v),
                     new Special("keys", "key_open", null, "key_open"),
                     new Special("keys", "key_emotes", null, "key_emotes"),

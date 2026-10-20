@@ -34,7 +34,7 @@ public final class SolScenario {
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
-            "quick_mods", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
+            "quick_mods", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
@@ -42,7 +42,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "hud_sol", "hud_colour", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
     /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
     private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline", "hands_white", "knife_pinspect"};
@@ -492,6 +492,9 @@ public final class SolScenario {
                 // two seconds before it fades).
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
             }
+            if (phaseTick == SETTLE - 40 && s.name().equals("ui_hud_colour")) {
+                placeColourBlock(mc);
+            }
             if (play && phaseTick == SETTLE - 2) {
                 // The toasts from the items given for the HUD shots.
                 io.github.georgwav.cosmetics.sol.render.Mc.clearToasts();
@@ -690,6 +693,8 @@ public final class SolScenario {
         // HUD hidden.
         String what = ui ? name.substring(3) : "";
         boolean hud = inPlay(what);
+        // Before the music's switches below, which set the album colours per shot after this puts them back.
+        accentForShot(what.equals("hud_colour") || what.equals("quick_presets_colour"));
         if (MOCK_CIDER) {
             // The album's colours only in the music shots: every other shot shows its theme.
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
@@ -708,6 +713,7 @@ public final class SolScenario {
         wearForWardrobe(wardrobe);
         serversForShot(what.equals("servers"));
         handsForShot(what);
+        blockForShot(what.equals("hud_colour"));
         stylesForShot(what.equals("hud_styles"));
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
@@ -1035,6 +1041,9 @@ public final class SolScenario {
         if (name.equals("ui_knife_glow") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
             problems.add(name + ": the hand glow didn't run on the knife");
         }
+        if (name.equals("ui_hud_colour")) {
+            checkColourSync(name);
+        }
         if (name.equals("ui_hud_off")) {
             for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
                 if (drawn[p.ordinal()] > 0) {
@@ -1077,8 +1086,85 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
+        return what.equals("hud_sol") || what.equals("hud_colour") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
                 || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles");
+    }
+
+    /** The colour the colour shots pick: one that isn't in the quick menu's row, so the picker's own swatch shows it. */
+    private static final int SHOT_ACCENT = 0xFFFF5FA8;
+    /** The accent before the colour shots (in a box, as it may be null), or null while they aren't showing. */
+    private static Integer[] accentWas;
+    /** The block put in front of you in the colour shot, for the block outline, or null. */
+    private static net.minecraft.core.BlockPos colourBlock;
+
+    /** The album colours' switch before the colour shots. */
+    private static boolean albumBeforeColour;
+
+    /**
+     * The colour shots: your own colour picked, as from the picker under the presets wheel (which switches the
+     * album's colours off, as they'd come first). Put back after them.
+     */
+    private static void accentForShot(boolean on) {
+        var music = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music;
+        if (on && accentWas == null) {
+            accentWas = new Integer[]{ThemeState.accentOverride()};
+            albumBeforeColour = music.albumUi;
+            music.albumUi = false;
+            io.github.georgwav.cosmetics.sol.config.SolProfiles.setAccent(SHOT_ACCENT);
+        } else if (!on && accentWas != null) {
+            music.albumUi = albumBeforeColour;
+            io.github.georgwav.cosmetics.sol.config.SolProfiles.setAccent(accentWas[0]);
+            accentWas = null;
+        } else if (on) {
+            music.albumUi = false;
+        }
+    }
+
+    /**
+     * A stone block a few steps ahead in the colour shot, so the block outline (on by default) shows its colour. Put
+     * there once the player stands at the shot's spot, facing its way; taken away after the shot.
+     */
+    private static void placeColourBlock(Minecraft mc) {
+        if (colourBlock == null && mc.player != null) {
+            colourBlock = net.minecraft.core.BlockPos.containing(mc.player.getEyePosition().add(mc.player.getLookAngle().scale(3.5)));
+            asPlayer(mc, List.of("setblock " + colourBlock.getX() + " " + colourBlock.getY() + " " + colourBlock.getZ() + " minecraft:stone"));
+        }
+    }
+
+    private static void blockForShot(boolean on) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!on && colourBlock != null) {
+            asPlayer(mc, List.of("setblock " + colourBlock.getX() + " " + colourBlock.getY() + " " + colourBlock.getZ() + " minecraft:air"));
+            colourBlock = null;
+        }
+    }
+
+    /**
+     * The colour shot: the picked colour is the theme's accent, every colour setting that follows the theme draws in
+     * it, and the modules that show it (crosshair, block outline, glint) are on by default.
+     */
+    private void checkColourSync(String name) {
+        int want = 0xFF000000 | ThemeState.tokens().accent;
+        if ((want & 0xFFFFFF) != (SHOT_ACCENT & 0xFFFFFF)) {
+            problems.add(name + String.format(java.util.Locale.ROOT, ": the picked colour isn't the accent (#%06X)", want & 0xFFFFFF));
+        }
+        int following = 0;
+        for (io.github.georgwav.cosmetics.client.Module m : Modules.all()) {
+            for (io.github.georgwav.cosmetics.client.Setting<?> st : m.settings()) {
+                if (st instanceof io.github.georgwav.cosmetics.client.Setting.Color c && c.followsTheme()) {
+                    following++;
+                    if (c.argb() != want) {
+                        problems.add(name + ": " + m.id + "'s " + c.id + " didn't follow the picked colour");
+                    }
+                }
+            }
+        }
+        for (io.github.georgwav.cosmetics.client.Module m : List.of(Modules.CROSSHAIR, Modules.OUTLINE, Modules.GLINT)) {
+            if (!m.enabled()) {
+                problems.add(name + ": " + m.id + " isn't on (it's on by default)");
+            }
+        }
+        CosmeticsMod.LOGGER.info("[Sol] {}: {} colour settings follow the theme, all in the picked colour", name, following);
     }
 
     /** The settings the HUD styles shot changed, to put back after it. */

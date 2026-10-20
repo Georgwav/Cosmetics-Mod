@@ -14,7 +14,7 @@ public abstract class TextHud extends HudModule {
     protected final Setting.Toggle shadow = add(new Setting.Toggle("shadow", false).group("text"));
     /** The game's pixel font, or the client's own (Geist, sharp at any size). */
     protected final Setting.Choice typeface = add(new Setting.Choice("font", "minecraft", List.of("minecraft", "geist")).group("text"));
-    protected final Setting.Color color = add(new Setting.Color("color", 0xFFFFFFFF).themed().names(java.util.Map.of(
+    protected final Setting.Color color = add(new Setting.Color("color", Setting.Color.THEME).was(0xFFFFFFFF).themed().names(java.util.Map.of(
             "white", 0xFFFFFFFF, "grey", 0xFFC8C8C8, "yellow", 0xFFFFE040, "green", 0xFF4CFF4C, "cyan", 0xFF40E8FF,
             "pink", 0xFFFF60D0, "red", 0xFFFF4040)).group("text"));
 
