@@ -483,10 +483,10 @@ public final class Target extends FxModule implements FxWorld.Layer {
                 float x = (float) Math.cos(ang) * r, z = (float) Math.sin(ang) * r;
                 if (k == 0) {
                     if (glow) {
-                        Vfx.hot(out, x, y, z, 0.22f * s * lift, Vfx.with(Vfx.white(col, 0.5f), a * gk));
-                        Vfx.glow(out, x, y, z, 0.55f * s, Vfx.with(col, 0.4f * a * gk));
+                        Vfx.hot(out, x, y, z, 0.2f * s * lift, Vfx.with(Vfx.white(col, 0.25f), 0.85f * a * gk));
+                        Vfx.glow(out, x, y, z, 0.6f * s, Vfx.with(col, 0.45f * a * gk));
                     } else {
-                        Vfx.sprite(out, FxSoft.DOT, x, y, z, 0.05f * s, 0f, Vfx.with(Vfx.white(col, 0.6f), a));
+                        Vfx.sprite(out, FxSoft.DOT, x, y, z, 0.05f * s, 0f, Vfx.with(Vfx.white(col, 0.3f), a));
                     }
                 } else {
                     float f = 1f - k / 11f;
@@ -514,16 +514,16 @@ public final class Target extends FxModule implements FxWorld.Layer {
             float y = h * (ring == 0 ? 0.36f : 0.7f) + 0.03f * s * (float) Math.sin(t * 2f + ring * 2f);
             float turn = (ring == 0 ? 1f : -1f) * t * 0.9f;
             if (glow) {
-                Vfx.ring(out, FxSoft.LINE, 0f, y, 0f, r, 0.32f * s * lift, Vfx.with(c, 0.22f * a * gk), false);
+                Vfx.ring(out, FxSoft.LINE, 0f, y, 0f, r, 0.32f * s * lift, Vfx.with(c, 0.3f * a * gk), false);
+                Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, 0.1f * s * lift, Vfx.with(c, 0.35f * a * gk), false);
             }
             for (int i = 0; i < links; i++) {
                 double ang = turn + i * Math.PI * 2 / links;
                 float cx = (float) Math.cos(ang), cz = (float) Math.sin(ang);
                 // Every other link turned a quarter round, so they hook into each other.
                 float nx = (i & 1) == 0 ? cx : 0f, ny = (i & 1) == 0 ? 0f : 1f, nz = (i & 1) == 0 ? cz : 0f;
-                if (glow) {
-                    Vfx.hoop(out, FxSoft.TUBE, cx * r, y, cz * r, nx, ny, nz, link, 0.05f * s * lift, Vfx.with(c, 0.55f * a * gk));
-                } else {
+                // The links themselves over the world; their light is the band of glow round the ring.
+                if (!glow) {
                     Vfx.hoop(out, FxSoft.TUBE, cx * r, y, cz * r, nx, ny, nz, link, 0.03f * s, Vfx.with(metal, 0.95f * a));
                 }
             }

@@ -1044,7 +1044,7 @@ public final class KillEffects extends FxModule {
             Vfx.origin(out, fx);
             float s = fx.size, gy = fx.c, e = fx.early(now), gk = FxBits.glowK(fx);
             float h = height(fx) * s;
-            int c = fx.tone(Ramp.MAIN, 0, now), deep = Vfx.mix(c, 0xFF000000, 0.5f), light = Vfx.white(c, 0.3f);
+            int c = fx.tone(Ramp.MAIN, 0, now), deep = Vfx.mix(c, 0xFF000000, 0.32f), light = Vfx.white(c, 0.3f);
             float y0 = gy + h * 0.55f;
             float pop = 0.1f;
             // The body swells, then it's gone.
@@ -1070,7 +1070,7 @@ public final class KillEffects extends FxModule {
                             oz = Vfx.s(fx.seed, i + 1020) * 0.35f * s;
                     float size = (0.55f + 1.1f * Vfx.outCubic(k)) * s;
                     Vfx.sprite(out, FxSoft.SMOKE[i & 3], ox * (1f + k), y0 + oy - 0.3f * k, oz * (1f + k), size, Vfx.h(fx.seed, i + 1030) * 6f + k,
-                            Vfx.with(Vfx.mix(c, deep, 0.4f), 0.5f * (1f - k) * (1f - k) * e));
+                            Vfx.with(Vfx.white(c, 0.12f), 0.6f * (1f - k) * (1f - k) * e));
                 }
             }
             int n = Math.round(170 * fx.amount);
@@ -1112,12 +1112,14 @@ public final class KillEffects extends FxModule {
                         Vfx.ring(out, FxSoft.TUBE, x, Vfx.groundAt(x, gy, z) + 0.03f, z, size * (1.5f + 6f * sk), size * 0.9f,
                                 Vfx.with(col, 0.6f * (1f - sk) * e), false);
                     }
-                    Vfx.decal(out, FxSoft.SCORCH, x, Vfx.groundAt(x, gy, z), z, size * 3.6f * grow, Vfx.h(fx.seed, i + 950) * 6f,
-                            Vfx.with(col, 0.9f * splat));
+                    // The splat it leaves, in its own colour.
+                    Vfx.decal(out, FxSoft.DOT_SOFT, x, Vfx.groundAt(x, gy, z), z, size * 3f * grow, Vfx.h(fx.seed, i + 950) * 6f,
+                            Vfx.with(col, 0.85f * splat));
                 }
             }
             if (!out.glowPass()) {
-                Vfx.decalGround(out, FxSoft.SCORCH, 0f, gy, 0f, 1.6f * s * Vfx.outCubic(tb / 0.6f), fx.seed * 0.3f, Vfx.with(deep, 0.85f * splat));
+                Vfx.decalGround(out, FxSoft.DOT_SOFT, 0f, gy, 0f, 1.5f * s * Vfx.outCubic(tb / 0.6f), fx.seed * 0.3f, Vfx.with(c, 0.7f * splat));
+                Vfx.decalGround(out, FxSoft.SCORCH, 0f, gy, 0f, 1.2f * s * Vfx.outCubic(tb / 0.6f), fx.seed * 0.3f, Vfx.with(deep, 0.45f * splat));
             }
         }
     };

@@ -46,9 +46,19 @@ public final class FxBits {
         }
     }
 
-    /** The glow setting as strength: off draws no light, soft some, strong more. */
+    /**
+     * The glow setting as strength: off draws no light, soft some, strong more. By day a little less: light added over
+     * a bright world washes out to white, and the effects' colours should still read.
+     */
     public static float glowK(Fx fx) {
-        return fx.glow == 0 ? 0f : fx.glow == 2 ? 1.35f : 1f;
+        float k = fx.glow == 0 ? 0f : fx.glow == 2 ? 1.35f : 1f;
+        return k * (1f - 0.4f * daylight());
+    }
+
+    /** How much it's day where you are: 0 at night, 1 with the sun well up. */
+    public static float daylight() {
+        float c = (float) Math.cos(io.github.georgwav.cosmetics.sol.render.FrameInfo.sunAngle);
+        return Math.max(0f, Math.min(1f, c * 1.6f + 0.1f));
     }
 
     /**

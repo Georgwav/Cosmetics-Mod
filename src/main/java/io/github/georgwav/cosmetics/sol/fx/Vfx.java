@@ -398,7 +398,7 @@ public final class Vfx {
         by /= bl;
         bz /= bl;
         float qx = ny * bz - nz * by, qy = nz * bx - nx * bz, qz = nx * by - ny * bx;
-        int n = Math.max(12, Math.min(96, (int) (radius * 40f)));
+        int n = Math.max(8, Math.min(96, (int) (radius * 40f)));
         float px = cx + bx * radius, py = cy + by * radius, pz = cz + bz * radius;
         for (int i = 1; i <= n; i++) {
             double a = i * 2 * Math.PI / n;
