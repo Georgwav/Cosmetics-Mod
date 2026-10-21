@@ -211,12 +211,17 @@ class QuickWheelTest {
         for (int i = 0; i < 40; i++) {
             w.draw(rings, 1f, 1, i % 11, false, false, -90f, 0.7f, false, i / 12f);
         }
-        long t = System.nanoTime();
+        // The best of three batches: a shared machine's scheduler can stall any one of them.
         int n = 40;
-        for (int i = 0; i < n; i++) {
-            w.draw(rings, 1f, 1, i % 11, false, false, -90f, 0.7f, false, i / 12f);
+        double ms = Double.MAX_VALUE;
+        long t;
+        for (int batch = 0; batch < 3; batch++) {
+            t = System.nanoTime();
+            for (int i = 0; i < n; i++) {
+                w.draw(rings, 1f, 1, i % 11, false, false, -90f, 0.7f, false, i / 12f);
+            }
+            ms = Math.min(ms, (System.nanoTime() - t) / 1e6 / n);
         }
-        double ms = (System.nanoTime() - t) / 1e6 / n;
         // A frame of the eclipse turning (the rings unchanged, the hot one moving) against a full redraw.
         t = System.nanoTime();
         for (int i = 0; i < n; i++) {
