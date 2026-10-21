@@ -66,3 +66,13 @@ delta E 12 on two presets, it's gone a second after it ends; grey ones never sho
 - `round7/fx-target.png`: Target's eight marks, chams on a crystal (flat, glowing, outline) and on you, and the friend marker.
 - `round7/fx-jump.png`: Jump FX's eight landing styles (square ring, ring, double ring, hexagon, star burst, block wave, landing bolts, hologram) and the ring with each particle set (ice, fire, soul, galaxy).
 - `round7/fx-trails.png`: Trails behind you on the copy's walk: the ribbon in theme, rainbow and blue-pink-white bands and from the feet, the firefly tail, the ghost trail, footsteps, and the elytra contrails on a glide past with the rocket's flare and smoke.
+
+### Round 7: the visuals, steps 8 to 10 (georgwav/cosmetics-mod#37)
+
+- `round7/fx-you.png`: You's Naruto run, chat bubble and eating crumbs on the copy of you, six moments each.
+- `round7/fx-you-real.png`: the same through the game's own events (sprinting, a chat line, eating a golden apple), More ambience's glowing cubes, and Sol's three pets following a walk, the dog sitting when you stop.
+- `round7/hands-1.21.11.png`: the hands (Punchy) on 1.21.11 at Ember's sunset: the plain hands, the Stars and Bands looks, what you hold (flames on the sword, your arm holding it, the shield red after an axe), the view model moved with the hands kept still, and the Stab swing.
+- `round7/hands-swing-styles.png`: each swing style a third of the way into a swing.
+- `round7/hands-26.3.png`: the same hand shots on 26.3.
+- `round7/world-fx.png`: World FX through the world's own events on 1.21.11: rain rings on the beach in real rain, the rainbow when it stops, leaves falling from a canopy, a plank mined by hand (stars inside, Sol's glowing cracks in place of the game's), a diamond and a block tumbling as they fall and lying flat, rain ripples and the rainbow on the copy of you, and F5 gliding back in.
+- `round7/world-fx-eras.png`: the same on 1.21.1 (top) and 26.3 (bottom), with the glow outline and End-stars fill, chunk rise mid-way (the ground still below), the glide out and the snow prints.
