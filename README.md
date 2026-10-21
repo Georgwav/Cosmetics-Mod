@@ -53,3 +53,14 @@ From local runs (1.21.11). The packs in the Styles shots are the made-up test pa
 - `round7/styles-2.png`: the same scene with the crystal live-recoloured from the panel (no reload), and the Sky pack's purple sun.
 - `round7/styles-3.png`: the texture tree under More (branches with counts, each texture with the packs that have it), and an OptiFine sky layer from a pack drawn by Sol's sky pass.
 - `round7/styles-4.png`: the full packs folded under a part, the Wardrobe with Sol's Horns and Cat Ears, and the texture tree again with a second full pack.
+
+### Round 7: the visuals, steps 1 to 5 (georgwav/cosmetics-mod#37)
+
+Contact sheets the effects scenario writes (1.21.11, 1280×720): each effect on a copy of you, its clock frozen at six
+moments of its life, on Frost Morning. Every one also passed CI's checks (it shows, it's the preset's colour within
+delta E 12 on two presets, it's gone a second after it ends; grey ones never show through a wall).
+
+- `round7/fx-kill-effects.png`: Kill Effects' eleven styles.
+- `round7/fx-hit-effects.png`: Hit Effects' six particle styles, the bubble, word hits, damage numbers and the hitmarker.
+- `round7/fx-totems-crystal-trails.png`: Totems' ghost, shatter and angel, the six floating-totem styles, Crystal PvP's explosion rings and the four projectile trails.
+- `round7/fx-target.png`: Target's eight marks, chams on a crystal (flat, glowing, outline) and on you, and the friend marker.
