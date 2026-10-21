@@ -13,7 +13,7 @@ import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
  * effect keeps its look but plays only its key moment. Render thread only.
  */
 public final class FxWorld {
-    public static final FxPool POOL = new FxPool(192, 96);
+    public static final FxPool POOL = new FxPool(256, 128);
     /** For the checks: the most effects alive at once, and frames drawn with any. */
     public static int peak;
     /** The scenario's frozen clock (seconds on the frame clock), or NaN to run with the frames. */

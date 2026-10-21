@@ -74,9 +74,11 @@ final class FxScenario {
     private int killTicks, cleanLeft;
     /** The other real events, in turn: a totem pop, a crystal appearing, an explosion, an arrow in flight. */
     private int realStep, realTicks;
-    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_LAND = 4, REAL_DONE = 5;
-    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow", "landing"};
-    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile", "jump_"};
+    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_LAND = 4, REAL_WALK = 5, REAL_DONE = 6;
+    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow", "landing", "walk"};
+    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile", "jump_", "trail_ribbon"};
+    /** Where the walk started, to put you back. */
+    private double walkX, walkY, walkZ;
     /** The camera for the case being staged. */
     static float pitch = 10f;
 
@@ -213,10 +215,35 @@ final class FxScenario {
         Trails trails = Modules.TRAILS;
         for (String style : Trails.PROJECTILE_STYLES) {
             cases.add(new Case("trail_" + style, trails, () -> {
-                trails.projectiles.on.set(true);
+                only(trails, trails.projectiles.on);
                 trails.projectiles.style.set(style);
-                trails.projectiles.colourMode.set("theme");
             }, 4f, 4f, true, false, "trail_projectile"));
+        }
+        // Your trails, on the dummy's walk (or glide) past: the ribbon in each style and from the feet, then the rest.
+        for (String style : Trails.RIBBON_STYLES) {
+            String name = style.equals("theme_bands") ? "trail_ribbon" : "trail_ribbon_" + style.substring(0, style.indexOf('_'));
+            cases.add(new Case(name, trails, () -> {
+                only(trails, trails.ribbon.on);
+                trails.ribbon.style.set(style);
+                trails.ribbonFrom.set("waist");
+            }, 5f, 14f, style.equals("theme_bands"), false, "trail_ribbon"));
+        }
+        cases.add(new Case("trail_ribbon_feet", trails, () -> {
+            only(trails, trails.ribbon.on);
+            trails.ribbon.style.set("theme_bands");
+            trails.ribbonFrom.set("feet");
+        }, 5f, 26f, true, false, "trail_ribbon"));
+        cases.add(new Case("trail_firefly", trails, () -> only(trails, trails.firefly.on), 4.5f, 10f, true, false, "trail_firefly"));
+        cases.add(new Case("trail_ghost", trails, () -> only(trails, trails.ghost.on), 5f, 8f, true, false, "trail_ghost"));
+        cases.add(new Case("trail_footsteps", trails, () -> only(trails, trails.footsteps.on), 4.5f, 34f, true, false, "trail_footprint"));
+        cases.add(new Case("trail_contrails", trails, () -> only(trails, trails.contrails.on), 6f, -12f, true, false, "trail_contrail"));
+    }
+
+    /** Trails with only one of its trails on, in the preset's colour. */
+    private static void only(Trails t, io.github.georgwav.cosmetics.client.Setting.Toggle on) {
+        for (var fs : List.of(t.projectiles, t.ribbon, t.firefly, t.ghost, t.footsteps, t.contrails)) {
+            fs.on.set(fs.on == on);
+            fs.colourMode.set("theme");
         }
     }
 
@@ -280,7 +307,8 @@ final class FxScenario {
     static final java.util.Set<String> REDUCED = java.util.Set.of("kill_soul_rise", "kill_lightning", "hit_pixels", "hit_bubbles",
             "hit_words", "hit_damage", "hit_marker", "totem_ghost", "totem_shatter", "totem_angel", "totem_pop_roll", "target_ring",
             "chams_crystal_glow", "chams_you", "friend_marker", "jump_square_ring", "jump_hologram", "jump_particles_fire",
-            "crystal_rings", "trail_dots");
+            "crystal_rings", "trail_dots", "trail_ribbon", "trail_ribbon_rainbow", "trail_firefly", "trail_ghost", "trail_footsteps",
+            "trail_contrails");
 
     /**
      * Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks; the
@@ -720,6 +748,17 @@ final class FxScenario {
                     cmds.add(String.format(java.util.Locale.ROOT, "tp %s %.2f %.2f %.2f", mc.player.getName().getString(), mc.player.getX(),
                             mc.player.getY() + 3.0, mc.player.getZ()));
                 }
+                case REAL_WALK -> {
+                    // Walking sideways in third person: the ribbon is laid from your own ticks.
+                    Trails t = Modules.TRAILS;
+                    t.setEnabled(true);
+                    only(t, t.ribbon.on);
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    walkX = mc.player.getX();
+                    walkY = mc.player.getY();
+                    walkZ = mc.player.getZ();
+                    cmds.add("kill @e[tag=sol_arrow]");
+                }
                 default -> {
                     Trails t = Modules.TRAILS;
                     t.setEnabled(true);
@@ -740,8 +779,17 @@ final class FxScenario {
             return;
         }
         realTicks++;
+        if (realStep == REAL_WALK && realTicks > 2) {
+            // A step of 0.3 blocks a tick to your right (a walk's pace).
+            double a = Math.toRadians(mc.player.getYRot());
+            mc.player.setPos(mc.player.getX() - Math.cos(a) * 0.3, mc.player.getY(), mc.player.getZ() - Math.sin(a) * 0.3);
+        }
         int n = FxWorld.POOL.count(REAL_KINDS[realStep]);
         if (n > 0 || realTicks > 40) {
+            if (realStep == REAL_WALK) {
+                mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                mc.player.setPos(walkX, walkY, walkZ);
+            }
             if (n > 0) {
                 CosmeticsMod.LOGGER.info("[Sol] Effects phase: a real {} started its effect after {} ticks", REAL_NAMES[realStep], realTicks);
             } else {

@@ -55,8 +55,8 @@ public final class PoseSnapshot {
     /** The skin, and its height (blocks): the dissolves run over it. */
     public FxTex skin;
     public float height = 1.8f, width = 0.6f;
-    /** Tinted copies of the skin, made when an effect asks (one kept per tint). */
-    private FxTex tinted, grey;
+    /** The tinted skin last asked for, and what for (shared ones, see {@link #tinted}). */
+    private FxTex tinted, tintedSkin;
     private int tintedFor;
     private float tintedAmount = -1f;
 
@@ -130,6 +130,11 @@ public final class PoseSnapshot {
 
     /** Copies a player in a pose from {@link #HISTORY} (or any pose) wearing {@code skin}. */
     public void capture(SkinPixels.Skin skinPixels, Pose pose) {
+        capture(skinPixels, pose, true);
+    }
+
+    /** {@link #capture(SkinPixels.Skin, Pose)}, without the texel rows when {@code rows} is false (drawn whole). */
+    public void capture(SkinPixels.Skin skinPixels, Pose pose, boolean rows) {
         quadCount = 0;
         rowCount = 0;
         height = pose.crouch ? 1.5f : 1.8f;
@@ -143,7 +148,11 @@ public final class PoseSnapshot {
         if (quadCount == 0) {
             box(width, height);
         }
-        cutRows();
+        if (rows) {
+            cutRows();
+        } else {
+            mids();
+        }
         tintedAmount = -1f;
     }
 
@@ -577,45 +586,58 @@ public final class PoseSnapshot {
     }
 
     /**
+     * Tinted skins, shared by every copy wearing the same skin and named apart (one copy's texture never takes the
+     * place of another's), the last {@value #TINTS_KEPT} kept.
+     */
+    private static final int TINTS_KEPT = 48;
+    private static final Map<String, FxTex> TINTS = new java.util.LinkedHashMap<>(64, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, FxTex> eldest) {
+            if (size() > TINTS_KEPT) {
+                eldest.getValue().release();
+                return true;
+            }
+            return false;
+        }
+    };
+
+    /**
      * The skin mixed {@code amount} of the way toward {@code tint} (1: a grey copy the vertex colour tints fully, its
-     * shading kept in the four ramp bands), made once per tint.
+     * shading kept in the four ramp bands), made once per skin and tint.
      */
     public FxTex tinted(int tint, float amount) {
         if (amount <= 0f) {
             return skin;
         }
-        if (amount >= 1f) {
-            if (grey == null || grey.width != skin.width || grey.height != skin.height) {
-                grey = new FxTex(skin.name + "_grey", skin.width, skin.height);
-            }
-            if (tintedFor != System.identityHashCode(skin) || tintedAmount != 2f) {
-                for (int i = 0; i < skin.argb.length; i++) {
-                    int c = skin.argb[i];
+        boolean toGrey = amount >= 1f;
+        int key = toGrey ? 0 : tint;
+        float level = toGrey ? 1f : amount;
+        if (tinted != null && tintedSkin == skin && tintedFor == key && tintedAmount == level) {
+            return tinted;
+        }
+        String name = skin.name + (toGrey ? "_grey" : "_tint_" + Integer.toHexString(tint) + "_" + Math.round(amount * 100f));
+        FxTex t = TINTS.get(name);
+        if (t == null || t.width != skin.width || t.height != skin.height) {
+            t = new FxTex(name, skin.width, skin.height);
+            for (int i = 0; i < skin.argb.length; i++) {
+                int c = skin.argb[i];
+                if (toGrey) {
                     float l = Colors.luma(c);
                     // Four bands, as the ramp: bright, main, shade, deep.
                     int g = l > 0.62f ? 255 : l > 0.4f ? 214 : l > 0.22f ? 166 : 120;
-                    grey.argb[i] = (c & 0xFF000000) | g << 16 | g << 8 | g;
+                    t.argb[i] = (c & 0xFF000000) | g << 16 | g << 8 | g;
+                } else {
+                    t.argb[i] = (c & 0xFF000000) | (Colors.mixRgb(c, tint, amount) & 0xFFFFFF);
                 }
-                grey.changed();
-                tintedFor = System.identityHashCode(skin);
-                tintedAmount = 2f;
             }
-            return grey;
+            t.changed();
+            TINTS.put(name, t);
         }
-        if (tinted == null || tinted.width != skin.width || tinted.height != skin.height) {
-            tinted = new FxTex(skin.name + "_tint", skin.width, skin.height);
-            tintedAmount = -1f;
-        }
-        if (tintedAmount != amount || tintedFor != (tint ^ System.identityHashCode(skin))) {
-            for (int i = 0; i < skin.argb.length; i++) {
-                int c = skin.argb[i];
-                tinted.argb[i] = (c & 0xFF000000) | (Colors.mixRgb(c, tint, amount) & 0xFFFFFF);
-            }
-            tinted.changed();
-            tintedAmount = amount;
-            tintedFor = tint ^ System.identityHashCode(skin);
-        }
-        return tinted;
+        tinted = t;
+        tintedSkin = skin;
+        tintedFor = key;
+        tintedAmount = level;
+        return t;
     }
 
     // ------------------------------------------------------------------ your last three seconds

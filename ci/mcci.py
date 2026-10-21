@@ -1060,7 +1060,9 @@ def fx_problems(game_dir, summary_phases):
             wall_files = [game_dir / f"fx-{name}-wall-{k}.png" for k in (1, 2, 3)]
             if wall_off.exists() and all(f.exists() for f in wall_files):
                 _, _, wo = read_png(wall_off)
-                through = [len(_changed(read_png(f)[2], wo, w, h)) for f in wall_files]
+                # The game's own "Saving world" notice may come up in the bottom right corner: not the effect.
+                through = [sum(1 for x, y, _ in _changed(read_png(f)[2], wo, w, h) if not (x > w * 0.7 and y > h - 48))
+                           for f in wall_files]
                 info["wall"] = "/".join(str(n) for n in through)
                 if max(through) > need // 3:
                     problems.append(f"fx {name}: shows through a wall (changed pixels {info['wall']})")

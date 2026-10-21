@@ -165,12 +165,15 @@ public final class FxSprites {
             "12223",
             ".223.",
             "..3..");
+    /** A shoe's print, 4 x 7 (a quarter block wide in the world, as a player's foot): toes, sole, a gap, the heel. */
     public static final Sprite FOOTPRINT = new Sprite("footprint",
-            ".2.",
-            "222",
-            "222",
-            ".3.",
-            "333");
+            ".11.",
+            "2222",
+            "2222",
+            ".22.",
+            "....",
+            "3333",
+            ".33.");
     public static final Sprite LEAF = new Sprite("leaf",
             "..12",
             ".122",
