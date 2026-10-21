@@ -39,7 +39,8 @@ public final class Hud {
     }
 
     public static void register() {
-        // The client's crosshair in place of the game's while it's on (before 1.21.6 a mixin on Gui does this).
+        // The client's crosshair in place of the game's while it's on, and Hit Effects' hitmarker over either (before
+        // 1.21.6 a mixin on Gui does this).
         //? if >=26.1 {
         /*HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
             if (Modules.CROSSHAIR.enabled()) {
@@ -47,6 +48,7 @@ public final class Hud {
             } else {
                 vanilla.extractRenderState(graphics, delta);
             }
+            io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
         });
         *///?} elif >=1.21.6 {
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
@@ -55,6 +57,7 @@ public final class Hud {
             } else {
                 vanilla.render(graphics, delta);
             }
+            io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
         });
         //?}
         // The game's own HUD parts, each drawn moved by where the HUD editor put it (VanillaHud), and in Sol UI's look

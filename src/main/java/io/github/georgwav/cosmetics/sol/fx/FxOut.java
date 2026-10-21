@@ -33,6 +33,9 @@ public interface FxOut {
 
     double camZ();
 
+    /** The camera's position relative to the origin ({@code out} gets x, y, z): which faces of a copy it sees. */
+    void eye(float[] out);
+
     /** The ground's height under a point: the top of the first solid block at or below {@code fromY}. */
     float ground(double x, double z, double fromY);
 }

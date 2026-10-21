@@ -180,6 +180,12 @@ public final class FxSprites {
             ".22.",
             "2..3",
             ".33.");
+    /** A small glowing orb. */
+    public static final Sprite ORB = new Sprite("orb",
+            ".22.",
+            "2112",
+            "2123",
+            ".33.");
     public static final Sprite SCORCH = new Sprite("scorch",
             "..44.4..",
             ".4344.4.",
@@ -196,7 +202,7 @@ public final class FxSprites {
 
     static {
         List<Sprite> all = new ArrayList<>(List.of(SQUARE, PLUS, DIAMOND, STAR, HEART, RING_SEGMENT, BUBBLE, SUN, EYE, MOON,
-                PLUMBOB, CRYSTAL, FOOTPRINT, LEAF, CHAIN, SCORCH, DITHER));
+                PLUMBOB, CRYSTAL, FOOTPRINT, LEAF, CHAIN, ORB, SCORCH, DITHER));
         all.addAll(List.of(FLAME));
         all.addAll(List.of(CONFETTI));
         ALL_SPRITES = all.toArray(new Sprite[0]);

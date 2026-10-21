@@ -39,7 +39,7 @@ public final class SolScenario {
             "quick_hud_light", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_hit_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -285,6 +285,11 @@ public final class SolScenario {
             float yaw = deep == null ? 180f : deep.base().show().azimuth();
             // Only some menu shots (-Dcosmeticsmod.solUi=hud_sol,hud_off), for quick looks.
             java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
+            // The effects first, while the world is as the world shots left it (the menu shots after them stage
+            // scenes of their own).
+            if (only.get(0).isBlank() || only.contains("fx")) {
+                shots.add(fxShot());
+            }
             for (String ui : UI_SHOTS) {
                 if (!only.get(0).isBlank() && !only.contains(ui)) {
                     continue;
@@ -301,9 +306,6 @@ public final class SolScenario {
                         : inPlay(ui) && !ui.startsWith("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
-            }
-            if (only.get(0).isBlank() || only.contains("fx")) {
-                shots.add(fxShot());
             }
             for (String ui : LOCAL_UI_SHOTS) {
                 if (only.contains(ui)) {

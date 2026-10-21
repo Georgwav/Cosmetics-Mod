@@ -40,6 +40,8 @@ public final class SolSounds {
     public static final List<String> EVENTS = List.of("hit", "crit", "kill", "pop", "click", "toggle");
     private static final String PACK_ID = "cosmeticsmod:sol_sounds_yours";
     private static final RandomSource RANDOM = RandomSource.create();
+    /** When a kill sound last played (ns): one kill makes one kill sound, whichever module plays it first. */
+    private static long lastKill;
     private static List<String> yours;
 
     private SolSounds() {
@@ -82,6 +84,13 @@ public final class SolSounds {
     public static void play(String choice, String event, float volume, float pitch) {
         if (choice == null || choice.equals("off") || volume <= 0f) {
             return;
+        }
+        if (event.equals("kill")) {
+            long now = System.nanoTime();
+            if (now - lastKill < 150_000_000L) {
+                return;
+            }
+            lastKill = now;
         }
         String path = choice.startsWith("yours_") ? "user." + choice.substring(6) + "." + event : "sol." + choice + "." + event;
         try {

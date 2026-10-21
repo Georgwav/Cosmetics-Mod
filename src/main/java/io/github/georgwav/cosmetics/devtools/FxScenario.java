@@ -9,6 +9,7 @@ import io.github.georgwav.cosmetics.sol.fx.FxModule;
 import io.github.georgwav.cosmetics.sol.fx.FxPreview;
 import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.WorldOut;
+import io.github.georgwav.cosmetics.sol.fx.effects.HitEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.KillEffects;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
@@ -32,8 +33,15 @@ final class FxScenario {
     /** The two presets of the colour check. */
     static final String PRESET_A = "frost_morning", PRESET_B = "ember_solstice";
 
-    /** One staged effect: its name, module, how to set it up, where the camera stands, what CI checks. */
+    /**
+     * One staged effect: its name, module, how to set it up, where the camera stands, what CI checks. {@code kinds} is
+     * the prefix of its effects' ids in the pool (null for one drawn on the HUD, which shows the HUD for its frames);
+     * a grey one is also played behind a wall, where it mustn't show.
+     */
     record Case(String name, FxModule module, Runnable setup, float distance, float pitch, boolean colour, boolean grey, String kinds) {
+        boolean hud() {
+            return kinds == null;
+        }
     }
 
     private final List<Case> cases = new ArrayList<>();
@@ -48,7 +56,7 @@ final class FxScenario {
     private int accentA, accentB;
     private FxPreview.Dummy dummy;
     private int zombie = Integer.MIN_VALUE;
-    private int killTicks;
+    private int killTicks, cleanLeft;
     /** The camera for the case being staged. */
     static float pitch = 10f;
 
@@ -89,6 +97,26 @@ final class FxScenario {
                 kill.fx.colourMode.set("theme");
             }, distance, p, colour, false, "kill_" + style));
         }
+        HitEffects hit = Modules.HIT_EFFECTS;
+        for (String style : HitEffects.PARTICLE_STYLES) {
+            cases.add(new Case("hit_" + style, hit, () -> {
+                only(hit, hit.particles.on);
+                hit.particles.random.set(false);
+                hit.particles.style.set(style);
+            }, 3.2f, 8f, true, false, "hit_particles"));
+        }
+        cases.add(new Case("hit_bubbles", hit, () -> only(hit, hit.bubbles.on), 3.2f, 8f, true, false, "hit_bubble"));
+        cases.add(new Case("hit_words", hit, () -> only(hit, hit.words.on), 3.6f, 2f, true, false, "hit_word"));
+        cases.add(new Case("hit_damage", hit, () -> only(hit, hit.damage.on), 3.6f, -6f, true, true, "hit_damage"));
+        cases.add(new Case("hit_marker", hit, () -> only(hit, hit.marker.on), 3.2f, 8f, true, false, null));
+    }
+
+    /** Hit Effects with only one of its effects on, in the preset's colour. */
+    private static void only(HitEffects hit, io.github.georgwav.cosmetics.client.Setting.Toggle on) {
+        for (var fs : List.of(hit.particles, hit.bubbles, hit.words, hit.marker, hit.damage)) {
+            fs.on.set(fs.on == on);
+            fs.colourMode.set("theme");
+        }
     }
 
     boolean done() {
@@ -100,10 +128,18 @@ final class FxScenario {
         if (done || mc.player == null || mc.level == null) {
             return;
         }
+        if (io.github.georgwav.cosmetics.sol.render.Mc.overlay() != null) {
+            // A resource reload in progress (a shot before put packs back): its loading screen covers the world.
+            wait = Math.max(wait, 20);
+            return;
+        }
         if (index < 0) {
             start(mc);
             index = 0;
             step = 0;
+            // Three seconds for the frame to settle after the shots before (the grade and light ease to the new
+            // quality), so the first effect's empty frame is the scene its frames are drawn over.
+            wait = 60;
             return;
         }
         if (wait > 0) {
@@ -129,6 +165,8 @@ final class FxScenario {
                 pitch = c.pitch();
                 c.module().setEnabled(true);
                 c.setup().run();
+                io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!c.hud());
+                stageDummy(mc, c);
                 wait = 8;
                 step = 1;
             }
@@ -144,7 +182,7 @@ final class FxScenario {
                 FxWorld.hold = t0;
                 dummy = place(mc, c);
                 life = c.module().tryIt(FxWorld.POOL, dummy);
-                if (life <= 0f || FxWorld.POOL.count(c.kinds()) == 0) {
+                if (life <= 0f || !c.hud() && FxWorld.POOL.count(c.kinds()) == 0) {
                     problems.add("fx " + c.name() + ": nothing started");
                 }
                 step = 3;
@@ -153,7 +191,7 @@ final class FxScenario {
             case 3, 4, 5, 6, 7, 8 -> {
                 int k = step - 3;
                 FrameGrab.grab(mc, "fx-" + c.name() + "-" + k);
-                if (k == 2 && FxWorld.POOL.count(c.kinds()) == 0) {
+                if (k == 2 && !c.hud() && FxWorld.POOL.count(c.kinds()) == 0) {
                     problems.add("fx " + c.name() + ": gone halfway through its life");
                 }
                 step++;
@@ -163,6 +201,8 @@ final class FxScenario {
                     // The second preset, for the colour check.
                     ThemeState.setTheme(PRESET_B, false);
                     FxWorld.POOL.clear();
+                    FxWorld.hold = Float.NaN;
+                    stageDummy(mc, c);
                     wait = 10;
                 }
             }
@@ -208,26 +248,99 @@ final class FxScenario {
                 if (FrameInfo.time - t0 < life + 1.0f) {
                     return;
                 }
-                int left = FxWorld.POOL.count(c.kinds());
-                if (left > 0) {
-                    problems.add("fx " + c.name() + ": " + left + " still in the pool a second after its life");
+                cleanLeft = c.hud() ? 0 : FxWorld.POOL.count(c.kinds());
+                if (cleanLeft > 0) {
+                    problems.add("fx " + c.name() + ": " + cleanLeft + " still in the pool a second after its life");
                 }
-                JsonObject r = new JsonObject();
-                r.addProperty("name", c.name());
-                r.addProperty("module", c.module().id);
-                r.addProperty("life", life);
-                r.addProperty("colour", c.colour());
-                r.addProperty("grey", c.grey());
-                r.addProperty("accent_a", String.format("#%06X", accentA & 0xFFFFFF));
-                r.addProperty("accent_b", String.format("#%06X", accentB & 0xFFFFFF));
-                r.addProperty("cleaned", left == 0);
-                results.add(r);
-                index++;
-                step = 0;
+                if (c.grey()) {
+                    wall(mc, true);
+                    wait = 20;
+                    step = 14;
+                    return;
+                }
+                record(c);
             }
+            case 14 -> {
+                // Behind a wall: a grey effect mustn't show through it.
+                FxWorld.POOL.clear();
+                stageDummy(mc, c);
+                FrameGrab.grab(mc, "fx-" + c.name() + "-wall-off");
+                wait = 2;
+                step = 15;
+            }
+            case 15 -> {
+                t0 = FrameInfo.time;
+                FxWorld.hold = t0;
+                dummy = place(mc, c);
+                life = c.module().tryIt(FxWorld.POOL, dummy);
+                bFrame = 1;
+                FxWorld.hold = t0 + life * (bFrame + 0.5f) / 6f;
+                wait = 3;
+                step = 16;
+            }
+            case 16 -> {
+                FrameGrab.grab(mc, "fx-" + c.name() + "-wall-" + bFrame);
+                if (++bFrame <= 3) {
+                    FxWorld.hold = t0 + life * (bFrame + 0.5f) / 6f;
+                    wait = 3;
+                    return;
+                }
+                FxWorld.POOL.clear();
+                FxWorld.hold = Float.NaN;
+                wall(mc, false);
+                wait = 20;
+                step = 17;
+            }
+            case 17 -> record(c);
             default -> {
             }
         }
+    }
+
+    /** The case's line in the results, then on to the next case. */
+    private void record(Case c) {
+        JsonObject r = new JsonObject();
+        r.addProperty("name", c.name());
+        r.addProperty("module", c.module().id);
+        r.addProperty("life", life);
+        r.addProperty("colour", c.colour());
+        r.addProperty("grey", c.grey());
+        r.addProperty("accent_a", String.format("#%06X", accentA & 0xFFFFFF));
+        r.addProperty("accent_b", String.format("#%06X", accentB & 0xFFFFFF));
+        r.addProperty("cleaned", cleanLeft == 0);
+        r.addProperty("wall", c.grey());
+        r.addProperty("hud", c.hud());
+        results.add(r);
+        index++;
+        step = 0;
+    }
+
+    /**
+     * For an effect that doesn't take the dummy away: the dummy stands there before the frame with nothing playing,
+     * so only the effect differs between the frames.
+     */
+    private void stageDummy(Minecraft mc, Case c) {
+        if (!c.module().hidesDummy()) {
+            place(mc, c);
+        }
+    }
+
+    /** Puts up (or takes down) a wall of black concrete two blocks ahead, between you and the dummy. */
+    private static void wall(Minecraft mc, boolean up) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        double a = Math.toRadians(mc.player.getYRot());
+        double fx = -Math.sin(a), fz = Math.cos(a);
+        int bx = (int) Math.floor(mc.player.getX() + fx * 2.2), bz = (int) Math.floor(mc.player.getZ() + fz * 2.2);
+        int by = (int) Math.floor(mc.player.getY());
+        String box = Math.abs(fx) > Math.abs(fz)
+                ? String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", bx, by, bz - 6, bx, by + 5, bz + 6)
+                : String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", bx - 6, by, bz, bx + 6, by + 5, bz);
+        String cmd = up ? "fill " + box + " minecraft:black_concrete replace minecraft:air"
+                : "fill " + box + " minecraft:air replace minecraft:black_concrete";
+        server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), cmd));
     }
 
     /** Freezes the clock at the k-th of six moments of the effect's life and waits for frames to draw it. */
@@ -272,6 +385,11 @@ final class FxScenario {
             kill.setEnabled(true);
             kill.fx.style.set("soul_rise");
             kill.fx.who.set("everything");
+            // A real hit starts hit particles, and the kill a line in the kill feed.
+            HitEffects hit = Modules.HIT_EFFECTS;
+            hit.setEnabled(true);
+            only(hit, hit.particles.on);
+            Modules.KILL_FEED.setEnabled(true);
             FxWorld.POOL.clear();
             double a = Math.toRadians(mc.player.getYRot());
             double x = mc.player.getX() - Math.sin(a) * 3.0, z = mc.player.getZ() + Math.cos(a) * 3.0;
@@ -289,6 +407,9 @@ final class FxScenario {
                     zombie = e.getId();
                     // Your hit, as the game reports it.
                     mc.gameMode.attack(mc.player, e);
+                    if (FxWorld.POOL.count("hit_particles") == 0) {
+                        problems.add("fx real hit: no hit particles");
+                    }
                     server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
                             "kill @e[tag=sol_fx]"));
                     break;
@@ -302,6 +423,9 @@ final class FxScenario {
         }
         if (FxWorld.POOL.count("kill_") > 0) {
             CosmeticsMod.LOGGER.info("[Sol] Effects phase: a real kill started its effect after {} ticks", killTicks);
+            if (Modules.KILL_FEED.lines() == 0) {
+                problems.add("fx real kill: no line in the kill feed");
+            }
             killChecked = true;
             return;
         }
@@ -320,6 +444,8 @@ final class FxScenario {
         for (Case c : cases) {
             c.module().setEnabled(false);
         }
+        Modules.KILL_FEED.setEnabled(false);
+        io.github.georgwav.cosmetics.sol.render.Mc.hideHud(true);
         Atmosphere at = Atmosphere.INSTANCE;
         if (at != null && qualityWas != null) {
             at.quality.set(qualityWas);

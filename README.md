@@ -224,7 +224,7 @@ on or off.
 
 ### Modules
 
-The module grid has 32 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 35 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -250,6 +250,7 @@ the theme by itself.
 | PvP Tweaks | Hurt cam strength, low fire, hit colour. |
 | PvP Effects | Hit, crit and kill sounds only you hear, from one of Sol's sound packs (Tick, Glass, Thock, Chime, Pop, Zap) or your own, with their volume and pitch, and crits only. |
 | Kill Effects | Where something you hit in the last three seconds dies, an effect only you see, in Sol's texels: Soul rise (its copy rises, tinted, dissolving from the top), Lightning (a stepped bolt with a sky flash and thunder), Firework, Shatter (it breaks into its own skin's texels), Black hole, Sky laser, Gravestone (Sol's stone with its name), Confetti, Burning copy, Burst (in the effect's colour, red or soul blue) and Shockwave (rings over the ground). One at a time, or random from the ones you tick; for players only or everything. |
+| Hit Effects | What a hit looks like, only on your screen. Hit particles from the exact point you hit (Pixels, Stars, Hearts, Crystals, Orbs or Sparks; twice as many on a crit; they fall and come to rest), in place of the game's sharpness sparks while they're on; a bubble that swells and pops into droplets; word hits (HIT, CRIT!, KILL, or your own words) that pop up and float away; a hitmarker round the crosshair (yours or the game's) that opens and fades, red on a kill with its own sound; damage numbers rising off what you hit, as health or hearts, crits in gold, never through walls. The hit sounds stay in PvP Effects; one kill makes one kill sound. |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
 | Held Items | A lower shield and a smaller totem pop. |
 | Punchy | On by default (the Punchy mod itself stays optional). Switches the [Punchy](https://modrinth.com/mod/punchy-fpa) mod's first-person animations on and off when it's installed (off with the module), and gives Punchy Sol's tuning once: smaller hands nearer the middle. Sol arms (without Punchy by default, or always, or off): your arms and what they hold smaller and closer to the middle (hand size and centring sliders), the fallback when Punchy isn't installed; set to always with Punchy, the sliders move its hands on from its tuning. PvP mode (off): tones all of Punchy's animations down. Dark arms (off): your arms as flat black silhouettes. A glow round your hands and held item, in the theme's colours (or the item's, a rainbow or yours; gold by default when you pick your own): golden light round them (gold by default; its rise, bright core and deep edge are settings, the core and edge shades of whatever colour you pick, and no outline unless you turn it on), or a thin bright outline on its own, or a softer glow all round, with the hands themselves flat, and a motion trail: as your hands (or your knife) move, the light stays along the path they took, fading (not on 1.21.2 to 1.21.5). Rising lines of light through the softer glow are an option. The arms and glow work without Punchy too. Knives: wear a knife (a melee cosmetic from gunpacks you drop into `client/melee`, see [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#knives)) and the sword in your hand is that knife in first person, with your own arms: it draws, slashes (light attacks in turn, the heavy one on a critical hit), inspects on V (with Punchy installed, on Punchy's own inspect key, which then never plays Punchy's sword inspect while a knife is out) and shakes the view a little as in its own game, at its own pace (or fitted to Minecraft's sword). Settings: timing, heavy hit on crits, camera shake, sway, knife sounds, show hands the pack hides, knife in third person (off: third person shows the sword), use on swords or swords and axes; each knife's colour (tint, rainbow, colouring, saturation, hue, brightness, its own colours), model set and hand size on its Wardrobe page. While a knife is out, the shield or totem in your other hand stays hidden (the knife draws that hand). Sol makes a Ruby finish of the CS2 Skeleton Knife from your pack, and a model of your own can play another pack's animations. With Punchy installed, the knife is drawn alone while it shows (no Punchy hands under it), its hands at the size of Punchy's tuned ones, in the corner where Punchy's hand is. No knife pack is part of the mod. |
@@ -262,7 +263,9 @@ the theme by itself.
 | Block outline | The outline round the block you look at, in your colour and opacity. |
 | Movement | Toggle sprint and sneak. |
 | Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the hotbar (selected slot lifts, grows or is ringed; numbers, light sweep, glass), the size of the hotbar and bars, the hearts' and experience glow, the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
-| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it; Lyrics the line being sung on its own, anywhere. |
+| Combo | Your hit streak as a big pixel number that pops on every hit (from two hits on, ringed from five), ending when you're hit or after two seconds with no hit (both settings). |
+| Kill feed | Kills slide in at the top right, newest on top: who, with what (the item's icon, or a fist) and whom; yours in your colour, your deaths in red. Yours from what you see die; everyone else's from the server's death messages (a setting). Five lines, four seconds each, both settings. |
+| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Keystrokes sits at the right edge's middle by default, leaving the top right to the kill feed. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it; Lyrics the line being sung on its own, anywhere. |
 | Sol Chat | Timestamps (click to copy a message), stacked repeats, up to 5,000 messages kept, emoji shortcodes and an emoji picker. |
 | World Overlays | Chunk borders, where mobs can spawn, beacon range, slime chunks (from the world's seed in singleplayer, `/seed` for operators, or a seed you type) and structure outlines in singleplayer. |
 | Inventory | Durability as numbers on items. |
@@ -274,8 +277,8 @@ the theme by itself.
 
 ### Effects
 
-Effects modules (Kill Effects so far; Hit Effects, Totems, Target, Jump FX, Trails, You and World FX come in the same
-style) draw in Sol's texels: squares of 1/16 block, positions on that grid and fades in a few steps (Pixel snap, on by
+Effects modules (Kill Effects and Hit Effects so far; Totems, Target, Jump FX, Trails, You and World FX come in the
+same style) draw in Sol's texels: squares of 1/16 block, positions on that grid and fades in a few steps (Pixel snap, on by
 default, can make them smooth), each in four tones of its colour, with a stepped glow behind. Only on your screen.
 - **Every effect's settings:** its style (or random from the ticked styles), colour (the preset's, so it changes with
   the preset; your own; a rainbow; two colours), size, amount, speed and duration (50 to 200%), glow (soft, off,
@@ -485,5 +488,7 @@ Locally, `python3 ci/mcci.py runtime --node 1.21.8` does what CI does. You need 
 The Sol scenario (`--sol`) also stages every effect (C, section D): each one on a copy of you, its clock frozen at
 six moments of its life and each frame saved by the game itself; CI stitches them into a contact sheet
 (`screenshot-fxsheet_<effect>.png`) and checks that the effect shows, that its colour is the preset's accent (within
-delta E 12, on two presets), and that nothing of it is left a second after it ends. One kill goes through the real
-events: a pig you hit and the server kills must start a kill effect. `-Dcosmeticsmod.solShots=fx` runs only that part.
+delta E 12, on two presets), and that nothing of it is left a second after it ends. Damage numbers are also played
+behind a wall of blocks, where nothing of them may show; the hitmarker is staged with the HUD showing. One kill goes
+through the real events: a pig you hit and the server kills must start hit particles, a kill effect and a line in the
+kill feed. `-Dcosmeticsmod.solShots=fx` runs only that part.

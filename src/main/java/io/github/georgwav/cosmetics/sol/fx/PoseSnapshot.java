@@ -36,13 +36,22 @@ public final class PoseSnapshot {
     static final int VF = 5, QF = VF * 4;
     public static final int WHOLE = 0, FROM_TOP = 1, FROM_FEET = 2, NOISE = 3;
 
-    /** Whole faces, then the faces cut into texel rows, each with its middle height and a noise value. */
+    /**
+     * Whole faces, then the faces cut into texel rows, each with its middle height and a noise value; and every face's
+     * and row's outward normal and middle (x, y, z), so only the faces turned to the camera are drawn, far ones first.
+     */
     float[] quads = new float[QF * 96];
+    float[] quadNormal = new float[3 * 96], quadMid = new float[3 * 96];
     int quadCount;
     float[] rows = new float[QF * 512];
     float[] rowHeight = new float[512];
     float[] rowNoise = new float[512];
+    float[] rowNormal = new float[3 * 512], rowMid = new float[3 * 512];
     int rowCount;
+    /** The faces to draw this frame, far to near, and how far each is (squared). */
+    private int[] order = new int[512];
+    private float[] far = new float[512];
+    private static final float[] EYE = new float[3];
     /** The skin, and its height (blocks): the dissolves run over it. */
     public FxTex skin;
     public float height = 1.8f, width = 0.6f;
@@ -303,13 +312,23 @@ public final class PoseSnapshot {
         for (float[] q : f) {
             ensureQuads(quadCount + 1);
             int o = quadCount * QF;
+            float mx = 0f, my = 0f, mz = 0f;
             for (int v = 0; v < 4; v++) {
                 quads[o + v * VF] = q[v * 3];
                 quads[o + v * VF + 1] = q[v * 3 + 1];
                 quads[o + v * VF + 2] = q[v * 3 + 2];
                 quads[o + v * VF + 3] = v == 0 || v == 3 ? 0f : 1f;
                 quads[o + v * VF + 4] = v < 2 ? 1f : 0f;
+                mx += q[v * 3] / 4f;
+                my += q[v * 3 + 1] / 4f;
+                mz += q[v * 3 + 2] / 4f;
             }
+            // Outward from the box's middle, along the face's own axis.
+            float dx = mx / x, dy = (my - h / 2f) / (h / 2f), dz = mz / x;
+            int n = quadCount * 3;
+            quadNormal[n] = Math.abs(dx) > 0.99f ? Math.signum(dx) : 0f;
+            quadNormal[n + 1] = Math.abs(dy) > 0.99f ? Math.signum(dy) : 0f;
+            quadNormal[n + 2] = Math.abs(dz) > 0.99f ? Math.signum(dz) : 0f;
             quadCount++;
         }
     }
@@ -317,7 +336,10 @@ public final class PoseSnapshot {
     private void ensureQuads(int n) {
         if (n * QF > quads.length) {
             quads = Arrays.copyOf(quads, Math.max(n * QF, quads.length * 2));
+            quadNormal = Arrays.copyOf(quadNormal, quads.length / QF * 3);
+            quadMid = Arrays.copyOf(quadMid, quads.length / QF * 3);
         }
+        ensureOrder(n);
     }
 
     private void ensureRows(int n) {
@@ -325,6 +347,16 @@ public final class PoseSnapshot {
             rows = Arrays.copyOf(rows, Math.max(n * QF, rows.length * 2));
             rowHeight = Arrays.copyOf(rowHeight, rows.length / QF);
             rowNoise = Arrays.copyOf(rowNoise, rows.length / QF);
+            rowNormal = Arrays.copyOf(rowNormal, rows.length / QF * 3);
+            rowMid = Arrays.copyOf(rowMid, rows.length / QF * 3);
+        }
+        ensureOrder(n);
+    }
+
+    private void ensureOrder(int n) {
+        if (n > order.length) {
+            order = Arrays.copyOf(order, Math.max(n, order.length * 2));
+            far = Arrays.copyOf(far, order.length);
         }
     }
 
@@ -334,6 +366,9 @@ public final class PoseSnapshot {
         int th = skin.height;
         for (int q = 0; q < quadCount; q++) {
             int o = q * QF;
+            for (int k = 0; k < 3; k++) {
+                quadMid[q * 3 + k] = (quads[o + k] + quads[o + VF + k] + quads[o + 2 * VF + k] + quads[o + 3 * VF + k]) / 4f;
+            }
             float v0 = quads[o + 4], v1 = quads[o + VF + 4], v3 = quads[o + 3 * VF + 4];
             // Which pair of edges runs along the texture's rows: 0->1 or 0->3.
             boolean along01 = Math.abs(v1 - v0) >= Math.abs(v3 - v0);
@@ -354,6 +389,10 @@ public final class PoseSnapshot {
                 }
                 float y = (rows[r + 1] + rows[r + VF + 1] + rows[r + 2 * VF + 1] + rows[r + 3 * VF + 1]) / 4f;
                 rowHeight[rowCount] = y;
+                for (int k = 0; k < 3; k++) {
+                    rowNormal[rowCount * 3 + k] = quadNormal[q * 3 + k];
+                    rowMid[rowCount * 3 + k] = (rows[r + k] + rows[r + VF + k] + rows[r + 2 * VF + k] + rows[r + 3 * VF + k]) / 4f;
+                }
                 rowNoise[rowCount] = FxDraw.hash(q * 131 + 7, i);
                 rowCount++;
             }
@@ -402,14 +441,26 @@ public final class PoseSnapshot {
         }
         out.use(tex != null ? tex : skin);
         float cs = (float) Math.cos(spin), sn = (float) Math.sin(spin);
+        // The camera in the copy's own space (its feet at zero, unturned, unscaled): nothing is written to the depth,
+        // so the faces turned away are left out and the rest go far to near.
+        out.eye(EYE);
+        float ex = EYE[0] - x, ey = EYE[1] - y, ez = EYE[2] - z;
+        float s = Math.max(1e-4f, scale);
+        float lx = (ex * cs + ez * sn) / s, ly = ey / s, lz = (-ex * sn + ez * cs) / s;
         if (mode == WHOLE || cut <= 0f) {
+            int n = 0;
             for (int q = 0; q < quadCount; q++) {
-                emit(out, quads, q * QF, x, y, z, scale, cs, sn, argb);
+                n = facing(quadNormal, quadMid, q, lx, ly, lz, n);
+            }
+            sort(n);
+            for (int i = 0; i < n; i++) {
+                emit(out, quads, order[i] * QF, x, y, z, scale, cs, sn, argb);
             }
             return;
         }
         // Rows go in whole texel rows, in the steps the cut takes.
         float level = mode == FROM_TOP ? height * (1f - cut) : height * cut;
+        int n = 0;
         for (int r = 0; r < rowCount; r++) {
             boolean gone = switch (mode) {
                 case FROM_TOP -> rowHeight[r] > level;
@@ -417,8 +468,41 @@ public final class PoseSnapshot {
                 default -> rowNoise[r] < cut;
             };
             if (!gone) {
-                emit(out, rows, r * QF, x, y, z, scale, cs, sn, argb);
+                n = facing(rowNormal, rowMid, r, lx, ly, lz, n);
             }
+        }
+        sort(n);
+        for (int i = 0; i < n; i++) {
+            emit(out, rows, order[i] * QF, x, y, z, scale, cs, sn, argb);
+        }
+    }
+
+    /** Adds face {@code i} to this frame's list when it's turned to the camera at (lx, ly, lz); returns the count. */
+    private int facing(float[] normal, float[] mid, int i, float lx, float ly, float lz, int n) {
+        float dx = lx - mid[i * 3], dy = ly - mid[i * 3 + 1], dz = lz - mid[i * 3 + 2];
+        float nx = normal[i * 3], ny = normal[i * 3 + 1], nz = normal[i * 3 + 2];
+        // A face without a normal (none given) is always drawn.
+        if (nx * dx + ny * dy + nz * dz < 0f && nx * nx + ny * ny + nz * nz > 0.01f) {
+            return n;
+        }
+        order[n] = i;
+        far[n] = dx * dx + dy * dy + dz * dz;
+        return n + 1;
+    }
+
+    /** This frame's faces far to near (insertion sort: the order hardly changes from frame to frame). */
+    private void sort(int n) {
+        for (int i = 1; i < n; i++) {
+            int o = order[i];
+            float d = far[i];
+            int j = i - 1;
+            while (j >= 0 && far[j] < d) {
+                order[j + 1] = order[j];
+                far[j + 1] = far[j];
+                j--;
+            }
+            order[j + 1] = o;
+            far[j + 1] = d;
         }
     }
 
@@ -602,6 +686,9 @@ public final class PoseSnapshot {
             PoseSnapshot s = into;
             s.ensureQuads(s.quadCount + 1);
             int o = s.quadCount * QF + vertex * VF;
+            s.quadNormal[s.quadCount * 3] = nx;
+            s.quadNormal[s.quadCount * 3 + 1] = ny;
+            s.quadNormal[s.quadCount * 3 + 2] = nz;
             s.quads[o] = x;
             s.quads[o + 1] = y;
             s.quads[o + 2] = z;

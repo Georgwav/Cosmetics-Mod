@@ -168,6 +168,10 @@ class FxFoundationTest {
         }
 
         @Override
+        public void eye(float[] out) {
+        }
+
+        @Override
         public void vertex(float x, float y, float z, float u, float v, int argb) {
         }
 

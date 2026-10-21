@@ -180,6 +180,13 @@ public final class RasterOut implements FxOut {
     }
 
     @Override
+    public void eye(float[] out) {
+        out[0] = (float) camX() - ox;
+        out[1] = (float) camY() - oy;
+        out[2] = (float) camZ() - oz;
+    }
+
+    @Override
     public double camX() {
         return cx - forward[0] * 20f;
     }

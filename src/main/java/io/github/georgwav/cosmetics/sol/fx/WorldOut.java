@@ -100,6 +100,14 @@ public final class WorldOut implements FxOut {
     }
 
     @Override
+    public void eye(float[] out) {
+        // The origin is kept relative to the camera.
+        out[0] = -ox;
+        out[1] = -oy;
+        out[2] = -oz;
+    }
+
+    @Override
     public void right(float[] out) {
         // The view's first row is the camera's right in world space.
         Matrix4f m = FrameInfo.view;

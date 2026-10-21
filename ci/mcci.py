@@ -1006,7 +1006,8 @@ def fx_problems(game_dir, summary_phases):
     """
     Part C's checks (section D) on the effects the scenario staged: each one shows (its frames differ from the frame
     with nothing playing), its colour is the preset's accent within delta E 12 on both presets (when the effect takes
-    the preset's colour), and a contact sheet of its six frames is written (screenshot-fxsheet_<effect>.png).
+    the preset's colour), a grey one doesn't show through a wall, and a contact sheet of its six frames is written
+    (screenshot-fxsheet_<effect>.png).
     """
     path = game_dir / "cosmeticsmod-fx-results.json"
     if not path.exists():
@@ -1053,6 +1054,18 @@ def fx_problems(game_dir, summary_phases):
                     problems.append(f"fx {name}: its colour isn't the accent {case['accent_b']} on {res['preset_b']} (nearest delta E {d:.1f}, {col})")
         if not case.get("cleaned", True):
             problems.append(f"fx {name}: still in the pool after its life")
+        if case.get("wall"):
+            # A grey effect (one that could tell you something) played behind a wall mustn't show through it.
+            wall_off = game_dir / f"fx-{name}-wall-off.png"
+            wall_files = [game_dir / f"fx-{name}-wall-{k}.png" for k in (1, 2, 3)]
+            if wall_off.exists() and all(f.exists() for f in wall_files):
+                _, _, wo = read_png(wall_off)
+                through = [len(_changed(read_png(f)[2], wo, w, h)) for f in wall_files]
+                info["wall"] = "/".join(str(n) for n in through)
+                if max(through) > need // 3:
+                    problems.append(f"fx {name}: shows through a wall (changed pixels {info['wall']})")
+            else:
+                problems.append(f"fx {name}: its frames behind a wall are missing")
         # The contact sheet: the six frames side by side at half size.
         hw, hh = w // 2, h // 2
         rows_out = []

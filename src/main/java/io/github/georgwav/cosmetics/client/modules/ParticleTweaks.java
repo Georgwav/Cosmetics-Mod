@@ -29,7 +29,8 @@ public final class ParticleTweaks extends Module {
                 for (int i = 0; i < extra; i++) {
                     mc.particleEngine.createTrackingEmitter(entity, ParticleTypes.CRIT);
                 }
-                if (sharpness.get()) {
+                // Hit Effects' own particles take the sparks' place while they're on.
+                if (sharpness.get() && !Modules.HIT_EFFECTS.particlesOn()) {
                     for (int i = 0; i <= extra; i++) {
                         mc.particleEngine.createTrackingEmitter(entity, ParticleTypes.ENCHANTED_HIT);
                     }

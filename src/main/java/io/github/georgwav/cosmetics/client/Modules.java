@@ -94,12 +94,17 @@ public final class Modules {
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
     public static final io.github.georgwav.cosmetics.sol.fx.effects.KillEffects KILL_EFFECTS =
             new io.github.georgwav.cosmetics.sol.fx.effects.KillEffects();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.HitEffects HIT_EFFECTS =
+            new io.github.georgwav.cosmetics.sol.fx.effects.HitEffects();
+    public static final io.github.georgwav.cosmetics.client.hud.ComboHud COMBO = new io.github.georgwav.cosmetics.client.hud.ComboHud();
+    public static final io.github.georgwav.cosmetics.client.hud.KillFeedHud KILL_FEED =
+            new io.github.georgwav.cosmetics.client.hud.KillFeedHud();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, HIT_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, LYRICS);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS);
 
     private static boolean loading;
     private static boolean started;

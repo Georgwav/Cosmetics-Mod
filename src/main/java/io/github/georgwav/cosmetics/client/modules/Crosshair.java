@@ -104,6 +104,23 @@ public final class Crosshair extends Module {
     }
 
     /**
+     * Hit Effects' hitmarker round the middle, in screen pixels like the crosshair: drawn here after this crosshair or
+     * the game's, so it sits over whichever is showing.
+     */
+    public static void drawHitmarker(Canvas g, Minecraft mc) {
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson() || !io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.enabled()) {
+            return;
+        }
+        float gs = (float) mc.getWindow().getGuiScale();
+        int w = mc.getWindow().getGuiScaledWidth();
+        int h = mc.getWindow().getGuiScaledHeight();
+        g.push();
+        g.scale(1f / gs, 1f / gs);
+        io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.drawMarker(g, Math.round(w * gs) / 2, Math.round(h * gs) / 2, gs);
+        g.pop();
+    }
+
+    /**
      * Draws it centred on (cx, cy) in the current transform's pixels, each of its pixels {@code pixel} of them (the
      * Mods page shows it enlarged).
      */

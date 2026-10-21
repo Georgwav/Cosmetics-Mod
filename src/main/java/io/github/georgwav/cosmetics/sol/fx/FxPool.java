@@ -87,6 +87,12 @@ public final class FxPool {
         return f;
     }
 
+    /** Starts an effect {@code seconds} later than spawned (a Try it's second and third hits); nothing shows till then. */
+    public static void delay(Fx f, float seconds) {
+        f.start += seconds;
+        f.end += seconds;
+    }
+
     private void endEarly(Fx f) {
         f.end = Math.min(f.end, now + 0.25f);
     }
@@ -147,14 +153,14 @@ public final class FxPool {
         FxDraw.camera(out);
         beginGlow.run();
         for (Fx f : items) {
-            if (f.live) {
+            if (f.live && now >= f.start) {
                 f.kind.draw(f, now - f.start, now, out);
             }
         }
         endPass.run();
         beginBody.run();
         for (Fx f : items) {
-            if (f.live) {
+            if (f.live && now >= f.start) {
                 f.kind.draw(f, now - f.start, now, out);
             }
         }

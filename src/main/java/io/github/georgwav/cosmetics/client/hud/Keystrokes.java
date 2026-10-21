@@ -20,7 +20,7 @@ public final class Keystrokes extends HudModule {
     private final Setting.Color text = add(new Setting.Color("text_color", 0xFFFFFFFF).themed().group("colours"));
 
     public Keystrokes() {
-        super("keystrokes", "keys", 1f, 0f, -4f, 22f);
+        super("keystrokes", "keys", 1f, 0.5f, -4f, 0f);
     }
 
     @Override

@@ -44,6 +44,8 @@ public final class ModuleIcons {
             Map.entry("cosmetics", "crown"),
             Map.entry("kill_effects", "skull"),
             Map.entry("hit_effects", "burst"),
+            Map.entry("combo", "combo"),
+            Map.entry("kill_feed", "feed"),
             Map.entry("totems", "totem"),
             Map.entry("target", "aim"),
             Map.entry("jump_fx", "jump"),
