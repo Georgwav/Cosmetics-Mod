@@ -87,3 +87,26 @@ delta E 12 on two presets, it's gone a second after it ends; grey ones never sho
   - the cursor's sparkles over the menu.
 - `round7/hud-eras.png`: the same HUD on 1.21.1 and 26.3.
 - Every shot, Styles shot and effect sheet of round 7 is also in the repo's `docs/gallery.html`.
+
+### Round 8: every effect rebuilt on soft light, and corner hitboxes (georgwav/cosmetics-mod#37)
+
+From CI's own run of 835a428 on 1.21.11, on Frost Morning by day. Each row is one effect's six frozen moments, and each passed CI's checks:
+- it shows;
+- it's the preset's accent, or the accent lightened or darkened as light over the world shows it, within delta E 12 on two presets;
+- it's gone a second after it ends;
+- grey ones never show through a wall.
+
+- `round8/fx-kill-effects.png`: the eleven Kill Effects.
+- `round8/fx-hits-totems-crystal.png`: hit particles in six styles, the bubble, words and damage numbers; the ghost, shatter and angel totems; the crystal shimmer and blast.
+- `round8/fx-target-hitboxes.png`: the eight target marks, the friend gem, and the corner hitboxes on an end crystal.
+- `round8/fx-jump.png`: Jump FX's eight styles and the four particle sets.
+- `round8/fx-trails-you-world.png`: the projectile trails, the ribbon, fireflies, the ghost trail, footsteps, contrails, eating, the chat bubble, rain ripples, leaves, the Cosmos burst and snow prints.
+
+Close-up review frames at night (Ember Solstice), eight moments each. These were taken before the last colour tweaks: light fronts carrying the theme colour by day, bigger ripples and leaves.
+- `round8/night-hits-crystal-angel.png`
+- `round8/night-target-jump.png`
+- `round8/night-trails.png`
+- `round8/night-world-you.png`
+
+By day:
+- `round8/day-hitboxes-corners.png`: the corner hitboxes on an end crystal by day (the review run left the crystal standing in front of the copy).
