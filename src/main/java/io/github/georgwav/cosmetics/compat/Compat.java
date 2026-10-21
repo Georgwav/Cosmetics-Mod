@@ -23,6 +23,8 @@ public final class Compat {
     public static final boolean VOXY = loaded("voxy");
     public static final boolean MOD_MENU = loaded("modmenu");
     public static final boolean PUNCHY = loaded("punchy");
+    /** Sodium draws the chunks its own way (World FX's chunk rise stands aside). */
+    public static final boolean SODIUM = loaded("sodium");
 
     private Compat() {
     }

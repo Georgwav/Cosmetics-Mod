@@ -108,6 +108,13 @@ public final class SolScenario {
 
     /** The time the scenario holds (0 is 06:00), or -1. Read by the time lock. */
     public static volatile long lockedTime = -1L;
+    /** While set, the world's own weather shows during the shots (the effects phase's real rain). */
+    public static volatile boolean realWeather;
+
+    /** Whether the shots keep the sky clear: while they hold the time, unless the world's weather is wanted. */
+    public static boolean clearSky() {
+        return lockedTime >= 0L && !realWeather;
+    }
     /** Whether the scenario is showing a frame: the HUD is hidden and only the crosshair is drawn. */
     public static volatile boolean crosshairOnly;
 

@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Camera: the freelook camera's own direction (and its place behind you in third person) and the freecam's place.
- * Up to 1.21.11 after Camera.setup; from 26.1 after alignWithEntity.
+ * Camera: the freelook camera's own direction (and its place behind you in third person), the freecam's place, and the
+ * F5 glide's. Up to 1.21.11 after Camera.setup; from 26.1 after alignWithEntity.
  */
 @Mixin(Camera.class)
 abstract class CameraTweaksMixin {
@@ -22,6 +22,10 @@ abstract class CameraTweaksMixin {
     private boolean detached;
     @Shadow
     private Entity entity;
+    @Shadow
+    private Vec3 position;
+    @Unique
+    private final double[] cosmeticsmod$glide = new double[3];
 
     @Shadow
     protected abstract void setRotation(float yaw, float pitch);
@@ -40,6 +44,25 @@ abstract class CameraTweaksMixin {
     @Unique
     private void cosmeticsmod$freelook(float partialTick) {
         io.github.georgwav.cosmetics.sol.Hooks.CAMERA_SETUP.hit();
+        cosmeticsmod$turn(partialTick);
+        if (entity == null) {
+            return;
+        }
+        // F5 glide, from where the game (and freelook) put the camera.
+        double ex = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
+        double ey = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
+        double ez = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
+        double[] g = cosmeticsmod$glide;
+        if (CameraTweaks.glide(ex, ey, ez, position.x, position.y, position.z, g)) {
+            setPosition(new Vec3(g[0], g[1], g[2]));
+            if (CameraTweaks.handsHidden()) {
+                detached = true;
+            }
+        }
+    }
+
+    @Unique
+    private void cosmeticsmod$turn(float partialTick) {
         if (!CameraTweaks.freelooking() || entity == null) {
             return;
         }

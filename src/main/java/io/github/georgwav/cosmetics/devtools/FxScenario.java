@@ -13,6 +13,7 @@ import io.github.georgwav.cosmetics.sol.fx.effects.HitEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.KillEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.Totems;
 import io.github.georgwav.cosmetics.sol.fx.effects.Trails;
+import io.github.georgwav.cosmetics.sol.fx.effects.WorldFx;
 import io.github.georgwav.cosmetics.sol.fx.effects.You;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
@@ -86,13 +87,16 @@ final class FxScenario {
     private List<String> wornWas;
     /** More ambience and its cubes as they were. */
     private boolean ambienceWas, cubesWas;
-    /** Whether the meal holds the use key down, before each tick as well (registered once). */
-    private static volatile boolean holdUse;
+    /** Whether the meal holds the use key down (and the mining the attack key), before each tick as well (registered once). */
+    private static volatile boolean holdUse, holdAttack;
 
     static {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             if (holdUse) {
                 mc.options.keyUse.setDown(true);
+            }
+            if (holdAttack) {
+                mc.options.keyAttack.setDown(true);
             }
         });
     }
@@ -265,6 +269,27 @@ final class FxScenario {
         // can't be told apart in the frame: its colour isn't measured.
         cases.add(new Case("you_bubble", you, () -> only(you, "bubble"), 4.5f, -10f, false, false, "you_bubble"));
         cases.add(new Case("you_eat", you, () -> only(you, "eat"), 2.4f, 8f, false, false, "you_eat"));
+        // World FX, a part at a time: snow prints by the dummy's feet (in the snow's own shade), rain rings round it,
+        // leaves blowing past (their own green), a broken block's star burst, and a short rainbow, opposite the
+        // morning sun and so ahead and up.
+        WorldFx w = Modules.WORLD_FX;
+        cases.add(new Case("world_snow", w, () -> only(w, w.snow), 3f, 32f, false, false, "world_snow_print"));
+        cases.add(new Case("world_ripples", w, () -> only(w, w.ripples), 4f, 30f, true, false, "world_ripple"));
+        cases.add(new Case("world_leaves", w, () -> only(w, w.leaves), 4f, 2f, false, false, "world_leaf"));
+        cases.add(new Case("world_cosmos", w, () -> only(w, w.cosmos), 3f, 8f, true, false, "world_star_burst"));
+        cases.add(new Case("world_rainbow", w, () -> only(w, w.rainbow), 4f, -16f, false, false, "world_rainbow"));
+    }
+
+    /** World FX with only one of its parts on (the prints shortest-lived, so the case doesn't wait long). */
+    private static void only(WorldFx w, io.github.georgwav.cosmetics.sol.fx.FxSettings on) {
+        for (var fs : List.of(w.snow, w.rainbow, w.leaves, w.ripples, w.cosmos)) {
+            fs.on.set(fs == on);
+        }
+        w.ripples.colourMode.set("theme");
+        w.cosmos.colourMode.set("theme");
+        w.snow.duration.set(50.0);
+        w.itemPhysics.set(false);
+        w.chunkRise.set(false);
     }
 
     /** You with only one of its parts on, in the preset's colour. */
@@ -346,7 +371,8 @@ final class FxScenario {
             "hit_words", "hit_damage", "hit_marker", "totem_ghost", "totem_shatter", "totem_angel", "totem_pop_roll", "target_ring",
             "chams_crystal_glow", "chams_you", "friend_marker", "jump_square_ring", "jump_hologram", "jump_particles_fire",
             "crystal_rings", "trail_dots", "trail_ribbon", "trail_ribbon_rainbow", "trail_firefly", "trail_ghost", "trail_footsteps",
-            "trail_contrails", "you_naruto", "you_bubble", "you_eat");
+            "trail_contrails", "you_naruto", "you_bubble", "you_eat", "world_snow", "world_ripples", "world_leaves", "world_cosmos",
+            "world_rainbow");
 
     /**
      * Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks; the
@@ -404,6 +430,10 @@ final class FxScenario {
             }
             if (realStep < REAL_DONE) {
                 realEvents(mc);
+                return;
+            }
+            if (worldStep < W_DONE) {
+                worldEvents(mc);
                 return;
             }
             finish(mc);
@@ -649,6 +679,10 @@ final class FxScenario {
             touched.add(c.module());
         }
         touched.add(Modules.KILL_FEED);
+        // The world's real events (worldEvents) change these too.
+        touched.add(Modules.WORLD_FX);
+        touched.add(Modules.OUTLINE);
+        touched.add(Modules.CAMERA);
         for (var m : touched) {
             enabledWere.put(m, m.enabled());
             for (var setting : m.settings()) {
@@ -958,6 +992,323 @@ final class FxScenario {
         }
     }
 
+    // ------------------------------------------------------------------ the world's real events (World FX and friends)
+
+    private static final int W_SNOW = 0, W_RAIN = 1, W_LEAVES = 2, W_MINE = 3, W_ITEMS = 4, W_OUTLINE = 5, W_CHUNKS = 6, W_GLIDE = 7,
+            W_DONE = 8;
+    private static final String[] W_NAMES = {"snow walk", "rain and rainbow", "leaves", "mining", "dropped items", "block outline",
+            "chunk rise", "F5 glide"};
+    private int worldStep, worldTicks, worldPhase, worldMark;
+    /** The box the step built (snow, leaves, a block), to clear after; empty when none. */
+    private String worldBox = "", worldBlock = "";
+    private boolean weatherLockWas;
+
+    private static void run(Minecraft mc, List<String> cmds) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || cmds.isEmpty()) {
+            return;
+        }
+        server.execute(() -> {
+            for (String c : cmds) {
+                server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), c);
+            }
+        });
+    }
+
+    /** A setting of {@code m} by its id (for the modules whose settings aren't public). */
+    @SuppressWarnings("unchecked")
+    private static <T> void set(io.github.georgwav.cosmetics.client.Module m, String id, T value) {
+        for (var setting : m.settings()) {
+            if (setting.id.equals(id)) {
+                ((io.github.georgwav.cosmetics.client.Setting<T>) setting).set(value);
+                return;
+            }
+        }
+    }
+
+    /**
+     * World FX through the game's own events, one at a time: walking through snow lays prints; rain makes rings on the
+     * ground, and a rainbow comes out when it stops; a canopy of leaves sheds leaves; mining a plank fills it with stars
+     * and it bursts when it breaks; dropped items fall tumbling and lie flat; the block outline glows with stars inside;
+     * the chunks rise when chunk rise is switched on (where the version has it); and the camera glides out to third
+     * person and back in. Each grabs a frame or two (fx-real-*) and must do its part within its time.
+     */
+    private void worldEvents(Minecraft mc) {
+        if (mc.getSingleplayerServer() == null) {
+            worldStep = W_DONE;
+            return;
+        }
+        WorldFx w = Modules.WORLD_FX;
+        String me = mc.player.getName().getString();
+        double a = Math.toRadians(mc.player.getYRot());
+        double fx = -Math.sin(a), fz = Math.cos(a);
+        int px = (int) Math.floor(mc.player.getX()), py = (int) Math.floor(mc.player.getY()), pz = (int) Math.floor(mc.player.getZ());
+        if (worldTicks == 0) {
+            FxWorld.POOL.clear();
+            worldPhase = 0;
+            List<String> cmds = new ArrayList<>();
+            // Only World FX's effects in these frames (the trails and the rest put back at the end).
+            for (var m : List.<io.github.georgwav.cosmetics.client.Module>of(Modules.TRAILS, Modules.YOU, Modules.JUMP_FX,
+                    Modules.TOTEMS, Modules.CRYSTAL_PVP, Modules.KILL_EFFECTS, Modules.HIT_EFFECTS, Modules.TARGET_MARK)) {
+                enabledWere.putIfAbsent(m, m.enabled());
+                m.setEnabled(false);
+            }
+            w.setEnabled(true);
+            for (var fs : List.of(w.snow, w.rainbow, w.leaves, w.ripples, w.cosmos)) {
+                fs.on.set(false);
+            }
+            walkX = mc.player.getX();
+            walkY = mc.player.getY();
+            walkZ = mc.player.getZ();
+            switch (worldStep) {
+                case W_SNOW -> {
+                    // A layer of snow all round, walked through sideways in third person.
+                    w.snow.on.set(true);
+                    w.snow.duration.set(100.0);
+                    pitch = 34f;
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    worldBox = String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", px - 5, py, pz - 5, px + 5, py, pz + 5);
+                    worldBlock = "minecraft:snow";
+                    cmds.add("fill " + worldBox + " minecraft:snow replace minecraft:air");
+                }
+                case W_RAIN -> {
+                    // The world's own weather (the shots lock it clear).
+                    w.ripples.on.set(true);
+                    w.rainbow.on.set(true);
+                    pitch = 30f;
+                    Atmosphere at = Atmosphere.INSTANCE;
+                    if (at != null) {
+                        weatherLockWas = at.lockWeather.get();
+                        at.lockWeather.set(false);
+                    }
+                    SolScenario.realWeather = true;
+                    cmds.add("weather rain");
+                }
+                case W_LEAVES -> {
+                    // A canopy overhead, a little ahead.
+                    w.leaves.on.set(true);
+                    pitch = -4f;
+                    int cx = (int) Math.floor(mc.player.getX() + fx * 4.0), cz = (int) Math.floor(mc.player.getZ() + fz * 4.0);
+                    worldBox = String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", cx - 6, py + 5, cz - 6, cx + 6, py + 6, cz + 6);
+                    worldBlock = "minecraft:oak_leaves";
+                    cmds.add("fill " + worldBox + " minecraft:oak_leaves[persistent=true] replace minecraft:air");
+                }
+                case W_MINE -> {
+                    // A plank at eye height just ahead, mined by hand in survival (three seconds).
+                    w.cosmos.on.set(true);
+                    pitch = 0f;
+                    int bx = (int) Math.floor(mc.player.getX() + fx * 1.7), bz = (int) Math.floor(mc.player.getZ() + fz * 1.7);
+                    worldBox = String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", bx, py + 1, bz, bx, py + 1, bz);
+                    worldBlock = "minecraft:oak_planks";
+                    modeWas = mc.gameMode != null ? mc.gameMode.getPlayerMode().getName() : "creative";
+                    cmds.add("gamemode survival " + me);
+                    cmds.add("item replace entity " + me + " weapon.mainhand with minecraft:air");
+                    cmds.add("fill " + worldBox + " minecraft:oak_planks replace minecraft:air");
+                }
+                case W_ITEMS -> {
+                    // A diamond and a block dropped from a block and a half up, three blocks ahead.
+                    w.itemPhysics.set(true);
+                    io.github.georgwav.cosmetics.render.ItemPhysics.laidFlat = 0;
+                    pitch = 20f;
+                    double ix = mc.player.getX() + fx * 3.0, iz = mc.player.getZ() + fz * 3.0;
+                    cmds.add(String.format(java.util.Locale.ROOT,
+                            "summon item %.2f %.2f %.2f {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:32767,Motion:[0.0,0.1,0.0]}",
+                            ix - fz * 0.5, mc.player.getY() + 1.5, iz + fx * 0.5));
+                    cmds.add(String.format(java.util.Locale.ROOT,
+                            "summon item %.2f %.2f %.2f {Item:{id:\"minecraft:grass_block\",count:1},PickupDelay:32767,Motion:[0.0,0.1,0.0]}",
+                            ix + fz * 0.5, mc.player.getY() + 1.5, iz - fx * 0.5));
+                }
+                case W_OUTLINE -> {
+                    // A block of stone ahead, looked at: the glow outline with the stars inside.
+                    var o = Modules.OUTLINE;
+                    o.setEnabled(true);
+                    set(o, "outline_look", "glow");
+                    set(o, "fill", true);
+                    set(o, "fill_look", "stars");
+                    io.github.georgwav.cosmetics.sol.fx.BlockHighlight.framesDrawn = 0;
+                    pitch = 22f;
+                    int bx = (int) Math.floor(mc.player.getX() + fx * 2.6), bz = (int) Math.floor(mc.player.getZ() + fz * 2.6);
+                    worldBox = String.format(java.util.Locale.ROOT, "%d %d %d %d %d %d", bx, py, bz, bx, py, bz);
+                    worldBlock = "minecraft:stone";
+                    cmds.add("fill " + worldBox + " minecraft:stone replace minecraft:air");
+                }
+                case W_CHUNKS -> {
+                    pitch = 6f;
+                    worldMark = io.github.georgwav.cosmetics.render.ChunkRise.started;
+                    if (io.github.georgwav.cosmetics.render.ChunkRise.works()) {
+                        w.chunkRise.set(true);
+                    }
+                }
+                default -> {
+                    var cam = Modules.CAMERA;
+                    cam.setEnabled(true);
+                    set(cam, "glide", true);
+                    worldMark = io.github.georgwav.cosmetics.client.modules.CameraTweaks.glides;
+                    pitch = 10f;
+                }
+            }
+            run(mc, cmds);
+            worldTicks = 1;
+            return;
+        }
+        worldTicks++;
+        int t = worldTicks;
+        boolean ok = false, over = t > 200, noted = false;
+        switch (worldStep) {
+            case W_SNOW -> {
+                if (t > 4 && t <= 20) {
+                    // A walk's pace to your right.
+                    mc.player.setPos(mc.player.getX() - Math.cos(a) * 0.3, mc.player.getY(), mc.player.getZ() - Math.sin(a) * 0.3);
+                }
+                if (t == 24) {
+                    ok = FxWorld.POOL.count("world_snow_print") >= 3;
+                    FrameGrab.grab(mc, "fx-real-snow");
+                    over = true;
+                }
+            }
+            case W_RAIN -> {
+                over = t > 600;
+                if (worldPhase == 0 && mc.level.getRainLevel(1f) > 0.7f && FxWorld.POOL.count("world_ripple") > 0) {
+                    FrameGrab.grab(mc, "fx-real-rain");
+                    worldPhase = 1;
+                    worldMark = WorldFx.rainbowsMade;
+                    run(mc, List.of("weather clear"));
+                } else if (worldPhase == 1 && WorldFx.rainbowsMade > worldMark) {
+                    // Out over three seconds, opposite the morning sun: look up a little.
+                    pitch = -16f;
+                    worldPhase = 2;
+                    worldMark = t;
+                } else if (worldPhase == 2 && t - worldMark > 70) {
+                    FrameGrab.grab(mc, "fx-real-rainbow");
+                    ok = true;
+                    over = true;
+                }
+                if (over && !ok) {
+                    problems.add("fx real rain: rain " + mc.level.getRainLevel(1f) + ", " + WorldFx.ripplesMade + " ripples, "
+                            + WorldFx.rainbowsMade + " rainbows (phase " + worldPhase + ")");
+                    noted = true;
+                }
+                if (over) {
+                    run(mc, List.of("weather clear"));
+                    if (Atmosphere.INSTANCE != null) {
+                        Atmosphere.INSTANCE.lockWeather.set(weatherLockWas);
+                    }
+                    SolScenario.realWeather = false;
+                }
+            }
+            case W_LEAVES -> {
+                if (worldPhase == 0 && FxWorld.POOL.count("world_leaf") > 0) {
+                    worldPhase = 1;
+                    worldMark = t;
+                }
+                if (worldPhase == 1 && t - worldMark > 30) {
+                    FrameGrab.grab(mc, "fx-real-leaves");
+                    ok = true;
+                    over = true;
+                }
+                over |= t > 400;
+            }
+            case W_MINE -> {
+                if (t > 4) {
+                    holdAttack = true;
+                    mc.options.keyAttack.setDown(true);
+                }
+                if (worldPhase == 0 && t > 4 + 34) {
+                    // Most of the way: the block full of stars, its cracks glowing.
+                    FrameGrab.grab(mc, "fx-real-cosmos");
+                    worldPhase = 1;
+                }
+                if (worldPhase == 1 && FxWorld.POOL.count("world_star_burst") > 0) {
+                    worldPhase = 2;
+                    worldMark = t;
+                    holdAttack = false;
+                    mc.options.keyAttack.setDown(false);
+                }
+                if (worldPhase == 2 && t - worldMark >= 3) {
+                    FrameGrab.grab(mc, "fx-real-cosmos-burst");
+                    ok = WorldFx.cosmosFrames > 0;
+                    if (!ok) {
+                        problems.add("fx real mining: it burst, but the block of stars never drew");
+                        noted = true;
+                    }
+                    over = true;
+                }
+                if (over) {
+                    holdAttack = false;
+                    mc.options.keyAttack.setDown(false);
+                    List<String> back = new ArrayList<>(List.of("gamemode " + modeWas + " " + me, "kill @e[type=item]"));
+                    run(mc, back);
+                }
+            }
+            case W_ITEMS -> {
+                if (t == 5) {
+                    FrameGrab.grab(mc, "fx-real-items-fall");
+                }
+                if (t > 40) {
+                    FrameGrab.grab(mc, "fx-real-items");
+                    ok = io.github.georgwav.cosmetics.render.ItemPhysics.laidFlat > 0;
+                    over = true;
+                    run(mc, List.of("kill @e[type=item]"));
+                    w.itemPhysics.set(false);
+                }
+            }
+            case W_OUTLINE -> {
+                if (t == 12) {
+                    FrameGrab.grab(mc, "fx-real-outline");
+                    ok = io.github.georgwav.cosmetics.sol.fx.BlockHighlight.framesDrawn > 0;
+                    over = true;
+                    Modules.OUTLINE.setEnabled(false);
+                }
+            }
+            case W_CHUNKS -> {
+                if (!io.github.georgwav.cosmetics.render.ChunkRise.works()) {
+                    CosmeticsMod.LOGGER.info("[Sol] Effects phase: chunk rise isn't on this version (or Sodium draws the chunks)");
+                    ok = true;
+                    over = true;
+                } else if (t == 4) {
+                    // A fifth of a second in: everything still on its way up.
+                    FrameGrab.grab(mc, "fx-real-chunks");
+                } else if (t == 30) {
+                    ok = io.github.georgwav.cosmetics.render.ChunkRise.started > worldMark;
+                    over = true;
+                    w.chunkRise.set(false);
+                }
+            }
+            default -> {
+                if (t == 2) {
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                } else if (t == 4) {
+                    FrameGrab.grab(mc, "fx-real-glide-out");
+                } else if (t == 12) {
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                } else if (t == 14) {
+                    FrameGrab.grab(mc, "fx-real-glide-in");
+                } else if (t == 24) {
+                    ok = io.github.georgwav.cosmetics.client.modules.CameraTweaks.glides >= worldMark + 2;
+                    over = true;
+                    Modules.CAMERA.setEnabled(false);
+                }
+            }
+        }
+        if (!ok && !over) {
+            return;
+        }
+        if (!worldBox.isEmpty()) {
+            run(mc, List.of("fill " + worldBox + " minecraft:air replace " + worldBlock));
+            worldBox = "";
+        }
+        mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+        mc.player.setPos(walkX, walkY, walkZ);
+        if (ok) {
+            CosmeticsMod.LOGGER.info("[Sol] Effects phase: the real {} did its part after {} ticks", W_NAMES[worldStep], t);
+        } else if (!noted) {
+            problems.add("fx real " + W_NAMES[worldStep] + ": it didn't do its part");
+        }
+        worldStep++;
+        worldTicks = 0;
+        wait = 10;
+    }
+
     private void finish(Minecraft mc) {
         done = true;
         FxWorld.hold = Float.NaN;
@@ -966,6 +1317,9 @@ final class FxScenario {
             c.module().setEnabled(false);
         }
         Modules.KILL_FEED.setEnabled(false);
+        holdAttack = false;
+        mc.options.keyAttack.setDown(false);
+        SolScenario.realWeather = false;
         restoreSettings();
         mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
         var server = mc.getSingleplayerServer();

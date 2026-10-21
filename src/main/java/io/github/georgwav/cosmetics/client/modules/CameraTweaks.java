@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.Setting;
+import io.github.georgwav.cosmetics.render.CameraGlide;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -13,11 +14,24 @@ import java.util.List;
 /**
  * Camera: freelook (Left Alt, held or as a toggle) turns the camera round you without turning you, in third person;
  * freecam (its own key; in singleplayer, or where you may use operator commands) flies the camera away from you with
- * the movement keys while you stand still.
+ * the movement keys while you stand still. F5 glide: switching to third person glides the camera out from your eyes,
+ * switching back glides it in, and leaving the freecam glides it home, each over a quarter of a second.
  */
 public final class CameraTweaks extends Module {
     private final Setting.Choice freelookMode = add(new Setting.Choice("freelook_mode", "hold", List.of("hold", "toggle")).group("freelook"));
     private final Setting.Toggle freelookThirdPerson = add(new Setting.Toggle("freelook_third_person", true).group("freelook"));
+    private final Setting.Toggle glide = add(new Setting.Toggle("glide", true).group("glide"));
+
+    private static final int OUT = 1, IN = 2, HOME = 3;
+    /** The glide under way (0 for none), when it started, and where from (IN: off your eyes; HOME: the freecam's place). */
+    private int glideKind;
+    private float glideStart;
+    private double gx, gy, gz;
+    /** The camera type and the camera's offset from your eyes the frame before (render thread). */
+    private CameraType seenType;
+    private double ox, oy, oz;
+    /** For the in-game test: glides started. */
+    public static int glides;
 
     private boolean freelooking, freecam;
     private float yaw, pitch;
@@ -112,6 +126,12 @@ public final class CameraTweaks extends Module {
             c.freecam = false;
             c.giveKeysBack(mc);
             c.restore(mc);
+            if (c.glides()) {
+                // Home from where the freecam was.
+                c.startGlide(HOME, Mth.lerp(io.github.georgwav.cosmetics.sol.render.FrameInfo.partialTick, c.lastX, c.fx),
+                        Mth.lerp(io.github.georgwav.cosmetics.sol.render.FrameInfo.partialTick, c.lastY, c.fy),
+                        Mth.lerp(io.github.georgwav.cosmetics.sol.render.FrameInfo.partialTick, c.lastZ, c.fz));
+            }
         }
         return c.freecam;
     }
@@ -207,6 +227,84 @@ public final class CameraTweaks extends Module {
             giveKeysBack(mc);
         }
         restore(mc);
+    }
+
+    private boolean glides() {
+        return enabled() && glide.get() && !io.github.georgwav.cosmetics.sol.fx.FxWorld.calm();
+    }
+
+    private void startGlide(int kind, double x, double y, double z) {
+        glideKind = kind;
+        glideStart = io.github.georgwav.cosmetics.sol.render.FrameInfo.time;
+        gx = x;
+        gy = y;
+        gz = z;
+        glides++;
+    }
+
+    /**
+     * The glide, as the camera is set up (render thread): given your eyes and the camera's place as the game (and
+     * freelook) set it, writes the camera's place into {@code out} and returns true while a glide moves it. Out to third
+     * person it starts just behind your head and slows into place; back to first person it speeds in from where the
+     * camera was; home from the freecam it travels from the freecam's place. While it glides into first person the
+     * camera stays detached (you're drawn, your hands aren't: {@link #handsHidden}).
+     */
+    public static boolean glide(double ex, double ey, double ez, double px, double py, double pz, double[] out) {
+        CameraTweaks c = Modules.CAMERA;
+        CameraType type = Minecraft.getInstance().options.getCameraType();
+        CameraType before = c.seenType;
+        c.seenType = type;
+        double lastX = c.ox, lastY = c.oy, lastZ = c.oz;
+        c.ox = px - ex;
+        c.oy = py - ey;
+        c.oz = pz - ez;
+        if (!c.glides()) {
+            c.glideKind = 0;
+            return false;
+        }
+        if (before != null && before != type && c.glideKind != HOME && !c.freecam) {
+            if (before.isFirstPerson() && !type.isFirstPerson()) {
+                c.startGlide(OUT, 0, 0, 0);
+            } else if (!before.isFirstPerson() && type.isFirstPerson()) {
+                c.startGlide(IN, lastX, lastY, lastZ);
+            }
+        }
+        if (c.glideKind == 0) {
+            return false;
+        }
+        float k = (io.github.georgwav.cosmetics.sol.render.FrameInfo.time - c.glideStart) / CameraGlide.SECONDS;
+        // Done, or the switch went back the other way part-way (that glide starts above).
+        if (k >= 1f || k < 0f || c.glideKind == OUT && type.isFirstPerson() || c.glideKind == IN && !type.isFirstPerson()) {
+            c.glideKind = 0;
+            return false;
+        }
+        // The glide's offset from your eyes, then the place.
+        if (c.glideKind == OUT) {
+            if (!CameraGlide.out(k, c.ox, c.oy, c.oz, out)) {
+                return false;
+            }
+        } else if (c.glideKind == IN) {
+            if (!CameraGlide.in(k, c.gx, c.gy, c.gz, out)) {
+                c.glideKind = 0;
+                return false;
+            }
+        } else {
+            // Home to the game's own place (or just behind your head on the way into first person).
+            CameraGlide.home(k, c.gx - ex, c.gy - ey, c.gz - ez, px - ex, py - ey, pz - ez, type.isFirstPerson(), out);
+        }
+        c.ox = out[0];
+        c.oy = out[1];
+        c.oz = out[2];
+        out[0] += ex;
+        out[1] += ey;
+        out[2] += ez;
+        return true;
+    }
+
+    /** Whether a glide carries the camera into first person now: it stays detached, and the hands wait. */
+    public static boolean handsHidden() {
+        CameraTweaks c = Modules.CAMERA;
+        return c.glideKind != 0 && c.glideKind != OUT && Minecraft.getInstance().options.getCameraType().isFirstPerson();
     }
 
     /** Whether the camera turns on its own (freelook, or the freecam): the mouse turns it, not you. */

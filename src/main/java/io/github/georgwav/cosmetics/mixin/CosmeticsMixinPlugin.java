@@ -38,6 +38,14 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("HandsMixin");
         all.add("HandsBobMixin");
         all.add("ShieldStatusMixin");
+        all.add("ItemPhysicsMixin");
+        all.add("CosmosCracksMixin");
+        // Chunk rise: not on 1.21.5 (ChunkRise).
+        //? if >=1.21.6 {
+        all.add("ChunkRiseMixin");
+        //?} elif <1.21.5 {
+        /*all.add("ChunkRiseMixin");
+        *///?}
         all.add("KnifeInputMixin");
         //? if <26.3 {
         if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("punchy")) {

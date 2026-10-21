@@ -25,7 +25,8 @@ package io.github.georgwav.cosmetics.client;
             return vanilla;
         }
         framesDrawn++;
-        return Modules.OUTLINE.argb();
+        // Sol's glow outline is drawn with the effects; the game's lines go clear.
+        return Modules.OUTLINE.glowLook() ? 0x00FFFFFF : Modules.OUTLINE.argb();
     }
 }
 *///?} elif >=1.21.11 {
@@ -56,8 +57,10 @@ public final class OutlineHook {
                 Vec3 camera = context.gameRenderer().getMainCamera().position();
                 BlockPos pos = outline.pos();
                 double x = pos.getX() - camera.x, y = pos.getY() - camera.y, z = pos.getZ() - camera.z;
-                ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.lines()),
-                        outline.shape(), x, y, z, Modules.OUTLINE.argb(), lineWidth() * BlockOutline.widthScale());
+                if (!Modules.OUTLINE.glowLook()) {
+                    ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.lines()),
+                            outline.shape(), x, y, z, Modules.OUTLINE.argb(), lineWidth() * BlockOutline.widthScale());
+                }
                 int fill = Modules.OUTLINE.fillArgb();
                 if (fill != 0) {
                     OutlineFill.faces(context.matrices().last(), context.consumers().getBuffer(RenderTypes.debugQuads()), outline.shape(),
@@ -103,9 +106,11 @@ public final class OutlineHook {
                 Vec3 camera = context.gameRenderer().getMainCamera().position();
                 BlockPos pos = outline.pos();
                 double x = pos.getX() - camera.x, y = pos.getY() - camera.y, z = pos.getZ() - camera.z;
-                ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(
-                        io.github.georgwav.cosmetics.render.HitboxLines.lines(BlockOutline.widthScale())), outline.shape(), x, y, z,
-                        Modules.OUTLINE.argb());
+                if (!Modules.OUTLINE.glowLook()) {
+                    ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(
+                            io.github.georgwav.cosmetics.render.HitboxLines.lines(BlockOutline.widthScale())), outline.shape(), x, y, z,
+                            Modules.OUTLINE.argb());
+                }
                 int fill = Modules.OUTLINE.fillArgb();
                 if (fill != 0) {
                     OutlineFill.faces(context.matrices().last(), context.consumers().getBuffer(RenderType.debugQuads()), outline.shape(),
@@ -135,7 +140,7 @@ public final class OutlineHook {
             return vanilla;
         }
         framesDrawn++;
-        return Modules.OUTLINE.argb();
+        return Modules.OUTLINE.glowLook() ? 0x00FFFFFF : Modules.OUTLINE.argb();
     }
 }
 *///?} else {
@@ -166,7 +171,9 @@ public final class OutlineHook {
             // At the game's width into its own lines; wider or thinner into a copy of them with that width.
             VertexConsumer lines = scale == 1f || context.consumers() == null ? outline.vertexConsumer()
                     : context.consumers().getBuffer(io.github.georgwav.cosmetics.render.HitboxLines.lines(scale));
-            draw(context.matrixStack(), lines, shape, x, y, z, Modules.OUTLINE.argb());
+            if (!Modules.OUTLINE.glowLook()) {
+                draw(context.matrixStack(), lines, shape, x, y, z, Modules.OUTLINE.argb());
+            }
             int fill = Modules.OUTLINE.fillArgb();
             if (fill != 0 && context.consumers() != null) {
                 OutlineFill.faces(context.matrixStack().last(), context.consumers().getBuffer(net.minecraft.client.renderer.RenderType.debugQuads()),

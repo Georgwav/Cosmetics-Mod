@@ -4,6 +4,8 @@ import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.OutlineHook;
 import io.github.georgwav.cosmetics.client.Setting;
 
+import java.util.List;
+
 /**
  * The outline around the block you look at, in your colour, opacity and width instead of the game's faint black,
  * and its faces filled see-through if you like. Drawn through Fabric's block outline event where the game's Fabric
@@ -18,8 +20,12 @@ public final class BlockOutline extends Module {
     /** The lines' width against the game's. */
     private final Setting.Slider width = add(new Setting.Slider("width", 1.0, 0.5, 4.0, 0.25,
             v -> Math.round(v * 100) + "%").group("look"));
+    /** Thin lines (the game's, in your colour), or Sol's stepped glow outline in the colour's ramp. */
+    private final Setting.Choice look = add(new Setting.Choice("outline_look", "lines", List.of("lines", "glow")).group("look"));
     /** The block's faces filled in its colour, see-through. */
     private final Setting.Toggle fill = add(new Setting.Toggle("fill", false).group("look"));
+    /** The fill flat, or as a window onto End stars in the colour's tones. */
+    private final Setting.Choice fillLook = add(new Setting.Choice("fill_look", "flat", List.of("flat", "stars")).group("look"));
     private final Setting.Slider fillOpacity = add(new Setting.Slider("fill_opacity", 0.2, 0.05, 0.6, 0.05,
             v -> Math.round(v * 100) + "%").group("look"));
     /** The colour running round the rainbow instead. */
@@ -31,6 +37,23 @@ public final class BlockOutline extends Module {
 
     public BlockOutline() {
         super("outline", Category.VIEW, "box");
+        fillLook.shownWhen(fill::get);
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.LAYERS.add(io.github.georgwav.cosmetics.sol.fx.BlockHighlight.INSTANCE);
+    }
+
+    /** Sol's stepped glow outline instead of the lines. */
+    public boolean glowLook() {
+        return look.get().equals("glow");
+    }
+
+    /** The faces filled with stars (the flat fill stands aside). */
+    public boolean starsFill() {
+        return fill.get() && fillLook.get().equals("stars");
+    }
+
+    /** The fill's opacity, 0..255. */
+    public int fillAlpha() {
+        return Math.round(fillOpacity.get().floatValue() * 255);
     }
 
     /** On by default: it shows the theme's colour (see Modules.DEFAULTS). */
@@ -66,7 +89,7 @@ public final class BlockOutline extends Module {
 
     /** The fill's colour, ARGB: the outline's at the fill's opacity, or 0 for none. */
     public int fillArgb() {
-        if (!enabled() || !fill.get()) {
+        if (!enabled() || !fill.get() || starsFill()) {
             return 0;
         }
         return Math.round(fillOpacity.get().floatValue() * 255) << 24 | (argb() & 0xFFFFFF);

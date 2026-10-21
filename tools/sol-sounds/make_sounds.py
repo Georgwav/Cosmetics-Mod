@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Sol's own sound packs (C.3): Tick, Glass, Thock, Chime, Pop and Zap, each with hit, crit, kill, pop, click and
-toggle sounds, synthesised here from sine waves, noise and envelopes (nothing recorded, nothing taken from anywhere).
+toggle sounds, and the world's quiet sounds (snow, rainbow, leaves, ripple, sparkle), synthesised here from sine waves, noise and envelopes (nothing recorded, nothing taken from anywhere).
 
 Writes src/main/resources/assets/cosmeticsmod/sounds/sol/<pack>/<event>.ogg and the matching entries of
 assets/cosmeticsmod/sounds.json (ids cosmeticsmod:sol.<pack>.<event>). The waves are made with the standard library;
@@ -205,6 +205,46 @@ def zap(event):
 
 MAKERS = {"tick": tick, "glass": glass, "thock": thock, "chime": chime, "pop": pop, "zap": zap}
 
+# The world's quiet sounds (World FX): footsteps in snow, a rainbow coming out, leaves in the wind, rain ripples, and
+# the sparkle of a block of stars breaking. Ids cosmeticsmod:sol.world.<name>.
+WORLD = ["snow", "rainbow", "leaves", "ripple", "sparkle"]
+
+
+def crackle(seconds, grains, seed, low=0.55, decay=0.05):
+    """Noise made of small grains (snow packing down): bursts at random moments under one envelope."""
+    rnd = random.Random(seed)
+    out = silence(seconds)
+    for _ in range(grains):
+        at = rnd.uniform(0.0, seconds * 0.6)
+        mix(out, noise(0.03, decay=0.004, low=low, seed=rnd.randrange(1 << 30)), at=at, gain=rnd.uniform(0.3, 1.0))
+    e = env(len(out), 0.01, decay)
+    return [v * e[i] for i, v in enumerate(out)]
+
+
+def world(name):
+    bell = ((1.0, 1.0), (2.76, 0.35), (5.4, 0.12))
+    if name == "snow":
+        return crackle(0.22, 14, seed=31)
+    if name == "rainbow":
+        s = tone(1047, 1.2, attack=0.03, decay=0.35, partials=bell)
+        s = mix(s, tone(1319, 1.1, attack=0.03, decay=0.32, partials=bell), at=0.12, gain=0.8)
+        return mix(s, tone(1568, 1.0, attack=0.03, decay=0.3, partials=bell), at=0.24, gain=0.7)
+    if name == "leaves":
+        rnd = random.Random(32)
+        out = silence(0.7)
+        for k in range(10):
+            mix(out, noise(0.12, attack=0.03, decay=0.05, low=0.35, seed=rnd.randrange(1 << 30)), at=k * 0.05, gain=0.5)
+        e = env(len(out), 0.2, 0.18)
+        return [v * e[i] for i, v in enumerate(out)]
+    if name == "ripple":
+        return mix(tone(2100, 0.14, decay=0.03, glide=-0.8), noise(0.03, decay=0.004, low=0.5, seed=33), gain=0.25)
+    # sparkle
+    s = silence(0.6)
+    rnd = random.Random(34)
+    for k in range(5):
+        mix(s, tone(rnd.uniform(2600, 4200), 0.25, decay=0.06, partials=bell), at=k * 0.07, gain=0.6)
+    return s
+
 
 def write_wav(path, sound):
     with wave.open(str(path), "wb") as w:
@@ -232,8 +272,17 @@ def main():
                 subprocess.run([ffmpeg, "-loglevel", "error", "-y", "-i", str(wav), "-c:a", "libvorbis", "-q:a", "3",
                                 "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", str(ogg)], check=True)
                 table[f"sol.{pack}.{event}"] = {"sounds": [f"cosmeticsmod:sol/{pack}/{event}"]}
+        (out_dir / "world").mkdir(parents=True, exist_ok=True)
+        for name in WORLD:
+            sound = normalise(world(name) + silence(0.02), peak=0.6)
+            wav = Path(tmp) / f"world_{name}.wav"
+            write_wav(wav, sound)
+            ogg = out_dir / "world" / f"{name}.ogg"
+            subprocess.run([ffmpeg, "-loglevel", "error", "-y", "-i", str(wav), "-c:a", "libvorbis", "-q:a", "3",
+                            "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", str(ogg)], check=True)
+            table[f"sol.world.{name}"] = {"sounds": [f"cosmeticsmod:sol/world/{name}"]}
     sounds_json.write_text(json.dumps(dict(sorted(table.items())), indent=2) + "\n")
-    print("wrote", len(PACKS) * len(EVENTS), "sounds")
+    print("wrote", len(PACKS) * len(EVENTS) + len(WORLD), "sounds")
 
 
 if __name__ == "__main__":

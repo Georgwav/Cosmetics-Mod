@@ -149,6 +149,31 @@
       "cosmeticsmod:sol/tick/toggle"
     ]
   },
+  "sol.world.leaves": {
+    "sounds": [
+      "cosmeticsmod:sol/world/leaves"
+    ]
+  },
+  "sol.world.rainbow": {
+    "sounds": [
+      "cosmeticsmod:sol/world/rainbow"
+    ]
+  },
+  "sol.world.ripple": {
+    "sounds": [
+      "cosmeticsmod:sol/world/ripple"
+    ]
+  },
+  "sol.world.snow": {
+    "sounds": [
+      "cosmeticsmod:sol/world/snow"
+    ]
+  },
+  "sol.world.sparkle": {
+    "sounds": [
+      "cosmeticsmod:sol/world/sparkle"
+    ]
+  },
   "sol.zap.click": {
     "sounds": [
       "cosmeticsmod:sol/zap/click"

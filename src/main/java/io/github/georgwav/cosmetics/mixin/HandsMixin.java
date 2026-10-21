@@ -22,7 +22,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
  * The Punchy module's first-person hands ({@link FirstPersonHands}), on the game's own hand drawing: the hands kept from
  * swaying as you turn, each hand's view model (just after the game pushes its pose), the swing styles (at the game's
  * swing turn), 1.7's swing (the main hand left up after a hit), and, as the game finishes each hand, your arm holding
- * what you carry and the flames. Applied before Punchy (priority 600), after the knives (500). Nothing required: a
+ * what you carry and the flames. The hands also wait while Camera's F5 glide carries the camera back into your eyes. Applied before Punchy (priority 600), after the knives (500). Nothing required: a
  * version or another mod that moves these leaves that part out.
  */
 //? if >=26.3 {
@@ -52,31 +52,47 @@ abstract class HandsMixin {
     // ------------------------------------------------------------------ keep still: no turn lag
 
     //? if >=26.3 {
-    /*@Inject(method = "submitHandsWithItems", at = @At("HEAD"), require = 0)
+    /*@Inject(method = "submitHandsWithItems", at = @At("HEAD"), require = 0, cancellable = true)
     private void cosmeticsmod$still(float partialTick, PoseStack pose, SubmitNodeCollector buffers,
                                     net.minecraft.client.renderer.state.level.PlayerRenderState player,
                                     net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState state, CallbackInfo ci) {
+        if (io.github.georgwav.cosmetics.client.modules.CameraTweaks.handsHidden()) {
+            ci.cancel();
+            return;
+        }
         if (FirstPersonHands.holdStill()) {
             state.xBob = state.viewXRot;
             state.yBob = state.viewYRot;
         }
     }
     *///?} elif >=26.2 {
-    /*@Inject(method = "submitHandsWithItems", at = @At("HEAD"), require = 0)
+    /*@Inject(method = "submitHandsWithItems", at = @At("HEAD"), require = 0, cancellable = true)
     private void cosmeticsmod$still(float partialTick, PoseStack pose, SubmitNodeCollector buffers,
                                     net.minecraft.client.player.LocalPlayer player, int light, CallbackInfo ci) {
+        if (io.github.georgwav.cosmetics.client.modules.CameraTweaks.handsHidden()) {
+            ci.cancel();
+            return;
+        }
         cosmeticsmod$still(player, partialTick);
     }
     *///?} elif >=1.21.9 {
-    @Inject(method = "renderHandsWithItems", at = @At("HEAD"), require = 0)
+    @Inject(method = "renderHandsWithItems", at = @At("HEAD"), require = 0, cancellable = true)
     private void cosmeticsmod$still(float partialTick, PoseStack pose, SubmitNodeCollector buffers,
                                     net.minecraft.client.player.LocalPlayer player, int light, CallbackInfo ci) {
+        if (io.github.georgwav.cosmetics.client.modules.CameraTweaks.handsHidden()) {
+            ci.cancel();
+            return;
+        }
         cosmeticsmod$still(player, partialTick);
     }
     //?} else {
-    /*@Inject(method = "renderHandsWithItems", at = @At("HEAD"), require = 0)
+    /*@Inject(method = "renderHandsWithItems", at = @At("HEAD"), require = 0, cancellable = true)
     private void cosmeticsmod$still(float partialTick, PoseStack pose, MultiBufferSource.BufferSource buffers,
                                     net.minecraft.client.player.LocalPlayer player, int light, CallbackInfo ci) {
+        if (io.github.georgwav.cosmetics.client.modules.CameraTweaks.handsHidden()) {
+            ci.cancel();
+            return;
+        }
         cosmeticsmod$still(player, partialTick);
     }
     *///?}
