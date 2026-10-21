@@ -1,132 +1,119 @@
 package io.github.georgwav.cosmetics.sol.ui.kit;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import io.github.georgwav.cosmetics.CosmeticsMod;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The Sol line icons in the UI: every icon of the set (see {@link IconRaster}) rasterised once per pixel size into a
- * small atlas, its soft fill and its lines in cells of their own, and drawn on whole pixels so it stays sharp.
- * Grey when off; the theme accent with a glow when on; the soft fill at 16%, 30% when active. Render thread only.
+ * The UI's icons: Sol's 12 x 12 pixel icons ({@link PixelIcons}) in one small atlas, drawn at a whole number of screen
+ * pixels per icon pixel (k = round(icon pixel x the design scale), at least 1), on whole pixels and with nearest
+ * filtering, so they're never resampled. In the text's colour; a lit icon gets a one-pixel halo in its glow colour.
+ * Render thread only.
  */
 public final class Icons {
-    /** The soft fill's strength off and on (the prototype's 16% and 30%). */
+    /** Kept for callers: the line icons' soft fill strengths (pixel icons have no soft fill). */
     public static final float FILL = 0.16f, FILL_ON = 0.30f;
 
-    private static Map<String, IconRaster.Shape> shapes;
-    private static final Map<Integer, Atlas> atlases = new HashMap<>();
-
-    private record Atlas(SolTexture texture, Map<String, Integer> index, int cell, int cols, int w, int h) {
-    }
+    private static final int CELL = PixelIcons.CELL + 1;
+    private static SolTexture atlas;
+    private static final Map<String, Integer> index = new HashMap<>();
+    private static int cols, w, h;
 
     private Icons() {
     }
 
-    private static Map<String, IconRaster.Shape> shapes() {
-        if (shapes == null) {
-            shapes = new HashMap<>();
-            try (InputStream in = Icons.class.getResourceAsStream("/assets/cosmeticsmod/sol/icons.json")) {
-                if (in != null) {
-                    JsonObject o = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-                    for (String name : o.keySet()) {
-                        shapes.put(name, IconRaster.parse(o.getAsJsonArray(name)));
+    public static boolean has(String name) {
+        return PixelIcons.has(name);
+    }
+
+    /** Frees the atlas (resources reloaded); it's made again on use. */
+    public static void release() {
+        if (atlas != null) {
+            atlas.release();
+            atlas = null;
+        }
+    }
+
+    private static SolTexture atlas() {
+        if (atlas != null && !atlas.released()) {
+            return atlas;
+        }
+        Map<String, boolean[]> all = PixelIcons.all();
+        cols = 16;
+        int rows = Math.max(1, (all.size() + cols - 1) / cols);
+        w = cols * CELL;
+        h = rows * CELL;
+        int[] argb = new int[w * h];
+        index.clear();
+        int i = 0;
+        for (Map.Entry<String, boolean[]> e : all.entrySet()) {
+            int ox = (i % cols) * CELL, oy = (i / cols) * CELL;
+            boolean[] cells = e.getValue();
+            for (int y = 0; y < PixelIcons.CELL; y++) {
+                for (int x = 0; x < PixelIcons.CELL; x++) {
+                    if (cells[y * PixelIcons.CELL + x]) {
+                        argb[(oy + y) * w + ox + x] = 0xFFFFFFFF;
                     }
                 }
-            } catch (Exception e) {
-                CosmeticsMod.LOGGER.warn("[Sol] Couldn't read the icon set", e);
             }
+            index.put(e.getKey(), i++);
         }
-        return shapes;
+        atlas = SolTexture.of("pixel_icons", w, h, false, argb);
+        return atlas;
     }
 
-    public static boolean has(String name) {
-        return shapes().containsKey(name);
-    }
-
-    /** Frees the atlases (the window was resized a lot, or resources reloaded); they're made again on use. */
-    public static void release() {
-        atlases.values().forEach(a -> a.texture().release());
-        atlases.clear();
-    }
-
-    private static Atlas atlas(int px) {
-        Atlas a = atlases.get(px);
-        if (a != null && !a.texture().released()) {
-            return a;
-        }
-        Map<String, IconRaster.Shape> all = shapes();
-        int cell = px + 2;
-        int count = all.size() * 2;
-        int cols = Math.max(1, Math.min(count, 2048 / cell));
-        int rows = (count + cols - 1) / cols;
-        int w = cols * cell, h = Math.max(1, rows * cell);
-        int[] argb = new int[w * h];
-        float[] fill = new float[px * px], stroke = new float[px * px];
-        Map<String, Integer> index = new HashMap<>();
-        int i = 0;
-        for (Map.Entry<String, IconRaster.Shape> e : all.entrySet()) {
-            IconRaster.raster(e.getValue(), px, fill, stroke);
-            index.put(e.getKey(), i);
-            blit(argb, w, cell, cols, i, px, fill);
-            blit(argb, w, cell, cols, i + 1, px, stroke);
-            i += 2;
-        }
-        a = new Atlas(SolTexture.of("icons_" + px, w, h, false, argb), index, cell, cols, w, h);
-        atlases.put(px, a);
-        return a;
-    }
-
-    private static void blit(int[] argb, int w, int cell, int cols, int slot, int px, float[] alpha) {
-        int ox = (slot % cols) * cell + 1, oy = (slot / cols) * cell + 1;
-        for (int y = 0; y < px; y++) {
-            for (int x = 0; x < px; x++) {
-                int a = Math.round(alpha[y * px + x] * 255f);
-                argb[(oy + y) * w + ox + x] = (a << 24) | 0xFFFFFF;
-            }
-        }
+    /** Screen pixels per icon pixel for an icon {@code size} design pixels wide. */
+    public static int scale(Gfx g, float size) {
+        return Math.max(1, Math.round(size / PixelIcons.CELL * g.d.u));
     }
 
     /**
-     * Draws {@code name} in a {@code size} x {@code size} design-pixel square at (x, y): lines in {@code color}, the
-     * soft fill in the same colour at {@code fill} (see {@link #FILL}); {@code glow} > 0 adds the theme glow behind
-     * it (the prototype's drop-shadow on lit icons).
+     * Draws {@code name} centred in a {@code size} x {@code size} design-pixel square at (x, y), in {@code color}.
+     * {@code glow} (when it has any alpha) rings it with a one-pixel halo, for lit icons. {@code fill} is ignored.
      */
     public static void draw(Gfx g, String name, float x, float y, float size, int color, float fill, int glow) {
-        Map<String, IconRaster.Shape> all = shapes();
-        if (!all.containsKey(name)) {
-            name = all.containsKey("cube") ? "cube" : null;
-            if (name == null) {
+        String n = PixelIcons.resolve(name);
+        if (n == null) {
+            n = PixelIcons.resolve("box");
+            if (n == null) {
                 return;
             }
         }
-        int px = Math.max(8, Math.round(size * g.d.u));
-        Atlas a = atlas(px);
-        Integer slot = a.index().get(name);
+        SolTexture t = atlas();
+        Integer slot = index.get(n);
         if (slot == null) {
             return;
         }
-        // On whole pixels, centred where the design square is.
+        int k = scale(g, size), px = PixelIcons.CELL * k;
         float sx = Math.round(g.d.sx(x + size / 2f) - px / 2f), sy = Math.round(g.d.sy(y + size / 2f) - px / 2f);
         if (Colors.a(glow) > 0) {
-            g.glowSprite(x + size / 2f, y + size / 2f, size * 0.75f, size * 0.75f, glow);
+            int halo = Colors.fade(glow, 0.55f);
+            quad(g, t, slot, sx - k, sy, px, halo);
+            quad(g, t, slot, sx + k, sy, px, halo);
+            quad(g, t, slot, sx, sy - k, px, halo);
+            quad(g, t, slot, sx, sy + k, px, halo);
         }
-        if (fill > 0f) {
-            quad(g, a, slot, sx, sy, px, Colors.fade(color, fill));
-        }
-        quad(g, a, slot + 1, sx, sy, px, color);
+        quad(g, t, slot, sx, sy, px, color);
     }
 
-    private static void quad(Gfx g, Atlas a, int slot, float sx, float sy, int px, int color) {
-        int ox = (slot % a.cols()) * a.cell() + 1, oy = (slot / a.cols()) * a.cell() + 1;
-        g.imageScreen(a.texture(), sx, sy, sx + px, sy + px, ox / (float) a.w(), oy / (float) a.h(), (ox + px) / (float) a.w(),
-                (oy + px) / (float) a.h(), color, false);
+    /** Draws an icon at exactly {@code k} screen pixels per icon pixel with its top left at screen (sx, sy). */
+    public static void drawAt(Gfx g, String name, float sx, float sy, int k, int color) {
+        String n = PixelIcons.resolve(name);
+        if (n == null) {
+            return;
+        }
+        SolTexture t = atlas();
+        Integer slot = index.get(n);
+        if (slot != null) {
+            quad(g, t, slot, Math.round(sx), Math.round(sy), PixelIcons.CELL * k, color);
+        }
+    }
+
+    private static void quad(Gfx g, SolTexture t, int slot, float sx, float sy, int px, int color) {
+        int ox = (slot % cols) * CELL, oy = (slot / cols) * CELL;
+        g.imageScreen(t, sx, sy, sx + px, sy + px, ox / (float) w, oy / (float) h, (ox + PixelIcons.CELL) / (float) w,
+                (oy + PixelIcons.CELL) / (float) h, color, false);
     }
 }

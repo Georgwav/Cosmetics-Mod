@@ -29,7 +29,9 @@ import java.util.Map;
 public final class SolFont {
     public enum Family {
         MEDIUM("geist_", "geist-medium.ttf"), SEMIBOLD("geist_semibold_", "geist-semibold.ttf"),
-        MONO("geist_mono_", "geist-mono-medium.ttf");
+        MONO("geist_mono_", "geist-mono-medium.ttf"),
+        /** Silkscreen, Sol's pixel type (always upper case): regular and bold, drawn by {@link PixelFont}. */
+        PIXEL("silkscreen_", "silkscreen-regular.ttf"), PIXEL_BOLD("silkscreen_bold_", "silkscreen-bold.ttf");
 
         final String prefix;
         /** The font file, for which characters it has. */
@@ -39,7 +41,19 @@ public final class SolFont {
             this.prefix = prefix;
             this.ttf = ttf;
         }
+
+        /** Pixel type: sizes are whole multiples of its 8-pixel em. */
+        public boolean pixel() {
+            return this == PIXEL || this == PIXEL_BOLD;
+        }
     }
+
+    /** Pixel type at k screen pixels per font pixel, k = 1..16. */
+    private static final SolFont[][] PIXEL_FONTS = new SolFont[2][17];
+    /** For pixel type: screen pixels per font pixel. */
+    public final int k;
+    /** For pixel type: Geist in its place for text with characters Silkscreen hasn't got. */
+    private SolFont fallback;
 
     private static final int[] SIZES = {6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28,
             30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96};
@@ -63,11 +77,32 @@ public final class SolFont {
     private SolFont(Family family, int px) {
         this.family = family;
         this.px = px;
+        this.k = 0;
         this.style = Style.EMPTY.withFont(font(family.prefix + px));
     }
 
-    /** The font of {@code family} nearest to {@code screenPx} screen pixels. */
+    private SolFont(Family family, int px, int k) {
+        this.family = family;
+        this.px = px;
+        this.k = k;
+        this.style = Style.EMPTY;
+    }
+
+    /**
+     * The font of {@code family} nearest to {@code screenPx} screen pixels. For pixel type, the em is the whole
+     * multiple of 8 screen pixels nearest to it (at least 8), so every font pixel covers whole screen pixels.
+     */
     public static SolFont of(Family family, float screenPx) {
+        if (family.pixel()) {
+            int k = Math.max(1, Math.min(16, Math.round(screenPx / PixelFont.EM)));
+            int b = family == Family.PIXEL_BOLD ? 1 : 0;
+            SolFont f = PIXEL_FONTS[b][k];
+            if (f == null) {
+                f = new SolFont(family, PixelFont.EM * k, k);
+                PIXEL_FONTS[b][k] = f;
+            }
+            return f;
+        }
         int best = 0;
         for (int i = 1; i < SIZES.length; i++) {
             if (family == Family.MONO && SIZES[i] > MONO_MAX) {
@@ -130,8 +165,27 @@ public final class SolFont {
         return component(String.valueOf(ch));
     }
 
+    /** For pixel type: whether Silkscreen draws this text (else Geist does, {@link #fallback()}). */
+    public boolean pixelDraws(String text) {
+        return family.pixel() && PixelFont.covers(family == Family.PIXEL_BOLD, text);
+    }
+
+    /** For pixel type: Geist semibold with the same capital height, for text Silkscreen can't draw. */
+    public SolFont fallback() {
+        if (fallback == null) {
+            fallback = of(Family.SEMIBOLD, PixelFont.CAP * k / CAP);
+        }
+        return fallback;
+    }
+
     /** Width in screen pixels. */
     public int width(String text) {
+        if (family.pixel()) {
+            if (text == null || text.isEmpty()) {
+                return 0;
+            }
+            return pixelDraws(text) ? PixelFont.width(family == Family.PIXEL_BOLD, text) * k : fallback().width(text);
+        }
         Integer w = widths.get(text);
         if (w == null) {
             if (widths.size() > CACHE) {
@@ -150,7 +204,7 @@ public final class SolFont {
 
     /** Capital height in screen pixels. */
     public float cap() {
-        return px * CAP;
+        return family.pixel() ? PixelFont.CAP * k : px * CAP;
     }
 
     /** Text starting at {@code x} with its baseline at {@code baseline}, both in screen pixels. */

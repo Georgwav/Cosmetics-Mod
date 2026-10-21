@@ -74,38 +74,37 @@ public final class SolOverlay {
         c.push();
         c.scale((float) (1.0 / gs), (float) (1.0 / gs));
         G.begin(c);
-        SolFont f = G.font(SolFont.Family.MEDIUM, 13f);
-        float h = 36f, gap = 8f, lift = 0f;
+        // The pixel kit's toasts: a slab with an accent outline and accent Silkscreen 12, bottom centre, 136 px up in
+        // game and 24 px up over a window; they slide in and out in whole 3 px steps.
+        PixelTokens p = PixelTokens.get();
+        SolFont f = G.font(SolFont.Family.PIXEL_BOLD, 12f);
+        float h = 38f, gap = 8f, lift = 0f;
+        float base = io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null ? 24f : 136f;
         for (int i = notes.size() - 1; i >= 0; i--) {
             Notifications.Note n = notes.get(i);
-            // Spring up when posted, sink away when its time is up (the prototype's .45 s overshooting rise).
             float target = n.age() < n.life() ? 1f : 0f;
             if (SolScreen.calm()) {
                 n.shown = target;
             } else {
-                n.velocity += (target - n.shown) * 170f * dt;
-                n.velocity *= (float) Math.exp(-14f * dt);
-                n.shown += n.velocity * dt;
+                n.shown += Math.signum(target - n.shown) * Math.min(Math.abs(target - n.shown), dt / 0.18f);
             }
             float k = Math.max(0f, Math.min(1f, n.shown));
             if (k <= 0.01f && target == 0f) {
                 continue;
             }
             float tw = G.width(f, n.text);
-            SolFont af = G.font(SolFont.Family.SEMIBOLD, 13f);
-            float aw = n.action != null ? G.width(af, n.action) + 12f : 0f;
-            float w = 11f + 12f + 10f + tw + 16f + aw;
-            float x = 640f - w / 2f, y = D.bottom() - 34f - h - lift + (1f - n.shown) * 46f;
-            G.alpha = Math.min(1f, k * 1.4f);
-            G.glow(x, y, w, h, h / 2f, 30f, Colors.withAlpha(tk.glow, 0.32f));
-            G.round(x, y, w, h, h / 2f, 0xE60A0A0E);
-            G.stroke(x, y, w, h, h / 2f, Math.max(1f, D.u), tk.rim);
-            G.glowSprite(x + 17f, y + h / 2f, 11f, 11f, Colors.withAlpha(tk.glow, 0.8f));
-            G.rect(x + 11f, y + h / 2f - 6f, 12f, 12f, 0xFFFFF6D8);
-            G.textMid(f, n.text, x + 33f, y + h / 2f, 0xFFFFFFFF);
+            float aw = n.action != null ? G.width(f, n.action) + 16f : 0f;
+            float w = 12f + 24f + 10f + tw + 16f + aw;
+            // Whole 3 px steps as it slides.
+            float slide = Math.round((1f - k) * 16f) * 3f;
+            float x = 640f - w / 2f, y = D.bottom() - base - h - lift + slide;
+            Pix.slab(G, p, x, y, w, h, Pix.NORMAL);
+            G.stroke(x, y, w, h, 0f, G.px(Pix.E), p.acc);
+            Icons.draw(G, "sun", x + 12f, y + h / 2f - 12f, 24f, p.acc, 0f, 0);
+            G.textMid(f, n.text, x + 46f, y + h / 2f, p.acc);
             if (n.action != null) {
-                float ax = x + 33f + tw + 12f;
-                G.textMid(af, n.action, ax, y + h / 2f, tk.accent);
+                float ax = x + 46f + tw + 16f;
+                G.textMid(f, n.action, ax, y + h / 2f, PixelTokens.INK);
                 ACTIONS.put(n, new float[]{D.sx(ax - 6f) / (float) gs, D.sy(y) / (float) gs, D.sx(ax + aw) / (float) gs,
                         D.sy(y + h) / (float) gs});
             }

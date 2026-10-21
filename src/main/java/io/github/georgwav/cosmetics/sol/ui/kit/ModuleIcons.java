@@ -3,46 +3,45 @@ package io.github.georgwav.cosmetics.sol.ui.kit;
 import java.util.Map;
 
 /**
- * Which Sol line icon each module, menu section and kept mod shows (the Sol menu prototype's MODS and STOPS
- * tables; Sounds, Servers and Cosmetics, which the prototype doesn't show, get icons drawn the same way). Every
- * module has an icon of its own. Pure data, so a test checks every name is in the icon set.
+ * Which pixel icon each module, menu tab and kept mod shows (the pixel UI prototype's MODS table, and icons drawn on
+ * the same grid for the ones it doesn't show). Pure data, so a test checks every name is in the icon set.
  */
 public final class ModuleIcons {
     /** Module id -> icon. */
     public static final Map<String, String> MODULES = Map.ofEntries(
             Map.entry("pvp_tweaks", "sword"),
-            Map.entry("pvp_effects", "burst"),
-            Map.entry("crystal_pvp", "spark"),
-            Map.entry("target_hud", "lookat"),
+            Map.entry("pvp_effects", "bolt"),
+            Map.entry("crystal_pvp", "crystal"),
+            Map.entry("target_hud", "card"),
             Map.entry("hitboxes", "hitbox"),
-            Map.entry("held_items", "hand"),
-            Map.entry("punchy", "flame"),
+            Map.entry("held_items", "shield"),
+            Map.entry("punchy", "fist"),
             Map.entry("crosshair", "cross"),
             Map.entry("camera", "eye"),
             Map.entry("movement", "run"),
             Map.entry("atmosphere", "sun"),
             Map.entry("fullbright", "bulb"),
             Map.entry("outline", "cube"),
-            Map.entry("glint", "sparkle"),
+            Map.entry("glint", "spark"),
             Map.entry("screen", "screen"),
             Map.entry("particles", "dots"),
-            Map.entry("world_overlays", "grid"),
+            Map.entry("world_overlays", "chunk"),
             Map.entry("nametags", "tag"),
-            Map.entry("sol_ui", "heart"),
+            Map.entry("sol_ui", "solsq"),
             Map.entry("sol_chat", "chat"),
             Map.entry("stats", "bars"),
-            Map.entry("coordinates", "compass"),
-            Map.entry("armour_items", "shield"),
+            Map.entry("coordinates", "pin"),
+            Map.entry("armour_items", "armour"),
             Map.entry("potion_effects", "potion"),
-            Map.entry("keystrokes", "key"),
+            Map.entry("keystrokes", "keys"),
             Map.entry("music", "note"),
-            Map.entry("lyrics", "mic"),
+            Map.entry("lyrics", "lines"),
             Map.entry("inventory", "chest"),
-            Map.entry("performance", "bolt"),
-            Map.entry("screenshots", "camera"),
-            Map.entry("social", "people"),
+            Map.entry("performance", "gauge"),
+            Map.entry("screenshots", "cam"),
+            Map.entry("social", "people2"),
             Map.entry("servers", "server"),
-            Map.entry("cosmetics", "cape"));
+            Map.entry("cosmetics", "crown"));
 
     /**
      * The modules that keep their own ids until they move into the ones above: each shows the icon of the module it
@@ -51,10 +50,10 @@ public final class ModuleIcons {
      */
     public static final Map<String, String> EARLIER = Map.of(
             "toggle_sprint", "run",
-            "coords", "compass",
-            "armor", "shield",
+            "coords", "pin",
+            "armor", "armour",
             "effects", "potion",
-            "time", "moon",
+            "time", "clock",
             "weather", "cloud",
             "fps", "gauge",
             "ping", "signal",
@@ -66,22 +65,25 @@ public final class ModuleIcons {
             "simple-voice-chat", "mic",
             "jade", "lookat");
 
-    /** Full-menu stops and quick-menu sections -> icon. */
-    public static final Map<String, String> SECTIONS = Map.of(
-            "modules", "grid4",
-            "hud", "hud",
-            "world", "sun",
-            "wardrobe", "shirt",
-            "music", "note",
-            "mods", "puzzle",
-            "settings", "gear");
+    /** Full-menu tabs and quick-menu sections -> icon. */
+    public static final Map<String, String> SECTIONS = Map.ofEntries(
+            Map.entry("modules", "grid"),
+            Map.entry("hud", "hud"),
+            Map.entry("world", "mount"),
+            Map.entry("presets", "sun"),
+            Map.entry("wardrobe", "shirt"),
+            Map.entry("styles", "brush"),
+            Map.entry("emotes", "run"),
+            Map.entry("music", "note"),
+            Map.entry("mods", "box"),
+            Map.entry("settings", "gear"));
 
     private ModuleIcons() {
     }
 
-    /** The icon for a module id (the cube for one the table doesn't know, e.g. a module added by an addon). */
+    /** The icon for a module id (the box for one the table doesn't know, e.g. a module added by an addon). */
     public static String module(String id) {
         String icon = MODULES.get(id);
-        return icon != null ? icon : EARLIER.getOrDefault(id, "cube");
+        return icon != null ? icon : EARLIER.getOrDefault(id, "box");
     }
 }
