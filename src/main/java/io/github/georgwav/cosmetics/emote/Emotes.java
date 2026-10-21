@@ -62,8 +62,14 @@ public final class Emotes {
 
     /** Puts what {@link #prepare} read in place. */
     public static void apply(Map<String, Emote> loaded) {
+        int before = emotes == null ? -1 : emotes.size();
         emotes = loaded;
-        CosmeticsMod.LOGGER.info("Loaded {} emote(s)", loaded.size());
+        // Said once; a reload with the same emotes (Sol Styles applying a mix) isn't news.
+        if (loaded.size() != before) {
+            CosmeticsMod.LOGGER.info("Loaded {} emote(s)", loaded.size());
+        } else {
+            CosmeticsMod.LOGGER.debug("Loaded {} emote(s) again", loaded.size());
+        }
     }
 
     public static Collection<Emote> all() {

@@ -58,6 +58,8 @@ public final class Styles {
     /** What the menu shows and the scenario logs. */
     public static volatile String lastApply = "";
     public static volatile long lastApplyMillis, lastScanMillis;
+    /** Scans logged so far: the first is told, the rest kept to the debug log. */
+    private static int scansLogged;
     public static volatile int liveWrites, reloads;
     /** How long the Styles tab took to open (its first frame), for the scenario's results. */
     public static volatile long menuOpenMicros = -1L;
@@ -171,7 +173,11 @@ public final class Styles {
             }
             index = s;
             lastScanMillis = (System.nanoTime() - t0) / 1_000_000L;
-            CosmeticsMod.LOGGER.info("[Sol] Styles: {} packs ({} read again) in {} ms", s.packs().size(), s.rescanned(), lastScanMillis);
+            if (scansLogged++ == 0) {
+                CosmeticsMod.LOGGER.info("[Sol] Styles: {} packs ({} read again) in {} ms", s.packs().size(), s.rescanned(), lastScanMillis);
+            } else {
+                CosmeticsMod.LOGGER.debug("[Sol] Styles: {} packs ({} read again) in {} ms", s.packs().size(), s.rescanned(), lastScanMillis);
+            }
             return s;
         } catch (RuntimeException | LinkageError e) {
             Guard.fail(Feature.STYLES, e);
@@ -420,7 +426,8 @@ public final class Styles {
                     liveWrites += live.size();
                     lastApplyMillis = (System.nanoTime() - t0) / 1_000_000L;
                     lastApply = "live";
-                    CosmeticsMod.LOGGER.info("[Sol] Styles: {} texture(s) written live in {} ms (mixed in {} ms)", live.size(), lastApplyMillis, mixMs);
+                    // Often (each colour change while you drag): kept out of the log unless asked for.
+                    CosmeticsMod.LOGGER.debug("[Sol] Styles: {} texture(s) written live in {} ms (mixed in {} ms)", live.size(), lastApplyMillis, mixMs);
                 }
             }
             if (needReload) {
