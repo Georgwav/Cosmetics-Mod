@@ -40,11 +40,24 @@ final class FxScenario {
      * the prefix of its effects' ids in the pool (null for one drawn on the HUD, which shows the HUD for its frames);
      * a grey one is also played behind a wall, where it mustn't show.
      */
-    record Case(String name, FxModule module, Runnable setup, float distance, float pitch, boolean colour, boolean grey, String kinds) {
+    record Case(String name, FxModule module, Runnable setup, float distance, float pitch, boolean colour, boolean grey, String kinds,
+                Runnable on, Runnable off) {
+        Case(String name, FxModule module, Runnable setup, float distance, float pitch, boolean colour, boolean grey, String kinds) {
+            this(name, module, setup, distance, pitch, colour, grey, kinds, null, null);
+        }
+
         boolean hud() {
             return kinds == null;
         }
+
+        /** Whether its effects are in the pool (a layer's, like chams, are drawn every frame instead). */
+        boolean pooled() {
+            return kinds != null && !kinds.equals(LAYER);
+        }
     }
+
+    /** The kinds of a case drawn by a layer (FxWorld.LAYERS), not in the pool. */
+    static final String LAYER = "layer";
 
     private final List<Case> cases = new ArrayList<>();
     private final List<String> problems;
@@ -126,6 +139,53 @@ final class FxScenario {
                 cases.add(new Case("totem_pop_" + style, totems, () -> only(totems, null, style), 4f, 4f, false, false, null));
             }
         }
+        // Target: each mark on the dummy (grey: also behind a wall); chams on a real crystal (behind a wall too) and on you.
+        var target = Modules.TARGET_MARK;
+        for (String style : io.github.georgwav.cosmetics.sol.fx.effects.Target.MARK_STYLES) {
+            cases.add(new Case("target_" + style, target, () -> {
+                target.mark.on.set(true);
+                target.mark.random.set(false);
+                target.mark.style.set(style);
+                target.mark.colourMode.set("theme");
+                target.chams.set(false);
+                target.friend.on.set(false);
+            }, 3.6f, 0f, true, true, "target_mark"));
+        }
+        for (String look : List.of("flat", "glow", "outline")) {
+            cases.add(new Case("chams_crystal_" + look, target, () -> {
+                target.mark.on.set(false);
+                target.chamsLook.set(look);
+                target.chamsCrystals.set(true);
+                target.chamsCrystalColour.set(io.github.georgwav.cosmetics.client.Setting.Color.THEME);
+                summonCrystal();
+            }, 4f, 0f, true, true, LAYER, () -> target.chams.set(true), () -> target.chams.set(false)));
+        }
+        cases.add(new Case("chams_you", target, () -> {
+            removeCrystal();
+            target.mark.on.set(false);
+            target.chamsLook.set("glow");
+            target.chamsPlayers.set(true);
+            Minecraft.getInstance().options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        }, 4f, 10f, true, false, LAYER, () -> {
+            io.github.georgwav.cosmetics.sol.fx.effects.Target.chamsYou = true;
+            target.chams.set(true);
+        }, () -> {
+            io.github.georgwav.cosmetics.sol.fx.effects.Target.chamsYou = false;
+            target.chams.set(false);
+        }));
+        cases.add(new Case("friend_marker", target, () -> {
+            target.mark.on.set(false);
+            target.chams.set(false);
+            target.friend.colourMode.set("custom");
+            target.friends.set(Minecraft.getInstance().getUser().getName());
+            Minecraft.getInstance().options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        }, 4f, 6f, false, false, LAYER, () -> {
+            io.github.georgwav.cosmetics.sol.fx.effects.Target.chamsYou = true;
+            target.friend.on.set(true);
+        }, () -> {
+            io.github.georgwav.cosmetics.sol.fx.effects.Target.chamsYou = false;
+            target.friend.on.set(false);
+        }));
         var crystal = Modules.CRYSTAL_PVP;
         cases.add(new Case("crystal_rings", crystal, () -> {
             crystal.rings.on.set(true);
@@ -139,6 +199,41 @@ final class FxScenario {
                 trails.projectiles.colourMode.set("theme");
             }, 4f, 4f, true, false, "trail_projectile"));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void restoreSettings() {
+        for (var e : settingsWere.entrySet()) {
+            ((io.github.georgwav.cosmetics.client.Setting<Object>) e.getKey()).set(e.getValue());
+        }
+        for (var e : enabledWere.entrySet()) {
+            e.getKey().setEnabled(e.getValue());
+        }
+    }
+
+    /** An end crystal on the ground four blocks ahead, once (the chams cases'), kept still. */
+    private static boolean crystalSummoned;
+
+    private static void removeCrystal() {
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
+                    "kill @e[tag=sol_cham]"));
+        }
+    }
+
+    private static void summonCrystal() {
+        Minecraft mc = Minecraft.getInstance();
+        var server = mc.getSingleplayerServer();
+        if (crystalSummoned || server == null || mc.player == null) {
+            return;
+        }
+        crystalSummoned = true;
+        double a = Math.toRadians(mc.player.getYRot());
+        double x = mc.player.getX() - Math.sin(a) * 4.0, z = mc.player.getZ() + Math.cos(a) * 4.0;
+        String cmd = String.format(java.util.Locale.ROOT, "summon end_crystal %.2f %.2f %.2f {ShowBottom:0b,Tags:[\"sol_cham\"]}", x,
+                mc.player.getY(), z);
+        server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), cmd));
     }
 
     /** Totems with only one of its effects on ({@code on}, or none) and the floating totem in {@code pop}'s style. */
@@ -210,6 +305,9 @@ final class FxScenario {
                 c.module().setEnabled(true);
                 c.setup().run();
                 io.github.georgwav.cosmetics.sol.render.Mc.hideHud(!c.hud());
+                if (c.off() != null) {
+                    c.off().run();
+                }
                 stageDummy(mc, c);
                 wait = 8;
                 step = 1;
@@ -226,7 +324,10 @@ final class FxScenario {
                 FxWorld.hold = t0;
                 dummy = place(mc, c);
                 life = c.module().tryIt(FxWorld.POOL, dummy);
-                if (life <= 0f || !c.hud() && FxWorld.POOL.count(c.kinds()) == 0) {
+                if (c.on() != null) {
+                    c.on().run();
+                }
+                if (life <= 0f || c.pooled() && FxWorld.POOL.count(c.kinds()) == 0) {
                     problems.add("fx " + c.name() + ": nothing started");
                 }
                 step = 3;
@@ -235,7 +336,7 @@ final class FxScenario {
             case 3, 4, 5, 6, 7, 8 -> {
                 int k = step - 3;
                 FrameGrab.grab(mc, "fx-" + c.name() + "-" + k);
-                if (k == 2 && !c.hud() && FxWorld.POOL.count(c.kinds()) == 0) {
+                if (k == 2 && c.pooled() && FxWorld.POOL.count(c.kinds()) == 0) {
                     problems.add("fx " + c.name() + ": gone halfway through its life");
                 }
                 step++;
@@ -244,7 +345,7 @@ final class FxScenario {
                 } else {
                     // The second preset, for the colour check.
                     ThemeState.setTheme(PRESET_B, false);
-                    FxWorld.POOL.clear();
+                    stop(c);
                     FxWorld.hold = Float.NaN;
                     stageDummy(mc, c);
                     wait = 10;
@@ -262,6 +363,9 @@ final class FxScenario {
                 FxWorld.hold = t0;
                 dummy = place(mc, c);
                 life = c.module().tryIt(FxWorld.POOL, dummy);
+                if (c.on() != null) {
+                    c.on().run();
+                }
                 bFrame = 1;
                 FxWorld.hold = t0 + life * (bFrame + 0.5f) / 6f;
                 wait = 3;
@@ -276,7 +380,7 @@ final class FxScenario {
                     return;
                 }
                 ThemeState.setTheme(PRESET_A, false);
-                FxWorld.POOL.clear();
+                stop(c);
                 FxWorld.hold = Float.NaN;
                 wait = 10;
                 step = 11;
@@ -285,6 +389,9 @@ final class FxScenario {
                 // Played live, it must be gone a second after its life.
                 dummy = place(mc, c);
                 life = c.module().tryIt(FxWorld.POOL, dummy);
+                if (c.on() != null) {
+                    c.on().run();
+                }
                 t0 = FrameInfo.time;
                 step = 12;
             }
@@ -292,7 +399,7 @@ final class FxScenario {
                 if (FrameInfo.time - t0 < life + 1.0f) {
                     return;
                 }
-                cleanLeft = c.hud() ? 0 : FxWorld.POOL.count(c.kinds());
+                cleanLeft = c.pooled() ? FxWorld.POOL.count(c.kinds()) : 0;
                 if (cleanLeft > 0) {
                     problems.add("fx " + c.name() + ": " + cleanLeft + " still in the pool a second after its life");
                 }
@@ -306,7 +413,7 @@ final class FxScenario {
             }
             case 14 -> {
                 // Behind a wall: a grey effect mustn't show through it.
-                FxWorld.POOL.clear();
+                stop(c);
                 stageDummy(mc, c);
                 FrameGrab.grab(mc, "fx-" + c.name() + "-wall-off");
                 wait = 2;
@@ -317,6 +424,9 @@ final class FxScenario {
                 FxWorld.hold = t0;
                 dummy = place(mc, c);
                 life = c.module().tryIt(FxWorld.POOL, dummy);
+                if (c.on() != null) {
+                    c.on().run();
+                }
                 bFrame = 1;
                 FxWorld.hold = t0 + life * (bFrame + 0.5f) / 6f;
                 wait = 3;
@@ -329,7 +439,7 @@ final class FxScenario {
                     wait = 3;
                     return;
                 }
-                FxWorld.POOL.clear();
+                stop(c);
                 FxWorld.hold = Float.NaN;
                 wall(mc, false);
                 wait = 20;
@@ -341,8 +451,19 @@ final class FxScenario {
         }
     }
 
+    /** Ends what a case started: its effects in the pool, and a layer's effect switched off. */
+    private static void stop(Case c) {
+        FxWorld.POOL.clear();
+        if (c.off() != null) {
+            c.off().run();
+        }
+    }
+
     /** The case's line in the results, then on to the next case. */
     private void record(Case c) {
+        stop(c);
+        // A case that looked from behind you (chams on you) puts the camera back.
+        Minecraft.getInstance().options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
         JsonObject r = new JsonObject();
         r.addProperty("name", c.name());
         r.addProperty("module", c.module().id);
@@ -402,7 +523,22 @@ final class FxScenario {
         return FxPreview.stage(c.module(), x, y, z, yaw + 180f, 30f);
     }
 
+    /** Every setting of the modules the phase touches, as it found them, to put back when it's done. */
+    private final java.util.Map<io.github.georgwav.cosmetics.client.Setting<?>, Object> settingsWere = new java.util.HashMap<>();
+    private final java.util.Map<io.github.georgwav.cosmetics.client.Module, Boolean> enabledWere = new java.util.HashMap<>();
+
     private void start(Minecraft mc) {
+        java.util.Set<io.github.georgwav.cosmetics.client.Module> touched = new java.util.LinkedHashSet<>();
+        for (Case c : cases) {
+            touched.add(c.module());
+        }
+        touched.add(Modules.KILL_FEED);
+        for (var m : touched) {
+            enabledWere.put(m, m.enabled());
+            for (var setting : m.settings()) {
+                settingsWere.put(setting, setting.get());
+            }
+        }
         Atmosphere at = Atmosphere.INSTANCE;
         themeWas = ThemeState.baseEntry().id();
         if (at != null) {
@@ -557,6 +693,7 @@ final class FxScenario {
                 server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
                         "kill @e[tag=sol_arrow]"));
             }
+
         }
     }
 
@@ -568,9 +705,13 @@ final class FxScenario {
             c.module().setEnabled(false);
         }
         Modules.KILL_FEED.setEnabled(false);
-        Modules.TOTEMS.ghost.who.set("players");
-        Modules.TOTEMS.shatter.who.set("players");
-        Modules.TRAILS.projectileWho.set("yours");
+        restoreSettings();
+        mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+        var server = mc.getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
+                    "kill @e[tag=sol_cham]"));
+        }
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(true);
         Atmosphere at = Atmosphere.INSTANCE;
         if (at != null && qualityWas != null) {

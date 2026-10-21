@@ -19,6 +19,17 @@ public final class FxWorld {
     /** The scenario's frozen clock (seconds on the frame clock), or NaN to run with the frames. */
     public static float hold = Float.NaN;
 
+    /** Something drawn every frame besides the pool's effects (Target's mark, friend markers, chams). */
+    public interface Layer {
+        /** Whether it has anything to draw now. */
+        boolean active();
+
+        /** Draws what belongs to this pass ({@code out.glowPass()}). */
+        void draw(WorldOut out, float now);
+    }
+
+    public static final java.util.List<Layer> LAYERS = new java.util.ArrayList<>();
+
     private FxWorld() {
     }
 
@@ -44,6 +55,23 @@ public final class FxWorld {
         return f;
     }
 
+    private static void drawLayers() {
+        WorldOut out = WorldOut.INSTANCE;
+        float now = now();
+        FxDraw.camera(out);
+        for (int pass = 0; pass < 2; pass++) {
+            out.begin(pass == 0);
+            for (int i = 0, n = LAYERS.size(); i < n; i++) {
+                Layer l = LAYERS.get(i);
+                if (l.active()) {
+                    l.draw(out, now);
+                }
+            }
+            out.bias = 0f;
+            out.end();
+        }
+    }
+
     /** After the level each frame (SolHooks.frameEnd). */
     public static void render() {
         if (!FrameInfo.inWorld) {
@@ -64,6 +92,13 @@ public final class FxWorld {
                 POOL.draw(out, () -> out.begin(true), () -> out.begin(false), out::end);
                 peak = Math.max(peak, POOL.count((FxKind) null));
             });
+        }
+        boolean layers = false;
+        for (int i = 0, n = LAYERS.size(); i < n; i++) {
+            layers |= LAYERS.get(i).active();
+        }
+        if (layers) {
+            Guard.run(Feature.FX, FxWorld::drawLayers);
         }
         // Flashes over the view, on top of everything.
         Guard.run(Feature.FX, FxScreen::render);

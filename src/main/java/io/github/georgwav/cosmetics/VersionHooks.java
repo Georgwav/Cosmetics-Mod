@@ -135,6 +135,52 @@ final class VersionHooks {
             ScreenOpener.requestOpen();
             return 1;
         }));
+        // /friend add|remove <name> (names from the tab list), /friend list: Target's friends.
+        dispatcher.register(LiteralArgumentBuilder.<S>literal("friend")
+                .then(LiteralArgumentBuilder.<S>literal("add").then(friendName(true)))
+                .then(LiteralArgumentBuilder.<S>literal("remove").then(friendName(false)))
+                .then(LiteralArgumentBuilder.<S>literal("list").executes(context -> {
+                    String list = io.github.georgwav.cosmetics.client.Modules.TARGET_MARK.friends.get();
+                    say(net.minecraft.network.chat.Component.translatable(list.isBlank() ? "sol.friend.none" : "sol.friend.list", list));
+                    return 1;
+                })));
+    }
+
+    private static <S> com.mojang.brigadier.builder.RequiredArgumentBuilder<S, String> friendName(boolean add) {
+        return com.mojang.brigadier.builder.RequiredArgumentBuilder.<S, String>argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                .suggests((context, builder) -> {
+                    var connection = Minecraft.getInstance().getConnection();
+                    if (connection != null) {
+                        for (var info : connection.getOnlinePlayers()) {
+                            //? if >=1.21.9 {
+                            builder.suggest(info.getProfile().name());
+                            //?} else {
+                            /*builder.suggest(info.getProfile().getName());
+                            *///?}
+                        }
+                    }
+                    return builder.buildFuture();
+                })
+                .executes(context -> {
+                    String name = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "name");
+                    boolean changed = io.github.georgwav.cosmetics.client.Modules.TARGET_MARK.setFriend(name, add);
+                    say(net.minecraft.network.chat.Component.translatable(changed ? add ? "sol.friend.added" : "sol.friend.removed"
+                            : add ? "sol.friend.already" : "sol.friend.not", name));
+                    return 1;
+                });
+    }
+
+    private static void say(net.minecraft.network.chat.Component line) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui != null) {
+            //? if >=26.2 {
+            /*mc.gui.hud.getChat().addClientSystemMessage(line);
+            *///?} elif >=26.1 {
+            /*mc.gui.getChat().addClientSystemMessage(line);
+            *///?} else {
+            mc.gui.getChat().addMessage(line);
+            //?}
+        }
     }
 
     /** Loads cosmetics from resource packs on startup and on every F3+T. */

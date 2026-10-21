@@ -20,6 +20,11 @@ public final class WorldOut implements FxOut {
     private boolean glow;
     private FxTex current;
     private float ox, oy, oz;
+    /**
+     * Pulls vertices this far toward the camera (blocks): the same place on screen, a hair nearer, so a copy drawn over
+     * a body wins the depth test where the body shows and nowhere else (Target's chams). 0 normally.
+     */
+    public float bias;
     /** Ground heights asked this frame, by block column and start height. */
     private final long[] groundKeys = new long[256];
     private final float[] groundValues = new float[256];
@@ -90,6 +95,15 @@ public final class WorldOut implements FxOut {
     public void vertex(float x, float y, float z, float u, float v, int argb) {
         Matrix4f m = FrameInfo.view;
         float wx = ox + x, wy = oy + y, wz = oz + z;
+        if (bias > 0f) {
+            float l = (float) Math.sqrt(wx * wx + wy * wy + wz * wz);
+            if (l > bias * 2f) {
+                float k = (l - bias) / l;
+                wx *= k;
+                wy *= k;
+                wz *= k;
+            }
+        }
         WorldDraw.vertex(m.m00() * wx + m.m10() * wy + m.m20() * wz, m.m01() * wx + m.m11() * wy + m.m21() * wz,
                 m.m02() * wx + m.m12() * wy + m.m22() * wz, u, v, argb);
     }

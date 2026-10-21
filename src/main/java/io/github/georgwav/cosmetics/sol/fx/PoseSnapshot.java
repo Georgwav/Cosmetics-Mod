@@ -80,13 +80,21 @@ public final class PoseSnapshot {
 
     /** Copies {@code e} into this snapshot (reused: nothing new is made for a body seen before). */
     public void capture(Entity e, float partialTick) {
+        capture(e, partialTick, true);
+    }
+
+    /**
+     * {@link #capture(Entity, float)}, without the texel rows when {@code rows} is false: a copy drawn whole every frame
+     * (Target's chams) needs none of the dissolves.
+     */
+    public void capture(Entity e, float partialTick, boolean rows) {
         quadCount = 0;
         rowCount = 0;
         height = Math.max(0.2f, e.getBbHeight());
         width = Math.max(0.2f, e.getBbWidth());
         try {
             if (e instanceof Player p) {
-                Pose pose = new Pose();
+                Pose pose = SCRATCH_POSE;
                 pose.from(p, partialTick);
                 player(SkinPixels.of(p), pose);
             } else if (e instanceof LivingEntity living) {
@@ -100,8 +108,24 @@ public final class PoseSnapshot {
         if (quadCount == 0) {
             box(width, height);
         }
-        cutRows();
+        if (rows) {
+            cutRows();
+        } else {
+            mids();
+        }
         tintedAmount = -1f;
+    }
+
+    private static final Pose SCRATCH_POSE = new Pose();
+
+    /** Every face's middle, for the facing test (cutRows does this as it cuts). */
+    private void mids() {
+        for (int q = 0; q < quadCount; q++) {
+            int o = q * QF;
+            for (int k = 0; k < 3; k++) {
+                quadMid[q * 3 + k] = (quads[o + k] + quads[o + VF + k] + quads[o + 2 * VF + k] + quads[o + 3 * VF + k]) / 4f;
+            }
+        }
     }
 
     /** Copies a player in a pose from {@link #HISTORY} (or any pose) wearing {@code skin}. */
@@ -439,6 +463,22 @@ public final class PoseSnapshot {
         if (out.glowPass() || Colors.a(argb) == 0 || cut >= 1f) {
             return;
         }
+        draw(out, x, y, z, scale, spin, tex, argb, mode, cut, false);
+    }
+
+    /**
+     * Draws the copy whole in either pass: its faces turned to the camera, or with {@code back} only the ones turned
+     * away (an outline: those of a copy a little bigger, round the body's edges, and hidden by the body elsewhere).
+     */
+    public void drawFaces(FxOut out, float x, float y, float z, float scale, FxTex tex, int argb, boolean back) {
+        if (Colors.a(argb) == 0) {
+            return;
+        }
+        draw(out, x, y, z, scale, 0f, tex, argb, WHOLE, 0f, back);
+    }
+
+    private void draw(FxOut out, float x, float y, float z, float scale, float spin, FxTex tex, int argb, int mode, float cut,
+                      boolean back) {
         out.use(tex != null ? tex : skin);
         float cs = (float) Math.cos(spin), sn = (float) Math.sin(spin);
         // The camera in the copy's own space (its feet at zero, unturned, unscaled): nothing is written to the depth,
@@ -450,7 +490,7 @@ public final class PoseSnapshot {
         if (mode == WHOLE || cut <= 0f) {
             int n = 0;
             for (int q = 0; q < quadCount; q++) {
-                n = facing(quadNormal, quadMid, q, lx, ly, lz, n);
+                n = facing(quadNormal, quadMid, q, lx, ly, lz, n, back);
             }
             sort(n);
             for (int i = 0; i < n; i++) {
@@ -468,7 +508,7 @@ public final class PoseSnapshot {
                 default -> rowNoise[r] < cut;
             };
             if (!gone) {
-                n = facing(rowNormal, rowMid, r, lx, ly, lz, n);
+                n = facing(rowNormal, rowMid, r, lx, ly, lz, n, false);
             }
         }
         sort(n);
@@ -478,11 +518,11 @@ public final class PoseSnapshot {
     }
 
     /** Adds face {@code i} to this frame's list when it's turned to the camera at (lx, ly, lz); returns the count. */
-    private int facing(float[] normal, float[] mid, int i, float lx, float ly, float lz, int n) {
+    private int facing(float[] normal, float[] mid, int i, float lx, float ly, float lz, int n, boolean back) {
         float dx = lx - mid[i * 3], dy = ly - mid[i * 3 + 1], dz = lz - mid[i * 3 + 2];
         float nx = normal[i * 3], ny = normal[i * 3 + 1], nz = normal[i * 3 + 2];
         // A face without a normal (none given) is always drawn.
-        if (nx * dx + ny * dy + nz * dz < 0f && nx * nx + ny * ny + nz * nz > 0.01f) {
+        if ((nx * dx + ny * dy + nz * dz < 0f) != back && nx * nx + ny * ny + nz * nz > 0.01f) {
             return n;
         }
         order[n] = i;
