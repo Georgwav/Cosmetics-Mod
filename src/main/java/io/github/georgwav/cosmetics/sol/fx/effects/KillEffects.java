@@ -638,7 +638,8 @@ public final class KillEffects extends FxModule {
                 }
                 float r = 6f * fx.size * easeOut(p);
                 int tone = k == 0 ? Ramp.MAIN : k == 1 ? Ramp.SHADE : Ramp.CORE;
-                FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, fx.c, 0f, r, 2, tone, alpha(fx, 1f - p, now), true, now);
+                // Full until it's spread 60% of the way, then out in steps: its own colour shows at its key moment.
+                FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, fx.c, 0f, r, 2, tone, alpha(fx, (1f - p) / 0.4f, now), true, now);
             }
             int n = Math.round(12 * fx.amount);
             for (int i = 0; i < n; i++) {
