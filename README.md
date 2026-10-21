@@ -76,3 +76,14 @@ delta E 12 on two presets, it's gone a second after it ends; grey ones never sho
 - `round7/hands-26.3.png`: the same hand shots on 26.3.
 - `round7/world-fx.png`: World FX through the world's own events on 1.21.11: rain rings on the beach in real rain, the rainbow when it stops, leaves falling from a canopy, a plank mined by hand (stars inside, Sol's glowing cracks in place of the game's), a diamond and a block tumbling as they fall and lying flat, rain ripples and the rainbow on the copy of you, and F5 gliding back in.
 - `round7/world-fx-eras.png`: the same on 1.21.1 (top) and 26.3 (bottom), with the glow outline and End-stars fill, chunk rise mid-way (the ground still below), the glide out and the snow prints.
+
+### Round 7: the HUD extras, step 11 (georgwav/cosmetics-mod#37)
+
+- `round7/hud-extras.png`: on 1.21.11:
+  - the HUD with Keystrokes stepping left of a server's scoreboard;
+  - Sol toasts (the song, a module switched, a totem pop) stacked past the Armour box, with the active modules list, the mace slots filling as you fall, the totem's gold backdrop and a painted crosshair;
+  - the tab list and an inventory caught as they slide in;
+  - the crosshair painter;
+  - the cursor's sparkles over the menu.
+- `round7/hud-eras.png`: the same HUD on 1.21.1 and 26.3.
+- Every shot, Styles shot and effect sheet of round 7 is also in the repo's `docs/gallery.html`.
