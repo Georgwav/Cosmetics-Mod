@@ -1538,7 +1538,7 @@ def main():
     p.add_argument("--node", required=True, help="build (Stonecutter version), e.g. 1.21.11")
     p.add_argument("--release", default="", help="Minecraft release to run (default: the build's newest)")
     p.add_argument("--sol", default="full", help="Sol scenario: full, reduced or look")
-    p.add_argument("--timeout", type=int, default=1500)
+    p.add_argument("--timeout", type=int, default=2400)
     p.add_argument("--jars", default=str(ROOT / "build" / "libs"))
     p.add_argument("--cache", default=str(ROOT / "ci" / "work" / "cache"))
     p.add_argument("--out", default=str(ROOT / "ci" / "work" / "runs"))

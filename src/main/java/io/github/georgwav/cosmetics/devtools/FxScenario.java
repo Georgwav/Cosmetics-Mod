@@ -273,12 +273,31 @@ final class FxScenario {
         }
     }
 
-    /** Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks. */
+    /**
+     * The cases the reduced run plays (the older patch releases'): each effect once in its default style, every grey
+     * one (for the wall check) and every effect with no styles. The full run (one release per era) plays them all.
+     */
+    static final java.util.Set<String> REDUCED = java.util.Set.of("kill_soul_rise", "kill_lightning", "hit_pixels", "hit_bubbles",
+            "hit_words", "hit_damage", "hit_marker", "totem_ghost", "totem_shatter", "totem_angel", "totem_pop_roll", "target_ring",
+            "chams_crystal_glow", "chams_you", "friend_marker", "jump_square_ring", "jump_hologram", "jump_particles_fire",
+            "crystal_rings", "trail_dots");
+
+    /**
+     * Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks; the
+     * reduced run's set unless -Dcosmeticsmod.fxAll=true.
+     */
     private void only() {
         String only = System.getProperty("cosmeticsmod.fxOnly", "");
         if (!only.isBlank()) {
             List<String> prefixes = List.of(only.split(","));
             cases.removeIf(c -> prefixes.stream().noneMatch(c.name()::startsWith));
+        } else if ("reduced".equals(System.getProperty("cosmeticsmod.solScenario", "")) && !Boolean.getBoolean("cosmeticsmod.fxAll")) {
+            for (String name : REDUCED) {
+                if (cases.stream().noneMatch(c -> c.name().equals(name))) {
+                    problems.add("fx: the reduced set names a case there isn't: " + name);
+                }
+            }
+            cases.removeIf(c -> !REDUCED.contains(c.name()));
         }
     }
 
@@ -327,6 +346,8 @@ final class FxScenario {
         Case c = cases.get(index);
         switch (step) {
             case 0 -> {
+                // A line per case: the run's hang check wants the log to move at least every few minutes.
+                CosmeticsMod.LOGGER.info("[Sol] Effects phase: case {}/{}: {}", index + 1, cases.size(), c.name());
                 FxWorld.hold = Float.NaN;
                 FxWorld.POOL.clear();
                 pitch = c.pitch();
