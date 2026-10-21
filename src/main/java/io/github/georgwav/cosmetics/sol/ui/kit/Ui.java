@@ -20,7 +20,10 @@ public final class Ui {
         void to(float x, float y);
     }
 
-    private record Hit(float x0, float y0, float x1, float y1, Runnable click, Drag drag, int focus) {
+    /** A hit's sound when clicked (UI sounds): a click, a switch going on or off, or none (a backdrop, a scroll area). */
+    private static final int CLICK = 0, TURNS_ON = 1, TURNS_OFF = 2, QUIET = -1;
+
+    private record Hit(float x0, float y0, float x1, float y1, Runnable click, Drag drag, int focus, int sound) {
         boolean contains(float x, float y) {
             return x >= x0 && x <= x1 && y >= y0 && y <= y1;
         }
@@ -60,16 +63,33 @@ public final class Ui {
     /** Registers a clickable rectangle (clamped to the current clip); returns its focus index. */
     public int click(float x, float y, float w, float h, Runnable action) {
         int f = focusCount++;
-        add(x, y, w, h, action, null, f);
+        add(x, y, w, h, action, null, f, CLICK);
         return f;
+    }
+
+    /** A switch that's {@code on} now: a click that sounds its toggle. */
+    private int toggleClick(float x, float y, float w, float h, boolean on, Runnable action) {
+        int f = focusCount++;
+        add(x, y, w, h, action, null, f, on ? TURNS_OFF : TURNS_ON);
+        return f;
+    }
+
+    private static void sound(Hit h) {
+        switch (h.sound()) {
+            case CLICK -> UiSounds.click();
+            case TURNS_ON -> UiSounds.toggle(true);
+            case TURNS_OFF -> UiSounds.toggle(false);
+            default -> {
+            }
+        }
     }
 
     /** A rectangle that takes clicks but isn't in the keyboard order (a backdrop, a scroll area). */
     public void area(float x, float y, float w, float h, Runnable action) {
-        add(x, y, w, h, action, null, -1);
+        add(x, y, w, h, action, null, -1, QUIET);
     }
 
-    private void add(float x, float y, float w, float h, Runnable action, Drag drag, int focusIndex) {
+    private void add(float x, float y, float w, float h, Runnable action, Drag drag, int focusIndex, int sound) {
         float x0 = x, y0 = y, x1 = x + w, y1 = y + h;
         if (g.clipRect(clip)) {
             x0 = Math.max(x0, clip[0]);
@@ -80,12 +100,12 @@ public final class Ui {
                 return;
             }
         }
-        hits.add(new Hit(x0, y0, x1, y1, action, drag, focusIndex));
+        hits.add(new Hit(x0, y0, x1, y1, action, drag, focusIndex, sound));
     }
 
     public int drag(float x, float y, float w, float h, Drag d) {
         int f = focusCount++;
-        add(x, y, w, h, null, d, f);
+        add(x, y, w, h, null, d, f, QUIET);
         return f;
     }
 
@@ -112,6 +132,7 @@ public final class Ui {
                     h.drag().to(x, y);
                 } else if (h.click() != null) {
                     h.click().run();
+                    sound(h);
                 }
                 return true;
             }
@@ -139,6 +160,7 @@ public final class Ui {
         for (Hit h : last) {
             if (h.focus() == focus && focus >= 0 && h.click() != null) {
                 h.click().run();
+                sound(h);
                 return true;
             }
         }
@@ -170,7 +192,7 @@ public final class Ui {
      */
     public void smallSwitch(Tokens tk, float x, float y, boolean on, Runnable toggle) {
         float sx = x + 30f - SWITCH_W, sy = y + 9f - SWITCH_H / 2f;
-        int f = click(sx - 2f, sy - 2f, SWITCH_W + 4f, SWITCH_H + 4f, toggle);
+        int f = toggleClick(sx - 2f, sy - 2f, SWITCH_W + 4f, SWITCH_H + 4f, on, toggle);
         Widgets.pixelSwitch(g, sx, sy, on, over(sx, sy, SWITCH_W, SWITCH_H));
         if (focused(f)) {
             Pix.focus(g, sx, sy, SWITCH_W, SWITCH_H);

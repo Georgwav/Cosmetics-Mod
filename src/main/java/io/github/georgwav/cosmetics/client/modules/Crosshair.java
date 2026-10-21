@@ -8,13 +8,18 @@ import net.minecraft.client.Minecraft;
 import java.util.List;
 
 /**
- * Your own crosshair in place of the game's: a cross, a T, a circle or a dot, with its arm length, gap, thickness,
- * colour and opacity, a centre dot and an outline; another colour on something living, arms that open while you
- * move, and a bar for the attack cooldown (the game's attack indicator isn't drawn while it is on). It is drawn in
- * screen pixels, so it is as sharp and as large at any GUI scale.
+ * Your own crosshair in place of the game's: a cross, a T, a circle, a dot, or one you paint pixel by pixel on a 15 by
+ * 15 grid (Custom), with its arm length, gap, thickness, colour and opacity, a centre dot and an outline; another
+ * colour on something living, arms that open while you move, and a bar for the attack cooldown (the game's attack
+ * indicator isn't drawn while it is on). It is drawn in screen pixels, so it is as sharp and as large at any GUI scale.
  */
 public final class Crosshair extends Module {
-    private final Setting.Choice style = add(new Setting.Choice("style", "cross", List.of("cross", "t", "circle", "dot")).group("look"));
+    private final Setting.Choice style = add(new Setting.Choice("style", "cross", List.of("cross", "t", "circle", "dot", "custom")).group("look"));
+    /** The Custom style: a 15 by 15 picture painted on the module's page (a plus with a gap and a dot to start). */
+    public static final int GRID = 15;
+    private final Setting.Pixels shape = add(new Setting.Pixels("shape", GRID, defaultShape()).group("look"));
+    /** How many pixels each of the picture's pixels is. */
+    private final Setting.Slider cell = add(new Setting.Slider("cell", 1, 1, 4, 1, Crosshair::px).group("look"));
     private final Setting.Slider length = add(new Setting.Slider("length", 7, 1, 24, 1, Crosshair::px).group("look"));
     private final Setting.Slider gap = add(new Setting.Slider("gap", 3, 0, 16, 1, Crosshair::px).group("look"));
     private final Setting.Slider thickness = add(new Setting.Slider("thickness", 2, 1, 6, 1, Crosshair::px).group("look"));
@@ -41,6 +46,37 @@ public final class Crosshair extends Module {
 
     public Crosshair() {
         super("crosshair", Category.VIEW, "target");
+        shape.shownWhen(this::custom);
+        cell.shownWhen(this::custom);
+        // The bars' sizes don't apply to a painted one.
+        length.shownWhen(() -> !custom());
+        gap.shownWhen(() -> !custom());
+        thickness.shownWhen(() -> !custom());
+        dot.shownWhen(() -> !custom());
+    }
+
+    private boolean custom() {
+        return style.get().equals("custom");
+    }
+
+    /** The painted picture's starting point: arms three pixels long, a gap of two, and the middle pixel. */
+    private static String defaultShape() {
+        char[] c = new char[GRID * GRID];
+        java.util.Arrays.fill(c, '0');
+        int m = GRID / 2;
+        c[m * GRID + m] = '1';
+        for (int d = 3; d <= 5; d++) {
+            c[m * GRID + m - d] = '1';
+            c[m * GRID + m + d] = '1';
+            c[(m - d) * GRID + m] = '1';
+            c[(m + d) * GRID + m] = '1';
+        }
+        return new String(c);
+    }
+
+    /** The painted picture, for the module page's painter. */
+    public Setting.Pixels shape() {
+        return shape;
     }
 
     /** On by default: it shows the theme's colour (see Modules.DEFAULTS). */
@@ -66,7 +102,7 @@ public final class Crosshair extends Module {
     /** Enlarged, as large as fits, so each of its pixels shows. */
     @Override
     public void drawPreview(Canvas g, int x0, int y0, int x1, int y1) {
-        int extent = (int) Math.round(gap.get() + length.get() + thickness.get()) + 2;
+        int extent = custom() ? (GRID / 2 + 1) * (int) Math.round(cell.get()) + 2 : (int) Math.round(gap.get() + length.get() + thickness.get()) + 2;
         int pixel = Math.max(1, Math.min(4, ((y1 - y0) / 2 - 4) / extent));
         draw(g, (x0 + x1) / 2, (y0 + y1) / 2, pixel);
     }
@@ -147,7 +183,8 @@ public final class Crosshair extends Module {
             if (k < 1f) {
                 // Under the crosshair: a track and the part recharged so far.
                 int t = (int) Math.round(thickness.get());
-                int below = (int) Math.round(gap.get() + length.get()) + t / 2 + open + 4;
+                int below = custom() ? (GRID / 2 + 1) * (int) Math.round(cell.get()) + 3
+                        : (int) Math.round(gap.get() + length.get()) + t / 2 + open + 4;
                 int half = 8;
                 int fill = Math.round(half * 2 * k);
                 if (outline.get()) {
@@ -168,6 +205,10 @@ public final class Crosshair extends Module {
         int a0 = -t / 2;
         int a1 = a0 + t;
         String s = style.get();
+        if (s.equals("custom")) {
+            painted(g, cx, cy, p, grow, argb);
+            return;
+        }
         if (s.equals("cross") || s.equals("t")) {
             rect(g, cx, cy, p, grow, a0 - gp - len, a0, a0 - gp, a1, argb);
             rect(g, cx, cy, p, grow, a1 + gp, a0, a1 + gp + len, a1, argb);
@@ -180,6 +221,31 @@ public final class Crosshair extends Module {
         }
         if (dot.get() || s.equals("dot")) {
             rect(g, cx, cy, p, grow, a0, a0, a1, a1, argb);
+        }
+    }
+
+    /** For the in-game test: times the painted picture was drawn. */
+    public static int paintedDrawn;
+
+    /** The painted picture, each of its pixels {@code cell} crosshair pixels, a row's runs as one rectangle each. */
+    private void painted(Canvas g, int cx, int cy, int p, int grow, int argb) {
+        paintedDrawn++;
+        int cs = (int) Math.round(cell.get());
+        int a0 = -cs / 2 - GRID / 2 * cs;
+        for (int y = 0; y < GRID; y++) {
+            int x = 0;
+            while (x < GRID) {
+                if (!shape.at(x, y)) {
+                    x++;
+                    continue;
+                }
+                int run = x;
+                while (run < GRID && shape.at(run, y)) {
+                    run++;
+                }
+                rect(g, cx, cy, p, grow, a0 + x * cs, a0 + y * cs, a0 + run * cs, a0 + (y + 1) * cs, argb);
+                x = run;
+            }
         }
     }
 

@@ -309,6 +309,7 @@ public final class SolHud {
             }
             HudKit.box(g, sx, sy, size, size, sel ? Colors.withAlpha(tk.accent, grow > 1f ? 0.26f : 0.18f)
                     : Colors.withAlpha(0xFF000000, Math.min(1f, 0.11f * dark)));
+            slotMark(g, ui, player, player.getInventory().getItem(m), sx, sy, size, tk);
             if (sel) {
                 // The on glow: the accent outline with two stepped rings outside it.
                 HudKit.rings(g, sx, sy, size, size, tk.accent);
@@ -377,6 +378,60 @@ public final class SolHud {
         G.end();
         c.pop();
         c.pop();
+    }
+
+    /** A Breach mace's slot colour (it pierces armour) and a Density mace's (it hits harder the further you fall). */
+    public static final int BREACH = 0xFFB56CFF, DENSITY = 0xFF5C8CFF;
+    /** The totem's backdrop gold. */
+    public static final int TOTEM = 0xFFFFC23C;
+    /** For the in-game test: mace slots marked and how full the fullest was, and totem backdrops drawn. */
+    public static int maceMarked, totemMarked;
+    public static float maceFill;
+    /** For the shot of a mace filling: a fall (blocks) shown in place of yours (negative: yours). */
+    public static float fallOverride = -1f;
+
+    /**
+     * A slot's own mark under its item: a mace's frame in its enchantment's colour (the accent for a plain one) that
+     * fills from the bottom, a pixel at a time, as you fall (full at eight blocks, where the smash hits hardest for
+     * its cost); a totem's stepped gold backdrop.
+     */
+    private static void slotMark(Gfx g, io.github.georgwav.cosmetics.client.modules.SolUiModule ui, Player player, ItemStack stack,
+                                 float sx, float sy, float size, Tokens tk) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        if (ui.totemBackdrop.get() && stack.is(net.minecraft.world.item.Items.TOTEM_OF_UNDYING)) {
+            HudKit.box(g, sx + 1f, sy + 1f, size - 2f, size - 2f, Colors.withAlpha(TOTEM, 0.22f));
+            HudKit.box(g, sx + 3f, sy + 3f, size - 6f, size - 6f, Colors.withAlpha(TOTEM, 0.2f));
+            totemMarked++;
+            return;
+        }
+        if (!ui.maceSlots.get() || !stack.is(net.minecraft.world.item.Items.MACE)) {
+            return;
+        }
+        int colour = enchanted(stack, net.minecraft.world.item.enchantment.Enchantments.BREACH) ? BREACH
+                : enchanted(stack, net.minecraft.world.item.enchantment.Enchantments.DENSITY) ? DENSITY : tk.accent | 0xFF000000;
+        HudKit.box(g, sx + 1f, sy + 1f, size - 2f, size - 2f, Colors.withAlpha(colour, 0.14f));
+        float fall = fallOverride >= 0f ? fallOverride : player.onGround() ? 0f : (float) player.fallDistance;
+        float k = Math.max(0f, Math.min(1f, (fall - 1.5f) / 6.5f));
+        float fill = (float) Math.floor((size - 2f) * k);
+        if (fill > 0f) {
+            HudKit.box(g, sx + 1f, sy + size - 1f - fill, size - 2f, fill, Colors.withAlpha(colour, 0.5f));
+        }
+        HudKit.frame(g, sx, sy, size, size, Colors.withAlpha(colour, 0.85f));
+        maceMarked++;
+        maceFill = Math.max(maceFill, k);
+    }
+
+    private static boolean enchanted(ItemStack stack, net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> key) {
+        var ench = stack.getOrDefault(net.minecraft.core.component.DataComponents.ENCHANTMENTS,
+                net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+        for (var holder : ench.keySet()) {
+            if (holder.is(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void glass(Gfx g, Tokens tk, float x, float y, float w, float h) {

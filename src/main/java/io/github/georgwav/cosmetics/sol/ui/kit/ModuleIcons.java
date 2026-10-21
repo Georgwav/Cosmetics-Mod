@@ -51,7 +51,9 @@ public final class ModuleIcons {
             Map.entry("jump_fx", "jump"),
             Map.entry("trails", "trail"),
             Map.entry("you", "person"),
-            Map.entry("world_fx", "globe"));
+            Map.entry("world_fx", "globe"),
+            Map.entry("active_modules", "lines"),
+            Map.entry("sol_toasts", "card"));
 
     /**
      * The modules that keep their own ids until they move into the ones above: each shows the icon of the module it

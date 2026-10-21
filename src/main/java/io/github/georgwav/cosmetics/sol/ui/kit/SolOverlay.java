@@ -14,7 +14,8 @@ import java.util.List;
 /**
  * What Sol draws over everything (see SolOverlayMixin): above the HUD and any open screen, even with the HUD hidden.
  * Sol's notifications are here: sunrise toasts that spring up from the bottom (the prototype's toast: a dark pill
- * with the theme's rim and glow and a small square sun), newest at the bottom, older ones moved up.
+ * with the theme's rim and glow and a small square sun), newest at the bottom, older ones moved up; and Sol toasts
+ * (SolToasts), an opening screen's dither (ScreenSlide) and the cursor's particles (CursorParticles).
  */
 public final class SolOverlay {
     private static final Design D = new Design();
@@ -53,9 +54,15 @@ public final class SolOverlay {
         if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen servers) {
             io.github.georgwav.cosmetics.sol.client.ServerListUpgrade.drawTotal(g, servers.getServers(), servers.width);
         }
+        if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
+            // Over an opening inventory or chat, its dither; over any screen, the cursor's particles.
+            io.github.georgwav.cosmetics.sol.hud.SolHud.custom(g, ScreenSlide::dither);
+            io.github.georgwav.cosmetics.sol.hud.SolHud.custom(g, CursorParticles::draw);
+        }
         // Like the game's own toasts, Sol's hide with the HUD (F1) unless a screen is open.
         if (!io.github.georgwav.cosmetics.sol.render.Mc.hudHidden() || io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
             toasts(mc, g);
+            io.github.georgwav.cosmetics.sol.hud.SolHud.custom(g, io.github.georgwav.cosmetics.client.modules.SolToasts::draw);
         }
     }
 

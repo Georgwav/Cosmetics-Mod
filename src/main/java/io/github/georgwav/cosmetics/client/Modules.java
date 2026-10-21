@@ -90,6 +90,8 @@ public final class Modules {
     public static final GlintModule GLINT = new GlintModule();
     public static final io.github.georgwav.cosmetics.client.hud.MusicHud MUSIC = new io.github.georgwav.cosmetics.client.hud.MusicHud();
     public static final io.github.georgwav.cosmetics.client.hud.LyricsHud LYRICS = new io.github.georgwav.cosmetics.client.hud.LyricsHud();
+    public static final io.github.georgwav.cosmetics.client.hud.ActiveModulesHud ACTIVE_MODULES = new io.github.georgwav.cosmetics.client.hud.ActiveModulesHud();
+    public static final io.github.georgwav.cosmetics.client.modules.SolToasts SOL_TOASTS = new io.github.georgwav.cosmetics.client.modules.SolToasts();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
     public static final io.github.georgwav.cosmetics.sol.fx.effects.KillEffects KILL_EFFECTS =
@@ -108,9 +110,10 @@ public final class Modules {
 
     private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, HIT_EFFECTS, TOTEMS, TARGET_MARK, CRYSTAL_PVP, JUMP_FX, TRAILS, YOU, WORLD_FX, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS, ACTIVE_MODULES, SOL_TOASTS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS,
+            ACTIVE_MODULES);
 
     private static boolean loading;
     private static boolean started;

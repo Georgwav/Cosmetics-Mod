@@ -40,6 +40,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ShieldStatusMixin");
         all.add("ItemPhysicsMixin");
         all.add("CosmosCracksMixin");
+        all.add("ContainerScreenAccessor");
+        all.add("ScreenSlideMixin");
         // Chunk rise: not on 1.21.5 (ChunkRise).
         //? if >=1.21.6 {
         all.add("ChunkRiseMixin");

@@ -25,7 +25,7 @@ import java.util.Locale;
 /**
  * Music: what's playing from Cider or the system's player. Sol UI shows a now-playing card in one of four styles
  * (the prototype's card with cover, title, artist, progress and time; a big cover; a slim pill; the cover alone)
- * with the karaoke line under it (sung words white, the word being sung filling in the accent), unless the lyrics are
+ * with the karaoke line under it (each word filling in the accent as it's sung, in pixel type), unless the lyrics are
  * off or have their own place (the Lyrics module); the plain look writes lines. While on it also lays the album's
  * colours over the theme (Settings: album colours for the UI, the album sky).
  */
@@ -214,7 +214,7 @@ public final class MusicHud extends TextHud {
             return 0f;
         }
         String text = l.lines().get(i).text();
-        return Math.min(KARAOKE_W, HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, text, scale()) + 12f);
+        return Math.min(KARAOKE_W, HudKit.measure(SolFont.Family.PIXEL, HudKit.TEXT, text, scale()) + 12f);
     }
 
     @Override
@@ -256,7 +256,7 @@ public final class MusicHud extends TextHud {
         Lyrics l = lyrics(n);
         int i = ownLyrics() ? lineIndex(n, l) : -1;
         if (i >= 0) {
-            float lw = Math.min(KARAOKE_W, g.width(HudKit.text(g), l.lines().get(i).text()) + 12f);
+            float lw = Math.min(KARAOKE_W, g.width(lyricFont(g), l.lines().get(i).text()) + 12f);
             karaoke(g, tk, n, l, i, rightSide ? w - lw : 0f, ch + GAP, KARAOKE_W);
         }
     }
@@ -374,13 +374,18 @@ public final class MusicHud extends TextHud {
     /** How wide the karaoke line's chip can grow. */
     static final float KARAOKE_W = CARD_W * 1.6f;
 
+    /** The karaoke line's type: Silkscreen at the HUD's text size (Geist for what Silkscreen can't draw). */
+    static SolFont lyricFont(Gfx g) {
+        return g.font(SolFont.Family.PIXEL, HudKit.TEXT);
+    }
+
     /**
-     * The karaoke line in a chip with its left at {@code x}: sung words white, the current word filling in the
-     * accent. Also the Lyrics module's.
+     * The karaoke line in a chip with its left at {@code x}, in pixel type: sung words in the accent, the word being
+     * sung filling in the accent from the left a type pixel at a time, the rest dim. Also the Lyrics module's.
      */
     static void karaoke(Gfx g, Tokens tk, NowPlaying n, Lyrics l, int i, float x, float y, float maxW) {
         Lyrics.Line line = l.lines().get(i);
-        SolFont f = HudKit.text(g);
+        SolFont f = lyricFont(g);
         String text = line.text();
         float tw = Math.min(g.width(f, text), maxW - 12f), w = tw + 12f;
         HudKit.card(g, tk, x, y, w, LYRIC_H, LYRIC_H / 2f);
@@ -391,18 +396,23 @@ public final class MusicHud extends TextHud {
             g.textMid(f, g.fit(f, text, maxW - 12f), tx, cy, 0xFFFFFFFF);
         } else {
             int cur = Karaoke.word(l, i, pos, off);
+            // One pixel of the type, in design units: the fill moves on in whole ones.
+            float typePx = Math.max(1, f.k) / Math.max(1e-3f, g.d.u);
             float wx = tx;
             for (int k = 0; k < line.words().size(); k++) {
                 String word = line.words().get(k).text();
                 float ww = g.width(f, word);
                 if (k < cur) {
-                    g.textMid(f, word, wx, cy, 0xFFFFFFFF);
+                    g.textMid(f, word, wx, cy, tk.accent);
                 } else if (k == cur) {
                     float p = Karaoke.wordProgress(l, i, k, pos, off);
+                    float filled = (float) Math.floor(ww * p / typePx) * typePx;
                     g.textMid(f, word, wx, cy, 0x73FFFFFF);
-                    g.clip(wx, y, wx + ww * p, y + LYRIC_H);
-                    g.textMid(f, word, wx, cy, tk.accent);
-                    g.endClip();
+                    if (filled > 0f) {
+                        g.clip(wx, y, wx + filled, y + LYRIC_H);
+                        g.textMid(f, word, wx, cy, tk.accent);
+                        g.endClip();
+                    }
                 } else {
                     g.textMid(f, word, wx, cy, 0x73FFFFFF);
                 }

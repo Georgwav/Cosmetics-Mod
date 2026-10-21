@@ -224,7 +224,7 @@ on or off.
 
 ### Modules
 
-The module grid has 41 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 43 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -266,13 +266,15 @@ the theme by itself.
 | Particles | A multiplier for hit particles, sharpness sparks on every hit, and fewer block, explosion and weather particles. |
 | Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's; in inventories the shimmer, an outline round the item's shape, or both. |
 | Fullbright | Brightness (G), with night vision so it works with shaders. |
-| Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
+| Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. Custom: paint your own on a 15 by 15 grid on the module's page (brush, fill, eraser, clear), each painted pixel 1 to 4 pixels big. |
 | Block outline | The outline round the block you look at, in your colour, opacity and width, with a see-through fill. Looks: Lines (the game's), or Glow (a one-texel line in the colour's brightest tone over a band of its main tone, with fainter stepped bands round it). The fill flat, or End stars: each face a window onto a deep sky with twinkling stars in the colour's tones. |
 | Movement | Toggle sprint and sneak. |
-| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the hotbar (selected slot lifts, grows or is ringed; numbers, light sweep, glass), the size of the hotbar and bars, the hearts' and experience glow, the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
+| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the hotbar (selected slot lifts, grows or is ringed; numbers, light sweep, glass), the size of the hotbar and bars, the hearts' and experience glow, the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). Mace slots: a Breach mace's slot violet, a Density mace's blue (a plain one in the accent), filling from the bottom a pixel at a time as you fall, full at eight blocks; totems on a gold backdrop. As the tab list opens, its players slide in one after another. Inventories, containers and the chat slide up 8 pixels into place in three whole steps, fading in through a dither in the theme's panel colour (nothing is scaled). Cursor particles in menus (off, stars, hearts or Sol's sparkles) and UI sounds (off, or one of Sol's sound packs or yours: a click for buttons, a toggle for switches, a softer click as a menu opens, a pop for toasts), with their volume. |
+| Active modules | The modules that are on, down the right edge in pixel type, the widest at the top, each row in the next of the theme's tones (or the accent, or white); they slide in and out as you switch them. Below the kill feed while it shows kills. HUD modules left out unless you ask. |
+| Sol toasts | Small pixel toasts with an icon and one line for what happens, each kind on its own switch: a module switched with its key or a wheel, a totem popping (yours or another player's, with the count), a kill, the song changing, your health getting low. They slide in from the corner you pick in whole steps, up to three stacked, past any HUD module already in that corner, and leave after 2.5 s. Several modules switched at once (a profile, a preset) make none. |
 | Combo | Your hit streak as a big pixel number that pops on every hit (from two hits on, ringed from five), ending when you're hit or after two seconds with no hit (both settings). |
 | Kill feed | Kills slide in at the top right, newest on top: who, with what (the item's icon, or a fist) and whom; yours in your colour, your deaths in red. Yours from what you see die; everyone else's from the server's death messages (a setting). Five lines, four seconds each, both settings. |
-| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Keystrokes sits at the right edge's middle by default, leaving the top right to the kill feed. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it; Lyrics the line being sung on its own, anywhere. |
+| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Keystrokes sits at the right edge's middle by default, leaving the top right to the kill feed. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it in pixel type, each word filling in the accent as it's sung; Lyrics the line being sung on its own, anywhere. |
 | Sol Chat | Timestamps (click to copy a message), stacked repeats, up to 5,000 messages kept, emoji shortcodes and an emoji picker. |
 | World Overlays | Chunk borders, where mobs can spawn, beacon range, slime chunks (from the world's seed in singleplayer, `/seed` for operators, or a seed you type) and structure outlines in singleplayer. |
 | Inventory | Durability as numbers on items. |
@@ -516,4 +518,8 @@ part. One release per era (1.21.1, 1.21.11 and 26.3) plays every effect in every
 effect once in its default style, every grey one and the real events (`-Dcosmeticsmod.fxAll=true` plays them all).
 The hands (Punchy) are shot with the Stars and Bands looks, with what you hold (flames on the sword, your arm holding
 it, the shield red from an axe's cooldown, each counted as drawn) and with the view model moved and the hands kept
-still; on those three releases each swing style is shot a third of the way into a swing.
+still; on those three releases each swing style is shot a third of the way into a swing. The HUD's extras are shot together: Sol toasts
+from real events (a module switched, a totem popping, the song), the active modules list, a Breach and a Density mace
+with a fall shown on their slots, a totem's backdrop and the painted crosshair, with UI sounds on (each counted as
+drawn or played); also the crosshair's painter, an inventory and the tab list caught as they slide in, and the cursor's
+sparkles over the menu.

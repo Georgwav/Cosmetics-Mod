@@ -57,6 +57,11 @@ public final class SolTitleScreen extends SolScreen {
     }
 
     @Override
+    protected boolean openSound() {
+        return false;
+    }
+
+    @Override
     protected boolean blurs() {
         return false;
     }

@@ -416,7 +416,9 @@ public final class ModulePage implements Page {
             g.textMid(df, d, dx + 8f, cy, 0xB3FFFFFF);
         }
         float extra = 0f;
-        if (st instanceof Setting.Toggle t) {
+        if (st instanceof Setting.Pixels px) {
+            extra = painter(g, ui, tk, px, x, y + rh);
+        } else if (st instanceof Setting.Toggle t) {
             ui.smallSwitch(tk, right - 30f, cy - 9f, t.get(), () -> t.set(!t.get()));
         } else if (st instanceof Setting.Slider sl) {
             float v = (float) ((sl.get() - sl.min) / Math.max(1e-9, sl.max - sl.min));
@@ -502,6 +504,53 @@ public final class ModulePage implements Page {
         }
         g.rect(x, y + rh + extra - 1f, w, Math.max(1f / g.d.u, 1f), 0x0AFFFFFF);
         return y + rh + extra;
+    }
+
+    /** The painter's tool: 0 brush, 1 fill, 2 eraser. */
+    private int paintTool;
+    /** For the in-game test: frames a painter was drawn. */
+    public static int paintersDrawn;
+
+    /**
+     * A picture setting's painter (the crosshair's Custom style): its grid, a cell per pixel, with the middle row and
+     * column marked; drag to paint with the brush, the fill (every joined empty pixel) or the eraser; and Clear.
+     * Returns its height.
+     */
+    private float painter(Gfx g, Ui ui, Tokens tk, Setting.Pixels px, float x, float y) {
+        paintersDrawn++;
+        int n = px.size;
+        float cell = 12f, side = cell * n, gx = x + 4f, gy = y + 4f;
+        int m = n / 2;
+        Pix.fill(g, gx - 4f, gy - 4f, side + 8f, side + 8f, 0x66000000);
+        int hx = ui.over(gx, gy, side, side) ? (int) ((ui.mx - gx) / cell) : -1;
+        int hy = hx >= 0 ? (int) ((ui.my - gy) / cell) : -1;
+        for (int cy = 0; cy < n; cy++) {
+            for (int cx = 0; cx < n; cx++) {
+                int c = px.at(cx, cy) ? tk.accent | 0xFF000000
+                        : cx == m || cy == m ? 0x24FFFFFF : ((cx + cy) & 1) == 0 ? 0x0DFFFFFF : 0x17FFFFFF;
+                g.rect(gx + cx * cell, gy + cy * cell, cell - 1f, cell - 1f, c);
+            }
+        }
+        if (hx >= 0 && hx < n && hy >= 0 && hy < n) {
+            Pix.frame(g, gx + hx * cell - 1f, gy + hy * cell - 1f, cell + 1f, cell + 1f, 0xCCFFFFFF);
+        }
+        ui.drag(gx, gy, side, side, (mx, my) -> {
+            int cx = (int) Math.floor((mx - gx) / cell), cy = (int) Math.floor((my - gy) / cell);
+            switch (paintTool) {
+                case 1 -> px.fill(cx, cy);
+                case 2 -> px.put(cx, cy, false);
+                default -> px.put(cx, cy, true);
+            }
+        });
+        String[] tools = {SolMenu.tr("sol.menu.page.paint.brush"), SolMenu.tr("sol.menu.page.paint.fill"),
+                SolMenu.tr("sol.menu.page.paint.eraser")};
+        float tx = gx + side + 24f;
+        for (int i = 0; i < tools.length; i++) {
+            final int tool = i;
+            ui.chip(tk, tx, gy + 14f + i * 36f, tools[i], paintTool == i, () -> paintTool = tool);
+        }
+        ui.chip(tk, tx, gy + 14f + 3 * 36f + 12f, SolMenu.tr("sol.menu.page.paint.clear"), false, px::clear);
+        return side + 16f;
     }
 
     /** The key that switches the whole module on and off: "Toggle mod". */

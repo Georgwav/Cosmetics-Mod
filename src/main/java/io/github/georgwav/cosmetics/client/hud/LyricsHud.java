@@ -14,8 +14,7 @@ import java.util.List;
 
 /**
  * Lyrics: the karaoke line of the song playing, on its own, wherever you put it (above the hotbar by default)
- * instead of under the Music card. Sung words white, the word being sung filling in the accent, and the next line
- * under it if you want it. Needs the Music module for the song.
+ * instead of under the Music card. Each word fills in the accent as it's sung, and the next line can show under it. Needs the Music module for the song.
  */
 public final class LyricsHud extends HudModule {
     private final Setting.Toggle nextLine = add(new Setting.Toggle("next_line", false).group("look"));
@@ -69,8 +68,22 @@ public final class LyricsHud extends HudModule {
             return;
         }
         int w = plainWidth(mc);
-        String text = l.lines().get(i).text();
-        g.text(mc.font, text, x(w, mc.font.width(text)), 4, 0xFFFFFFFF, true);
+        Lyrics.Line line = l.lines().get(i);
+        String text = line.text();
+        int tx = x(w, mc.font.width(text));
+        if (line.words().isEmpty()) {
+            g.text(mc.font, text, tx, 4, 0xFFFFFFFF, true);
+        } else {
+            // Sung words, and the one being sung, in the accent; the rest white.
+            int cur = io.github.georgwav.cosmetics.sol.music.Karaoke.word(l, i, n.position(),
+                    io.github.georgwav.cosmetics.sol.music.MusicService.offset(n));
+            int accent = 0xFF000000 | io.github.georgwav.cosmetics.sol.theme.ThemeState.tokens().accent;
+            for (int k = 0; k < line.words().size(); k++) {
+                String word = line.words().get(k).text();
+                g.text(mc.font, word, tx, 4, k <= cur ? accent : 0xFFFFFFFF, true);
+                tx += mc.font.width(word);
+            }
+        }
         if (nextLine.get()) {
             String next = nextText(l, i);
             g.text(mc.font, next, x(w, mc.font.width(next)), 14, 0x99FFFFFF, true);
@@ -114,7 +127,7 @@ public final class LyricsHud extends HudModule {
             return;
         }
         float room = MusicHud.KARAOKE_W;
-        SolFont f = HudKit.text(g);
+        SolFont f = MusicHud.lyricFont(g);
         float lw = Math.min(room, g.width(f, l.lines().get(i).text()) + 12f);
         MusicHud.karaoke(g, tk, n, l, i, place(room, lw), 0f, room);
         if (nextLine.get()) {

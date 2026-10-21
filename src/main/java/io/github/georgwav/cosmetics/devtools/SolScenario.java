@@ -38,12 +38,12 @@ public final class SolScenario {
             "menu_world", "menu_world_night", "menu_presets", "menu_wardrobe", "menu_emotes", "menu_modules_green", "menu_modules_light",
             "quick_hud_light", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
-            "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_hit_effects", "menu_drawer_totems", "menu_drawer_target", "menu_drawer_trails", "menu_drawer_you", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
+            "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_crosshair__your", "menu_drawer_camera",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_hit_effects", "menu_drawer_totems", "menu_drawer_target", "menu_drawer_trails", "menu_drawer_you", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "menu_cursor", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_colour", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "hands_stars", "hands_bands", "hands_held", "hands_view", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "hud_sol", "hud_colour", "hud_off", "tab", "tab_slide", "chat", "inventory", "inventory_slide", "hud_extras", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "hands_stars", "hands_bands", "hands_held", "hands_view", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs",
             "styles_world", "styles_live", "menu_styles_tools", "menu_styles_tools_full", "menu_styles_crystal", "menu_styles_look", "menu_styles_tree", "menu_styles_editor",
             "styles_sky", "styles_packsky"};
@@ -581,10 +581,14 @@ public final class SolScenario {
                 io.github.georgwav.cosmetics.sol.render.Mc.clearToasts();
             }
             // The tab list shot holds the player list key.
-            mc.options.keyPlayerList.setDown(s.name().equals("ui_tab"));
+            mc.options.keyPlayerList.setDown(s.name().equals("ui_tab") || s.name().equals("ui_tab_slide"));
             mc.options.keyUse.setDown(spyglassShot(s.name()) && phaseTick > 4);
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
+            }
+            hudExtrasTick(mc, s.name(), phaseTick);
+            if (phaseTick == SETTLE) {
+                checkExtras(s.name());
             }
             if (phaseTick == SETTLE - 20 && s.name().equals("ui_packs") && io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
                 // Typing in the pack screen's search (Sol's before 1.21.9, the game's after).
@@ -829,6 +833,7 @@ public final class SolScenario {
         serversForShot(what.equals("servers"));
         handsForShot(what);
         handFeaturesForShot(what);
+        hudExtrasForShot(what);
         blockForShot(what.equals("hud_colour"));
         stylesForShot(what.equals("hud_styles"));
         StylesScenario.stage(what);
@@ -857,8 +862,8 @@ public final class SolScenario {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
             return;
         }
-        screenForShot(what.equals("inventory"));
-        if (what.equals("inventory")) {
+        screenForShot(what.startsWith("inventory"));
+        if (what.startsWith("inventory")) {
             // Your inventory over the world, which Screen leaves undarkened.
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.inventory.InventoryScreen(
                     Minecraft.getInstance().player));
@@ -1000,8 +1005,9 @@ public final class SolScenario {
             // The menu's Wardrobe tab: the Wardrobe itself, in the window.
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.inMenu(null, "all", false));
         } else {
+            String state = what.substring("menu_".length());
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
-                    io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
+                    io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(state.equals("cursor") ? "modules" : state));
         }
     }
 
@@ -1237,6 +1243,7 @@ public final class SolScenario {
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
         return what.equals("hud_sol") || what.equals("hud_colour") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
+                || what.equals("tab_slide") || what.equals("inventory_slide") || what.equals("hud_extras")
                 || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles")
                 || what.equals("styles_world") || what.equals("styles_live");
     }
@@ -1501,6 +1508,156 @@ public final class SolScenario {
      * swing style held a third of the way into a swing.
      */
     @SuppressWarnings("unchecked")
+    // ------------------------------------------------------------------ step 11: the HUD's extras
+
+    /** What the step 11 shots changed, as it was (empty while none of them is showing). */
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Setting<?>, Object> EXTRAS_WERE = new java.util.HashMap<>();
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Module, Boolean> EXTRAS_ON_WERE = new java.util.LinkedHashMap<>();
+    /** Whether the HUD's extras gave you their maces and totem (put back after). */
+    private static boolean extrasItems;
+
+    @SuppressWarnings("unchecked")
+    private static <T> void extra(io.github.georgwav.cosmetics.client.Module m, String id, T value) {
+        for (var st : m.settings()) {
+            if (st.id.equals(id)) {
+                EXTRAS_WERE.putIfAbsent(st, st.get());
+                ((io.github.georgwav.cosmetics.client.Setting<T>) st).set(value);
+            }
+        }
+    }
+
+    private static void extraOn(io.github.georgwav.cosmetics.client.Module m, boolean on) {
+        EXTRAS_ON_WERE.putIfAbsent(m, m.enabled());
+        m.setEnabled(on);
+    }
+
+    /**
+     * Step 11's shots: the HUD's extras (Sol toasts from real events, the active modules list, Breach and Density maces
+     * with a fall shown, a totem's backdrop, the painted crosshair, UI sounds on), the crosshair's painter, an inventory
+     * and the tab list caught as they slide in, and the cursor's sparkles over the menu.
+     */
+    @SuppressWarnings("unchecked")
+    private static void hudExtrasForShot(String what) {
+        Minecraft mc = Minecraft.getInstance();
+        for (var e : EXTRAS_WERE.entrySet()) {
+            ((io.github.georgwav.cosmetics.client.Setting<Object>) e.getKey()).set(e.getValue());
+        }
+        EXTRAS_WERE.clear();
+        for (var e : EXTRAS_ON_WERE.entrySet()) {
+            e.getKey().setEnabled(e.getValue());
+        }
+        EXTRAS_ON_WERE.clear();
+        io.github.georgwav.cosmetics.client.modules.SolToasts.hold = Float.NaN;
+        io.github.georgwav.cosmetics.sol.hud.SolHud.fallOverride = -1f;
+        io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.hold = -1;
+        io.github.georgwav.cosmetics.sol.hud.TabSlide.hold = Float.NaN;
+        io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeX = Float.NaN;
+        io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeY = Float.NaN;
+        boolean extras = what.equals("hud_extras");
+        if (extrasItems && !extras) {
+            asPlayer(mc, List.of("item replace entity @s hotbar.5 with torch 23", "item replace entity @s hotbar.7 with ender_pearl 3",
+                    "item replace entity @s hotbar.8 with air"));
+            extrasItems = false;
+        }
+        if (extras) {
+            extraOn(io.github.georgwav.cosmetics.client.Modules.SOL_TOASTS, true);
+            extraOn(io.github.georgwav.cosmetics.client.Modules.ACTIVE_MODULES, true);
+            extra(io.github.georgwav.cosmetics.client.Modules.CROSSHAIR, "style", "custom");
+            extra(io.github.georgwav.cosmetics.client.Modules.SOL_UI, "ui_sounds", "chime");
+            // A fall of five blocks shown on the maces' slots; the toasts held in place for the frame.
+            io.github.georgwav.cosmetics.sol.hud.SolHud.fallOverride = 5f;
+            io.github.georgwav.cosmetics.client.modules.SolToasts.hold = 1f;
+            //? if >=1.21.5 {
+            String breach = "mace[enchantments={\"minecraft:breach\":4}]", density = "mace[enchantments={\"minecraft:density\":5}]";
+            //?} else {
+            /*String breach = "mace[enchantments={levels:{\"minecraft:breach\":4}}]", density = "mace[enchantments={levels:{\"minecraft:density\":5}}]";
+            *///?}
+            asPlayer(mc, List.of("item replace entity @s hotbar.5 with totem_of_undying", "item replace entity @s hotbar.7 with " + breach,
+                    "item replace entity @s hotbar.8 with " + density));
+            extrasItems = true;
+        }
+        if (what.equals("menu_drawer_crosshair__your")) {
+            extra(io.github.georgwav.cosmetics.client.Modules.CROSSHAIR, "style", "custom");
+        }
+        if (what.equals("inventory_slide")) {
+            io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.hold = 1;
+        }
+        if (what.equals("tab_slide")) {
+            io.github.georgwav.cosmetics.sol.hud.TabSlide.hold = 0.07f;
+        }
+        if (what.equals("menu_cursor")) {
+            extra(io.github.georgwav.cosmetics.client.Modules.SOL_UI, "cursor_particles", "sparkles");
+        }
+    }
+
+    /** During step 11's shots: the events the toasts show (a tick apart, so each is its own), and the cursor's path. */
+    private static void hudExtrasTick(Minecraft mc, String name, int tick) {
+        if (name.equals("ui_hud_extras")) {
+            if (tick == 6) {
+                // A module switched on its own (Movement), then a totem popping.
+                extraOn(io.github.georgwav.cosmetics.client.Modules.MOVEMENT, !io.github.georgwav.cosmetics.client.Modules.MOVEMENT.enabled());
+            } else if (tick == 9 && mc.player != null) {
+                io.github.georgwav.cosmetics.sol.fx.FxEvents.totem(mc.player);
+            }
+        }
+        if (name.equals("ui_menu_cursor")) {
+            float w = mc.getWindow().getGuiScaledWidth(), h = mc.getWindow().getGuiScaledHeight();
+            io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeX = w * 0.5f + w * 0.18f * (float) Math.cos(tick * 0.25);
+            io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeY = h * 0.55f + h * 0.12f * (float) Math.sin(tick * 0.5);
+        }
+    }
+
+    /** Step 11's checks, at the moment of the shot. */
+    private void checkExtras(String name) {
+        switch (name) {
+            case "ui_hud_extras" -> {
+                if (io.github.georgwav.cosmetics.client.modules.SolToasts.posted < 3
+                        || io.github.georgwav.cosmetics.client.modules.SolToasts.framesDrawn == 0) {
+                    problems.add(name + ": Sol toasts posted " + io.github.georgwav.cosmetics.client.modules.SolToasts.posted
+                            + " (want a switch, a totem and the song) and drew " + io.github.georgwav.cosmetics.client.modules.SolToasts.framesDrawn + " frames");
+                }
+                if (io.github.georgwav.cosmetics.client.hud.ActiveModulesHud.framesDrawn == 0) {
+                    problems.add(name + ": the active modules list didn't draw");
+                }
+                if (io.github.georgwav.cosmetics.sol.hud.SolHud.maceMarked == 0 || io.github.georgwav.cosmetics.sol.hud.SolHud.maceFill <= 0f) {
+                    problems.add(name + ": the maces' slots weren't marked or didn't fill with the fall");
+                }
+                if (io.github.georgwav.cosmetics.sol.hud.SolHud.totemMarked == 0) {
+                    problems.add(name + ": the totem's slot had no backdrop");
+                }
+                if (io.github.georgwav.cosmetics.client.modules.Crosshair.paintedDrawn == 0) {
+                    problems.add(name + ": the painted crosshair wasn't drawn");
+                }
+                if (io.github.georgwav.cosmetics.sol.ui.kit.UiSounds.played == 0) {
+                    problems.add(name + ": no UI sound played for the toasts");
+                }
+            }
+            case "ui_inventory_slide" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.slides == 0
+                        || io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.ditherFrames == 0) {
+                    problems.add(name + ": the inventory didn't slide in through its dither");
+                }
+            }
+            case "ui_tab_slide" -> {
+                if (io.github.georgwav.cosmetics.sol.hud.TabSlide.slidRows == 0) {
+                    problems.add(name + ": no row of the tab list slid in");
+                }
+            }
+            case "ui_menu_drawer_crosshair__your" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.menu.ModulePage.paintersDrawn == 0) {
+                    problems.add(name + ": the crosshair's painter didn't draw");
+                }
+            }
+            case "ui_menu_cursor" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.spawned == 0) {
+                    problems.add(name + ": no cursor particles came off the pointer");
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
     private static void handFeaturesForShot(String what) {
         var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
         for (var st : punchy.settings()) {

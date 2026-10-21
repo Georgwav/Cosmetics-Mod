@@ -153,11 +153,24 @@ public abstract class SolScreen extends Screen {
         super.removed();
     }
 
+    private boolean opened;
+
+    /** Whether it sounds UI sounds' open as it first draws (the title screen doesn't). */
+    protected boolean openSound() {
+        return true;
+    }
+
     private void draw(Canvas canvas, int mouseX, int mouseY) {
         long now = System.nanoTime();
         dt = lastNanos == 0L ? 0f : Math.min(0.05f, (now - lastNanos) / 1e9f);
         lastNanos = now;
         time += dt;
+        if (!opened) {
+            opened = true;
+            if (openSound()) {
+                UiSounds.open();
+            }
+        }
         double gs = minecraft.getWindow().getGuiScale();
         d.update(width, height, gs);
         mx = pointerOff ? -1000f : d.mouseX(mouseX);
