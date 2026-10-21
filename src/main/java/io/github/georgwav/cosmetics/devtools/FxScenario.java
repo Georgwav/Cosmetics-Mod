@@ -13,6 +13,7 @@ import io.github.georgwav.cosmetics.sol.fx.effects.HitEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.KillEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.Totems;
 import io.github.georgwav.cosmetics.sol.fx.effects.Trails;
+import io.github.georgwav.cosmetics.sol.fx.effects.You;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import net.minecraft.client.Minecraft;
@@ -74,11 +75,31 @@ final class FxScenario {
     private int killTicks, cleanLeft;
     /** The other real events, in turn: a totem pop, a crystal appearing, an explosion, an arrow in flight. */
     private int realStep, realTicks;
-    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_LAND = 4, REAL_WALK = 5, REAL_DONE = 6;
-    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow", "landing", "walk"};
-    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile", "jump_", "trail_ribbon"};
-    /** Where the walk started, to put you back. */
+    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_LAND = 4, REAL_WALK = 5, REAL_CHAT = 6,
+            REAL_EAT = 7, REAL_SPRINT = 8, REAL_CUBES = 9, REAL_PETS = 10, REAL_DONE = 11;
+    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow", "landing", "walk", "chat line", "meal",
+            "sprint", "glowing cubes", "pets"};
+    /** The kinds each real event must start (the sprint's lean and the cubes aren't in the pool: they're checked on their own). */
+    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile", "jump_", "trail_ribbon",
+            "you_bubble", "you_eat", null, null, null};
+    /** What you wore before the pets were put on. */
+    private List<String> wornWas;
+    /** More ambience and its cubes as they were. */
+    private boolean ambienceWas, cubesWas;
+    /** Whether the meal holds the use key down, before each tick as well (registered once). */
+    private static volatile boolean holdUse;
+
+    static {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(mc -> {
+            if (holdUse) {
+                mc.options.keyUse.setDown(true);
+            }
+        });
+    }
+
+    /** Where the walk started, to put you back, and your game mode before the meal. */
     private double walkX, walkY, walkZ;
+    private String modeWas = "creative";
     /** The camera for the case being staged. */
     static float pitch = 10f;
 
@@ -237,6 +258,23 @@ final class FxScenario {
         cases.add(new Case("trail_ghost", trails, () -> only(trails, trails.ghost.on), 5f, 8f, true, false, "trail_ghost"));
         cases.add(new Case("trail_footsteps", trails, () -> only(trails, trails.footsteps.on), 4.5f, 34f, true, false, "trail_footprint"));
         cases.add(new Case("trail_contrails", trails, () -> only(trails, trails.contrails.on), 6f, -12f, true, false, "trail_contrail"));
+        // You: the Naruto run (a copy of you in it), a chat bubble, and a burst of crumbs then drips.
+        You you = Modules.YOU;
+        cases.add(new Case("you_naruto", you, () -> only(you, "naruto"), 3.6f, 4f, false, false, "you_naruto"));
+        // The bubble's rim is the accent, but over the sky behind it (as near Frost's accent as makes no difference) it
+        // can't be told apart in the frame: its colour isn't measured.
+        cases.add(new Case("you_bubble", you, () -> only(you, "bubble"), 4.5f, -10f, false, false, "you_bubble"));
+        cases.add(new Case("you_eat", you, () -> only(you, "eat"), 2.4f, 8f, false, false, "you_eat"));
+    }
+
+    /** You with only one of its parts on, in the preset's colour. */
+    private static void only(You y, String which) {
+        y.naruto.set(which.equals("naruto"));
+        y.bubbles.on.set(which.equals("bubble"));
+        y.bubbles.colourMode.set("theme");
+        y.bubbleWhose.set("everyone");
+        y.eating.set(which.equals("eat"));
+        y.eatingWhose.set("everyone");
     }
 
     /** Trails with only one of its trails on, in the preset's colour. */
@@ -308,7 +346,7 @@ final class FxScenario {
             "hit_words", "hit_damage", "hit_marker", "totem_ghost", "totem_shatter", "totem_angel", "totem_pop_roll", "target_ring",
             "chams_crystal_glow", "chams_you", "friend_marker", "jump_square_ring", "jump_hologram", "jump_particles_fire",
             "crystal_rings", "trail_dots", "trail_ribbon", "trail_ribbon_rainbow", "trail_firefly", "trail_ghost", "trail_footsteps",
-            "trail_contrails");
+            "trail_contrails", "you_naruto", "you_bubble", "you_eat");
 
     /**
      * Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks; the
@@ -748,6 +786,60 @@ final class FxScenario {
                     cmds.add(String.format(java.util.Locale.ROOT, "tp %s %.2f %.2f %.2f", mc.player.getName().getString(), mc.player.getX(),
                             mc.player.getY() + 3.0, mc.player.getZ()));
                 }
+                case REAL_CHAT -> {
+                    // Saying something: the server sends it back as a chat line, and a bubble pops up over you.
+                    You yo = Modules.YOU;
+                    yo.setEnabled(true);
+                    only(yo, "bubble");
+                    yo.bubbles.firstPerson.set(true);
+                    if (mc.player.connection != null) {
+                        mc.player.connection.sendChat("Sol says hi");
+                    }
+                }
+                case REAL_EAT -> {
+                    // Eating a golden apple in third person: crumbs at your mouth.
+                    You yo = Modules.YOU;
+                    yo.setEnabled(true);
+                    only(yo, "eat");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    // Only a survival player eats (the server stops anyone else's eating straight away).
+                    modeWas = mc.gameMode != null ? mc.gameMode.getPlayerMode().getName() : "creative";
+                    cmds.add("gamemode survival " + mc.player.getName().getString());
+                    cmds.add("item replace entity " + mc.player.getName().getString() + " weapon.mainhand with minecraft:golden_apple");
+                }
+                case REAL_SPRINT -> {
+                    // Sprinting forward in third person: you lean into the Naruto run.
+                    You yo = Modules.YOU;
+                    yo.setEnabled(true);
+                    only(yo, "naruto");
+                    cmds.add("item replace entity " + mc.player.getName().getString() + " weapon.mainhand with minecraft:air");
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    walkX = mc.player.getX();
+                    walkY = mc.player.getY();
+                    walkZ = mc.player.getZ();
+                }
+                case REAL_CUBES -> {
+                    // More ambience's glowing cubes: a dozen about within two seconds.
+                    Atmosphere at = Atmosphere.INSTANCE;
+                    if (at != null) {
+                        ambienceWas = at.ambience.get();
+                        cubesWas = at.ambienceCubes.get();
+                        at.ambience.set(true);
+                        at.ambienceCubes.set(true);
+                    }
+                }
+                case REAL_PETS -> {
+                    // Sol's three following pets on you: they follow your walk, then the dog sits when you stop.
+                    var worn = io.github.georgwav.cosmetics.config.CosmeticsConfig.get().localEquipped();
+                    wornWas = new ArrayList<>(worn);
+                    worn.clear();
+                    worn.addAll(List.of("cosmeticsmod:sol_dog", "cosmeticsmod:sol_ghost", "cosmeticsmod:sol_mini_you"));
+                    io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    walkX = mc.player.getX();
+                    walkY = mc.player.getY();
+                    walkZ = mc.player.getZ();
+                }
                 case REAL_WALK -> {
                     // Walking sideways in third person: the ribbon is laid from your own ticks.
                     Trails t = Modules.TRAILS;
@@ -784,11 +876,75 @@ final class FxScenario {
             double a = Math.toRadians(mc.player.getYRot());
             mc.player.setPos(mc.player.getX() - Math.cos(a) * 0.3, mc.player.getY(), mc.player.getZ() - Math.sin(a) * 0.3);
         }
-        int n = FxWorld.POOL.count(REAL_KINDS[realStep]);
-        if (n > 0 || realTicks > 40) {
-            if (realStep == REAL_WALK) {
+        if (realStep == REAL_PETS && realTicks > 4 && realTicks <= 24) {
+            // Twenty ticks of walking forward, then standing still.
+            double a = Math.toRadians(mc.player.getYRot());
+            mc.player.setPos(mc.player.getX() - Math.sin(a) * 0.22, mc.player.getY(), mc.player.getZ() + Math.cos(a) * 0.22);
+            if (realTicks == 18) {
+                FrameGrab.grab(mc, "fx-real-pets-walk");
+            }
+        }
+        if (realStep == REAL_EAT && realTicks > 2) {
+            // Start eating as a right click does, then hold the key so it goes on (the mouse's buttons are read again
+            // during the tick, so it's held down before each tick too).
+            holdUse = true;
+            mc.options.keyUse.setDown(true);
+            if (!mc.player.isUsingItem() && mc.gameMode != null && !mc.player.getMainHandItem().isEmpty()) {
+                mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+        }
+        if (realStep == REAL_SPRINT && realTicks > 2) {
+            mc.options.keyUp.setDown(true);
+            mc.options.keySprint.setDown(true);
+        }
+        var pets = io.github.georgwav.cosmetics.sol.fx.FollowPets.INSTANCE;
+        int n = REAL_KINDS[realStep] != null ? FxWorld.POOL.count(REAL_KINDS[realStep])
+                : realStep == REAL_SPRINT ? (Modules.YOU.lean() > 0.9f ? 1 : 0)
+                : realStep == REAL_PETS ? (realTicks > 24 && pets.count() >= 3 && pets.drawnFrames > 0 && pets.sitting(mc.player.getUUID()) ? 1 : 0)
+                : io.github.georgwav.cosmetics.sol.atmosphere.GlowCubes.INSTANCE.count() >= 12 ? 1 : 0;
+        if (n > 0 || realTicks > (realStep == REAL_PETS ? 90 : 40)) {
+            if (realStep == REAL_PETS) {
+                if (n > 0) {
+                    FrameGrab.grab(mc, "fx-real-pets-sit");
+                } else {
+                    problems.add("fx real pets: " + pets.count() + " following, " + pets.drawnFrames + " frames drawn, sitting "
+                            + pets.sitting(mc.player.getUUID()));
+                    n = 1;
+                }
+                var worn = io.github.georgwav.cosmetics.config.CosmeticsConfig.get().localEquipped();
+                worn.clear();
+                if (wornWas != null) {
+                    worn.addAll(wornWas);
+                }
+                io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
                 mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                 mc.player.setPos(walkX, walkY, walkZ);
+            }
+            if (realStep == REAL_SPRINT && n > 0) {
+                FrameGrab.grab(mc, "fx-real-naruto");
+            }
+            if (realStep == REAL_CUBES) {
+                if (n > 0) {
+                    FrameGrab.grab(mc, "fx-real-cubes");
+                }
+                Atmosphere at = Atmosphere.INSTANCE;
+                if (at != null) {
+                    at.ambience.set(ambienceWas);
+                    at.ambienceCubes.set(cubesWas);
+                }
+            }
+            if (realStep == REAL_WALK || realStep == REAL_EAT || realStep == REAL_SPRINT) {
+                holdUse = false;
+                mc.options.keyUse.setDown(false);
+                mc.options.keyUp.setDown(false);
+                mc.options.keySprint.setDown(false);
+                mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                if (realStep != REAL_EAT) {
+                    mc.player.setPos(walkX, walkY, walkZ);
+                } else if (server != null) {
+                    String back = "gamemode " + modeWas + " " + mc.player.getName().getString();
+                    server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), back));
+                }
             }
             if (n > 0) {
                 CosmeticsMod.LOGGER.info("[Sol] Effects phase: a real {} started its effect after {} ticks", REAL_NAMES[realStep], realTicks);

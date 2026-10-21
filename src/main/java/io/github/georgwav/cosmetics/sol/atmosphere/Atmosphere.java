@@ -52,6 +52,7 @@ public final class Atmosphere extends Module {
     /** Days in the sky's year: the stars at a given hour turn once round through it. */
     public final Setting.Slider year = add(new Setting.Slider("year", 96, 8, 384, 8, v -> Math.round(v) + "d").group("night").advanced());
     public final Setting.Toggle ambience = add(new Setting.Toggle("ambience", false).group("world").advanced());
+    public final Setting.Toggle ambienceCubes = add(new Setting.Toggle("ambience_cubes", true).group("world").advanced());
     // Advanced: time and weather, as the Time and Weather modules had them.
     public final Setting.Toggle lockTime = add(new Setting.Toggle("lock_time", false).group("time_weather").advanced());
     public final Setting.Slider time = add(new Setting.Slider("time", 6000, 0, 23750, 250, Atmosphere::clock).group("time_weather").advanced());
@@ -61,6 +62,8 @@ public final class Atmosphere extends Module {
     public Atmosphere() {
         super("atmosphere", Category.WORLD, "sun");
         INSTANCE = this;
+        ambienceCubes.shownWhen(ambience::get);
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.LAYERS.add(GlowCubes.INSTANCE);
     }
 
     /** The intensity setting, 0..1 (1 when Atmosphere isn't loaded). */
@@ -120,12 +123,14 @@ public final class Atmosphere extends Module {
     @Override
     protected void tick(Minecraft mc) {
         Ambience.tick(mc, this);
+        GlowCubes.INSTANCE.tick(mc, ambience.get() && ambienceCubes.get());
     }
 
     @Override
     protected void onDisable(Minecraft mc) {
         SkyModGuard.atmosphereOff();
         ParticleField.clear();
+        GlowCubes.INSTANCE.clear();
     }
 
     static String clock(double ticks) {

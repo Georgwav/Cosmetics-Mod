@@ -41,7 +41,7 @@ stops the game or the other cosmetics.
 | `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
 | `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
 | `prop` | no | `true`: only shown while an emote that brings it plays (a cloud to ride), and not listed in the Wardrobe. See [Emotes](#emotes). |
-| `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head` or `floating`. See [Slots](#top-level). |
+| `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head`, `floating`, `follow` or `follow_flying`. See [Slots](#top-level). |
 | `kind` | no | What the cosmetic counts as when players wear one of a kind at a time, e.g. `"hat"` and `"ears"` so a hat and ears can be worn together. Default: `"wings"` for wings, else the slot. See [Equipping](#equipping). |
 | `first_person_turned` | no | `true`: a held cosmetic (a shield) made to face the other way round in first person than in third; it is turned half around its middle there. |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
@@ -76,8 +76,15 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 - **`pet` slot**: the pet sits on the wearer's left shoulder: model it standing on the origin, which is the top of
   that shoulder (body space `[6, 0, 0]`), growing upwards (-Y). `pet_position` moves it: `right_shoulder` (body
   `[-6, 0, 0]`), `head` (on top of the head, which it turns with) or `floating` (beside the left shoulder, a little
-  above and behind it, bobbing). Players can move any pet on its Wardrobe page. A pet with a `shoulder` or `air`
-  [style](#styles) plays `air` while floating and `shoulder` elsewhere, unless the player picks a style.
+  above and behind it, bobbing), `follow` (on the ground: it runs after the wearer to a spot behind and beside them,
+  steps up blocks, falls down them and sits when they stop) or `follow_flying` (in the air: it flies after them and
+  hovers low when they stop). Players can move any pet on its Wardrobe page. A pet with a `shoulder` or `air`
+  [style](#styles) plays `air` while floating or flying after you, `follow` while following on the ground (when it
+  has one) and `shoulder` elsewhere, unless the player picks a style. A following pet is drawn in the world on its
+  own, so `q.is_moving`, `q.ground_speed`, `q.modified_distance_moved` and `q.is_sitting` are its own walking and
+  sitting (see [Model animations](#model-animations)); in the Wardrobe it stands at the wearer's left foot (or hovers
+  by the hip). Sol's dog and little ghost (`cosmeticsmod:sol_dog`, `cosmeticsmod:sol_ghost`) are made this way: their
+  feet at the neck's height (24) in Blockbench, so they stand on the origin.
 - **`arm` slot**: on the left arm (`"sides": "right"` or `"both"` to change it), the origin halfway down the arm; the
   arm spans `[-2, -6, -2]` to `[2, 6, 2]` around it.
 - **`feet` slot**: on both legs (`"sides"` as above), modelled standing on the origin, the sole; the leg spans
@@ -427,7 +434,8 @@ What is supported in animation files:
   `q.anim_time` (seconds into the animation), `q.life_time`, `q.is_in_gui` (Wardrobe pictures), `q.is_first_person`
   (a held shield in first person), `q.is_elytra_flying` / `q.is_gliding`, `q.is_swimming`, `q.is_sneaking`,
   `q.is_flying`, `q.is_blocking`, `q.is_moving`, `q.is_on_ground`, `q.is_sprinting`, `q.is_riding`,
-  `q.ground_speed` (blocks per second) and `q.modified_distance_moved`. Other queries and functions are 0.
+  `q.ground_speed` (blocks per second), `q.modified_distance_moved` and `q.is_sitting` (a following pet sitting, or
+  the wearer riding something). Other queries and functions are 0.
 
 The cosmetic's **Animate** and **Animation speed** settings apply: off holds every animation at its start.
 

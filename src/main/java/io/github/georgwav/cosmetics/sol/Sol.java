@@ -46,6 +46,7 @@ public final class Sol {
         SolScenario.init();
         io.github.georgwav.cosmetics.sol.styles.Styles.start();
         io.github.georgwav.cosmetics.sol.fx.FxEvents.init();
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.LAYERS.add(io.github.georgwav.cosmetics.sol.fx.FollowPets.INSTANCE);
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }
 
@@ -90,5 +91,7 @@ public final class Sol {
                 () -> io.github.georgwav.cosmetics.sol.styles.Styles.tick(mc));
         io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.FX,
                 () -> io.github.georgwav.cosmetics.sol.fx.FxEvents.tick(mc));
+        io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.FX,
+                () -> io.github.georgwav.cosmetics.sol.fx.FollowPets.INSTANCE.tick(mc));
     }
 }

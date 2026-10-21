@@ -237,7 +237,7 @@ public final class CosmeticParser {
         if (json.has("pet_position")) {
             petPosition = PetPosition.byName(json.get("pet_position").getAsString());
             if (petPosition == null) {
-                throw new JsonParseException("pet_position must be left_shoulder, right_shoulder, head or floating");
+                throw new JsonParseException("pet_position must be left_shoulder, right_shoulder, head, floating, follow or follow_flying");
             }
         }
         // What it counts as when you wear one at a time ("hat", "ears", ...); by default its slot, or "wings".

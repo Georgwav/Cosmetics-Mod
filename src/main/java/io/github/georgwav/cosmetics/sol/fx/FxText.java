@@ -8,7 +8,7 @@ import io.github.georgwav.cosmetics.sol.util.TtfPixels;
  * once into an atlas, each font pixel a whole texel facing the camera, with a one-texel shadow in the deep tone.
  */
 public final class FxText {
-    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?+-.:%/'#&*()";
+    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?+-.:%/'#&*(),;\"<>=@_[]$~|^";
     private static FxTex atlas;
     /** Per character (by index in CHARS): atlas x, y, glyph w, h, left, top, advance. */
     private static final int[][] PLACE = new int[CHARS.length()][];
@@ -50,9 +50,14 @@ public final class FxText {
 
     /** The text's width in font pixels. */
     public static int width(String text) {
+        return width(text, 0, text.length());
+    }
+
+    /** The width of {@code text} from {@code start} up to {@code end} (a line of several), in font pixels. */
+    public static int width(String text, int start, int end) {
         atlas();
         int w = 0;
-        for (int i = 0; i < text.length(); i++) {
+        for (int i = start; i < end; i++) {
             int k = CHARS.indexOf(Character.toUpperCase(text.charAt(i)));
             w += k >= 0 && PLACE[k] != null ? PLACE[k][6] : 4;
         }
@@ -78,19 +83,27 @@ public final class FxText {
      */
     public static void drawOn(FxOut out, String text, float x, float y, float z, float[] r, float[] u, float texel, int argb,
                               int shadow) {
-        if (out.glowPass() || text == null || text.isEmpty()) {
+        if (text != null) {
+            drawOn(out, text, 0, text.length(), x, y, z, r, u, texel, argb, shadow);
+        }
+    }
+
+    /** {@link #drawOn(FxOut, String, float, float, float, float[], float[], float, int, int)} for a part of the text. */
+    public static void drawOn(FxOut out, String text, int start, int end, float x, float y, float z, float[] r, float[] u,
+                              float texel, int argb, int shadow) {
+        if (out.glowPass() || text == null || end <= start) {
             return;
         }
         FxTex tex = atlas();
         out.use(tex);
-        int width = width(text);
+        int width = width(text, start, end);
         float pen = -width / 2f;
         // The capitals are five font pixels tall; their middle sits on y.
         float baseline = -PixelFont.CAP / 2f;
         for (int pass = shadow != 0 ? 0 : 1; pass < 2; pass++) {
             float px = pen, off = pass == 0 ? 1f : 0f;
             int c = pass == 0 ? shadow : argb;
-            for (int i = 0; i < text.length(); i++) {
+            for (int i = start; i < end; i++) {
                 int k = CHARS.indexOf(Character.toUpperCase(text.charAt(i)));
                 int[] p = k >= 0 ? PLACE[k] : null;
                 if (p == null) {

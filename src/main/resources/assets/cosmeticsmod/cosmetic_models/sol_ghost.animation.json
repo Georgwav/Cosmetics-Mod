@@ -1,0 +1,123 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "float": {
+      "loop": true,
+      "bones": {
+        "hem_0": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 0) * 0.6",
+            0
+          ]
+        },
+        "hem_1": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 90) * 0.6",
+            0
+          ]
+        },
+        "hem_2": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 180) * 0.6",
+            0
+          ]
+        },
+        "hem_3": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 270) * 0.6",
+            0
+          ]
+        },
+        "body": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 150) * 1.2",
+            0
+          ],
+          "rotation": [
+            "math.min(q.ground_speed * 3, 18)",
+            0,
+            "math.sin(q.anim_time * 75) * 4"
+          ]
+        },
+        "arm_left": {
+          "rotation": [
+            0,
+            0,
+            "-20 - math.sin(q.anim_time * 300) * 25"
+          ]
+        },
+        "arm_right": {
+          "rotation": [
+            0,
+            0,
+            "20 + math.sin(q.anim_time * 300) * 25"
+          ]
+        }
+      }
+    },
+    "rest": {
+      "loop": true,
+      "bones": {
+        "hem_0": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 0) * 0.6",
+            0
+          ]
+        },
+        "hem_1": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 90) * 0.6",
+            0
+          ]
+        },
+        "hem_2": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 180) * 0.6",
+            0
+          ]
+        },
+        "hem_3": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 240 + 270) * 0.6",
+            0
+          ]
+        },
+        "body": {
+          "position": [
+            0,
+            "math.sin(q.anim_time * 90) * 0.8",
+            0
+          ],
+          "rotation": [
+            0,
+            "math.sin(q.anim_time * 30) * 10",
+            0
+          ]
+        },
+        "arm_left": {
+          "rotation": [
+            0,
+            0,
+            -10
+          ]
+        },
+        "arm_right": {
+          "rotation": [
+            0,
+            0,
+            10
+          ]
+        }
+      }
+    }
+  }
+}

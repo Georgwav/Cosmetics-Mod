@@ -224,7 +224,7 @@ on or off.
 
 ### Modules
 
-The module grid has 39 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 40 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -245,7 +245,7 @@ the theme by itself.
 
 | Module | What it does |
 |---|---|
-| Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks), stars, planets, time and weather locks. |
+| Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks, and up to 40 glowing cubes in the preset's colours that spin, drift, fall slowly and bounce off blocks), stars, planets, time and weather locks. |
 | Camera | Freelook (Left Alt) and freecam (singleplayer, or as an operator). |
 | PvP Tweaks | Hurt cam strength, low fire, hit colour. |
 | PvP Effects | Hit, crit and kill sounds only you hear, from one of Sol's sound packs (Tick, Glass, Thock, Chime, Pop, Zap) or your own, with their volume and pitch, and crits only. |
@@ -256,6 +256,7 @@ the theme by itself.
 | Jump FX | When you land (or jump, or both), only on your screen: a Square ring (Sol's square sun as a ripple), a Ring, a Double ring, a Hexagon, a Star burst shattering outward over the ground, a Block wave (copies of the nearby blocks' tops rippling out six blocks while the real ones stay put), Landing bolts, or a Hologram (a see-through copy of you in your colour for a second; not in first person unless you ask). The rings lie on the terrain and grow with the fall, and any of them can throw up a particle set: the preset's, Ice, Fire, Soul or Galaxy. |
 | Crystal PvP | The crystal optimizer (a crystal you hit is gone from your screen at once when the hit breaks it; one the server keeps comes back), the crystals' size, a chat line when anyone near you pops a totem with their count, a warning when your offhand has no totem but your inventory does, a red pulse round the screen at low health, and explosion rings: two rings of texels that spread and rise where a crystal appears or anything explodes near you. |
 | Trails | Projectile trails: arrows, ender pearls, tridents and thrown potions leave trails of texels (dots, sparkles, hearts or Sol's glyph) that fade in 0.6 s; yours only, or everyone's; each kind on its own switch. Behind you, hidden in first person unless you ask: a Ribbon of whole-texel bands from your waist or feet, stepping a texel up and down like the Nyan Cat's (theme bands, rainbow bands, or blue, pink and white; width and length), a Firefly tail of blinking dots left drifting, a Ghost trail of 3 to 6 copies of you in colours shifting round yours, Footsteps (pixel prints that fade after a set time) and Elytra contrails: streams from the wing tips that close in as the wings fold, with a two-step afterburner flare and a puff of smoke on every rocket. Each piece is laid where you were, tick by tick, so the trails stay in the world as you move on. |
+| You | What you do, a little louder, only on your screen: a Naruto run (your arms sweep back and you lean into it while you sprint, 10 to 40 degrees; in third person and on the settings page's copy of you), chat bubbles (what a player says pops up in a pixel bubble over their head for 4 s, in the preset's colour; everyone's, or others' only) and eating effects (crumbs in the food's own colours, or drips in the potion's, burst at the mouth; everyone's or yours, amount and size). |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
 | Held Items | A lower shield, and the shield's and the totem's size in your hand. |
 | Punchy | On by default (the Punchy mod itself stays optional). Switches the [Punchy](https://modrinth.com/mod/punchy-fpa) mod's first-person animations on and off when it's installed (off with the module), and gives Punchy Sol's tuning once: smaller hands nearer the middle. Sol arms (without Punchy by default, or always, or off): your arms and what they hold smaller and closer to the middle (hand size and centring sliders), the fallback when Punchy isn't installed; set to always with Punchy, the sliders move its hands on from its tuning. PvP mode (off): tones all of Punchy's animations down. Dark arms (off): your arms as flat black silhouettes. A glow round your hands and held item, in the theme's colours (or the item's, a rainbow or yours; gold by default when you pick your own): golden light round them (gold by default; its rise, bright core and deep edge are settings, the core and edge shades of whatever colour you pick, and no outline unless you turn it on), or a thin bright outline on its own, or a softer glow all round, with the hands themselves flat, and a motion trail: as your hands (or your knife) move, the light stays along the path they took, fading (not on 1.21.2 to 1.21.5). Rising lines of light through the softer glow are an option. The arms and glow work without Punchy too. Knives: wear a knife (a melee cosmetic from gunpacks you drop into `client/melee`, see [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#knives)) and the sword in your hand is that knife in first person, with your own arms: it draws, slashes (light attacks in turn, the heavy one on a critical hit), inspects on V (with Punchy installed, on Punchy's own inspect key, which then never plays Punchy's sword inspect while a knife is out) and shakes the view a little as in its own game, at its own pace (or fitted to Minecraft's sword). Settings: timing, heavy hit on crits, camera shake, sway, knife sounds, show hands the pack hides, knife in third person (off: third person shows the sword), use on swords or swords and axes; each knife's colour (tint, rainbow, colouring, saturation, hue, brightness, its own colours), model set and hand size on its Wardrobe page. While a knife is out, the shield or totem in your other hand stays hidden (the knife draws that hand). Sol makes a Ruby finish of the CS2 Skeleton Knife from your pack, and a model of your own can play another pack's animations. With Punchy installed, the knife is drawn alone while it shows (no Punchy hands under it), its hands at the size of Punchy's tuned ones, in the corner where Punchy's hand is. No knife pack is part of the mod. |
@@ -331,6 +332,10 @@ names from d3-celestial by Olaf Frohn (BSD 3-clause); see `assets/cosmeticsmod/s
   - `cosmeticsmod:ember_aura`, `cosmeticsmod:frost_aura`, `cosmeticsmod:heart_aura` (particle auras); the starlight cape
     also leaves a sparkle trail while you move
   - `cosmeticsmod:pocket_slime` (a pet: sits on your left shoulder and bobs)
+  - `cosmeticsmod:sol_dog`, `cosmeticsmod:sol_ghost`, `cosmeticsmod:sol_mini_you` (pets that follow you: the dog runs
+    after you, steps up blocks and sits when you stop; the little ghost flies after you and hovers low when you stop;
+    the mini you is a little copy of you in your own skin). Any pet can follow you: set "Where it sits" to "Follows
+    you" or "Flies after you" on its Wardrobe page.
   - `cosmeticsmod:wristband` (on the left arm) and `cosmeticsmod:cloud_boots` (on both feet, puffing little clouds as
     you walk)
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
@@ -497,8 +502,10 @@ delta E 12, on two presets), and that nothing of it is left a second after it en
 behind a wall of blocks, where nothing of them may show; the hitmarker is staged with the HUD showing. One kill goes
 through the real events: a pig you hit and the server kills must start hit particles, a kill effect and a line in the
 kill feed. So must a pig popping a totem (Totems), an end crystal appearing and TNT going off high in the air (Crystal
-PvP's rings), an arrow in flight (Trails), a three-block drop (Jump FX) and a walk in third person (the Ribbon, laid from
-your own ticks). Target's marks are also played behind a wall, and its chams are drawn
+PvP's rings), an arrow in flight (Trails), a three-block drop (Jump FX), a walk in third person (the Ribbon, laid from
+your own ticks), a chat line you send (its bubble), eating a golden apple (crumbs), sprinting (the Naruto run's lean),
+more ambience switched on (a dozen glowing cubes) and Sol's three following pets put on you: they must follow your walk
+and the dog sit when you stop. Target's marks are also played behind a wall, and its chams are drawn
 over a real end crystal (and behind a wall) and over you from behind. `-Dcosmeticsmod.solShots=fx` runs only that
 part. One release per era (1.21.1, 1.21.11 and 26.3) plays every effect in every style; the other releases play each
 effect once in its default style, every grey one and the real events (`-Dcosmeticsmod.fxAll=true` plays them all).

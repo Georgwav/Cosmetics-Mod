@@ -42,6 +42,9 @@ public final class PoseSnapshot {
      */
     float[] quads = new float[QF * 96];
     float[] quadNormal = new float[3 * 96], quadMid = new float[3 * 96];
+    /** For a mesh of its own (a pet), each face's light from which way it faces; else unused. */
+    float[] quadShade = new float[96];
+    boolean shaded;
     int quadCount;
     float[] rows = new float[QF * 512];
     float[] rowHeight = new float[512];
@@ -88,6 +91,7 @@ public final class PoseSnapshot {
      * (Target's chams) needs none of the dissolves.
      */
     public void capture(Entity e, float partialTick, boolean rows) {
+        shaded = false;
         quadCount = 0;
         rowCount = 0;
         height = Math.max(0.2f, e.getBbHeight());
@@ -135,6 +139,7 @@ public final class PoseSnapshot {
 
     /** {@link #capture(SkinPixels.Skin, Pose)}, without the texel rows when {@code rows} is false (drawn whole). */
     public void capture(SkinPixels.Skin skinPixels, Pose pose, boolean rows) {
+        shaded = false;
         quadCount = 0;
         rowCount = 0;
         height = pose.crouch ? 1.5f : 1.8f;
@@ -156,11 +161,59 @@ public final class PoseSnapshot {
         tintedAmount = -1f;
     }
 
+    // ------------------------------------------------------------------ a mesh of its own
+
+    /**
+     * Starts the copy afresh as a mesh of its own (a pet that follows you): what's drawn into {@link #meshInput()}
+     * until {@link #endMesh} becomes its faces, in {@code tex}.
+     */
+    public void beginMesh() {
+        quadCount = 0;
+        rowCount = 0;
+        tintedAmount = -1f;
+    }
+
+    /** Where to draw the mesh (a vertex consumer: positions already posed, from the copy's feet). */
+    public VertexConsumer meshInput() {
+        COLLECT.reset(this);
+        return COLLECT;
+    }
+
+    /**
+     * Ends the mesh: drawn in {@code tex}, each face lit by which way it faces (up the brightest, down the darkest, as
+     * the game lights its mobs) unless {@code lit} is false (a glowing part).
+     */
+    public void endMesh(FxTex tex, boolean lit) {
+        skin = tex;
+        mids();
+        shade(lit);
+    }
+
+    /** Lights each face by which way it faces from now on (a copy drawn standing in the world, not glowing). */
+    public void shade(boolean lit) {
+        shaded = true;
+        for (int q = 0; q < quadCount; q++) {
+            float nx = quadNormal[q * 3], ny = quadNormal[q * 3 + 1], nz = quadNormal[q * 3 + 2];
+            float l = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (!lit || l < 1e-4f) {
+                quadShade[q] = 1f;
+                continue;
+            }
+            ny /= l;
+            nx /= l;
+            quadShade[q] = Math.max(0.5f, Math.min(1f, 0.76f + 0.24f * ny - 0.12f * Math.abs(nx)));
+        }
+    }
+
     /** A pose of the player model: where the limbs are, the head's turn, crouching. Angles in degrees. */
     public static final class Pose {
         public double x, y, z;
         public float bodyYaw, headYaw, pitch, walk, walkSpeed;
+        /** The Naruto run's lean (radians; 0 standing up), on a copy only. */
+        public float lean;
         public boolean crouch;
+        /** Sitting on the ground, legs out in front (a little copy of you that follows you, resting). */
+        public boolean sit;
 
         public void from(Player p, float pt) {
             x = net.minecraft.util.Mth.lerp(pt, p.xo, p.getX());
@@ -172,6 +225,8 @@ public final class PoseSnapshot {
             walk = p.walkAnimation.position(pt);
             walkSpeed = Math.min(1f, p.walkAnimation.speed(pt));
             crouch = p.isCrouching();
+            lean = 0f;
+            sit = false;
         }
 
         public void set(Pose o) {
@@ -184,6 +239,8 @@ public final class PoseSnapshot {
             walk = o.walk;
             walkSpeed = o.walkSpeed;
             crouch = o.crouch;
+            lean = o.lean;
+            sit = o.sit;
         }
     }
 
@@ -240,6 +297,20 @@ public final class PoseSnapshot {
             rightArm.y += 3.2f;
             leftArm.y += 3.2f;
         }
+        if (p.lean > 0f) {
+            narutoRun(head, body, leftArm, rightArm, leftLeg, rightLeg, p.lean, 1f);
+        }
+        if (p.sit) {
+            // As the game sits a rider: legs out in front, a little apart, hands on the knees.
+            rightLeg.xRot = -1.4137f;
+            rightLeg.yRot = 0.3142f;
+            rightLeg.zRot = 0.0785f;
+            leftLeg.xRot = -1.4137f;
+            leftLeg.yRot = -0.3142f;
+            leftLeg.zRot = -0.0785f;
+            rightArm.xRot = -0.6283f;
+            leftArm.xRot = -0.6283f;
+        }
         // 1.21.1 keeps the outer layer beside the parts, not inside them: it follows them by copying their pose.
         String[][] layers = {{"hat", "head"}, {"jacket", "body"}, {"left_sleeve", "left_arm"}, {"right_sleeve", "right_arm"},
                 {"left_pants", "left_leg"}, {"right_pants", "right_leg"}};
@@ -260,6 +331,32 @@ public final class PoseSnapshot {
         COLLECT.reset(this);
         root.render(POSE, COLLECT, MeshEmitter.FULL_BRIGHT, 0);
         POSE.popPose();
+    }
+
+    /**
+     * The Naruto run on a player model's parts: the body leans {@code lean} radians forward the way crouching leans it
+     * (the head, arms and legs moved to stay on it), and the arms sweep back, a little out, by {@code k} (0..1).
+     */
+    public static void narutoRun(ModelPart head, ModelPart body, ModelPart leftArm, ModelPart rightArm, ModelPart leftLeg,
+                                 ModelPart rightLeg, float lean, float k) {
+        // Crouching leans 0.5 rad with these offsets; the run leans as far as it's set, the offsets in proportion.
+        float s = lean / 0.5f;
+        body.xRot += lean;
+        body.y += 3.2f * s;
+        head.y += 4.2f * s;
+        leftArm.y += 3.2f * s;
+        rightArm.y += 3.2f * s;
+        leftLeg.z += 4f * s;
+        rightLeg.z += 4f * s;
+        leftLeg.y += 0.2f * s;
+        rightLeg.y += 0.2f * s;
+        float back = 1.3f + lean;
+        leftArm.xRot += (back - leftArm.xRot) * k;
+        rightArm.xRot += (back - rightArm.xRot) * k;
+        leftArm.yRot += (0f - leftArm.yRot) * k;
+        rightArm.yRot += (0f - rightArm.yRot) * k;
+        leftArm.zRot += (-0.22f - leftArm.zRot) * k;
+        rightArm.zRot += (0.22f - rightArm.zRot) * k;
     }
 
     /** The model's frame: turned like the body, then the models' upside-down space, the feet at zero. */
@@ -371,6 +468,7 @@ public final class PoseSnapshot {
             quads = Arrays.copyOf(quads, Math.max(n * QF, quads.length * 2));
             quadNormal = Arrays.copyOf(quadNormal, quads.length / QF * 3);
             quadMid = Arrays.copyOf(quadMid, quads.length / QF * 3);
+            quadShade = Arrays.copyOf(quadShade, quads.length / QF);
         }
         ensureOrder(n);
     }
@@ -503,7 +601,8 @@ public final class PoseSnapshot {
             }
             sort(n);
             for (int i = 0; i < n; i++) {
-                emit(out, quads, order[i] * QF, x, y, z, scale, cs, sn, argb);
+                int q = order[i];
+                emit(out, quads, q * QF, x, y, z, scale, cs, sn, shaded ? Colors.scale(argb, quadShade[q]) : argb);
             }
             return;
         }

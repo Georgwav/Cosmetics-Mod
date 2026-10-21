@@ -1,0 +1,27 @@
+{
+  "name": "Little Ghost",
+  "slot": "pet",
+  "pet_position": "follow_flying",
+  "texture": "cosmeticsmod:textures/cosmetic/sol_ghost.png",
+  "model": "cosmeticsmod:sol_ghost",
+  "model_animations": "cosmeticsmod:sol_ghost.animation",
+  "model_states": [
+    {
+      "animation": "rest",
+      "when": "q.is_sitting",
+      "blend": 0.4
+    },
+    {
+      "animation": "float",
+      "blend": 0.3
+    }
+  ],
+  "bones": {
+    "body": {
+      "mode": "emissive"
+    },
+    "top": {
+      "mode": "emissive"
+    }
+  }
+}

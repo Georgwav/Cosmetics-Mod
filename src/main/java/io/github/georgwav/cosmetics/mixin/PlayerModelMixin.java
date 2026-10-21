@@ -18,7 +18,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class PlayerModelMixin {
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
     private void cosmeticsmod$emote(AvatarRenderState state, CallbackInfo ci) {
-        EmotePlayer.pose(state.id, (HumanoidModel<?>) (Object) this);
+        HumanoidModel<?> model = (HumanoidModel<?>) (Object) this;
+        // An emote's pose wins; else the Naruto run's lean while you sprint.
+        if (!EmotePlayer.pose(state.id, model)) {
+            io.github.georgwav.cosmetics.sol.fx.effects.You.pose(state.id, model.head, model.body, model.leftArm, model.rightArm,
+                    model.leftLeg, model.rightLeg);
+        }
     }
 }
 //?} elif >=1.21.9 {
@@ -35,7 +40,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class PlayerModelMixin {
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
     private void cosmeticsmod$emote(AvatarRenderState state, CallbackInfo ci) {
-        EmotePlayer.pose(state.id, (HumanoidModel<?>) (Object) this);
+        HumanoidModel<?> model = (HumanoidModel<?>) (Object) this;
+        // An emote's pose wins; else the Naruto run's lean while you sprint.
+        if (!EmotePlayer.pose(state.id, model)) {
+            io.github.georgwav.cosmetics.sol.fx.effects.You.pose(state.id, model.head, model.body, model.leftArm, model.rightArm,
+                    model.leftLeg, model.rightLeg);
+        }
     }
 }
 *///?} elif >=1.21.2 {
@@ -52,7 +62,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class PlayerModelMixin {
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;)V", at = @At("TAIL"))
     private void cosmeticsmod$emote(PlayerRenderState state, CallbackInfo ci) {
-        EmotePlayer.pose(state.id, (HumanoidModel<?>) (Object) this);
+        HumanoidModel<?> model = (HumanoidModel<?>) (Object) this;
+        // An emote's pose wins; else the Naruto run's lean while you sprint.
+        if (!EmotePlayer.pose(state.id, model)) {
+            io.github.georgwav.cosmetics.sol.fx.effects.You.pose(state.id, model.head, model.body, model.leftArm, model.rightArm,
+                    model.leftLeg, model.rightLeg);
+        }
     }
 }
 *///?} else {
@@ -71,7 +86,9 @@ abstract class PlayerModelMixin {
                                     float netHeadYaw, float headPitch, CallbackInfo ci) {
         // The first-person hand is set up with all zeros (no age); it stays as it is.
         PlayerModel<?> model = (PlayerModel<?>) (Object) this;
-        if (ageInTicks != 0f && EmotePlayer.pose(entity.getId(), model)) {
+        if (ageInTicks != 0f && (EmotePlayer.pose(entity.getId(), model)
+                || io.github.georgwav.cosmetics.sol.fx.effects.You.pose(entity.getId(), model.head, model.body, model.leftArm,
+                model.rightArm, model.leftLeg, model.rightLeg))) {
             model.hat.copyFrom(model.head);
             model.jacket.copyFrom(model.body);
             model.leftSleeve.copyFrom(model.leftArm);

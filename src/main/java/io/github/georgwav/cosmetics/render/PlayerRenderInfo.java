@@ -43,7 +43,11 @@ public final class PlayerRenderInfo {
     /** Distance walked, in blocks (the walk animation's position). */
     public float walked;
 
+    /** Drawn in a screen (the Wardrobe's mannequin and tiles): pets that follow you stand beside you instead. */
+    public boolean gui;
+
     public void reset() {
+        gui = false;
         uuid = null;
         local = false;
         invisible = false;
