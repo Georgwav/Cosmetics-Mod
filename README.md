@@ -42,3 +42,14 @@ From local runs at 1080p (1.21.11; 1.21.1 and 26.3 for the eras), with a picked 
 - `round6/hud-in-a-picked-colour.png`: one picked colour on the crosshair, the block outline, the hotbar, hearts, XP, armour, Stats, Coordinates, the music bar, the glint and the hand glow.
 - `round6/rings-before-after.png`: before, the ring round you was drawn off to the right at 1080p (and the hue swatch on the wheel); after, both in place.
 - `round6/eras-1.21.1-26.3.png`: the picker and the HUD on 1.21.1 (top) and 26.3 (bottom).
+
+## Round 7: the pixel window everywhere and Sol Styles (georgwav/cosmetics-mod#37)
+
+From local runs (1.21.11). The packs in the Styles shots are the made-up test packs CI makes (`tools/styles-packs`): Sol Test Red, Blue, Sky, Full and Full Two.
+
+- `round7/window-1080-dark.png`, `round7/window-1080-light.png`: the window's Modules, HUD, World, Presets, Wardrobe and Settings tabs at 1080p on a dark preset, and a light preset's Modules, Presets, quick menu and title screen.
+- `round7/title-wardrobe-hud-1080-dark.png`: the pixel title screen, the Wardrobe tab with a cosmetic's page, and Sol UI's HUD in slabs.
+- `round7/styles-1.png`: Your look (everything mixed, each removable), the Tools tab with the swords' tiles (packs, base, Vanilla, Sol's recolours) and the colour panel, the mix in the world (red crystal, swords and armour, blue fire and stone over the Full base), and the test pack's sun drawn in the sky.
+- `round7/styles-2.png`: the same scene with the crystal live-recoloured from the panel (no reload), and the Sky pack's purple sun.
+- `round7/styles-3.png`: the texture tree under More (branches with counts, each texture with the packs that have it), and an OptiFine sky layer from a pack drawn by Sol's sky pass.
+- `round7/styles-4.png`: the full packs folded under a part, the Wardrobe with Sol's Horns and Cat Ears, and the texture tree again with a second full pack.
