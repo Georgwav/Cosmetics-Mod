@@ -38,6 +38,27 @@ public final class PlayerFace {
         }
     }
 
+    /**
+     * The face at exactly {@code k} screen pixels per skin pixel (8k square), its top left at screen (sx, sy): pixel
+     * art never resampled. Without a player, a plain head.
+     */
+    public static void drawPx(Gfx g, float sx, float sy, int k) {
+        var skin = skin();
+        int s = 8 * k;
+        int x = Math.round(sx), y = Math.round(sy);
+        if (skin == null) {
+            g.rectPx(x, y, x + s, y + s, 0xFF8A6A4A);
+            g.rectPx(x, y, x + s, y + 2 * k, 0xFF3B2716);
+            g.rectPx(x + k, y + 4 * k, x + 3 * k, y + 5 * k, 0xFF2A3A6B);
+            g.rectPx(x + 5 * k, y + 4 * k, x + 7 * k, y + 5 * k, 0xFF2A3A6B);
+            return;
+        }
+        Canvas c = g.game();
+        c.blitRegion(skin, x, y, s, s, 8f, 8f, 8, 8, 64, 64);
+        c.blitRegion(skin, x, y, s, s, 40f, 8f, 8, 8, 64, 64);
+        g.layer();
+    }
+
     // 1.21.9 moved the skin's texture into its body asset; 1.21.11 renamed ResourceLocation to Identifier.
     //? if >=1.21.11 {
     private static Identifier skin() {

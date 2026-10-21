@@ -34,7 +34,7 @@ public final class SolScenario {
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
-            "quick_mods", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
+            "quick_mods", "quick_night", "quick_dusk", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
             "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
@@ -512,6 +512,20 @@ public final class SolScenario {
                         box.setValue("default");
                     }
                 }
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.labelsOutside > 0) {
+                // A.8: every label on the wheel lies inside its own segment, at every screen size.
+                problems.add(s.name() + ": " + io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.labelsOutside
+                        + " label(s) on the quick menu's wheel didn't fit inside their segment");
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && io.github.georgwav.cosmetics.sol.render.LightPass.pixelFrames == 0
+                    && !io.github.georgwav.cosmetics.compat.Compat.isShaderPackActive()) {
+                // A.2: the world under the quick menu is drawn in the wheel's pixels.
+                problems.add(s.name() + ": the world under the quick menu wasn't drawn in pixels");
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_") && io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.blursRun > 0) {
+                // A.2: no glass and no blur anywhere in the pixel UI.
+                problems.add(s.name() + ": a Sol screen ran a blur pass (" + io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.blursRun + ")");
             }
             if (phaseTick == SETTLE && s.name().equals("ui_inventory") && io.github.georgwav.cosmetics.client.modules.ScreenTweaks.undimmed == 0) {
                 problems.add(s.name() + ": the inventory darkened the world behind it with Screen's darkening off");

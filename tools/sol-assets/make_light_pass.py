@@ -12,6 +12,8 @@ Chains:
                                       toward the sun and ground haze, light shafts (high).
   sol_grade                           after the hand: bloom (half-resolution threshold, five-level dual-filter mip
                                       chain), the theme's colour grade (a 32x32x32 LUT), vignette, dither.
+  sol_pixel                           last, under the quick menu only: the world in the pixel UI's pixels (whole
+                                      screen pixels per 2 design px, lined up with the wheel's own grid).
   sol_hand_glow                       after the hand, before the grade: a thin bright rim round the first-person
                                       hands and held item, fading out within about 10 px at 1080p (a distance field
                                       on a 960 x 540 grid), coloured from a blurred quarter-resolution mask, with a
@@ -667,6 +669,18 @@ void main() {
     fragColor = vec4(mix(cur, prev, k), 1.0);
 }
 """),
+    # The world under the quick menu in the pixel UI's pixels: each cell (its size in screen pixels in the cell
+    # texture's red, the grid's offset in its green and blue) takes the colour at its middle.
+    "sol_pixel": (["In", "Cell"], r"""
+void main() {
+    vec4 s = texelFetch(CellSampler, ivec2(0, 0), 0);
+    float cell = max(1.0, floor(s.r * 255.0 + 0.5));
+    vec2 off = floor(s.gb * 255.0 + 0.5);
+    vec2 size = vec2(textureSize(InSampler, 0));
+    vec2 at = (floor((texCoord * size - off) / cell) + 0.5) * cell + off;
+    fragColor = vec4(texture(InSampler, clamp(at, vec2(0.5), size - 0.5) / size).rgb, 1.0);
+}
+"""),
 }
 
 # ---------------------------------------------------------------------------------------------------- the chains
@@ -676,6 +690,7 @@ PARAMS_TEX = ("sol_params", 128, 1, False)
 LUT_TEX = ("sol_lut", 1024, 32, True)
 BLACK_TEX = ("sol_black", 1, 1, False)
 BLUR_TEX = ("sol_blur", 1, 1, False)
+PIXEL_TEX = ("sol_pixel", 1, 1, False)
 
 # Fixed bloom levels (a 1080p screen's half, then each half of that): post chains only size targets to the screen
 # or to fixed sizes, and a blur this wide looks the same at any resolution.
@@ -748,6 +763,10 @@ def chain(name, era=None):
                   ("sol_copy", "prev", [("In", "swap", T, False)]),
                   ("sol_copy", "main", [("In", "swap", T, False)])]
         return passes, {"swap": None, "prev": "persistent"}
+    if name == "sol_pixel":
+        passes = [("sol_pixel", "swap", [("In", "main", T, False), ("Cell", PIXEL_TEX, X, False)]),
+                  ("sol_copy", "main", [("In", "swap", T, False)])]
+        return passes, {"swap": None}
     # sol_grade
     targets = {"swap": None}
     for i, size in enumerate(LEVELS):
@@ -766,7 +785,7 @@ def chain(name, era=None):
     return passes, targets
 
 
-CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade", "sol_motion_blur", "sol_hand_glow"]
+CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade", "sol_motion_blur", "sol_hand_glow", "sol_pixel"]
 # Eras whose post chains can keep a target from one frame to the next (1.21.2 to 1.21.5 can't: no motion blur).
 PERSISTENT = ("e1", "e4", "e5", "e6")
 
@@ -936,7 +955,7 @@ void main() {
 """)
     if era == "e1":
         # 1.21.1 asks the resources for a chain's textures before using the one Sol registered under that name.
-        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX):
+        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX, PIXEL_TEX):
             png(os.path.join(base, "minecraft", "textures", "effect", tex + ".png"), w, h, [0, 0, 0, 255] * (w * h))
         # 1.21.1's position_tex_color drops anything under 10% alpha, which cuts the faint edge of every glow into
         # a hard disc: Sol draws its sprites with this copy of it that keeps them (registered by SolShaders).

@@ -55,8 +55,11 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
 
 ### The quick menu (Right Shift)
 
-A sundial: the sun circles the dial and lights the screen.
-- **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there.
+A sundial in pixels: the wheel is pixel art at two design pixels a pixel, and the world behind it is drawn in the
+same pixels. The sun circles the dial and lights the screen; below the horizon the moon takes its place.
+- **Top bar:** the Quick menu tab, Modules, Presets, Wardrobe and Emotes, search, you, and the red close.
+- **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there. Every label
+  fits inside its own segment at any window size (a test checks each ring at four screen sizes).
 - **Your own ring:** pointing at yourself starts the eclipse and opens your ring: Presets, Emotes and Wardrobe.
 - **Colours:** along the bottom of the presets wheel: Default (the theme's own), Music (the playing song's), a row of
   colours and a picker for any colour (the square, the hue bar, a hex code). The colour you pick is the theme's

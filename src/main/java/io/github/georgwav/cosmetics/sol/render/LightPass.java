@@ -152,9 +152,59 @@ public final class LightPass {
         }
         handGlow();
         motionBlur();
+        pixelWorld();
         //? if >=1.21.2 {
         pool.endFrame();
         //?}
+    }
+
+    // ------------------------------------------------------------------ the world in pixels
+
+    private static SolTexture pixelTexture;
+    private static int pixelUploaded = -1;
+    private static int pixelCell, pixelOx, pixelOy;
+    private static long pixelAsked = -10;
+    /** For the in-game test: frames the world was drawn in pixels. */
+    public static int pixelFrames;
+
+    /**
+     * The quick menu asks for the world under it in its own pixels (each frame it's open): cells {@code cell} screen
+     * pixels wide, lined up with its wheel ({@code left}, {@code top}: a corner of the grid in screen pixels).
+     */
+    public static void pixelate(int cell, int left, int top) {
+        int h = Mc.mainTarget().height;
+        pixelCell = Math.max(1, Math.min(255, cell));
+        pixelOx = Math.floorMod(left, pixelCell);
+        pixelOy = Math.floorMod(h - top, pixelCell);
+        pixelAsked = FrameInfo.frame;
+    }
+
+    /** The world in the pixel UI's pixels while the quick menu is open (it asked on the frame before). */
+    private static void pixelWorld() {
+        if (FrameInfo.frame - pixelAsked > 1 || pixelCell < 2 || !FrameInfo.inWorld || Compat.isShaderPackActive()
+                || !Guard.on(Feature.QUICK_MENU)) {
+            return;
+        }
+        long t0 = System.nanoTime();
+        ensureTextures();
+        if (pixelTexture == null || pixelTexture.released()) {
+            //? if >=1.21.2 {
+            String ns = CosmeticsMod.MOD_ID;
+            //?} else {
+            /*String ns = "minecraft";
+            *///?}
+            pixelTexture = new SolTexture(ns, "textures/effect/sol_pixel.png", 1, 1, false);
+            pixelUploaded = -1;
+        }
+        int v = 0xFF000000 | pixelCell << 16 | pixelOx << 8 | pixelOy;
+        if (v != pixelUploaded) {
+            pixelTexture.upload(new int[]{v});
+            pixelUploaded = v;
+        }
+        if (Guard.run(Feature.QUICK_MENU, () -> run("sol_pixel"))) {
+            pixelFrames++;
+        }
+        nanos += System.nanoTime() - t0;
     }
 
     // ------------------------------------------------------------------ hand glow
