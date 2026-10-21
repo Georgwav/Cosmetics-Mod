@@ -620,9 +620,38 @@ final class FxScenario {
         r.addProperty("cleaned", cleanLeft == 0);
         r.addProperty("wall", c.grey());
         r.addProperty("hud", c.hud());
+        r.addProperty("settings", settingsOf(c.module()));
         results.add(r);
         index++;
         step = 0;
+    }
+
+    /** The case's settings as staged (those not at their defaults, by name), for the gallery. */
+    @SuppressWarnings("unchecked")
+    private static String settingsOf(FxModule m) {
+        StringBuilder b = new StringBuilder();
+        for (var st : m.settings()) {
+            if (!st.changed() || !st.shown()) {
+                continue;
+            }
+            String v;
+            if (st instanceof io.github.georgwav.cosmetics.client.Setting.Choice ch) {
+                v = m.optionName(ch, ch.get());
+            } else if (st instanceof io.github.georgwav.cosmetics.client.Setting.Toggle t) {
+                v = t.get() ? "on" : "off";
+            } else if (st instanceof io.github.georgwav.cosmetics.client.Setting.Slider sl) {
+                v = sl.text();
+            } else if (st instanceof io.github.georgwav.cosmetics.client.Setting.Color col) {
+                v = col.followsTheme() ? "theme" : String.format("#%06X", col.argb() & 0xFFFFFF);
+            } else {
+                v = String.valueOf(st.get());
+            }
+            if (b.length() > 0) {
+                b.append(" · ");
+            }
+            b.append(m.settingName(st)).append(": ").append(v);
+        }
+        return b.length() == 0 ? "defaults" : b.toString();
     }
 
     /**

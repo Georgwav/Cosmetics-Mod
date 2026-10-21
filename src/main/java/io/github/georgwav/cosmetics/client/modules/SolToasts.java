@@ -59,6 +59,7 @@ public final class SolToasts extends Module {
 
     public SolToasts() {
         super("sol_toasts", Category.HUD, "card");
+        io.github.georgwav.cosmetics.sol.fx.SolPicks.module(this);
         for (int i = 0; i < MAX; i++) {
             toasts[i] = new Toast();
         }

@@ -225,6 +225,8 @@ jobs:
             ci/work/runs/*/summary.json
             ci/work/runs/*/cosmeticsmod-results.json
             ci/work/runs/*/cosmeticsmod-sol-results.json
+            ci/work/runs/*/cosmeticsmod-fx-results.json
+            ci/work/runs/*/cosmeticsmod-styles-results.json
             ci/work/runs/*/screenshot-*.png
             ci/work/runs/*/stdout.log
             ci/work/runs/*/logs/latest.log
@@ -260,6 +262,11 @@ jobs:
             case "$node" in 1.21.1|1.21.11|26.3)
               (cd "$dir" && find . -name 'screenshot-sol*.png' -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;) ;;
             esac
+            # The effects' contact sheets and the Styles results from one release (docs/gallery.html shows them).
+            if [ "$node" = 1.21.11 ]; then
+              (cd "$dir" && find . \( -name 'screenshot-fxsheet*.png' -o -name 'cosmeticsmod-*-results.json' \) \
+                -exec cp --parents {} "$GITHUB_WORKSPACE/pub/$node/" \;)
+            fi
           done
           cd pub
           echo "$GITHUB_SHA" > commit.txt

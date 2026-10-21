@@ -523,3 +523,9 @@ from real events (a module switched, a totem popping, the song), the active modu
 with a fall shown on their slots, a totem's backdrop and the painted crosshair, with UI sounds on (each counted as
 drawn or played); also the crosshair's painter, an inventory and the tab list caught as they slide in, and the cursor's
 sparkles over the menu.
+
+[docs/gallery.html](docs/gallery.html) shows it all in one page: every UI shot (for 1.21.11, 1.21.1 or 26.3), the Styles
+shots with how long each change took to apply, and every effect's contact sheet with its settings. Its pictures are
+CI's own from the `ci-screenshots` branch (a commit with `[shots]` in its message publishes them, with 1.21.11's
+contact sheets and results); `python3 tools/gallery/make_gallery.py <fx results> <styles results>` rebuilds the page
+from a run's `cosmeticsmod-fx-results.json` and `cosmeticsmod-styles-results.json`.
