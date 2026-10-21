@@ -224,7 +224,7 @@ on or off.
 
 ### Modules
 
-The module grid has 38 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 39 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -253,6 +253,7 @@ the theme by itself.
 | Hit Effects | What a hit looks like, only on your screen. Hit particles off the exact point you hit (Pixels, Stars, Hearts, Crystals, Orbs or Sparks; twice as many on a crit; they fall and come to rest), in place of the game's sharpness sparks while they're on; a bubble that swells and pops into droplets; word hits (HIT, CRIT!, KILL, or your own words) that pop up and float away; a hitmarker round the crosshair (yours or the game's) that opens and fades, red on a kill with its own sound; damage numbers rising off what you hit, as health or hearts, crits in gold, never through walls. The hit sounds stay in PvP Effects; one kill makes one kill sound. |
 | Totems | What a pop looks like, only on your screen. Your floating totem the game's way or one of Sol's (Roll, Rocket, Fall, Spin, Zoom, Fade: your pack's totem as crisp pixels), placed, sized and timed as you like, or hidden (the pop size from Held Items moved here). A gold copy of whoever popped rising, shrinking and fading (Pop ghost); the totem breaking into gold shards that tumble to the ground (Shatter; your own breaks where the floating totem ends); a winged totem with a halo rising out of them (Angel); a two-step flash round the screen's edge in your colour when you pop; the pop particles in two colours of yours fading to a third; and your totem count under the crosshair while you hold one. |
 | Target | A mark on the one you're fighting, only what you could already see (depth-tested, never through walls): the last one you hit in three seconds or the one you look at, players only by default, flashing on each hit. Ring (a pixel ring turning at its feet), Jello (a ring sliding up and down), Sims (a plumbob), Wisps (circling, with tails; a circle or a spiral), Chains (two rings of links turning opposite ways), Comets (on tilted orbits), Lightning (tiny bolts strike its head on each hit) and Halo (crystals over its head). A green crystal over your friends: a list in the profile, added with `/friend add <name>` (names from the tab list), `/friend remove` and `/friend list`. Chams: players and crystals in a flat colour, a glowing fill, an outline or a pixel texture, a colour each for friends, others and crystals, drawn only over the parts you can already see. |
+| Jump FX | When you land (or jump, or both), only on your screen: a Square ring (Sol's square sun as a ripple), a Ring, a Double ring, a Hexagon, a Star burst shattering outward over the ground, a Block wave (copies of the nearby blocks' tops rippling out six blocks while the real ones stay put), Landing bolts, or a Hologram (a see-through copy of you in your colour for a second; not in first person unless you ask). The rings lie on the terrain and grow with the fall, and any of them can throw up a particle set: the preset's, Ice, Fire, Soul or Galaxy. |
 | Crystal PvP | The crystal optimizer (a crystal you hit is gone from your screen at once when the hit breaks it; one the server keeps comes back), the crystals' size, a chat line when anyone near you pops a totem with their count, a warning when your offhand has no totem but your inventory does, a red pulse round the screen at low health, and explosion rings: two rings of texels that spread and rise where a crystal appears or anything explodes near you. |
 | Trails | Projectile trails: arrows, ender pearls, tridents and thrown potions leave trails of texels (dots, sparkles, hearts or Sol's glyph) that fade in 0.6 s; yours only, or everyone's; each kind on its own switch. |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
@@ -281,7 +282,7 @@ the theme by itself.
 
 ### Effects
 
-Effects modules (Kill Effects, Hit Effects, Totems, Target, Crystal PvP's rings and Trails so far; Jump FX, You and
+Effects modules (Kill Effects, Hit Effects, Totems, Target, Crystal PvP's rings, Jump FX and Trails so far; You and
 World FX come in the same style) draw in Sol's texels: squares of 1/16 block, positions on that grid and fades in a few steps (Pixel snap, on by
 default, can make them smooth), each in four tones of its colour, with a stepped glow behind. Only on your screen.
 - **Every effect's settings:** its style (or random from the ticked styles), colour (the preset's, so it changes with
@@ -496,6 +497,6 @@ delta E 12, on two presets), and that nothing of it is left a second after it en
 behind a wall of blocks, where nothing of them may show; the hitmarker is staged with the HUD showing. One kill goes
 through the real events: a pig you hit and the server kills must start hit particles, a kill effect and a line in the
 kill feed. So must a pig popping a totem (Totems), an end crystal appearing and TNT going off high in the air (Crystal
-PvP's rings) and an arrow in flight (Trails). Target's marks are also played behind a wall, and its chams are drawn
+PvP's rings), an arrow in flight (Trails) and a three-block drop (Jump FX). Target's marks are also played behind a wall, and its chams are drawn
 over a real end crystal (and behind a wall) and over you from behind. `-Dcosmeticsmod.solShots=fx` runs only that
 part.

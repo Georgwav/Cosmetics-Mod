@@ -74,9 +74,9 @@ final class FxScenario {
     private int killTicks, cleanLeft;
     /** The other real events, in turn: a totem pop, a crystal appearing, an explosion, an arrow in flight. */
     private int realStep, realTicks;
-    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_DONE = 4;
-    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow"};
-    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile"};
+    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_LAND = 4, REAL_DONE = 5;
+    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow", "landing"};
+    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile", "jump_"};
     /** The camera for the case being staged. */
     static float pitch = 10f;
 
@@ -186,6 +186,25 @@ final class FxScenario {
             io.github.georgwav.cosmetics.sol.fx.effects.Target.chamsYou = false;
             target.friend.on.set(false);
         }));
+        // Jump FX: each style on the dummy's landing, and the ring with each particle set.
+        var jump = Modules.JUMP_FX;
+        for (String style : io.github.georgwav.cosmetics.sol.fx.effects.JumpFx.STYLES) {
+            boolean colour = !style.equals("block_wave");
+            cases.add(new Case("jump_" + style, jump, () -> {
+                jump.fx.random.set(false);
+                jump.fx.style.set(style);
+                jump.fx.colourMode.set("theme");
+                jump.particles.set("off");
+            }, 4.5f, style.equals("hologram") || style.equals("landing_bolts") ? 6f : 28f, colour, false, "jump_"));
+        }
+        for (String set : List.of("ice", "fire", "soul", "galaxy")) {
+            cases.add(new Case("jump_particles_" + set, jump, () -> {
+                jump.fx.random.set(false);
+                jump.fx.style.set("ring");
+                jump.fx.colourMode.set("theme");
+                jump.particles.set(set);
+            }, 4.5f, 20f, false, false, "jump_"));
+        }
         var crystal = Modules.CRYSTAL_PVP;
         cases.add(new Case("crystal_rings", crystal, () -> {
             crystal.rings.on.set(true);
@@ -251,6 +270,15 @@ final class FxScenario {
         for (var fs : List.of(hit.particles, hit.bubbles, hit.words, hit.marker, hit.damage)) {
             fs.on.set(fs.on == on);
             fs.colourMode.set("theme");
+        }
+    }
+
+    /** Only the cases whose names start with one of these (-Dcosmeticsmod.fxOnly=jump_,hit_), for quick looks. */
+    private void only() {
+        String only = System.getProperty("cosmeticsmod.fxOnly", "");
+        if (!only.isBlank()) {
+            List<String> prefixes = List.of(only.split(","));
+            cases.removeIf(c -> prefixes.stream().noneMatch(c.name()::startsWith));
         }
     }
 
@@ -528,6 +556,7 @@ final class FxScenario {
     private final java.util.Map<io.github.georgwav.cosmetics.client.Module, Boolean> enabledWere = new java.util.HashMap<>();
 
     private void start(Minecraft mc) {
+        only();
         java.util.Set<io.github.georgwav.cosmetics.client.Module> touched = new java.util.LinkedHashSet<>();
         for (Case c : cases) {
             touched.add(c.module());
@@ -659,6 +688,17 @@ final class FxScenario {
                     cmds.add("kill @e[tag=sol_crystal]");
                     cmds.add(String.format(java.util.Locale.ROOT, "summon tnt %.2f %.2f %.2f {fuse:0}", x, y + 20.0, z));
                 }
+                case REAL_LAND -> {
+                    var j = Modules.JUMP_FX;
+                    j.setEnabled(true);
+                    j.fx.random.set(false);
+                    j.fx.style.set("square_ring");
+                    j.when.set("land");
+                    // Three blocks up: the fall and the landing are the game's own.
+                    cmds.add("kill @e[tag=sol_arrow]");
+                    cmds.add(String.format(java.util.Locale.ROOT, "tp %s %.2f %.2f %.2f", mc.player.getName().getString(), mc.player.getX(),
+                            mc.player.getY() + 3.0, mc.player.getZ()));
+                }
                 default -> {
                     Trails t = Modules.TRAILS;
                     t.setEnabled(true);
@@ -689,10 +729,6 @@ final class FxScenario {
             realStep++;
             realTicks = 0;
             wait = 10;
-            if (realStep == REAL_DONE) {
-                server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
-                        "kill @e[tag=sol_arrow]"));
-            }
 
         }
     }
