@@ -24,7 +24,8 @@ public enum Feature {
     SCREENS("screens"),
     NOTIFICATIONS("notifications"),
     MODULES("modules"),
-    STYLES("styles");
+    STYLES("styles"),
+    FX("fx");
 
     public final String key;
 

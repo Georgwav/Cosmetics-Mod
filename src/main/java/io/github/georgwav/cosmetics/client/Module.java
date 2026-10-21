@@ -49,6 +49,9 @@ public abstract class Module {
         } else {
             onDisable(mc);
         }
+        if (!Modules.loading()) {
+            io.github.georgwav.cosmetics.sol.fx.FxEvents.toggled(this, on);
+        }
         Modules.save();
     }
 

@@ -92,8 +92,10 @@ public final class Modules {
     public static final io.github.georgwav.cosmetics.client.hud.LyricsHud LYRICS = new io.github.georgwav.cosmetics.client.hud.LyricsHud();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.KillEffects KILL_EFFECTS =
+            new io.github.georgwav.cosmetics.sol.fx.effects.KillEffects();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
             COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
@@ -103,6 +105,11 @@ public final class Modules {
     private static boolean started;
 
     private Modules() {
+    }
+
+    /** Whether the saved modules are being read (switching them on then isn't something you did). */
+    public static boolean loading() {
+        return loading;
     }
 
     public static List<Module> all() {

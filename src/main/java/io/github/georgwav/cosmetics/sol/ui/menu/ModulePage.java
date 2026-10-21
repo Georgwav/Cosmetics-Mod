@@ -67,6 +67,8 @@ public final class ModulePage implements Page {
     private boolean skyDrawing;
     private final java.util.concurrent.atomic.AtomicReference<int[]> skyDone = new java.util.concurrent.atomic.AtomicReference<>();
     private int skyW, skyH;
+    /** An effects module's live scene (its effects on a dummy, replayed every two seconds). */
+    private io.github.georgwav.cosmetics.sol.fx.FxPreview.Scene scene;
     /** The preview's box in screen pixels, for the game's own drawing (the crosshair). */
     private int pvX0, pvY0, pvX1, pvY1;
 
@@ -135,8 +137,23 @@ public final class ModulePage implements Page {
 
     private void left(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float top, float bottom) {
         float ph = 214f;
-        preview(g, tk, x, top, LEFT_W, ph);
+        preview(menu, g, tk, x, top, LEFT_W, ph);
         float ky = top + ph + 16f;
+        if (module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule fm) {
+            // Try it: in a world, on a copy of you three blocks ahead (the menu closes to show it); here, at once.
+            ui.button(tk, x + LEFT_W, ky + 12f, SolMenu.tr("sol.fx.try_it"), true, () -> {
+                if (scene != null) {
+                    scene.restart();
+                }
+                if (Minecraft.getInstance().level != null && io.github.georgwav.cosmetics.sol.fx.FxPreview.tryInWorld(fm)) {
+                    menu.onClose();
+                }
+            });
+            SolFont hint = g.font(SolFont.Family.MEDIUM, 11.5f);
+            g.textMid(hint, g.fit(hint, SolMenu.tr(Minecraft.getInstance().level != null ? "sol.fx.try_it.world" : "sol.fx.try_it.menu"),
+                    LEFT_W - 110f), x, ky + 12f, 0x8CFFFFFF);
+            ky += 40f;
+        }
         SolFont h = g.font(SolFont.Family.SEMIBOLD, 13f), f = g.font(SolFont.Family.MEDIUM, 13f), dim = g.font(SolFont.Family.MEDIUM, 11.5f);
         g.textMid(h, SolMenu.tr("sol.menu.page.keys"), x, ky + 8f, 0xFFFFFFFF);
         ky += 22f;
@@ -180,7 +197,7 @@ public final class ModulePage implements Page {
         return ui.button(tk, right, cy, label, waiting, () -> binding = waiting ? null : key);
     }
 
-    private void preview(Gfx g, Tokens tk, float x, float y, float w, float h) {
+    private void preview(SolMenu menu, Gfx g, Tokens tk, float x, float y, float w, float h) {
         Pix.fill(g, x, y, w, h, 0x0AFFFFFF);
         Pix.frame(g, x, y, w, h, 0x14FFFFFF);
         pvX0 = Math.round(g.d.sx(x));
@@ -188,7 +205,7 @@ public final class ModulePage implements Page {
         pvX1 = Math.round(g.d.sx(x + w));
         pvY1 = Math.round(g.d.sy(y + h));
         SolFont cap = g.font(SolFont.Family.PIXEL, 10f);
-        if (module == Atmosphere.INSTANCE) {
+        if (module == Atmosphere.INSTANCE || module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule) {
             var e = ThemeState.baseEntry();
             int[] px = skyDone.getAndSet(null);
             if (px != null) {
@@ -220,6 +237,18 @@ public final class ModulePage implements Page {
                 g.clip(x, y, x + w, y + h);
                 g.image(sky, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
                 g.endClip();
+            }
+            if (module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule fm) {
+                // The effects on a dummy, drawn on the CPU at a texel's few pixels and shown without smoothing.
+                if (scene == null) {
+                    scene = new io.github.georgwav.cosmetics.sol.fx.FxPreview.Scene(fm, Math.round(w / 2f), Math.round(h / 2f));
+                }
+                SolTexture pic = scene.paint(menu.dt());
+                if (pic != null && !pic.released()) {
+                    g.image(pic, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+                }
+                g.text(cap, SolMenu.tr("sol.fx.preview"), x + 12f, y + h - 10f, 0x8CFFFFFF);
+                return;
             }
             g.text(cap, Widgets.themeName(e), x + 12f, y + h - 10f, 0x8CFFFFFF);
         } else if (module.previewHeight() > 0f) {
@@ -256,7 +285,7 @@ public final class ModulePage implements Page {
         Map<String, List<Setting<?>>> groups = new LinkedHashMap<>();
         List<Setting<?>> advanced = new ArrayList<>();
         for (Setting<?> st : module.settings()) {
-            if (!q.isEmpty() && !matches(st, q) || only != null && !only.contains(st.group)) {
+            if (!q.isEmpty() && !matches(st, q) || only != null && !only.contains(st.group) || !st.shown()) {
                 continue;
             }
             if (st.advanced) {
@@ -558,6 +587,10 @@ public final class ModulePage implements Page {
     public void release() {
         if (sky != null) {
             sky.release();
+        }
+        if (scene != null) {
+            scene.release();
+            scene = null;
         }
     }
 }

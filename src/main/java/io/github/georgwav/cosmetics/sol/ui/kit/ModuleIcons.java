@@ -41,7 +41,15 @@ public final class ModuleIcons {
             Map.entry("screenshots", "cam"),
             Map.entry("social", "people2"),
             Map.entry("servers", "server"),
-            Map.entry("cosmetics", "crown"));
+            Map.entry("cosmetics", "crown"),
+            Map.entry("kill_effects", "skull"),
+            Map.entry("hit_effects", "burst"),
+            Map.entry("totems", "totem"),
+            Map.entry("target", "aim"),
+            Map.entry("jump_fx", "jump"),
+            Map.entry("trails", "trail"),
+            Map.entry("you", "person"),
+            Map.entry("world_fx", "globe"));
 
     /**
      * The modules that keep their own ids until they move into the ones above: each shows the icon of the module it

@@ -52,6 +52,26 @@ public abstract class Setting<T> {
         return (S) this;
     }
 
+    /** Whether the module's page shows it now (a colour picker only while its colour is "Custom", say). */
+    private java.util.function.BooleanSupplier shown;
+
+    /** Shows it on the module's page only while {@code when} says so. */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S shownWhen(java.util.function.BooleanSupplier when) {
+        shown = when;
+        return (S) this;
+    }
+
+    /** Also needs {@code when} to be shown (on top of what it already needs). */
+    public void alsoShownWhen(java.util.function.BooleanSupplier when) {
+        java.util.function.BooleanSupplier old = shown;
+        shown = old == null ? when : () -> when.getAsBoolean() && old.getAsBoolean();
+    }
+
+    public boolean shown() {
+        return shown == null || shown.getAsBoolean();
+    }
+
     /** Marks this setting as advanced (folded away in the drawer). */
     @SuppressWarnings("unchecked")
     public <S extends Setting<T>> S advanced() {

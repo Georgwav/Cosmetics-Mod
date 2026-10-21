@@ -257,7 +257,7 @@ public final class TilePictures {
         return textures.computeIfAbsent(id, TilePictures::read);
     }
 
-    static SoftRaster.Texture read(String id) {
+    public static SoftRaster.Texture read(String id) {
         try {
             //? if >=1.21.11 {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(id));

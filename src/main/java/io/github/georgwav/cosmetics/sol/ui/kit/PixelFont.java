@@ -69,6 +69,11 @@ public final class PixelFont {
         return u;
     }
 
+    /** A glyph of either weight (the effects draw their own text from these), or null. */
+    public static TtfPixels.Glyph glyph(boolean bold, int codepoint) {
+        return face(bold).glyphs.get(codepoint);
+    }
+
     /** Whether every character has a glyph (else the text falls back to Geist). */
     public static boolean covers(boolean bold, String text) {
         Face f = face(bold);

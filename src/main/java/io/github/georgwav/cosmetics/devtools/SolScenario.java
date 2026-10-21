@@ -39,7 +39,7 @@ public final class SolScenario {
             "quick_hud_light", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
@@ -176,7 +176,21 @@ public final class SolScenario {
         }
     }
 
+    /** The effects' phase (Part C): every effect staged and grabbed by {@link FxScenario}. */
+    private static final String FX_SHOT = "fx_effects";
+    private FxScenario fx;
+
+    private Shot fxShot() {
+        // Frost on a morning, looking west over the beach with the sun behind: the dummy stands on the sand, and nothing
+        // in the sky moves much between the frames compared.
+        return new Shot(FX_SHOT, FxScenario.PRESET_A, 40f, true, 90f, 4f);
+    }
+
     private void planAll() {
+        if ("fx".equals(SHOTS)) {
+            shots.add(fxShot());
+            return;
+        }
         if ("night".equals(SHOTS)) {
             // The night sky on its own (-Dcosmeticsmod.solShots=night): Maple's night, which keeps the world's time.
             // Day 4 is the new moon, day 0 the full moon; 18,000 is midnight, 15,000 is 21:00.
@@ -287,6 +301,9 @@ public final class SolScenario {
                         : inPlay(ui) && !ui.startsWith("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
+            }
+            if (only.get(0).isBlank() || only.contains("fx")) {
+                shots.add(fxShot());
             }
             for (String ui : LOCAL_UI_SHOTS) {
                 if (only.contains(ui)) {
@@ -495,6 +512,20 @@ public final class SolScenario {
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
             holdSpot(mc, play, s.name());
             knifeForShot(s.name().startsWith("ui_") ? s.name().substring(3) : "", s.name());
+            if (s.name().equals(FX_SHOT)) {
+                // The effects' phase runs on its own and holds the shot until it's through.
+                mc.player.setXRot(FxScenario.pitch);
+                mc.player.xRotO = FxScenario.pitch;
+                if (phaseTick >= 10) {
+                    if (fx == null) {
+                        fx = new FxScenario(problems);
+                    }
+                    if (!fx.done()) {
+                        fx.tick(mc);
+                        phaseTick = 10;
+                    }
+                }
+            }
             if (play && phaseTick == SETTLE - 20) {
                 // A second ahead, so frames draw it before the check even when the game runs slowly (it shows for
                 // two seconds before it fades).

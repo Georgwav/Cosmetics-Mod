@@ -224,7 +224,7 @@ on or off.
 
 ### Modules
 
-The module grid has 31 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 32 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -248,7 +248,8 @@ the theme by itself.
 | Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks), stars, planets, time and weather locks. |
 | Camera | Freelook (Left Alt) and freecam (singleplayer, or as an operator). |
 | PvP Tweaks | Hurt cam strength, low fire, hit colour. |
-| PvP Effects | Hit sounds, and a kill effect (lightning, a burst or a sound) only you see. |
+| PvP Effects | Hit, crit and kill sounds only you hear, from one of Sol's sound packs (Tick, Glass, Thock, Chime, Pop, Zap) or your own, with their volume and pitch, and crits only. |
+| Kill Effects | Where something you hit in the last three seconds dies, an effect only you see, in Sol's texels: Soul rise (its copy rises, tinted, dissolving from the top), Lightning (a stepped bolt with a sky flash and thunder), Firework, Shatter (it breaks into its own skin's texels), Black hole, Sky laser, Gravestone (Sol's stone with its name), Confetti, Burning copy, Burst (in the effect's colour, red or soul blue) and Shockwave (rings over the ground). One at a time, or random from the ones you tick; for players only or everything. |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
 | Held Items | A lower shield and a smaller totem pop. |
 | Punchy | On by default (the Punchy mod itself stays optional). Switches the [Punchy](https://modrinth.com/mod/punchy-fpa) mod's first-person animations on and off when it's installed (off with the module), and gives Punchy Sol's tuning once: smaller hands nearer the middle. Sol arms (without Punchy by default, or always, or off): your arms and what they hold smaller and closer to the middle (hand size and centring sliders), the fallback when Punchy isn't installed; set to always with Punchy, the sliders move its hands on from its tuning. PvP mode (off): tones all of Punchy's animations down. Dark arms (off): your arms as flat black silhouettes. A glow round your hands and held item, in the theme's colours (or the item's, a rainbow or yours; gold by default when you pick your own): golden light round them (gold by default; its rise, bright core and deep edge are settings, the core and edge shades of whatever colour you pick, and no outline unless you turn it on), or a thin bright outline on its own, or a softer glow all round, with the hands themselves flat, and a motion trail: as your hands (or your knife) move, the light stays along the path they took, fading (not on 1.21.2 to 1.21.5). Rising lines of light through the softer glow are an option. The arms and glow work without Punchy too. Knives: wear a knife (a melee cosmetic from gunpacks you drop into `client/melee`, see [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#knives)) and the sword in your hand is that knife in first person, with your own arms: it draws, slashes (light attacks in turn, the heavy one on a critical hit), inspects on V (with Punchy installed, on Punchy's own inspect key, which then never plays Punchy's sword inspect while a knife is out) and shakes the view a little as in its own game, at its own pace (or fitted to Minecraft's sword). Settings: timing, heavy hit on crits, camera shake, sway, knife sounds, show hands the pack hides, knife in third person (off: third person shows the sword), use on swords or swords and axes; each knife's colour (tint, rainbow, colouring, saturation, hue, brightness, its own colours), model set and hand size on its Wardrobe page. While a knife is out, the shield or totem in your other hand stays hidden (the knife draws that hand). Sol makes a Ruby finish of the CS2 Skeleton Knife from your pack, and a model of your own can play another pack's animations. With Punchy installed, the knife is drawn alone while it shows (no Punchy hands under it), its hands at the size of Punchy's tuned ones, in the corner where Punchy's hand is. No knife pack is part of the mod. |
@@ -270,6 +271,24 @@ the theme by itself.
 | Social | Discord status, and streamer mode (hides your name, skin, the server's address and private messages). |
 | Servers | Auto reconnect, and the server list upgrade: pings in ms, players online, and folders (name a server `Folder/Name`). |
 | Cosmetics | Capes, wings, hats and the rest, set up in the Wardrobe. |
+
+### Effects
+
+Effects modules (Kill Effects so far; Hit Effects, Totems, Target, Jump FX, Trails, You and World FX come in the same
+style) draw in Sol's texels: squares of 1/16 block, positions on that grid and fades in a few steps (Pixel snap, on by
+default, can make them smooth), each in four tones of its colour, with a stepped glow behind. Only on your screen.
+- **Every effect's settings:** its style (or random from the ticked styles), colour (the preset's, so it changes with
+  the preset; your own; a rainbow; two colours), size, amount, speed and duration (50 to 200%), glow (soft, off,
+  strong), pixel snap, its sound (one of Sol's packs, yours, or off) and volume, and who it's for.
+- **Live preview:** the module's page shows its effects on a copy of you under your preset's sky, played again every
+  two seconds as you change them.
+- **Try it:** plays them on a copy of you three blocks ahead in the world.
+- **Sol picks:** a chip on the Modules page that switches on a set picked to go together, and off again, putting back
+  what you had.
+- **Your own sounds:** a folder in `client/sounds/` with `hit.ogg`, `crit.ogg`, `kill.ogg`, `pop.ogg`, `click.ogg` and
+  `toggle.ogg` (any of them) shows in every sound setting by its folder's name after a restart. Sol's six packs are
+  made by `tools/sol-sounds/make_sounds.py`.
+- With calm motion, effects keep their look but only hold their key moment, and nothing flashes.
 
 ### Main folder
 
@@ -462,3 +481,9 @@ To run the same scenario yourself, start the game with these JVM arguments:
 
 Locally, `python3 ci/mcci.py runtime --node 1.21.8` does what CI does. You need Xvfb, `xwd` and the jar in
 `build/libs`.
+
+The Sol scenario (`--sol`) also stages every effect (C, section D): each one on a copy of you, its clock frozen at
+six moments of its life and each frame saved by the game itself; CI stitches them into a contact sheet
+(`screenshot-fxsheet_<effect>.png`) and checks that the effect shows, that its colour is the preset's accent (within
+delta E 12, on two presets), and that nothing of it is left a second after it ends. One kill goes through the real
+events: a pig you hit and the server kills must start a kill effect. `-Dcosmeticsmod.solShots=fx` runs only that part.

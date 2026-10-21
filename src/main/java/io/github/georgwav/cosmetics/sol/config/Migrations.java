@@ -108,7 +108,35 @@ public final class Migrations {
             fold(settings, weather, "lock_weather", "weather");
         }
         stats(modules, out);
+        killEffects(out);
         return out;
+    }
+
+    /**
+     * PvP Effects' kill effect (lightning or a burst) moved to Kill Effects: a file that had one on and no Kill Effects
+     * yet gets Kill Effects on with that style, for the same victims.
+     */
+    static void killEffects(JsonObject out) {
+        JsonObject pvp = object(out, "pvp_effects");
+        if (pvp == null || out.has("kill_effects") || !pvp.has("settings") || !pvp.get("settings").isJsonObject()) {
+            return;
+        }
+        JsonObject old = pvp.getAsJsonObject("settings");
+        String effect = old.has("kill_effect") && old.get("kill_effect").isJsonPrimitive() ? old.get("kill_effect").getAsString() : "";
+        if (!effect.equals("lightning") && !effect.equals("burst")) {
+            return;
+        }
+        JsonObject kill = new JsonObject();
+        kill.addProperty("enabled", pvp.has("enabled") && pvp.get("enabled").getAsBoolean());
+        JsonObject settings = new JsonObject();
+        settings.addProperty("kill_style", effect);
+        boolean playersOnly = old.has("players_only") && old.get("players_only").getAsBoolean();
+        settings.addProperty("kill_who", playersOnly ? "players" : "everything");
+        if (old.has("kill_volume") && old.get("kill_volume").isJsonPrimitive()) {
+            settings.add("kill_volume", old.get("kill_volume"));
+        }
+        kill.add("settings", settings);
+        out.add("kill_effects", kill);
     }
 
     private static void fold(JsonObject settings, JsonObject old, String lock, String value) {

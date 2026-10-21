@@ -1,0 +1,182 @@
+{
+  "sol.chime.click": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/click"
+    ]
+  },
+  "sol.chime.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/crit"
+    ]
+  },
+  "sol.chime.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/hit"
+    ]
+  },
+  "sol.chime.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/kill"
+    ]
+  },
+  "sol.chime.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/pop"
+    ]
+  },
+  "sol.chime.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/chime/toggle"
+    ]
+  },
+  "sol.glass.click": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/click"
+    ]
+  },
+  "sol.glass.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/crit"
+    ]
+  },
+  "sol.glass.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/hit"
+    ]
+  },
+  "sol.glass.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/kill"
+    ]
+  },
+  "sol.glass.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/pop"
+    ]
+  },
+  "sol.glass.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/glass/toggle"
+    ]
+  },
+  "sol.pop.click": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/click"
+    ]
+  },
+  "sol.pop.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/crit"
+    ]
+  },
+  "sol.pop.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/hit"
+    ]
+  },
+  "sol.pop.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/kill"
+    ]
+  },
+  "sol.pop.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/pop"
+    ]
+  },
+  "sol.pop.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/pop/toggle"
+    ]
+  },
+  "sol.thock.click": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/click"
+    ]
+  },
+  "sol.thock.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/crit"
+    ]
+  },
+  "sol.thock.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/hit"
+    ]
+  },
+  "sol.thock.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/kill"
+    ]
+  },
+  "sol.thock.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/pop"
+    ]
+  },
+  "sol.thock.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/thock/toggle"
+    ]
+  },
+  "sol.tick.click": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/click"
+    ]
+  },
+  "sol.tick.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/crit"
+    ]
+  },
+  "sol.tick.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/hit"
+    ]
+  },
+  "sol.tick.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/kill"
+    ]
+  },
+  "sol.tick.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/pop"
+    ]
+  },
+  "sol.tick.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/tick/toggle"
+    ]
+  },
+  "sol.zap.click": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/click"
+    ]
+  },
+  "sol.zap.crit": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/crit"
+    ]
+  },
+  "sol.zap.hit": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/hit"
+    ]
+  },
+  "sol.zap.kill": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/kill"
+    ]
+  },
+  "sol.zap.pop": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/pop"
+    ]
+  },
+  "sol.zap.toggle": {
+    "sounds": [
+      "cosmeticsmod:sol/zap/toggle"
+    ]
+  }
+}

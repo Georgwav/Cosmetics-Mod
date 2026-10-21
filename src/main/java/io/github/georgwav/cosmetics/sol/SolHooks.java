@@ -81,6 +81,7 @@ public final class SolHooks {
         ParticleField.render();
         io.github.georgwav.cosmetics.sol.atmosphere.GlitterPath.render();
         SolTiming.end(SolTiming.Part.PARTICLES, t0);
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.render();
         t0 = SolTiming.start();
         io.github.georgwav.cosmetics.sol.render.LightPass.world();
         SolTiming.end(SolTiming.Part.LIGHT, t0);

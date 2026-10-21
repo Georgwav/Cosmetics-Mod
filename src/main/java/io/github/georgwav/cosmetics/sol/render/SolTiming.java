@@ -12,9 +12,9 @@ public final class SolTiming {
     /**
      * The parts timed: the sky pass (inside it again on their own: the sun; the night sky's stars, Milky Way,
      * constellations and twilight; the planets and the moon; the theme's night extras, its nebulae, aurora and
-     * cloud; the sky's events), particles, light pass, flare, Sol UI, HUD modules.
+     * cloud; the sky's events), particles, light pass, flare, Sol UI, HUD modules, the effects (FxWorld).
      */
-    public enum Part { SKY, SUN, PARTICLES, LIGHT, FLARE, SOL_UI, HUD, NIGHT, PLANETS, EXTRAS, EVENTS }
+    public enum Part { SKY, SUN, PARTICLES, LIGHT, FLARE, SOL_UI, HUD, NIGHT, PLANETS, EXTRAS, EVENTS, FX }
 
     public static final boolean ON = RenderStats.TIMING;
     private static final long[] NANOS = new long[Part.values().length];

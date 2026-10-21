@@ -39,9 +39,10 @@ final class ModulesSection implements Section {
     static String category(Module m) {
         String id = m.id;
         return switch (id) {
-            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "punchy", "crosshair", "nametags" -> "pvp";
-            case "camera", "glint", "screen", "particles", "fullbright", "outline" -> "visual";
-            case "atmosphere", "world_overlays", "time", "weather" -> "world";
+            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "punchy", "crosshair", "nametags", "kill_effects", "hit_effects",
+                 "totems", "target" -> "pvp";
+            case "camera", "glint", "screen", "particles", "fullbright", "outline", "jump_fx", "trails", "you" -> "visual";
+            case "atmosphere", "world_overlays", "time", "weather", "world_fx" -> "world";
             case "sol_chat", "music", "lyrics", "social", "servers" -> "social";
             default -> switch (m.category) {
                 case HUD -> "hud";
@@ -91,7 +92,9 @@ final class ModulesSection implements Section {
         String count = SolMenu.tr("sol.menu.modules.count_shown", on, shown.size());
         // The tabs in Silkscreen 12, or 10 when that leaves no room for the search (pixel type has whole steps only).
         SolFont tf = g.font(SolFont.Family.PIXEL_BOLD, 12f);
-        float room = w - 200f - 12f - g.width(cf, count) - 12f, need = 0f;
+        String picks = SolMenu.tr("sol.fx.picks");
+        // The search keeps at least 220 design px.
+        float room = w - 220f - 12f - g.width(cf, count) - 12f, need = g.width(tf, picks) + 26f + 18f + 12f;
         for (String f : FILTERS) {
             need += g.width(tf, SolMenu.tr("sol.menu.filter." + f)) + 26f + 6f;
         }
@@ -109,6 +112,28 @@ final class ModulesSection implements Section {
             int fi = ui.click(tx, ty, bw, tabH, () -> {
                 filter = f;
                 scroll.reset();
+            });
+            if (ui.focused(fi)) {
+                Pix.focus(g, tx, ty, bw, tabH);
+            }
+            tx += bw + 6f;
+        }
+        // Sol picks: a curated set of effects in one click, and off again (C.2).
+        {
+            tx += 6f;
+            float bw = g.width(tf, picks) + 26f + 18f;
+            boolean pressed = io.github.georgwav.cosmetics.sol.fx.SolPicks.on(), over = ui.over(tx, ty, bw, tabH);
+            int st = pressed ? Pix.ON : ui.pressed(tx, ty, bw, tabH) ? Pix.PRESSED : over ? Pix.HOVER : Pix.NORMAL;
+            Pix.slab(g, p, tx, ty, bw, tabH, st);
+            float dy = st == Pix.PRESSED ? Pix.E : 0f;
+            // The logo's sparkle before the label.
+            int ink = Pix.text(p, st);
+            Pix.fill(g, tx + 15f, ty + tabH / 2f - 6f + dy, 2f, 12f, ink);
+            Pix.fill(g, tx + 10f, ty + tabH / 2f - 1f + dy, 12f, 2f, ink);
+            g.textMid(tf, picks, tx + 13f + 18f, ty + tabH / 2f + dy, ink);
+            int fi = ui.click(tx, ty, bw, tabH, () -> {
+                io.github.georgwav.cosmetics.sol.fx.SolPicks.toggle();
+                menu.toast(SolMenu.tr(io.github.georgwav.cosmetics.sol.fx.SolPicks.on() ? "sol.fx.picks.on" : "sol.fx.picks.off"));
             });
             if (ui.focused(fi)) {
                 Pix.focus(g, tx, ty, bw, tabH);

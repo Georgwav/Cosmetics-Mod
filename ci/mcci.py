@@ -961,6 +961,112 @@ def our_log_problems(game_dir):
     return problems
 
 
+def _hexrgb(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _changed(a, b, w, h, step=1):
+    """The pixels that differ by more than 40 in some channel, as (x, y) with the new colour, every step-th pixel."""
+    out = []
+    for y in range(0, h, step):
+        ra, rb = a[y], b[y]
+        for x in range(0, w * 3, 3 * step):
+            if abs(ra[x] - rb[x]) > 40 or abs(ra[x + 1] - rb[x + 1]) > 40 or abs(ra[x + 2] - rb[x + 2]) > 40:
+                out.append((x // 3, y, (ra[x], ra[x + 1], ra[x + 2])))
+    return out
+
+
+def _accent_near(pixels, accent):
+    """Whether the effect's saturated colours include the accent: of its colours (in 16-step bins) that cover at least
+    half a percent of what it changed, any within delta E 12 of it. Returns (ok, best delta E, the colour)."""
+    bins = {}
+    for _, _, c in pixels:
+        mx, mn = max(c), min(c)
+        if mx < 40 or mx - mn < 30:
+            continue  # greys, white and black say nothing of the colour
+        key = (c[0] >> 4, c[1] >> 4, c[2] >> 4)
+        e = bins.setdefault(key, [0, 0, 0, 0])
+        e[0] += 1
+        e[1] += c[0]
+        e[2] += c[1]
+        e[3] += c[2]
+    best = (999.0, None)
+    floor = max(20, len(pixels) // 200)
+    for n, r, g, b in sorted(bins.values(), reverse=True):
+        if n < floor:
+            break
+        col = (r // n, g // n, b // n)
+        d = delta_e(col, accent)
+        if d < best[0]:
+            best = (d, col)
+    return best[0] <= 12, best[0], best[1]
+
+
+def fx_problems(game_dir, summary_phases):
+    """
+    Part C's checks (section D) on the effects the scenario staged: each one shows (its frames differ from the frame
+    with nothing playing), its colour is the preset's accent within delta E 12 on both presets (when the effect takes
+    the preset's colour), and a contact sheet of its six frames is written (screenshot-fxsheet_<effect>.png).
+    """
+    path = game_dir / "cosmeticsmod-fx-results.json"
+    if not path.exists():
+        return []
+    problems = []
+    res = json.loads(path.read_text())
+    for case in res.get("cases", []):
+        name = case["name"]
+        off_file = game_dir / f"fx-{name}-off.png"
+        frames = [game_dir / f"fx-{name}-{k}.png" for k in range(6)]
+        if not off_file.exists() or not all(f.exists() for f in frames):
+            problems.append(f"fx {name}: frames missing")
+            continue
+        w, h, off = read_png(off_file)
+        shown, colour_px = [], []
+        imgs = []
+        for k, f in enumerate(frames):
+            fw, fh, rows = read_png(f)
+            imgs.append(rows)
+            changed = _changed(rows, off, w, h)
+            shown.append(len(changed))
+            if k in (1, 2, 3):
+                colour_px.extend(changed)
+        info = {"life": case.get("life"), "shown": "/".join(str(n) for n in shown)}
+        need = max(30, int(30 * (w * h) / (854 * 480)))
+        if max(shown[:5]) < need:
+            problems.append(f"fx {name}: not visible (changed pixels per frame {info['shown']}, at least {need} wanted)")
+        if case.get("colour"):
+            ok, d, col = _accent_near(colour_px, _hexrgb(case["accent_a"]))
+            info["dE_a"] = round(d, 1)
+            if not ok:
+                problems.append(f"fx {name}: its colour isn't the accent {case['accent_a']} on {res['preset_a']} (nearest delta E {d:.1f}, {col})")
+            boff_file = game_dir / f"fx-{name}-boff.png"
+            b_files = [game_dir / f"fx-{name}-b{k}.png" for k in (1, 2, 3)]
+            if boff_file.exists() and all(f.exists() for f in b_files):
+                _, _, boff = read_png(boff_file)
+                # Against the same scene on the second preset without the effect, at the same three moments.
+                changed_b = []
+                for f in b_files:
+                    changed_b.extend(_changed(read_png(f)[2], boff, w, h))
+                ok, d, col = _accent_near(changed_b, _hexrgb(case["accent_b"]))
+                info["dE_b"] = round(d, 1)
+                if not ok:
+                    problems.append(f"fx {name}: its colour isn't the accent {case['accent_b']} on {res['preset_b']} (nearest delta E {d:.1f}, {col})")
+        if not case.get("cleaned", True):
+            problems.append(f"fx {name}: still in the pool after its life")
+        # The contact sheet: the six frames side by side at half size.
+        hw, hh = w // 2, h // 2
+        rows_out = []
+        for y in range(hh):
+            line = bytearray()
+            for rows in imgs:
+                src = rows[y * 2]
+                line += b"".join(src[x * 6:x * 6 + 3] for x in range(hw))
+            rows_out.append(bytes(line))
+        write_png(game_dir / f"screenshot-fxsheet_{name}.png", hw * len(imgs), hh, rows_out)
+        summary_phases[f"fx_{name}"] = info
+    return problems
+
+
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
     problems = []
     results_path = game_dir / ("cosmeticsmod-sol-results.json" if mode == "sol" else "cosmeticsmod-results.json")
@@ -990,9 +1096,11 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
     broken = sorted({line.strip()[:240] for line in text.splitlines() if SHADER_PROBLEM.search(line)})
     if broken:
         problems.append(f"{len(broken)} shader(s) of this mod didn't compile, e.g. {broken[0]}")
+    fx_phases = {}
     if mode == "sol":
         problems.extend(glow_problems(game_dir, shots))
         problems.extend(pixel_ui_problems(game_dir, shots, results))
+        problems.extend(fx_problems(game_dir, fx_phases))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()
@@ -1009,7 +1117,7 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
         "passed": not problems,
         "problems": problems,
         "seconds": seconds,
-        "phases": (results or {}).get("phases", {}),
+        "phases": {**(results or {}).get("phases", {}), **fx_phases},
         "screenshots": shots,
     }
 

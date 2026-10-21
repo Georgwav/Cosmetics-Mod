@@ -105,6 +105,23 @@ class MigrationsTest {
     }
 
     @Test
+    void pvpEffectsKillEffectMovesToKillEffects() {
+        JsonObject m = Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":"
+                + "{\"kill_effect\":\"lightning\",\"players_only\":true,\"hit_sound\":\"bell\"}}}"));
+        JsonObject kill = m.getAsJsonObject("kill_effects");
+        assertTrue(kill.get("enabled").getAsBoolean());
+        assertEquals("lightning", kill.getAsJsonObject("settings").get("kill_style").getAsString());
+        assertEquals("players", kill.getAsJsonObject("settings").get("kill_who").getAsString());
+        // Only once: a file that has Kill Effects keeps its own.
+        JsonObject again = Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":"
+                + "{\"kill_effect\":\"burst\"}},\"kill_effects\":{\"enabled\":false,\"settings\":{\"kill_style\":\"confetti\"}}}"));
+        assertEquals("confetti", again.getAsJsonObject("kill_effects").getAsJsonObject("settings").get("kill_style").getAsString());
+        // No kill effect (or just a sound): nothing to move.
+        assertFalse(Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":{\"kill_effect\":\"sound\"}}}"))
+                .has("kill_effects"));
+    }
+
+    @Test
     void schemaTwoIsLeftAlone() {
         JsonObject p = json("{\"schema\":2,\"modules\":{},\"theme\":{\"id\":\"grace\"},\"pinned\":[],\"future\":7}");
         assertFalse(Migrations.needsMigration(p));
