@@ -137,14 +137,14 @@ public final class CrystalPvp extends FxModule {
 
     private static void placed(Fx fx, float t, FxOut out, float s, float gy, float e, float gk, int c, int c2) {
         boolean glow = out.glowPass();
-        int hot = Vfx.white(c, 0.65f);
+        int hot = Vfx.white(c, 0.35f);
         // The ring snapping out under it.
         if (t < 0.45f) {
             float k = t / 0.45f;
             float r = (0.25f + 1.5f * Vfx.outExpo(k)) * s;
             float a = (float) Math.pow(1f - k, 1.5f) * e;
             if (glow) {
-                Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.03f, 0f, r, 0.55f * s, Vfx.with(Vfx.white(c, 0.25f), a * gk), true);
+                Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.03f, 0f, r, 0.55f * s, Vfx.with(c, a * gk), true);
                 Vfx.pool(out, 0f, gy, 0f, 1.6f * s, Vfx.with(c, 0.6f * a * gk));
             } else {
                 Vfx.ring(out, FxSoft.TUBE, 0f, gy + 0.03f, 0f, r, 0.06f * s, Vfx.with(hot, 0.6f * a), true);
@@ -166,7 +166,7 @@ public final class CrystalPvp extends FxModule {
         if (glow && t < 0.25f) {
             float k = t / 0.25f, f = (1f - k) * (1f - k);
             Vfx.hot(out, 0f, gy + 1f * s, 0f, 1.1f * s, Vfx.with(hot, 0.8f * f * e * gk));
-            Vfx.glint(out, 0f, gy + 1f * s, 0f, 1.4f * s, 0.3f + t, Vfx.with(hot, 0.9f * f * e * gk));
+            Vfx.glint(out, 0f, gy + 1f * s, 0f, 1.4f * s, 0.3f + t, Vfx.with(Vfx.white(c, 0.5f), 0.8f * f * e * gk));
         }
         FxBits.embers(out, fx, t, 0f, gy + 0.2f, 0f, 9, 0.7f * s, 2.2f, 0.15f, 0.5f, c2, s, 3);
     }
@@ -174,8 +174,8 @@ public final class CrystalPvp extends FxModule {
     private static void blast(Fx fx, float t, FxOut out, float s, float gy, float e, float gk, int c, int c2) {
         boolean glow = out.glowPass();
         float y0 = gy + 0.9f * s;
-        int hot = Vfx.white(c, 0.7f), dark = Vfx.mix(c, 0xFF1A1414, 0.75f);
-        FxBits.impact(out, fx, t, 0f, y0, 0f, gy, 1.15f * s, c);
+        int hot = Vfx.white(c, 0.4f), dark = Vfx.mix(c, 0xFF1A1414, 0.75f);
+        FxBits.impact(out, fx, t, 0f, y0, 0f, gy, 0.95f * s, c);
         // The fireball: white-hot, swelling, cooling to the colour and gone.
         if (t < 0.7f) {
             float k = t / 0.7f;
@@ -183,7 +183,7 @@ public final class CrystalPvp extends FxModule {
             float a = (float) Math.pow(1f - k, 1.6f) * e;
             if (glow) {
                 Vfx.glow(out, 0f, y0 + 0.4f * k * s, 0f, r * 1.7f, Vfx.with(Vfx.mix(hot, c, k), 0.75f * a * gk));
-                Vfx.hot(out, 0f, y0 + 0.3f * k * s, 0f, r * 1.1f, Vfx.with(Vfx.mix(0xFFFFFFFF, c, k), (1f - k) * (1f - k) * e * gk));
+                Vfx.hot(out, 0f, y0 + 0.3f * k * s, 0f, r * 1.1f, Vfx.with(Vfx.mix(Vfx.white(c, 0.5f), c, k), (1f - k) * (1f - k) * e * gk));
                 for (int i = 0; i < 5; i++) {
                     float ox = Vfx.s(fx.seed, i + 40) * 0.5f * s * (0.4f + k), oy = Vfx.s(fx.seed, i + 50) * 0.4f * s * (0.4f + k),
                             oz = Vfx.s(fx.seed, i + 60) * 0.5f * s * (0.4f + k);
@@ -209,9 +209,10 @@ public final class CrystalPvp extends FxModule {
             float a = (float) Math.pow(1f - u, 1.4f) * e;
             int col = k == 0 ? c : c2;
             if (glow) {
-                Vfx.ring(out, FxSoft.FRONT, 0f, y, 0f, r, (0.9f - 0.4f * u) * s, Vfx.with(Vfx.white(col, 0.3f), a * gk), k == 0);
+                Vfx.ring(out, FxSoft.FRONT, 0f, y, 0f, r, (0.9f - 0.4f * u) * s, Vfx.with(col, a * gk), k == 0);
             } else {
-                Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, 0.07f * s, Vfx.with(Vfx.white(col, 0.55f), 0.55f * a), k == 0);
+                // Over the world too, so the rings keep their colour on a bright day.
+                Vfx.ring(out, FxSoft.FRONT, 0f, y, 0f, r, (0.7f - 0.3f * u) * s, Vfx.with(col, 0.65f * a), k == 0);
             }
         }
         FxBits.sparks(out, fx, t, 0f, y0, 0f, 30, 9f * s, 0.45f, -14f, 1.4f, 0.95f, c, s, gy, 5);

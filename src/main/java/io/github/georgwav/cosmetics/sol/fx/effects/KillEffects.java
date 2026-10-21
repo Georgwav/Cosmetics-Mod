@@ -1146,12 +1146,12 @@ public final class KillEffects extends FxModule {
                 float a = (float) Math.pow(1f - p, 1.3f) * e;
                 int col = k == 1 ? c2 : c;
                 if (out.glowPass()) {
-                    Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.04f, 0f, r, 1.8f * s * (1f - 0.4f * p), Vfx.with(Vfx.white(col, 0.3f), a * gk), true);
+                    Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.04f, 0f, r, 1.8f * s * (1f - 0.4f * p), Vfx.with(col, a * gk), true);
                     if (k == 0) {
                         Vfx.wall(out, 0f, gy, 0f, r, 1.4f * s * (1f - p), Vfx.with(col, 0.55f * a * gk), true);
                     }
                 } else {
-                    Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.03f, 0f, r, 0.5f * s, Vfx.with(Vfx.white(col, 0.5f), 0.45f * a), true);
+                    Vfx.ring(out, FxSoft.FRONT, 0f, gy + 0.03f, 0f, r, 0.5f * s, Vfx.with(col, 0.55f * a), true);
                 }
                 if (k == 0 && out.glowPass()) {
                     Vfx.decalGround(out, FxSoft.SHOCK, 0f, gy, 0f, r * 1.05f, 0f, Vfx.with(c, 0.35f * a * gk));

@@ -987,11 +987,28 @@ def _vivid(rgb):
     return (round(r * 255), round(g * 255), round(b * 255))
 
 
+def _mix(a, b, t):
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+
+def _accent_family(accent):
+    """
+    The colours an effect in the accent wears: the accent and the vivid form of it the effects draw in
+    (FxColour.vivid), and their tints toward white (light: a glow's hot middle, a lit edge) and shades toward black (a
+    shadowed side), in steps.
+    """
+    out = []
+    for base in (accent, _vivid(accent)):
+        out += [_mix(base, (255, 255, 255), t / 20) for t in range(0, 13)]
+        out += [_mix(base, (0, 0, 0), t / 20) for t in range(1, 9)]
+    return out
+
+
 def _accent_near(pixels, accent):
     """Whether the effect's saturated colours include the accent: of its colours (in 16-step bins) that cover at least
-    half a percent of what it changed, any within delta E 12 of it, or of the vivid form of it the effects draw in
-    (FxColour.vivid). Returns (ok, best delta E, the colour)."""
-    vivid = _vivid(accent)
+    half a percent of what it changed, any within delta E 12 of it or of one of its tints and shades (an effect of
+    light shows as the accent lightened toward white; _accent_family). Returns (ok, best delta E, the colour)."""
+    family = _accent_family(accent)
     bins = {}
     for _, _, c in pixels:
         mx, mn = max(c), min(c)
@@ -1009,7 +1026,7 @@ def _accent_near(pixels, accent):
         if n < floor:
             break
         col = (r // n, g // n, b // n)
-        d = min(delta_e(col, accent), delta_e(col, vivid))
+        d = min(delta_e(col, f) for f in family)
         if d < best[0]:
             best = (d, col)
     return best[0] <= 12, best[0], best[1]

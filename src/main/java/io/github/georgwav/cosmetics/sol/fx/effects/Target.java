@@ -545,18 +545,17 @@ public final class Target extends FxModule implements FxWorld.Layer {
                 float z = (float) (oz * Math.cos(tilt));
                 if (k == 0) {
                     if (glow) {
-                        Vfx.hot(out, ox, y, z, 0.26f * s * lift, Vfx.with(Vfx.white(col, 0.6f), a * gk));
+                        Vfx.hot(out, ox, y, z, 0.26f * s * lift, Vfx.with(Vfx.white(col, 0.35f), a * gk));
                         Vfx.glow(out, ox, y, z, 0.6f * s, Vfx.with(col, 0.35f * a * gk));
                     } else {
-                        Vfx.sprite(out, FxSoft.DOT, ox, y, z, 0.055f * s, 0f, Vfx.with(Vfx.white(col, 0.7f), a));
+                        Vfx.sprite(out, FxSoft.DOT, ox, y, z, 0.055f * s, 0f, Vfx.with(Vfx.white(col, 0.4f), a));
                     }
                 } else {
                     float f = 1f - k / 15f;
                     if (glow) {
                         Vfx.line(out, FxSoft.LINE, px, py, pz, ox, y, z, 0.2f * s * f, Vfx.with(col, 0.6f * f * a * gk), Vfx.with(col, 0.55f * f * a * gk));
                     } else if (k < 8) {
-                        Vfx.line(out, FxSoft.TUBE, px, py, pz, ox, y, z, 0.04f * s * f, Vfx.with(Vfx.white(col, 0.3f), 0.6f * f * a),
-                                Vfx.with(Vfx.white(col, 0.3f), 0.55f * f * a));
+                        Vfx.line(out, FxSoft.TUBE, px, py, pz, ox, y, z, 0.04f * s * f, Vfx.with(col, 0.7f * f * a), Vfx.with(col, 0.65f * f * a));
                     }
                     // Sparks shed along the tail, drifting.
                     if (glow && k % 4 == 2) {

@@ -252,14 +252,14 @@ public final class JumpFx extends FxModule {
     /** One outline of a ring style: a shock front of light (glow pass) and a thin bright edge over the world. */
     private static void shape(FxOut out, int sides, float y, float r, float w, float turn, int col, float a, float gk, boolean glow) {
         if (glow) {
-            int c = Vfx.with(Vfx.white(col, 0.3f), a * gk);
+            int c = Vfx.with(col, a * gk);
             if (sides == 0) {
                 Vfx.ring(out, FxSoft.FRONT, 0f, y, 0f, r, w, c, true);
             } else {
                 Vfx.poly(out, FxSoft.FRONT, 0f, y, 0f, sides, r, w, turn, c, true);
             }
         } else {
-            int c = Vfx.with(Vfx.white(col, 0.5f), 0.75f * a);
+            int c = Vfx.with(Vfx.white(col, 0.2f), 0.8f * a);
             float tw = Math.max(0.05f, w * 0.14f);
             if (sides == 0) {
                 Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r + w * 0.4f, tw, c, true);
@@ -309,14 +309,14 @@ public final class JumpFx extends FxModule {
                 for (int d = 0; d < dashes; d++) {
                     float d0 = tail + (tip - tail) * d / dashes, d1 = tail + (tip - tail) * (d + (dashes == 1 ? 1f : 0.6f)) / dashes;
                     if (glow) {
-                        Vfx.groundStreak(out, cs * d0, gy, sn * d0, cs * d1, sn * d1, 0.3f * scale, Vfx.with(Vfx.white(c, 0.3f), a * gk));
+                        Vfx.groundStreak(out, cs * d0, gy, sn * d0, cs * d1, sn * d1, 0.3f * scale, Vfx.with(c, a * gk));
                     } else {
-                        Vfx.groundStreak(out, cs * d0, gy, sn * d0, cs * d1, sn * d1, 0.08f * scale, Vfx.with(Vfx.white(core, 0.5f), 0.8f * a));
+                        Vfx.groundStreak(out, cs * d0, gy, sn * d0, cs * d1, sn * d1, 0.08f * scale, Vfx.with(c, 0.85f * a));
                     }
                 }
                 if (glow) {
                     Vfx.glint(out, cs * tip, Vfx.groundAt(cs * tip, gy, sn * tip) + 0.12f, sn * tip, 0.35f * scale * long1, t * 3f + r,
-                            Vfx.with(0xFFFFFFFF, 0.8f * a * gk));
+                            Vfx.with(Vfx.white(c, 0.4f), 0.8f * a * gk));
                 }
             }
             particleSet(out, fx, reach * 0.8f, t, a, now);
