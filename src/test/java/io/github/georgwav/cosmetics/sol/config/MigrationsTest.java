@@ -122,6 +122,20 @@ class MigrationsTest {
     }
 
     @Test
+    void heldItemsTotemPopMovesToTotems() {
+        JsonObject m = Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":40}}}"));
+        JsonObject totems = m.getAsJsonObject("totems");
+        assertTrue(totems.get("enabled").getAsBoolean());
+        assertEquals(40, totems.getAsJsonObject("settings").get("pop_scale").getAsInt());
+        assertFalse(totems.getAsJsonObject("settings").get("shatter_on").getAsBoolean(), "only the size moves: no new effects");
+        // The game's size, or Totems already there: nothing to move.
+        assertFalse(Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":100}}}")).has("totems"));
+        JsonObject again = Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":40}},"
+                + "\"totems\":{\"enabled\":false,\"settings\":{\"pop_scale\":150}}}"));
+        assertEquals(150, again.getAsJsonObject("totems").getAsJsonObject("settings").get("pop_scale").getAsInt());
+    }
+
+    @Test
     void schemaTwoIsLeftAlone() {
         JsonObject p = json("{\"schema\":2,\"modules\":{},\"theme\":{\"id\":\"grace\"},\"pinned\":[],\"future\":7}");
         assertFalse(Migrations.needsMigration(p));

@@ -150,6 +150,7 @@ public final class Hud {
         long t0 = io.github.georgwav.cosmetics.sol.render.SolTiming.start();
         io.github.georgwav.cosmetics.client.modules.CrystalPvp.drawHud(g, mc, w, h);
         io.github.georgwav.cosmetics.client.modules.Movement.drawHud(g, mc, w, h);
+        io.github.georgwav.cosmetics.sol.fx.effects.Totems.drawHud(g);
         for (HudModule hud : Modules.hud()) {
             if (hud.enabled()) {
                 hud.render(g, mc, w, h);

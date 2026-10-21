@@ -104,20 +104,24 @@ public final class Crosshair extends Module {
     }
 
     /**
-     * Hit Effects' hitmarker round the middle, in screen pixels like the crosshair: drawn here after this crosshair or
-     * the game's, so it sits over whichever is showing.
+     * Hit Effects' hitmarker round the middle, in screen pixels like the crosshair, and Totems' count under it: drawn
+     * here after this crosshair or the game's, so they sit over whichever is showing.
      */
     public static void drawHitmarker(Canvas g, Minecraft mc) {
-        if (mc.player == null || !mc.options.getCameraType().isFirstPerson() || !io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.enabled()) {
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson()) {
             return;
         }
-        float gs = (float) mc.getWindow().getGuiScale();
-        int w = mc.getWindow().getGuiScaledWidth();
-        int h = mc.getWindow().getGuiScaledHeight();
-        g.push();
-        g.scale(1f / gs, 1f / gs);
-        io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.drawMarker(g, Math.round(w * gs) / 2, Math.round(h * gs) / 2, gs);
-        g.pop();
+        if (io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.enabled()) {
+            float gs = (float) mc.getWindow().getGuiScale();
+            int w = mc.getWindow().getGuiScaledWidth();
+            int h = mc.getWindow().getGuiScaledHeight();
+            g.push();
+            g.scale(1f / gs, 1f / gs);
+            io.github.georgwav.cosmetics.client.Modules.HIT_EFFECTS.drawMarker(g, Math.round(w * gs) / 2, Math.round(h * gs) / 2, gs);
+            g.pop();
+        }
+        // Totems' count under it while you hold one.
+        io.github.georgwav.cosmetics.sol.fx.effects.Totems.drawCount(g, mc);
     }
 
     /**

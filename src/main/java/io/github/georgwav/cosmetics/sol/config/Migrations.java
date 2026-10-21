@@ -109,7 +109,32 @@ public final class Migrations {
         }
         stats(modules, out);
         killEffects(out);
+        totemPop(out);
         return out;
+    }
+
+    /**
+     * Held Items' totem pop size moved to Totems: a file with a smaller pop and no Totems yet gets Totems on at that
+     * size with its other effects off, so the pop looks as it did.
+     */
+    static void totemPop(JsonObject out) {
+        JsonObject held = object(out, "held_items");
+        if (held == null || out.has("totems") || !held.has("settings") || !held.get("settings").isJsonObject()) {
+            return;
+        }
+        JsonObject old = held.getAsJsonObject("settings");
+        if (!old.has("totem_size") || !old.get("totem_size").isJsonPrimitive() || old.get("totem_size").getAsDouble() == 100.0) {
+            return;
+        }
+        JsonObject totems = new JsonObject();
+        totems.addProperty("enabled", held.has("enabled") && held.get("enabled").getAsBoolean());
+        JsonObject settings = new JsonObject();
+        settings.add("pop_scale", old.get("totem_size"));
+        for (String off : new String[]{"ghost_on", "shatter_on", "angel_on", "flash_on", "pop_particles_on", "count_on"}) {
+            settings.addProperty(off, false);
+        }
+        totems.add("settings", settings);
+        out.add("totems", totems);
     }
 
     /**

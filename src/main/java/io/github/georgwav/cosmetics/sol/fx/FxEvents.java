@@ -84,6 +84,11 @@ public final class FxEvents {
         void low(float health);
     }
 
+    /** An explosion near you, or an end crystal placed near you ({@code crystal}). */
+    public interface Blast extends Listener {
+        void blast(double x, double y, double z, boolean crystal);
+    }
+
     public static final List<Kill> KILL = new ArrayList<>();
     public static final List<Hit> HIT = new ArrayList<>();
     public static final List<Damage> DAMAGE = new ArrayList<>();
@@ -95,6 +100,7 @@ public final class FxEvents {
     public static final List<Toggle> TOGGLE = new ArrayList<>();
     public static final List<Song> SONG = new ArrayList<>();
     public static final List<LowHealth> LOW = new ArrayList<>();
+    public static final List<Blast> BLAST = new ArrayList<>();
 
     /** Who you hit in the last three seconds (and how much health each had), and whether your last hit was a crit. */
     static final KillWindow WINDOW = new KillWindow(3000L);
@@ -138,6 +144,9 @@ public final class FxEvents {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof net.minecraft.world.entity.projectile.FireworkRocketEntity) {
                 rocketNear(entity);
+            } else if (entity instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal && near(entity.getX(), entity.getY(),
+                    entity.getZ())) {
+                blast(entity.getX(), entity.getY(), entity.getZ(), true);
             }
         });
     }
@@ -168,6 +177,25 @@ public final class FxEvents {
                 if (h.listening()) {
                     h.hit(target, x, y, z, crit, target.getHealth());
                 }
+            }
+        }
+    }
+
+    /** Within 32 blocks of you. */
+    private static boolean near(double x, double y, double z) {
+        Player you = Minecraft.getInstance().player;
+        return you != null && you.distanceToSqr(x, y, z) < 32 * 32;
+    }
+
+    /** An explosion the server told us of (ExplosionMixin), or a crystal that appeared: near you only. */
+    public static void blast(double x, double y, double z, boolean crystal) {
+        if (!any(BLAST) || !near(x, y, z)) {
+            return;
+        }
+        for (int i = 0, n = BLAST.size(); i < n; i++) {
+            Blast b = BLAST.get(i);
+            if (b.listening()) {
+                b.blast(x, y, z, crystal);
             }
         }
     }

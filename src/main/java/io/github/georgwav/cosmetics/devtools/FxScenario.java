@@ -11,6 +11,8 @@ import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.WorldOut;
 import io.github.georgwav.cosmetics.sol.fx.effects.HitEffects;
 import io.github.georgwav.cosmetics.sol.fx.effects.KillEffects;
+import io.github.georgwav.cosmetics.sol.fx.effects.Totems;
+import io.github.georgwav.cosmetics.sol.fx.effects.Trails;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import net.minecraft.client.Minecraft;
@@ -57,6 +59,11 @@ final class FxScenario {
     private FxPreview.Dummy dummy;
     private int zombie = Integer.MIN_VALUE;
     private int killTicks, cleanLeft;
+    /** The other real events, in turn: a totem pop, a crystal appearing, an explosion, an arrow in flight. */
+    private int realStep, realTicks;
+    private static final int REAL_TOTEM = 0, REAL_CRYSTAL = 1, REAL_BLAST = 2, REAL_ARROW = 3, REAL_DONE = 4;
+    private static final String[] REAL_NAMES = {"totem pop", "crystal", "explosion", "arrow"};
+    private static final String[] REAL_KINDS = {"totem_", "crystal_rings", "crystal_rings", "trail_projectile"};
     /** The camera for the case being staged. */
     static float pitch = 10f;
 
@@ -109,6 +116,39 @@ final class FxScenario {
         cases.add(new Case("hit_words", hit, () -> only(hit, hit.words.on), 3.6f, 2f, true, false, "hit_word"));
         cases.add(new Case("hit_damage", hit, () -> only(hit, hit.damage.on), 3.6f, -6f, true, true, "hit_damage"));
         cases.add(new Case("hit_marker", hit, () -> only(hit, hit.marker.on), 3.2f, 8f, true, false, null));
+        // Totems: the gold ghost, shatter and angel in their own gold; the floating totem in each of Sol's styles.
+        Totems totems = Modules.TOTEMS;
+        cases.add(new Case("totem_ghost", totems, () -> only(totems, totems.ghost.on, "theme_pop"), 4f, 2f, false, false, "totem_ghost"));
+        cases.add(new Case("totem_shatter", totems, () -> only(totems, totems.shatter.on, "theme_pop"), 4f, -4f, false, false, "totem_shatter"));
+        cases.add(new Case("totem_angel", totems, () -> only(totems, totems.angel.on, "theme_pop"), 4.5f, -6f, false, false, "totem_angel"));
+        for (String style : Totems.POP_STYLES) {
+            if (!style.equals("vanilla") && !style.equals("hidden")) {
+                cases.add(new Case("totem_pop_" + style, totems, () -> only(totems, null, style), 4f, 4f, false, false, null));
+            }
+        }
+        var crystal = Modules.CRYSTAL_PVP;
+        cases.add(new Case("crystal_rings", crystal, () -> {
+            crystal.rings.on.set(true);
+            crystal.rings.colourMode.set("theme");
+        }, 6.5f, 12f, true, false, "crystal_rings"));
+        Trails trails = Modules.TRAILS;
+        for (String style : Trails.PROJECTILE_STYLES) {
+            cases.add(new Case("trail_" + style, trails, () -> {
+                trails.projectiles.on.set(true);
+                trails.projectiles.style.set(style);
+                trails.projectiles.colourMode.set("theme");
+            }, 4f, 4f, true, false, "trail_projectile"));
+        }
+    }
+
+    /** Totems with only one of its effects on ({@code on}, or none) and the floating totem in {@code pop}'s style. */
+    private static void only(Totems t, io.github.georgwav.cosmetics.client.Setting.Toggle on, String pop) {
+        for (var fs : List.of(t.ghost, t.shatter, t.angel)) {
+            fs.on.set(fs.on == on);
+            fs.colourMode.set("custom");
+        }
+        t.flash.set(false);
+        t.popStyle.set(pop.equals("theme_pop") ? "hidden" : pop);
     }
 
     /** Hit Effects with only one of its effects on, in the preset's colour. */
@@ -152,6 +192,10 @@ final class FxScenario {
         if (index >= cases.size()) {
             if (!killChecked) {
                 realKill(mc);
+                return;
+            }
+            if (realStep < REAL_DONE) {
+                realEvents(mc);
                 return;
             }
             finish(mc);
@@ -437,6 +481,85 @@ final class FxScenario {
         }
     }
 
+    /**
+     * The real events after the kill: each set off with a command and waited for (two seconds at most) until its
+     * effect starts through the game's own events. A pig holding a totem takes lethal damage (Totems: ghost and
+     * shatter), an end crystal is summoned ahead (Crystal PvP's rings), TNT goes off twenty blocks up (rings, from the
+     * explosion the server sends; nothing breaks and nobody is hurt up there), and an arrow flies across the view
+     * (Trails, everyone's).
+     */
+    private void realEvents(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) {
+            realStep = REAL_DONE;
+            return;
+        }
+        if (realTicks == 0) {
+            FxWorld.POOL.clear();
+            double a = Math.toRadians(mc.player.getYRot());
+            double fx = -Math.sin(a), fz = Math.cos(a);
+            double x = mc.player.getX() + fx * 4.0, y = mc.player.getY(), z = mc.player.getZ() + fz * 4.0;
+            List<String> cmds = new ArrayList<>();
+            switch (realStep) {
+                case REAL_TOTEM -> {
+                    Totems t = Modules.TOTEMS;
+                    t.setEnabled(true);
+                    only(t, t.shatter.on, "hidden");
+                    t.ghost.on.set(true);
+                    t.ghost.who.set("everything");
+                    t.shatter.who.set("everything");
+                    cmds.add(String.format(java.util.Locale.ROOT, "summon pig %.2f %.2f %.2f {NoAI:1b,Silent:1b,Tags:[\"sol_totem\"]}", x, y, z));
+                    cmds.add("item replace entity @e[tag=sol_totem,limit=1] weapon.mainhand with minecraft:totem_of_undying");
+                    cmds.add("damage @e[tag=sol_totem,limit=1] 50 minecraft:generic");
+                }
+                case REAL_CRYSTAL -> {
+                    Modules.CRYSTAL_PVP.setEnabled(true);
+                    Modules.CRYSTAL_PVP.rings.on.set(true);
+                    cmds.add("kill @e[tag=sol_totem]");
+                    cmds.add(String.format(java.util.Locale.ROOT, "summon end_crystal %.2f %.2f %.2f {ShowBottom:0b,Tags:[\"sol_crystal\"]}",
+                            x, y + 1.0, z));
+                }
+                case REAL_BLAST -> {
+                    cmds.add("kill @e[tag=sol_crystal]");
+                    cmds.add(String.format(java.util.Locale.ROOT, "summon tnt %.2f %.2f %.2f {fuse:0}", x, y + 20.0, z));
+                }
+                default -> {
+                    Trails t = Modules.TRAILS;
+                    t.setEnabled(true);
+                    t.projectiles.on.set(true);
+                    t.projectileWho.set("everyone");
+                    // From the left of the view to its right, two blocks ahead at eye height.
+                    double rx = -fz, rz = fx;
+                    cmds.add(String.format(java.util.Locale.ROOT, "summon arrow %.2f %.2f %.2f {Motion:[%.2f,0.15,%.2f],pickup:0b,Tags:[\"sol_arrow\"]}",
+                            mc.player.getX() + fx * 2.5 - rx * 3.0, mc.player.getEyeY(), mc.player.getZ() + fz * 2.5 - rz * 3.0, rx * 1.2, rz * 1.2));
+                }
+            }
+            server.execute(() -> {
+                for (String c : cmds) {
+                    server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), c);
+                }
+            });
+            realTicks = 1;
+            return;
+        }
+        realTicks++;
+        int n = FxWorld.POOL.count(REAL_KINDS[realStep]);
+        if (n > 0 || realTicks > 40) {
+            if (n > 0) {
+                CosmeticsMod.LOGGER.info("[Sol] Effects phase: a real {} started its effect after {} ticks", REAL_NAMES[realStep], realTicks);
+            } else {
+                problems.add("fx real " + REAL_NAMES[realStep] + ": no effect started");
+            }
+            realStep++;
+            realTicks = 0;
+            wait = 10;
+            if (realStep == REAL_DONE) {
+                server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(),
+                        "kill @e[tag=sol_arrow]"));
+            }
+        }
+    }
+
     private void finish(Minecraft mc) {
         done = true;
         FxWorld.hold = Float.NaN;
@@ -445,6 +568,9 @@ final class FxScenario {
             c.module().setEnabled(false);
         }
         Modules.KILL_FEED.setEnabled(false);
+        Modules.TOTEMS.ghost.who.set("players");
+        Modules.TOTEMS.shatter.who.set("players");
+        Modules.TRAILS.projectileWho.set("yours");
         io.github.georgwav.cosmetics.sol.render.Mc.hideHud(true);
         Atmosphere at = Atmosphere.INSTANCE;
         if (at != null && qualityWas != null) {

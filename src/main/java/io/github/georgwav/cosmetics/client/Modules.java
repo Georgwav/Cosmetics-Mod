@@ -96,11 +96,13 @@ public final class Modules {
             new io.github.georgwav.cosmetics.sol.fx.effects.KillEffects();
     public static final io.github.georgwav.cosmetics.sol.fx.effects.HitEffects HIT_EFFECTS =
             new io.github.georgwav.cosmetics.sol.fx.effects.HitEffects();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.Totems TOTEMS = new io.github.georgwav.cosmetics.sol.fx.effects.Totems();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.Trails TRAILS = new io.github.georgwav.cosmetics.sol.fx.effects.Trails();
     public static final io.github.georgwav.cosmetics.client.hud.ComboHud COMBO = new io.github.georgwav.cosmetics.client.hud.ComboHud();
     public static final io.github.georgwav.cosmetics.client.hud.KillFeedHud KILL_FEED =
             new io.github.georgwav.cosmetics.client.hud.KillFeedHud();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, HIT_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS, PUNCHY,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, HIT_EFFECTS, TOTEMS, CRYSTAL_PVP, TRAILS, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
             COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);

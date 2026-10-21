@@ -67,6 +67,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("DeathStreamerMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
+        all.add("TotemParticleMixin");
+        all.add("ExplosionMixin");
         all.add("EndCrystalLookMixin");
         all.add("CrystalRemovalMixin");
         //? if >=1.21.9 && <1.21.11 {

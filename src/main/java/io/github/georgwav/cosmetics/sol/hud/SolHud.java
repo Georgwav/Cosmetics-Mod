@@ -239,6 +239,18 @@ public final class SolHud {
         c.pop();
     }
 
+    /**
+     * Something drawn with the kit over the HUD in GUI units (Totems' floating totem), guarded; {@code draw} should be
+     * a method reference that captures nothing, so a frame allocates nothing.
+     */
+    public static void custom(Canvas c, java.util.function.Consumer<Gfx> draw) {
+        Guard.run(Feature.FX, () -> {
+            Gfx g = begin(c, 1f);
+            draw.accept(g);
+            end(c);
+        });
+    }
+
     /** Pixel text with a hard drop one GUI pixel under it, so it reads on any sky. */
     static void dropped(Gfx g, SolFont f, String s, float x, float cy, int argb, int align) {
         float was = g.drop;

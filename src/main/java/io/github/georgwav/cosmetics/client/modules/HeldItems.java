@@ -7,14 +7,12 @@ import io.github.georgwav.cosmetics.client.Setting;
 import net.minecraft.world.entity.HumanoidArm;
 
 /**
- * Held Items: the shield lower in first person (it covers less of the view), the shield's and the totem's size in
- * your hand, and the totem's pop on screen smaller.
+ * Held Items: the shield lower in first person (it covers less of the view), and the shield's and the totem's size
+ * in your hand. The totem's pop on screen moved to Totems.
  */
 public final class HeldItems extends Module {
     /** The shield sits lower in first person, so it covers less of the view. */
     private final Setting.Toggle lowShield = add(new Setting.Toggle("low_shield", false));
-    /** The totem's pop on screen, smaller. */
-    private final Setting.Slider totem = add(new Setting.Slider("totem_size", 100, 25, 100, 5, v -> Math.round(v) + "%"));
     /** The shield's and the totem's size in your hand (first person). */
     private final Setting.Slider shieldSize = add(new Setting.Slider("shield_size", 100, 40, 150, 5, v -> Math.round(v) + "%"));
     private final Setting.Slider totemHand = add(new Setting.Slider("totem_hand", 100, 40, 150, 5, v -> Math.round(v) + "%"));
@@ -53,11 +51,5 @@ public final class HeldItems extends Module {
         }
         var hand = arm == player.getMainArm() ? net.minecraft.world.InteractionHand.MAIN_HAND : net.minecraft.world.InteractionHand.OFF_HAND;
         return player.getItemInHand(hand).is(item);
-    }
-
-    /** The size of the totem's pop on screen (1 = the game's). */
-    public static float totemScale() {
-        HeldItems h = Modules.HELD_ITEMS;
-        return h.enabled() ? (float) (h.totem.get() / 100.0) : 1f;
     }
 }

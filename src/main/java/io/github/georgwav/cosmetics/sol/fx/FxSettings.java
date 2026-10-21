@@ -44,6 +44,7 @@ public final class FxSettings {
         boolean playersOnly = true;
         int defaultColour = 0xFF5FD4FF;
         int secondColour = 0xFFFF6EC7;
+        String colourMode = "theme";
 
         /** A switch for the effect itself (when its module has several). */
         public Spec toggle(boolean on) {
@@ -99,6 +100,13 @@ public final class FxSettings {
             secondColour = second;
             return this;
         }
+
+        /** Its own colour by default (Custom) instead of the preset's: a gold totem stays gold. */
+        public Spec ownColour(int custom) {
+            defaultColour = custom;
+            colourMode = "custom";
+            return this;
+        }
     }
 
     /** Makes the settings through {@code add} (the module's own), each in group {@code group}. */
@@ -121,7 +129,7 @@ public final class FxSettings {
                 f.style.shownWhen(() -> !r.get());
             }
         }
-        f.colourMode = put(add, std, "colour_mode", new Setting.Choice(p + "colour_mode", "theme", List.of("theme", "custom", "rainbow", "two"))
+        f.colourMode = put(add, std, "colour_mode", new Setting.Choice(p + "colour_mode", spec.colourMode, List.of("theme", "custom", "rainbow", "two"))
                 .group(group));
         Setting.Choice mode = f.colourMode;
         f.colour = put(add, std, "colour", new Setting.Color(p + "colour", spec.defaultColour).group(group));

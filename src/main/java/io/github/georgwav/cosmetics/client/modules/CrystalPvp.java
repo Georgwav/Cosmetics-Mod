@@ -1,8 +1,18 @@
 package io.github.georgwav.cosmetics.client.modules;
 
-import io.github.georgwav.cosmetics.client.Module;
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.Setting;
+import io.github.georgwav.cosmetics.sol.fx.Fx;
+import io.github.georgwav.cosmetics.sol.fx.FxDraw;
+import io.github.georgwav.cosmetics.sol.fx.FxEvents;
+import io.github.georgwav.cosmetics.sol.fx.FxKind;
+import io.github.georgwav.cosmetics.sol.fx.FxModule;
+import io.github.georgwav.cosmetics.sol.fx.FxOut;
+import io.github.georgwav.cosmetics.sol.fx.FxPool;
+import io.github.georgwav.cosmetics.sol.fx.FxPreview;
+import io.github.georgwav.cosmetics.sol.fx.FxSettings;
+import io.github.georgwav.cosmetics.sol.fx.FxWorld;
+import io.github.georgwav.cosmetics.sol.fx.Ramp;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.client.Minecraft;
@@ -26,9 +36,13 @@ import java.util.UUID;
  * once when the hit will break it, instead of a moment later when the server says so, so the next one goes down
  * sooner; one the server keeps comes back after a second and a half); the crystals' size (their spin and bounce are the Crystal part's, in Sol Styles); a line in chat when anyone near you pops a totem, with their count;
  * a warning when your offhand has no totem but your inventory does; and a red pulse round the screen when your health
- * runs low. All on your side only: nothing is sent that the game doesn't send anyway.
+ * runs low; and explosion rings, two rings of texels that spread and rise where a crystal appears or anything explodes
+ * near you. All on your side only: nothing is sent that the game doesn't send anyway.
  */
-public final class CrystalPvp extends Module {
+public final class CrystalPvp extends FxModule {
+    /** Explosion rings: two rings of texels that spread and rise where a crystal appears or anything explodes near you. */
+    public final FxSettings rings = fx("rings", java.util.List.of("one"),
+            new FxSettings.Spec().toggle(true).noAmount());
     final Setting.Toggle optimizer = add(new Setting.Toggle("optimizer", true).group("crystal"));
     final Setting.Slider size = add(new Setting.Slider("crystal_size", 100, 25, 150, 5, v -> Math.round(v) + "%").group("crystal"));
     private final Setting.Toggle pops = add(new Setting.Toggle("pop_messages", true).group("combat"));
@@ -64,7 +78,58 @@ public final class CrystalPvp extends Module {
             }
             return InteractionResult.PASS;
         });
+        FxEvents.BLAST.add(new FxEvents.Blast() {
+            @Override
+            public boolean listening() {
+                return enabled() && rings.on();
+            }
+
+            @Override
+            public void blast(double x, double y, double z, boolean crystal) {
+                ring(FxWorld.POOL, x, crystal ? y : y - 0.5, z, 0f);
+            }
+        });
     }
+
+    /** Two rings at (x, y, z), {@code delay} seconds from now. */
+    private void ring(FxPool pool, double x, double y, double z, float delay) {
+        Fx f = start(pool, rings, RINGS, x, y, z, 0.5f);
+        rings.apply(f, 0);
+        FxPool.delay(f, delay);
+    }
+
+    @Override
+    public float tryIt(FxPool pool, FxPreview.Dummy dummy) {
+        if (!rings.on()) {
+            return 0.5f;
+        }
+        // A crystal placed at its feet, then going off.
+        ring(pool, dummy.x, dummy.y + 0.2, dummy.z, 0f);
+        ring(pool, dummy.x, dummy.y + 0.2, dummy.z, 0.7f);
+        return 1.3f;
+    }
+
+    /** The rings: one spreading to three blocks and rising a little, the second a moment later, smaller and higher. */
+    static final FxKind RINGS = new FxKind("crystal_rings", 12) {
+        @Override
+        public void draw(Fx fx, float age, float now, FxOut out) {
+            float t = fx.time(age);
+            FxDraw.origin(out, fx);
+            for (int k = 0; k < 2; k++) {
+                float u = (t - k * 0.1f) / 0.4f;
+                if (u < 0f || u > 1f) {
+                    continue;
+                }
+                float e = 1f - (1f - u) * (1f - u);
+                float r = (0.3f + (k == 0 ? 2.7f : 1.9f) * e) * fx.size;
+                float rise = Ramp.snap((k == 0 ? 0.6f : 1.1f) * e, fx.snap);
+                float a = Ramp.steps(1f - Math.max(0f, (u - 0.5f) / 0.5f), 4, fx.snap)
+                        * fx.early(now);
+                FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, rise, 0f, r, 1,
+                        k == 0 ? Ramp.MAIN : Ramp.CORE, a, false, now);
+            }
+        }
+    };
 
     private static String trimmed(double v) {
         return v == Math.floor(v) ? String.valueOf((int) v) : String.valueOf(v);

@@ -94,6 +94,33 @@ public final class FxDraw {
         }
     }
 
+    /**
+     * {@link #sprite}, stretched {@code sx} across and {@code sy} up (a negative {@code sx} mirrors it): a wing's flap.
+     */
+    public static void spriteScaled(FxOut out, Fx fx, FxSprites.Sprite s, float x, float y, float z, float texel, float sx, float sy,
+                                    int i, float alpha, float now) {
+        if (alpha <= 0f || sx == 0f || sy == 0f) {
+            return;
+        }
+        out.use(FxSprites.atlas());
+        float hw = s.w * texel * sx / 2f, hh = s.h * texel * sy / 2f;
+        if (out.glowPass()) {
+            if (fx.glow == 0) {
+                return;
+            }
+            float k = fx.glow == 2 ? 1.7f : 1f;
+            int g = fx.rainbow ? fx.tone(Ramp.CORE, i, now) : fx.glowColour;
+            billboard(out, x, y, z, hw * 1.5f, hh * 1.5f, s.uv[FxSprites.ALL], Colors.withAlpha(g, Math.min(1f, 0.35f * k * alpha)));
+            return;
+        }
+        for (int t = 0; t < Ramp.TONES; t++) {
+            float[] uv = s.uv[t];
+            if (uv != null) {
+                billboard(out, x, y, z, hw, hh, uv, Colors.withAlpha(fx.tone(t, i, now), alpha));
+            }
+        }
+    }
+
     /** A sprite in one colour (its every pixel), facing the camera; body pass. */
     public static void spriteFlat(FxOut out, FxSprites.Sprite s, float x, float y, float z, float texel, int argb) {
         if (out.glowPass() || Colors.a(argb) == 0) {

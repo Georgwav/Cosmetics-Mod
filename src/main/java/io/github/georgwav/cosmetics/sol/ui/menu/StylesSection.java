@@ -1154,7 +1154,7 @@ final class StylesSection implements Section {
     /** Bauloo's extras that Sol has as modules: each opens its module's page. */
     private void extras(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
         String[][] items = {{"outline", "cube"}, {"crosshair", "cross"}, {"glint", "sparkle"}, {"hitboxes", "hitbox"}, {"held_items", "shield"},
-                {"kill_effects", "skull"}, {"pvp_effects", "bolt"}, {"crystal_pvp", "crystal"}, {"music", "note"}};
+                {"kill_effects", "skull"}, {"totems", "totem"}, {"pvp_effects", "bolt"}, {"crystal_pvp", "crystal"}, {"music", "note"}};
         float cy = y - scroll.value();
         g.clip(x, y, x + w, y + h);
         for (String[] it : items) {

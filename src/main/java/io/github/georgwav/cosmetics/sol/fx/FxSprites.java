@@ -180,6 +180,28 @@ public final class FxSprites {
             ".22.",
             "2..3",
             ".33.");
+    /** A totem of undying: its head with the deep tone's eyes, arms out, its robe. */
+    public static final Sprite TOTEM = new Sprite("totem",
+            "..22222..",
+            ".2111112.",
+            ".2141412.",
+            ".2111112.",
+            "..23332..",
+            "222222222",
+            "3.21112.3",
+            "..21112..",
+            "..23332..",
+            "...232...",
+            "...333...");
+    /** A wing, its tip up and out to the left (mirrored for the right). */
+    public static final Sprite WING = new Sprite("wing",
+            "1.....",
+            "11....",
+            "211...",
+            "2211..",
+            "32211.",
+            ".3222.",
+            "..33..");
     /** A small glowing orb. */
     public static final Sprite ORB = new Sprite("orb",
             ".22.",
@@ -202,7 +224,7 @@ public final class FxSprites {
 
     static {
         List<Sprite> all = new ArrayList<>(List.of(SQUARE, PLUS, DIAMOND, STAR, HEART, RING_SEGMENT, BUBBLE, SUN, EYE, MOON,
-                PLUMBOB, CRYSTAL, FOOTPRINT, LEAF, CHAIN, ORB, SCORCH, DITHER));
+                PLUMBOB, CRYSTAL, FOOTPRINT, LEAF, CHAIN, ORB, TOTEM, WING, SCORCH, DITHER));
         all.addAll(List.of(FLAME));
         all.addAll(List.of(CONFETTI));
         ALL_SPRITES = all.toArray(new Sprite[0]);
