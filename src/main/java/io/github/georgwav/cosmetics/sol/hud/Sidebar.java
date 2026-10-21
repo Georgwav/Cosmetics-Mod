@@ -8,7 +8,8 @@ import io.github.georgwav.cosmetics.client.hud.VanillaHud;
  */
 public final class Sidebar {
     private static float x0, y0, x1, y1;
-    private static long seen;
+    /** The HUD frame it last drew in (frames, not time: a slow frame mustn't hide it). */
+    private static int seen = Integer.MIN_VALUE / 2;
 
     private Sidebar() {
     }
@@ -25,12 +26,13 @@ public final class Sidebar {
         x1 = dx + screenW + (right - screenW) * s;
         y0 = dy + mid + (top - mid) * s;
         y1 = dy + mid + (bottom - mid) * s;
-        seen = System.nanoTime();
+        seen = io.github.georgwav.cosmetics.client.hud.Hud.framesDrawn;
     }
 
-    /** Whether it's showing (it drew within the last quarter second). */
+    /** Whether it's showing (it drew in this HUD frame or one of the last two). */
     public static boolean shown() {
-        return seen != 0L && System.nanoTime() - seen < 250_000_000L;
+        int since = io.github.georgwav.cosmetics.client.hud.Hud.framesDrawn - seen;
+        return since >= 0 && since <= 2;
     }
 
     /** Whether it's showing and covers any of the box from ({@code ax}, {@code ay}) to ({@code bx}, {@code by}). */
