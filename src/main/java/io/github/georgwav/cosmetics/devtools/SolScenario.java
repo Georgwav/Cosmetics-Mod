@@ -35,7 +35,7 @@ public final class SolScenario {
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_night", "quick_dusk", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "menu_world", "menu_world_night", "menu_presets", "menu_wardrobe", "menu_emotes", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
             "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",

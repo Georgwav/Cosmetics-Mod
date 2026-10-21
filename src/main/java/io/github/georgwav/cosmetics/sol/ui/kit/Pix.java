@@ -56,6 +56,22 @@ public final class Pix {
         g.framePx(x0, y0, x1, y1, e, state == ON ? p.acc : p.edge);
     }
 
+    /** A filled box on whole screen pixels (design coordinates). */
+    public static void fill(Gfx g, float x, float y, float w, float h, int c) {
+        box(g, x, y, w, h);
+        g.rectPx(x0, y0, x1, y1, c);
+    }
+
+    /** A card that's on (a module that's enabled): the on colour's faint tint fading to c0 by 60%, in three steps. */
+    public static void cardOn(Gfx g, PixelTokens p, float x, float y, float w, float h) {
+        box(g, x, y, w, h);
+        int e = g.px(E);
+        g.stepped(x0, y0, x1, y1, Colors.mixRgb(p.c0, p.en, Colors.a(p.enA2) / 255f), p.c0, 0.6f, 3);
+        g.rectPx(x0 + e, y0 + e, x1 - e, Math.min(y1 - e, y0 + 2 * e), p.hi);
+        g.rectPx(x0 + e, Math.max(y0 + e, y1 - 2 * e), x1 - e, y1 - e, p.lo);
+        g.framePx(x0, y0, x1, y1, e, p.edge);
+    }
+
     /** A card: a slab in c0 (module cards, Wardrobe tiles). */
     public static void card(Gfx g, PixelTokens p, float x, float y, float w, float h) {
         box(g, x, y, w, h);

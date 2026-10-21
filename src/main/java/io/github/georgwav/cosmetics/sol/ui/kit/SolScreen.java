@@ -102,9 +102,12 @@ public abstract class SolScreen extends Screen {
     protected void game(Canvas canvas, int mouseX, int mouseY) {
     }
 
-    /** Whether the world behind is dimmed with flat black at 24% (the HUD editor shows the game as it is). */
+    /**
+     * Whether the world behind is dimmed with flat black at 24% (Settings › "Dim the world behind menus"; the HUD
+     * editor shows the game as it is).
+     */
     protected boolean blurs() {
-        return true;
+        return io.github.georgwav.cosmetics.sol.config.SolConfig.get().menuBlur;
     }
 
     /** Sol's menus never blur the world (the pixel UI's rule); counted for the checks. */

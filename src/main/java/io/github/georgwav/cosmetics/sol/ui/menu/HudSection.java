@@ -107,7 +107,7 @@ final class HudSection implements Section {
         mouseX = ui.mx;
         SolConfig cfg = SolConfig.get();
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr("sol.section.hud");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.hud.count", SolProfiles.active()), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
@@ -121,7 +121,7 @@ final class HudSection implements Section {
             cfg.solUi = !cfg.solUi;
             SolConfig.save();
         });
-        g.textRight(sf, solUi, swX - 10f, headY, 0xCCFFFFFF);
+        g.textRight(sf, solUi, swX + 30f - Ui.SWITCH_W - 10f, headY, 0xCCFFFFFF);
 
         List<Item> items = items();
         Item sel = pickedItem(items);

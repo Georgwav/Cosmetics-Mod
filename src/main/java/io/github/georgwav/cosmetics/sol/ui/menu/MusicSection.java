@@ -72,7 +72,7 @@ final class MusicSection implements Section {
         SolConfig.Music cfg = SolConfig.get().music;
         NowPlaying n = MusicService.now();
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr("sol.section.music");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         String state = n == null ? SolMenu.tr("sol.menu.music.count")

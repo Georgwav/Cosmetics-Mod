@@ -36,7 +36,7 @@ final class SettingsSection implements Section {
         SolConfig cfg = SolConfig.get();
         Atmosphere at = Atmosphere.INSTANCE;
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr(about ? "sol.menu.about.title" : "sol.section.settings");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         if (!about) {

@@ -69,10 +69,17 @@ same pixels. The sun circles the dial and lights the screen; below the horizon t
 
 ### The full menu
 
-- **Sections:** seven stops on the sun's arc: Modules, HUD, World, Wardrobe, Music, Mods and Settings.
+A pixel window with a title bar: Sol's icon, back, the tabs, you and the red close. Sol's horizon runs under the
+bar, with the sun sitting on it under the tab you're on.
+- **Tabs:** Modules, HUD, World, Presets, Wardrobe, Emotes, Music, Mods and Settings; Sol's icon goes back to the
+  quick menu.
 - **Ctrl+K:** finds and runs any module, setting, preset, section, profile or action.
-- **Profiles:** the popover at the top right switches whole setups.
-- **Modules:** cards with a switch, a star (pin) and a settings drawer.
+- **Profiles:** your slab in the title bar switches whole setups.
+- **Modules:** Dawn's mod menu in Sol's pixels. Cards four to a row, each with its icon, ENABLED or DISABLED, a pin
+  star and a gear for its settings; filter tabs and a search.
+- **Presets:** every theme as a card with its sky in pixels; the preview pane shows the one you point at under Sol's
+  logo. Apply preset and Random.
+- **Emotes:** your wheel's page as eight slots, the page controls in the middle, and you on the right doing it.
 - **Main folder:** Settings › Main folder.
 
 ### Wardrobe

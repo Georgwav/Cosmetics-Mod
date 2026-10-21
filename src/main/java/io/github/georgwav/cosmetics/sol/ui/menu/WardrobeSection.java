@@ -58,7 +58,7 @@ final class WardrobeSection implements Section {
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
         previewShown = false;
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f);
         String title = SolMenu.tr("sol.section.wardrobe");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         // The full Wardrobe, on its cosmetics or its outfits.

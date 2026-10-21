@@ -73,7 +73,7 @@ final class ModsSection implements Section {
             }
         }
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr("sol.section.mods");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.mods.count", styled.size() + overlaps.size() + alongside.size(), overlaps.size()),
