@@ -7,12 +7,14 @@ import io.github.georgwav.cosmetics.sol.util.Sprites;
 import io.github.georgwav.cosmetics.ui.Canvas;
 
 /**
- * The kit's drawing: smooth shapes, glass, glows, pixel icons and text, in design pixels (see {@link Design}).
+ * The kit's drawing, in Sol's pixel style: flat slabs on whole screen pixels, outlines and bevels in whole screen
+ * pixels, stepped glows, pixel circles, pixel icons and pixel type (Silkscreen), plus Geist for body text. Everything
+ * is placed in design pixels (see {@link Design}) and snapped to the screen's pixel grid; art drawn on a pixel grid
+ * (icons, the logo, pixel type) gets a whole number of screen pixels per art pixel and is never resampled.
  *
- * <p>Shapes are tessellated into vertex-coloured triangles with a one-pixel fringe that fades to nothing, so their
- * edges are anti-aliased like the prototypes' CSS (and land crisp on whole pixels). Geometry is batched until the
- * texture or blend changes, or text, a clip or a game draw comes in between, so a screen is a few dozen GPU batches.
- * Everything is multiplied by {@link #alpha} (fades and staggered entrances). Render thread only.
+ * <p>Geometry is batched until the texture or blend changes, or Geist text, a clip or a game draw comes in between,
+ * so a screen is a few dozen GPU batches. Everything is multiplied by {@link #alpha} (fades and staggered entrances).
+ * Render thread only.
  */
 public final class Gfx {
     /** A colour per vertex, from its position in screen pixels. Implementations are reused, never per frame. */
@@ -120,6 +122,7 @@ public final class Gfx {
         this.canvas = canvas;
         alpha = 1f;
         open = false;
+        io.github.georgwav.cosmetics.sol.render.GuiDraw.newFrame();
     }
 
     public Canvas canvas() {
@@ -222,11 +225,7 @@ public final class Gfx {
         }
     }
 
-    // ------------------------------------------------------------------ rounded shapes
-
-    private static int segments(float radius) {
-        return Math.max(2, Math.min(16, (int) Math.ceil(radius / 2.2f)));
-    }
+    // ------------------------------------------------------------------ slabs
 
     private void grow(int n) {
         if (ax.length < n) {
@@ -237,67 +236,6 @@ public final class Gfx {
             by = new float[size];
             nx = new float[size];
             ny = new float[size];
-        }
-    }
-
-    /**
-     * The contour of a rounded rectangle (screen pixels) grown by {@code off} (negative shrinks), clockwise from the
-     * top-left corner, {@code seg} segments per corner, into (xs, ys); also writes the outward normals.
-     * Returns the number of points.
-     */
-    private int contour(float x0, float y0, float x1, float y1, float r, float off, int seg, float[] xs, float[] ys) {
-        int n = 0;
-        float inset = Math.max(r, -off);
-        float rr = Math.max(0f, r + off);
-        float[] cxs = {x0 + inset, x1 - inset, x1 - inset, x0 + inset};
-        float[] cys = {y0 + inset, y0 + inset, y1 - inset, y1 - inset};
-        for (int c = 0; c < 4; c++) {
-            float start = (float) Math.PI * (1f + 0.5f * c);
-            for (int i = 0; i <= seg; i++) {
-                float t = start + (float) (Math.PI / 2) * i / seg;
-                float cs = (float) Math.cos(t), sn = (float) Math.sin(t);
-                xs[n] = cxs[c] + cs * rr;
-                ys[n] = cys[c] + sn * rr;
-                nx[n] = cs;
-                ny[n] = sn;
-                n++;
-            }
-        }
-        return n;
-    }
-
-    /** Fills the strip between two offsets of a rounded rectangle, each edge with its own paint and alpha. */
-    private void band(float x0, float y0, float x1, float y1, float r, float offA, float alphaA, float offB, float alphaB,
-                      Paint p, int seg) {
-        int count = 4 * (seg + 1);
-        grow(count);
-        contour(x0, y0, x1, y1, r, offA, seg, ax, ay);
-        contour(x0, y0, x1, y1, r, offB, seg, bx, by);
-        solidBatch();
-        for (int i = 0; i < count; i++) {
-            int j = (i + 1) % count;
-            int ca = Colors.fade(p.at(ax[i], ay[i]), alphaA), cb = Colors.fade(p.at(bx[i], by[i]), alphaB);
-            int cbj = Colors.fade(p.at(bx[j], by[j]), alphaB), caj = Colors.fade(p.at(ax[j], ay[j]), alphaA);
-            v(ax[i], ay[i], ca);
-            v(bx[i], by[i], cb);
-            v(bx[j], by[j], cbj);
-            v(ax[j], ay[j], caj);
-        }
-    }
-
-    private void fan(float x0, float y0, float x1, float y1, float r, float off, Paint p, int seg) {
-        int count = 4 * (seg + 1);
-        grow(count);
-        contour(x0, y0, x1, y1, r, off, seg, ax, ay);
-        float cx = (x0 + x1) / 2f, cy = (y0 + y1) / 2f;
-        int cc = p.at(cx, cy);
-        solidBatch();
-        for (int i = 0; i < count; i++) {
-            int j = (i + 1) % count;
-            v(cx, cy, cc);
-            v(ax[i], ay[i], p.at(ax[i], ay[i]));
-            v(ax[j], ay[j], p.at(ax[j], ay[j]));
-            v(ax[j], ay[j], p.at(ax[j], ay[j]));
         }
     }
 
@@ -312,58 +250,95 @@ public final class Gfx {
         br = Math.min(r * d.u, Math.min(bx1 - bx0, by1 - by0) / 2f);
     }
 
-    /** A filled rounded rectangle with an anti-aliased edge. */
+    /** A design length as whole screen pixels, at least one: 3 design px is max(1, round(3u)). */
+    public int px(float design) {
+        return Math.max(1, Math.round(design * d.u));
+    }
+
+    /** A flat rectangle in whole screen pixels. */
+    public void rectPx(float x0, float y0, float x1, float y1, int argb) {
+        if (x1 <= x0 || y1 <= y0 || Colors.a(argb) == 0) {
+            return;
+        }
+        solidBatch();
+        int c = a(argb);
+        GuiDraw.vertex(x0, y0, 0.5f, 0.5f, c);
+        GuiDraw.vertex(x0, y1, 0.5f, 0.5f, c);
+        GuiDraw.vertex(x1, y1, 0.5f, 0.5f, c);
+        GuiDraw.vertex(x1, y0, 0.5f, 0.5f, c);
+    }
+
+    /** A square frame {@code t} screen pixels thick just inside the screen box (x0, y0)-(x1, y1). */
+    public void framePx(float x0, float y0, float x1, float y1, int t, int argb) {
+        if (t <= 0 || Colors.a(argb) == 0) {
+            return;
+        }
+        t = Math.min(t, (int) Math.max(1, Math.min(x1 - x0, y1 - y0) / 2));
+        rectPx(x0, y0, x1, y0 + t, argb);
+        rectPx(x0, y1 - t, x1, y1, argb);
+        rectPx(x0, y0 + t, x0 + t, y1 - t, argb);
+        rectPx(x1 - t, y0 + t, x1, y1 - t, argb);
+    }
+
+    /** A filled slab (pixel style has no rounded corners: {@code r} is ignored). */
     public void round(float x, float y, float w, float h, float r, int argb) {
         if (Colors.a(argb) == 0) {
             return;
         }
-        round(x, y, w, h, r, solid(argb));
+        box(x, y, w, h, 0f);
+        rectPx(bx0, by0, bx1, by1, argb);
     }
 
+    /** A filled slab painted by {@code p}: a vertical gradient in 3 hard steps, any other paint flat (its middle). */
     public void round(float x, float y, float w, float h, float r, Paint p) {
-        box(x, y, w, h, r);
+        box(x, y, w, h, 0f);
         if (bx1 - bx0 < 1 || by1 - by0 < 1) {
             return;
         }
-        int seg = segments(br);
-        fan(bx0, by0, bx1, by1, br, -0.5f, p, seg);
-        band(bx0, by0, bx1, by1, br, -0.5f, 1f, 0.5f, 0f, p, seg);
+        if (p instanceof VGrad vg) {
+            stepped(bx0, by0, bx1, by1, vg.c0, vg.c1, (vg.y1 - by0) / Math.max(1f, by1 - by0), 3);
+            return;
+        }
+        rectPx(bx0, by0, bx1, by1, p.at((bx0 + bx1) / 2f, (by0 + by1) / 2f));
     }
 
-    /** A rounded rectangle filled with a vertical gradient. */
+    /**
+     * A screen box filled from {@code top} at the top to {@code bottom} at {@code end} (a part of its height, then
+     * {@code bottom} to the bottom) in {@code steps} hard bands: the prototype's gradients, not smooth.
+     */
+    public void stepped(float x0, float y0, float x1, float y1, int top, int bottom, float end, int steps) {
+        float h = y1 - y0, stop = y0 + h * Math.max(0f, Math.min(1f, end));
+        float prev = y0;
+        for (int i = 0; i < steps; i++) {
+            float yb = Math.round(y0 + (stop - y0) * (i + 1) / steps);
+            rectPx(x0, prev, x1, yb, Colors.mix(top, bottom, i / (float) steps));
+            prev = yb;
+        }
+        rectPx(x0, prev, x1, y1, bottom);
+    }
+
+    /** A slab filled from {@code top} down to {@code bottom}, in 3 hard steps. */
     public void roundV(float x, float y, float w, float h, float r, int top, int bottom) {
-        vgrad.y0 = d.sy(y);
-        vgrad.y1 = d.sy(y + h);
-        vgrad.c0 = top;
-        vgrad.c1 = bottom;
-        round(x, y, w, h, r, vgrad);
+        box(x, y, w, h, 0f);
+        stepped(bx0, by0, bx1, by1, top, bottom, 1f, 3);
     }
 
-    /** A rounded outline {@code width} screen pixels wide, inside the edge (CSS borders). */
+    /** A square outline {@code width} screen pixels (rounded to whole ones) wide, inside the edge. */
     public void stroke(float x, float y, float w, float h, float r, float width, int argb) {
         if (Colors.a(argb) == 0) {
             return;
         }
-        stroke(x, y, w, h, r, width, solid(argb), 0f);
+        box(x, y, w, h, 0f);
+        framePx(bx0, by0, bx1, by1, Math.max(1, Math.round(width)), argb);
     }
 
-    /**
-     * A rounded outline {@code width} screen pixels wide whose outer edge is {@code offset} design pixels outside
-     * the box (focus rings sit 2-3 px out).
-     */
+    /** A square outline whose outer edge is {@code offset} design pixels outside the box (focus outlines, 2 px out). */
     public void stroke(float x, float y, float w, float h, float r, float width, Paint p, float offset) {
-        box(x - offset, y - offset, w + 2 * offset, h + 2 * offset, r + (r > 0 ? offset : 0));
+        box(x - offset, y - offset, w + 2 * offset, h + 2 * offset, 0f);
         if (bx1 - bx0 < 1 || by1 - by0 < 1) {
             return;
         }
-        int seg = segments(br);
-        float k = Math.min(1f, width);
-        float s = Math.max(1f, width);
-        band(bx0, by0, bx1, by1, br, 0.5f, 0f, -0.5f, k, p, seg);
-        if (s > 1f) {
-            band(bx0, by0, bx1, by1, br, -0.5f, k, -s + 0.5f, k, p, seg);
-        }
-        band(bx0, by0, bx1, by1, br, -s + 0.5f, k, -s - 0.5f, 0f, p, seg);
+        framePx(bx0, by0, bx1, by1, Math.max(1, Math.round(width)), p.at((bx0 + bx1) / 2f, by0));
     }
 
     /** The border every Sol panel has: 1 design pixel (at least one screen pixel). */
@@ -372,98 +347,109 @@ public final class Gfx {
     }
 
     /**
-     * A soft glow round a rounded rectangle, the prototypes' {@code box-shadow: 0 0 blur spread colour}: it starts at
-     * the edge with {@code argb}'s alpha and fades out over {@code extent} design pixels, like a gaussian tail.
+     * A glow round a slab, in the pixel style: stepped rings, not a blur. Three square rings of falling alpha out to
+     * {@code extent} design pixels.
      */
     public void glow(float x, float y, float w, float h, float r, float extent, int argb) {
         if (Colors.a(argb) == 0 || extent <= 0) {
             return;
         }
-        box(x, y, w, h, r);
-        int seg = segments(br + extent * d.u);
-        Paint p = solid(argb);
-        float e = extent * d.u;
-        band(bx0, by0, bx1, by1, br, 0f, 1f, e * 0.25f, 0.55f, p, seg);
-        band(bx0, by0, bx1, by1, br, e * 0.25f, 0.55f, e * 0.6f, 0.16f, p, seg);
-        band(bx0, by0, bx1, by1, br, e * 0.6f, 0.16f, e, 0f, p, seg);
+        box(x, y, w, h, 0f);
+        int e = px(extent), e1 = Math.max(1, Math.round(e * 0.3f)), e2 = Math.max(e1 + 1, Math.round(e * 0.65f));
+        ringPx(bx0, by0, bx1, by1, 0, e1, Colors.fade(argb, 0.6f));
+        ringPx(bx0, by0, bx1, by1, e1, e2, Colors.fade(argb, 0.3f));
+        ringPx(bx0, by0, bx1, by1, e2, e, Colors.fade(argb, 0.12f));
     }
 
-    /**
-     * The glass highlight along the top inside edge ({@code box-shadow: inset 0 1px 0 colour}): strongest where the
-     * edge faces up, nothing at the sides.
-     */
+    /** A square ring outside the screen box, from {@code from} to {@code to} screen pixels out. */
+    public void ringPx(float x0, float y0, float x1, float y1, int from, int to, int argb) {
+        if (to <= from) {
+            return;
+        }
+        rectPx(x0 - to, y0 - to, x1 + to, y0 - from, argb);
+        rectPx(x0 - to, y1 + from, x1 + to, y1 + to, argb);
+        rectPx(x0 - to, y0 - from, x0 - from, y1 + from, argb);
+        rectPx(x1 + from, y0 - from, x1 + to, y1 + from, argb);
+    }
+
+    /** The lit top edge inside a slab: a band 2 design px (whole screen pixels) under a 1 px border. */
     public void highlight(float x, float y, float w, float h, float r, int argb) {
         if (Colors.a(argb) == 0) {
             return;
         }
-        box(x, y, w, h, r);
-        int seg = segments(br);
-        int half = 2 * (seg + 1);
-        grow(4 * (seg + 1));
-        float b = hairline();
-        float t = Math.max(1f, d.u);
-        contour(bx0, by0, bx1, by1, br, -b, seg, ax, ay);
-        contour(bx0, by0, bx1, by1, br, -b - t, seg, bx, by);
-        solidBatch();
-        for (int i = 0; i + 1 < half; i++) {
-            float wi = Math.max(0f, -ny[i]), wj = Math.max(0f, -ny[i + 1]);
-            if (wi <= 0f && wj <= 0f) {
-                continue;
-            }
-            int ci = Colors.fade(argb, wi), cj = Colors.fade(argb, wj);
-            v(ax[i], ay[i], ci);
-            v(bx[i], by[i], Colors.fade(ci, 0.35f));
-            v(bx[i + 1], by[i + 1], Colors.fade(cj, 0.35f));
-            v(ax[i + 1], ay[i + 1], cj);
-        }
+        box(x, y, w, h, 0f);
+        int b = px(1f), t = px(2f);
+        rectPx(bx0 + b, by0 + b, bx1 - b, by0 + b + t, argb);
     }
 
-    /** A filled circle. */
+    /** Screen pixels per art pixel for pixel shapes drawn on the 2-design-pixel grid. */
+    public int art() {
+        return px(2f);
+    }
+
+    /** A filled pixel circle. */
     public void circle(float cx, float cy, float r, int argb) {
-        round(cx - r, cy - r, 2 * r, 2 * r, r, argb);
+        disc(cx, cy, r, solid(argb));
     }
 
     public void circle(float cx, float cy, float r, Paint p) {
-        round(cx - r, cy - r, 2 * r, 2 * r, r, p);
+        disc(cx, cy, r, p);
     }
-
-    /** Ring radii (fractions of the radius) for {@link #disc}: dense toward the rim, where crescents and edges sit. */
-    private static final float[] DISC_RINGS = {0.3f, 0.5f, 0.64f, 0.74f, 0.82f, 0.875f, 0.915f, 0.945f, 0.968f, 0.985f, 1f};
 
     /**
-     * A circle filled with a paint sampled on a polar grid, so a gradient that changes inside the circle (an
-     * off-centre radial with a stop at 72%, a thin lit crescent at the rim) comes out as drawn, not flattened to
-     * the centre's and the rim's colours as a fan would. The rim is anti-aliased like {@link #round}.
+     * A pixel circle: art pixels on the 2-design-pixel grid (whole screen pixels each), filled where an art pixel's
+     * middle is inside the radius, each painted by {@code p} at its middle. Hard edges, no smoothing.
      */
     public void disc(float cx, float cy, float r, Paint p) {
-        box(cx - r, cy - r, 2 * r, 2 * r, r);
-        if (bx1 - bx0 < 1 || by1 - by0 < 1) {
-            return;
-        }
-        float scx = (bx0 + bx1) / 2f, scy = (by0 + by1) / 2f, sr = br - 0.5f;
-        int seg = 72;
+        int k = art();
+        float scx = Math.round(d.sx(cx)), scy = Math.round(d.sy(cy));
+        float sr = r * d.u;
+        int n = (int) Math.ceil(sr / k);
+        boolean flat = p instanceof Solid;
         solidBatch();
-        float prev = 0f;
-        for (float f : DISC_RINGS) {
-            float r0 = sr * prev, r1 = sr * f;
-            for (int k = 0; k < seg; k++) {
-                double a0 = k * Math.PI * 2 / seg, a1 = (k + 1) * Math.PI * 2 / seg;
-                float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
-                float x00 = scx + c0 * r0, y00 = scy + s0 * r0, x01 = scx + c0 * r1, y01 = scy + s0 * r1;
-                float x11 = scx + c1 * r1, y11 = scy + s1 * r1, x10 = scx + c1 * r0, y10 = scy + s1 * r0;
-                v(x00, y00, p.at(x00, y00));
-                v(x01, y01, p.at(x01, y01));
-                v(x11, y11, p.at(x11, y11));
-                v(x10, y10, p.at(x10, y10));
+        for (int j = -n; j < n; j++) {
+            float yc = (j + 0.5f) * k;
+            float half = (float) Math.sqrt(Math.max(0f, sr * sr - yc * yc));
+            int cells = Math.round(half / k);
+            if (cells <= 0) {
+                continue;
             }
-            prev = f;
+            float y0 = scy + j * k, y1 = y0 + k;
+            if (flat) {
+                rectPx(scx - cells * k, y0, scx + cells * k, y1, p.at(scx, y0));
+                continue;
+            }
+            for (int i = -cells; i < cells; i++) {
+                float x0 = scx + i * k;
+                rectPx(x0, y0, x0 + k, y1, p.at(x0 + k / 2f, y0 + k / 2f));
+            }
         }
-        band(bx0, by0, bx1, by1, br, -0.5f, 1f, 0.5f, 0f, p, segments(br));
     }
 
-    /** A circle outline {@code width} screen pixels wide. */
+    /** A pixel ring {@code width} screen pixels wide at radius {@code r} (design px), on the art grid. */
     public void ring(float cx, float cy, float r, float width, int argb) {
-        stroke(cx - r, cy - r, 2 * r, 2 * r, r, width, argb);
+        if (Colors.a(argb) == 0) {
+            return;
+        }
+        int k = Math.max(1, Math.min(art(), Math.round(width)));
+        float scx = Math.round(d.sx(cx)), scy = Math.round(d.sy(cy));
+        float ro = r * d.u, ri = Math.max(0f, ro - Math.max(k, Math.round(width)));
+        int n = (int) Math.ceil(ro / k);
+        for (int j = -n; j < n; j++) {
+            float yc = (j + 0.5f) * k;
+            float ho = (float) Math.sqrt(Math.max(0f, ro * ro - yc * yc)), hi = (float) Math.sqrt(Math.max(0f, ri * ri - yc * yc));
+            int co = Math.round(ho / k), ci = Math.round(hi / k);
+            if (co <= 0) {
+                continue;
+            }
+            float y0 = scy + j * k, y1 = y0 + k;
+            if (ci <= 0 || yc * yc >= ri * ri) {
+                rectPx(scx - co * k, y0, scx + co * k, y1, argb);
+            } else {
+                rectPx(scx - co * k, y0, scx - ci * k, y1, argb);
+                rectPx(scx + ci * k, y0, scx + co * k, y1, argb);
+            }
+        }
     }
 
     /**
@@ -668,7 +654,14 @@ public final class Gfx {
     /** The kit's soft round glow (premultiplied, drawn added). */
     public static SolTexture glowTexture() {
         if (glowTexture == null || glowTexture.released()) {
-            glowTexture = SolTexture.premultiplied("gui_glow", 64, 64, true, Sprites.glow(0xFFFFFFFF).toArgb(null));
+            // The pixel style's glow: the soft glow's alpha in four hard steps (stepped rings, not a blur).
+            int[] soft = Sprites.glow(0xFFFFFFFF).toArgb(null);
+            for (int i = 0; i < soft.length; i++) {
+                int a = soft[i] >>> 24;
+                int q = a <= 8 ? 0 : Math.min(255, (int) Math.ceil(a / 64f) * 64 - 1);
+                soft[i] = (q << 24) | (soft[i] & 0xFFFFFF);
+            }
+            glowTexture = SolTexture.premultiplied("gui_glow", 64, 64, false, soft);
         }
         return glowTexture;
     }
@@ -707,6 +700,25 @@ public final class Gfx {
         GuiDraw.vertex(x1, y0, u1, v0, c);
     }
 
+    /**
+     * A texture over a shape bounded by two polylines (screen pixels, as {@link #fillBetween}), each point with its
+     * own place on the texture: a picture seen through an annulus sector.
+     */
+    public void imageBetween(SolTexture t, float[] ix, float[] iy, float[] ox, float[] oy, float[] iu, float[] iv,
+                             float[] ou, float[] ov, int n, int argb) {
+        if (t == null || t.released() || Colors.a(argb) == 0) {
+            return;
+        }
+        use(t, false);
+        int c = a(argb);
+        for (int i = 0; i + 1 < n; i++) {
+            GuiDraw.vertex(ix[i], iy[i], iu[i], iv[i], c);
+            GuiDraw.vertex(ox[i], oy[i], ou[i], ov[i], c);
+            GuiDraw.vertex(ox[i + 1], oy[i + 1], ou[i + 1], ov[i + 1], c);
+            GuiDraw.vertex(ix[i + 1], iy[i + 1], iu[i + 1], iv[i + 1], c);
+        }
+    }
+
     /** A texture quad with free corners (rotated sprites), screen pixels. */
     public void imageQuad(SolTexture t, float[] xs, float[] ys, int argb, boolean additive) {
         if (t == null || t.released() || Colors.a(argb) == 0) {
@@ -727,13 +739,41 @@ public final class Gfx {
         return SolFont.of(family, size * d.u);
     }
 
+    /**
+     * While on, every text gets a hard dark drop under it (a HUD element with no background, over a bright sky).
+     */
+    public boolean shadow;
+    /**
+     * Text over the world: a hard black drop this many design pixels under every text (whole screen pixels), never a
+     * blurred one. 0 for none.
+     */
+    public float drop;
+
     /** Text with its left at {@code x} and baseline at {@code baseline} (design pixels). */
     public void text(SolFont f, String s, float x, float baseline, int argb) {
         int c = a(argb);
-        if (Colors.a(c) < 8 || s.isEmpty()) {
+        if (Colors.a(c) < 8 || s == null || s.isEmpty()) {
             return;
         }
+        int dropPx = drop > 0f ? px(drop) : shadow ? Math.max(1, Math.round(d.u * 0.5f)) : 0;
+        int dropColour = Math.round(Colors.a(c) * (drop > 0f ? 1f : 0.75f)) << 24;
+        if (f.family.pixel()) {
+            if (f.pixelDraws(s)) {
+                // Pixel type on whole screen pixels, batched with the shapes.
+                boolean bold = f.family == SolFont.Family.PIXEL_BOLD;
+                float sx = Math.round(d.sx(x)), sb = Math.round(d.sy(baseline));
+                if (dropPx > 0) {
+                    PixelFont.draw(this, bold, s, sx, sb + dropPx, f.k, dropColour);
+                }
+                PixelFont.draw(this, bold, s, sx, sb, f.k, c);
+                return;
+            }
+            f = f.fallback();
+        }
         flush();
+        if (dropPx > 0) {
+            f.draw(canvas, s, Math.round(d.sx(x)), Math.round(d.sy(baseline)) + dropPx, dropColour);
+        }
         f.draw(canvas, s, d.sx(x), d.sy(baseline), c);
     }
 
@@ -754,6 +794,10 @@ public final class Gfx {
 
     /** Letter-spaced text ({@code spacing} in design pixels), capitals centred on {@code cy}. */
     public void textSpaced(SolFont f, String s, float x, float cy, float spacing, int argb) {
+        if (f.family.pixel()) {
+            textMid(f, s, x, cy, argb);
+            return;
+        }
         int c = a(argb);
         if (Colors.a(c) < 8 || s.isEmpty()) {
             return;
@@ -774,6 +818,66 @@ public final class Gfx {
     /** Shortened with an ellipsis to fit {@code room} design pixels. */
     public String fit(SolFont f, String s, float room) {
         return f.fit(s, room * d.u);
+    }
+
+    /**
+     * The first pixel font that fits {@code s} in {@code room}, trying each size in bold, then each in regular (pixel
+     * type's width moves in whole font pixels, so a smaller size or the lighter weight can be what fits); the last
+     * one when none does.
+     */
+    public SolFont fitting(String s, float room, float... sizes) {
+        SolFont last = null;
+        for (SolFont.Family fam : PIXEL_WEIGHTS) {
+            for (float size : sizes) {
+                last = font(fam, size);
+                if (width(last, s) <= room) {
+                    return last;
+                }
+            }
+        }
+        return last;
+    }
+
+    private static final SolFont.Family[] PIXEL_WEIGHTS = {SolFont.Family.PIXEL_BOLD, SolFont.Family.PIXEL};
+
+    /**
+     * A main label centred on ({@code cx}, {@code cy}) in {@code room}: on one line when it fits, else on two lines
+     * split at the space nearest its middle (the second {@code lineGap} below the first), and only then cut (and
+     * logged, as {@link #fitLabel}). Returns how many lines it took.
+     */
+    public int labelCentre(SolFont f, String s, float cx, float cy, float room, float lineGap, int argb) {
+        if (width(f, s) <= room) {
+            textCentre(f, s, cx, cy, argb);
+            return 1;
+        }
+        int best = -1, mid = s.length() / 2;
+        for (int i = s.indexOf(' '); i >= 0; i = s.indexOf(' ', i + 1)) {
+            if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) {
+                best = i;
+            }
+        }
+        if (best > 0) {
+            String a = s.substring(0, best), b = s.substring(best + 1);
+            if (width(f, a) <= room && width(f, b) <= room) {
+                textCentre(f, a, cx, cy, argb);
+                textCentre(f, b, cx, cy + lineGap, argb);
+                return 2;
+            }
+        }
+        textCentre(f, fitLabel(f, s, room), cx, cy, argb);
+        return 1;
+    }
+
+    /**
+     * A main label (a tab, a button, a card's or a tile's name) fitted to its slab: as {@link #fit}, and a cut one is
+     * logged ({@link TextCuts}), since none should need it.
+     */
+    public String fitLabel(SolFont f, String s, float room) {
+        String out = f.fit(s, room * d.u);
+        if (out != s) {
+            TextCuts.record(s);
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ clipping and the game's own drawing

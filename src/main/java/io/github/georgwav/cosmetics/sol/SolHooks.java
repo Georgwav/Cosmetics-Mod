@@ -23,6 +23,12 @@ public final class SolHooks {
     public static void frameStart(double x, double y, double z, Quaternionf rotation, Matrix4fc projection) {
         try {
             FrameInfo.tick();
+            // How far into the game tick this frame is: what anything moved once a tick is drawn between ticks by.
+            //? if >=1.21.2 {
+            FrameInfo.partialTick = net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+            //?} else {
+            /*FrameInfo.partialTick = net.minecraft.client.Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
+            *///?}
             FrameInfo.camX = x;
             FrameInfo.camY = y;
             FrameInfo.camZ = z;
@@ -81,6 +87,7 @@ public final class SolHooks {
         ParticleField.render();
         io.github.georgwav.cosmetics.sol.atmosphere.GlitterPath.render();
         SolTiming.end(SolTiming.Part.PARTICLES, t0);
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.render();
         t0 = SolTiming.start();
         io.github.georgwav.cosmetics.sol.render.LightPass.world();
         SolTiming.end(SolTiming.Part.LIGHT, t0);

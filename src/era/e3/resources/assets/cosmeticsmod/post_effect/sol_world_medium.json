@@ -4,7 +4,7 @@
   },
   "passes": [
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_world",
       "inputs": [
         {
@@ -34,7 +34,7 @@
       "output": "swap"
     },
     {
-      "vertex_shader": "minecraft:post/screenquad",
+      "vertex_shader": "cosmeticsmod:post/sol_quad",
       "fragment_shader": "cosmeticsmod:post/sol_copy",
       "inputs": [
         {

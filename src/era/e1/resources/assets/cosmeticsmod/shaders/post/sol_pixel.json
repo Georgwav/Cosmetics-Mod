@@ -1,0 +1,28 @@
+{
+  "targets": [
+    "swap"
+  ],
+  "passes": [
+    {
+      "name": "sol_pixel",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "CellSampler",
+          "id": "sol_pixel",
+          "width": 1,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

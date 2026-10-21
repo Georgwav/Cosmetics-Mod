@@ -123,7 +123,9 @@ public final class BodyMaps {
             .12, "#d4b679", .3, "#e6d3a0", .55, "#d6c08c", .78, "#b5b096", .9, "#8d9a9c");
     private static final Object[][] PB = band(-1, "#d8e8f0", -.7, "#7fb3d0", -.45, "#cfe6ee", -.25, "#4f8fb8", -.05, "#e4f2f4",
             .15, "#5aa0c0", .35, "#bfe0ea", .6, "#6aa6c8", .85, "#e0eef4");
-    private static final double[] DISH = dirLL(-25, 32), RIFT = dirLL(40, -10);
+    /** Where the Death Star's dish is on its map (longitude, latitude; degrees), which the superlaser fires from. */
+    public static final double DISH_LON = -25, DISH_LAT = 32;
+    private static final double[] DISH = dirLL(DISH_LON, DISH_LAT), RIFT = dirLL(40, -10);
     private static final double[][] MARIA_V;
     private static final double[] MARIA_R;
     private static final double[][] CRATER_V;

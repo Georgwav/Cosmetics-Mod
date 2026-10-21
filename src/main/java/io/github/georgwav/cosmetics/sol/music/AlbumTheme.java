@@ -100,30 +100,54 @@ public final class AlbumTheme {
     }
 
     /**
-     * A theme with the album's colours: the UI's accent, panel (keeping the theme's glass darkness) and rim; with
-     * {@code sky}, the sky and fog too (the panel's dark at the top, the glow at the horizon, the accent as its glow).
+     * The album's colours as edits to a theme, made the way the player's own colour edits are: exact at the theme's
+     * own moment and as much lighter or darker at the others as the theme is. The UI's accent and panel (the glass
+     * keeps the theme's darkness); with {@code sky}, the whole world too: the sky and fog, the sun and its halo, an
+     * eclipse's corona, the light, the clouds, the particles, the aurora and the nebulae.
      */
+    public static io.github.georgwav.cosmetics.sol.theme.Customisation colours(Palette p, boolean sky) {
+        io.github.georgwav.cosmetics.sol.theme.Customisation c = io.github.georgwav.cosmetics.sol.theme.Customisation.NONE
+                .withColour("accent", p.accent()).withColour("panel", p.panel());
+        if (!sky) {
+            return c;
+        }
+        return c.withColour("sky_top", Colors.mix(p.panel(), 0xFF000000, 0.35f))
+                .withColour("sky_middle", Colors.mix(p.panel(), p.glow(), 0.45f))
+                .withColour("sky_horizon", Colors.mix(p.glow(), p.accent(), 0.35f))
+                .withColour("sky_glow", p.accent())
+                .withColour("fog", Colors.mix(p.glow(), p.panel(), 0.4f))
+                .withColour("sun_core", Colors.mix(p.accent(), 0xFFFFFFFF, 0.7f))
+                .withColour("sun_halo", p.accent())
+                .withColour("corona", p.accent())
+                .withColour("light", Colors.mix(p.accent(), 0xFFFFFFFF, 0.55f))
+                .withColour("sunlight", Colors.mix(p.accent(), 0xFFFFFFFF, 0.35f))
+                .withColour("clouds", Colors.mix(p.glow(), 0xFFFFFFFF, 0.5f))
+                .withColour("particles", p.glow())
+                .withColour("aurora_1", p.accent())
+                .withColour("aurora_2", p.glow())
+                .withColour("nebula", p.accent());
+    }
+
+    /** {@code e} in the album's colours, every time of day of it. */
+    public static io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.Entry apply(
+            io.github.georgwav.cosmetics.sol.theme.ThemeRegistry.Entry e, Palette p, boolean sky) {
+        return io.github.georgwav.cosmetics.sol.theme.ThemeState.customised(e, colours(p, sky)).map(s -> rim(s, p));
+    }
+
+    /** One version of a theme in the album's colours (its own reference). */
     public static io.github.georgwav.cosmetics.sol.theme.ThemeSpec apply(io.github.georgwav.cosmetics.sol.theme.ThemeSpec spec,
                                                                         Palette p, boolean sky) {
+        return rim(colours(p, sky).apply(spec), p);
+    }
+
+    /** The glass's rim in the album's light colour, as bright as the theme's own. */
+    private static io.github.georgwav.cosmetics.sol.theme.ThemeSpec rim(io.github.georgwav.cosmetics.sol.theme.ThemeSpec spec,
+                                                                       Palette p) {
         com.google.gson.JsonObject json = new com.google.gson.JsonObject();
         com.google.gson.JsonObject ui = new com.google.gson.JsonObject();
-        ui.addProperty("accent", hex(p.accent()));
-        ui.addProperty("panel", hex(p.panel()));
-        ui.addProperty("panelAlpha", Colors.a(spec.ui().panel()) / 255f);
         ui.addProperty("rim", hex(p.rim()));
         ui.addProperty("rimAlpha", Colors.a(spec.ui().rim()) / 255f);
         json.add("ui", ui);
-        if (sky) {
-            com.google.gson.JsonObject s = new com.google.gson.JsonObject();
-            s.addProperty("top", hex(Colors.mix(p.panel(), 0xFF000000, 0.35f)));
-            s.addProperty("middle", hex(Colors.mix(p.panel(), p.glow(), 0.45f)));
-            s.addProperty("horizon", hex(Colors.mix(p.glow(), p.accent(), 0.35f)));
-            s.addProperty("glow", hex(p.accent()));
-            json.add("sky", s);
-            com.google.gson.JsonObject fog = new com.google.gson.JsonObject();
-            fog.addProperty("color", hex(Colors.mix(p.glow(), p.panel(), 0.4f)));
-            json.add("fog", fog);
-        }
         return io.github.georgwav.cosmetics.sol.theme.ThemeParser.parse(spec.id(), json, spec, w -> {
         });
     }

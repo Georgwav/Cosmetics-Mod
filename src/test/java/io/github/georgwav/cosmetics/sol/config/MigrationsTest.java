@@ -105,6 +105,37 @@ class MigrationsTest {
     }
 
     @Test
+    void pvpEffectsKillEffectMovesToKillEffects() {
+        JsonObject m = Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":"
+                + "{\"kill_effect\":\"lightning\",\"players_only\":true,\"hit_sound\":\"bell\"}}}"));
+        JsonObject kill = m.getAsJsonObject("kill_effects");
+        assertTrue(kill.get("enabled").getAsBoolean());
+        assertEquals("lightning", kill.getAsJsonObject("settings").get("kill_style").getAsString());
+        assertEquals("players", kill.getAsJsonObject("settings").get("kill_who").getAsString());
+        // Only once: a file that has Kill Effects keeps its own.
+        JsonObject again = Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":"
+                + "{\"kill_effect\":\"burst\"}},\"kill_effects\":{\"enabled\":false,\"settings\":{\"kill_style\":\"confetti\"}}}"));
+        assertEquals("confetti", again.getAsJsonObject("kill_effects").getAsJsonObject("settings").get("kill_style").getAsString());
+        // No kill effect (or just a sound): nothing to move.
+        assertFalse(Migrations.migrateModules(json("{\"pvp_effects\":{\"enabled\":true,\"settings\":{\"kill_effect\":\"sound\"}}}"))
+                .has("kill_effects"));
+    }
+
+    @Test
+    void heldItemsTotemPopMovesToTotems() {
+        JsonObject m = Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":40}}}"));
+        JsonObject totems = m.getAsJsonObject("totems");
+        assertTrue(totems.get("enabled").getAsBoolean());
+        assertEquals(40, totems.getAsJsonObject("settings").get("pop_scale").getAsInt());
+        assertFalse(totems.getAsJsonObject("settings").get("shatter_on").getAsBoolean(), "only the size moves: no new effects");
+        // The game's size, or Totems already there: nothing to move.
+        assertFalse(Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":100}}}")).has("totems"));
+        JsonObject again = Migrations.migrateModules(json("{\"held_items\":{\"enabled\":true,\"settings\":{\"totem_size\":40}},"
+                + "\"totems\":{\"enabled\":false,\"settings\":{\"pop_scale\":150}}}"));
+        assertEquals(150, again.getAsJsonObject("totems").getAsJsonObject("settings").get("pop_scale").getAsInt());
+    }
+
+    @Test
     void schemaTwoIsLeftAlone() {
         JsonObject p = json("{\"schema\":2,\"modules\":{},\"theme\":{\"id\":\"grace\"},\"pinned\":[],\"future\":7}");
         assertFalse(Migrations.needsMigration(p));

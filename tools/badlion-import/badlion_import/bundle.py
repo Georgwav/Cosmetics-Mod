@@ -8,6 +8,8 @@ into this repository.
 - Packs go in in the order given. A file in two packs is taken from the later one (as the higher of two resource
   packs would be), except translations (`lang/*.json`), which are merged; the same file twice is no clash.
 - A pack file where the mod has one of its own is refused: it would replace part of the mod.
+- A pack's `styles/<tab>/<style>/` folders (small packs of their own, for Sol Styles) go in as
+  `solstyles/<tab>/<style>/`, where Styles lists them as your personal styles.
 - The jar remembers what was bundled (`cosmeticsmod-personal.json` at its root), so bundling into a `-personal`
   jar again replaces those files instead of keeping stale ones.
 """
@@ -41,9 +43,10 @@ class Bundled:
     merged: list[str] = field(default_factory=list)
     # Files of an earlier bundle that were taken out.
     dropped: int = 0
-    # Cosmetic and emote files bundled.
+    # Cosmetic and emote files bundled, and Sol Styles' personal styles.
     cosmetics: int = 0
     emotes: int = 0
+    styles: int = 0
 
 
 def mod_id(jar: Path) -> str | None:
@@ -62,13 +65,19 @@ def default_output(jar: Path) -> Path:
 
 
 def _pack_files(pack: Path) -> dict[str, Path]:
-    assets = pack / "assets"
-    if not assets.is_dir():
+    assets, styles = pack / "assets", pack / "styles"
+    if not assets.is_dir() and not styles.is_dir():
         raise LayoutError(f"{pack} has no assets folder: point at a resource pack folder (the one with pack.mcmeta)")
     files = {}
-    for path in sorted(assets.rglob("*")):
-        if path.is_file():
-            files[path.relative_to(pack).as_posix()] = path
+    if assets.is_dir():
+        for path in sorted(assets.rglob("*")):
+            if path.is_file():
+                files[path.relative_to(pack).as_posix()] = path
+    if styles.is_dir():
+        # Sol Styles' personal styles: styles/<tab>/<style>/... in the pack, solstyles/<tab>/<style>/... in the jar.
+        for path in sorted(styles.rglob("*")):
+            if path.is_file():
+                files["sol" + path.relative_to(pack).as_posix()] = path
     return files
 
 
@@ -140,6 +149,7 @@ def bundle(jar: Path, packs: list[Path], output: Path) -> Bundled:
     result.files = len(files)
     result.cosmetics = sum(1 for path in files if _COSMETIC.match(path))
     result.emotes = sum(1 for path in files if _EMOTE.match(path))
+    result.styles = len({"/".join(path.split("/")[1:3]) for path in files if path.startswith("solstyles/") and path.count("/") >= 3})
     return result
 
 

@@ -34,13 +34,13 @@ class ThemeParserTest {
     void allBundledThemesParseWithoutWarnings() throws IOException {
         List<String> warnings = new ArrayList<>();
         List<ThemeRegistry.Source> sources = bundled();
-        assertEquals(13, sources.size(), "13 bundled themes");
+        assertEquals(12, sources.size(), "12 bundled themes");
         ThemeRegistry.load(sources, (id, msg) -> warnings.add(id + ": " + msg));
         assertEquals(List.of(), warnings);
-        // The prototype's order: Empty first (the dashed card), then the twelve themes.
+        // The prototype's order: Empty first (the dashed card), then the eleven themes.
         assertEquals("empty", ThemeRegistry.all().get(0).id(), "built-in order");
         assertEquals("sakura_dusk", ThemeRegistry.all().get(1).id());
-        assertEquals("grace", ThemeRegistry.all().get(12).id());
+        assertEquals("grace", ThemeRegistry.all().get(11).id());
         ThemeRegistry.Entry ember = ThemeRegistry.get("ember");
         assertEquals("ember_solstice", ember.id(), "prototype alias");
         assertEquals(0xFFFFB347, ember.base().ui().accent());
@@ -53,7 +53,11 @@ class ThemeParserTest {
         assertNotNull(ThemeRegistry.get("grace").base().sigil());
         assertEquals(7, ThemeRegistry.get("grace").base().mist().bands());
         assertEquals(2, ThemeRegistry.get("aurora").base().aurora().length);
-        assertEquals(3, ThemeRegistry.get("nebula").base().nebula().size());
+        // The Nebula theme's painted nebulae live on in some themes' nights; its old id is Sakura Dusk now.
+        assertEquals("sakura_dusk", ThemeRegistry.get("nebula").id());
+        assertEquals(2, ThemeRegistry.get("sakura_dusk").base().nebula().size());
+        assertEquals(2, ThemeRegistry.get("frost_morning").base().nebula().get(0).big());
+        assertTrue(ThemeRegistry.get("deep_field").base().nebula().isEmpty(), "Deep Field stays black and white");
     }
 
     @Test

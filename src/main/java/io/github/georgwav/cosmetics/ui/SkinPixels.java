@@ -71,6 +71,85 @@ public final class SkinPixels {
         return fallback;
     }
 
+    /** Other players' skins by address, fetched once each (a few kept), and the default skins by UUID. */
+    private static final java.util.Map<String, Skin> others = new java.util.LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Skin> eldest) {
+            return size() > 32;
+        }
+    };
+    private static final java.util.Set<String> fetching = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * A player's skin pixels: yours as {@link #current()}; anyone else's from their profile's skin address (fetched
+     * once in the background, the game's default skin for them until it's in). For the effects' copies of players.
+     */
+    public static Skin of(net.minecraft.world.entity.player.Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        if (player == mc.player) {
+            return current();
+        }
+        if (io.github.georgwav.cosmetics.sol.client.Streamer.on()) {
+            return defaultFor(player.getUUID());
+        }
+        String[] wanted;
+        try {
+            wanted = skinOf(player.getGameProfile());
+        } catch (RuntimeException e) {
+            wanted = null;
+        }
+        if (wanted == null) {
+            return defaultFor(player.getUUID());
+        }
+        String[] want = wanted;
+        Skin known;
+        synchronized (others) {
+            known = others.get(want[0]);
+        }
+        if (known != null) {
+            return known;
+        }
+        if (fetching.add(want[0])) {
+            SolExecutors.IO.execute(() -> {
+                try {
+                    byte[] png = io.github.georgwav.cosmetics.sol.music.Http.bytes(want[0]);
+                    Skin s = png == null ? null : decode(png, want[1] != null);
+                    if (s != null) {
+                        synchronized (others) {
+                            others.put(want[0], s);
+                        }
+                    }
+                } catch (Exception e) {
+                    // The default skin stays.
+                }
+            });
+        }
+        return defaultFor(player.getUUID());
+    }
+
+    private static Skin defaultFor(java.util.UUID uuid) {
+        String key = "default:" + uuid;
+        synchronized (others) {
+            Skin s = others.get(key);
+            if (s != null) {
+                return s;
+            }
+        }
+        var skin = net.minecraft.client.resources.DefaultPlayerSkin.get(uuid);
+        //? if >=1.21.9 {
+        String id = skin.body().texturePath().toString();
+        boolean slim = skin.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM;
+        //?} else {
+        /*String id = skin.texture().toString();
+        boolean slim = skin.model() == net.minecraft.client.resources.PlayerSkin.Model.SLIM;
+        *///?}
+        Skin s = new Skin(TilePictures.read(id), slim);
+        synchronized (others) {
+            others.put(key, s);
+        }
+        return s;
+    }
+
     private static Path cached() {
         return MainFolder.clientFolder().resolve("cache").resolve("own_skin.png");
     }
@@ -108,7 +187,14 @@ public final class SkinPixels {
 
     /** Your profile's skin address and model ("slim" or null), or null when the profile has none. */
     private static String[] profileSkin() {
-        var profile = Minecraft.getInstance().getGameProfile();
+        return skinOf(Minecraft.getInstance().getGameProfile());
+    }
+
+    /** A profile's skin address and model ("slim" or null), or null when it has none. */
+    private static String[] skinOf(com.mojang.authlib.GameProfile profile) {
+        if (profile == null) {
+            return null;
+        }
         //? if >=1.21.9 {
         var textures = profile.properties().get("textures");
         //?} else {

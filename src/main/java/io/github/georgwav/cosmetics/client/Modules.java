@@ -15,6 +15,7 @@ import io.github.georgwav.cosmetics.client.hud.StatsHud;
 import io.github.georgwav.cosmetics.client.hud.TargetHud;
 import io.github.georgwav.cosmetics.client.hud.VanillaHud;
 import io.github.georgwav.cosmetics.client.modules.BlockOutline;
+import io.github.georgwav.cosmetics.client.modules.PunchyModule;
 import io.github.georgwav.cosmetics.client.modules.Crosshair;
 import io.github.georgwav.cosmetics.client.modules.CrystalPvp;
 import io.github.georgwav.cosmetics.client.modules.Fullbright;
@@ -71,6 +72,7 @@ public final class Modules {
     public static final CameraTweaks CAMERA = new CameraTweaks();
     public static final PvpTweaks PVP_TWEAKS = new PvpTweaks();
     public static final HeldItems HELD_ITEMS = new HeldItems();
+    public static final PunchyModule PUNCHY = new PunchyModule();
     public static final ScreenTweaks SCREEN = new ScreenTweaks();
     public static final Hitboxes HITBOXES = new Hitboxes();
     public static final Nametags NAMETAGS = new Nametags();
@@ -87,19 +89,41 @@ public final class Modules {
     public static final Social SOCIAL = new Social();
     public static final GlintModule GLINT = new GlintModule();
     public static final io.github.georgwav.cosmetics.client.hud.MusicHud MUSIC = new io.github.georgwav.cosmetics.client.hud.MusicHud();
+    public static final io.github.georgwav.cosmetics.client.hud.LyricsHud LYRICS = new io.github.georgwav.cosmetics.client.hud.LyricsHud();
+    public static final io.github.georgwav.cosmetics.client.hud.ActiveModulesHud ACTIVE_MODULES = new io.github.georgwav.cosmetics.client.hud.ActiveModulesHud();
+    public static final io.github.georgwav.cosmetics.client.modules.SolToasts SOL_TOASTS = new io.github.georgwav.cosmetics.client.modules.SolToasts();
     public static final io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere ATMOSPHERE =
             new io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.KillEffects KILL_EFFECTS =
+            new io.github.georgwav.cosmetics.sol.fx.effects.KillEffects();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.HitEffects HIT_EFFECTS =
+            new io.github.georgwav.cosmetics.sol.fx.effects.HitEffects();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.Totems TOTEMS = new io.github.georgwav.cosmetics.sol.fx.effects.Totems();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.Trails TRAILS = new io.github.georgwav.cosmetics.sol.fx.effects.Trails();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.Target TARGET_MARK = new io.github.georgwav.cosmetics.sol.fx.effects.Target();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.JumpFx JUMP_FX = new io.github.georgwav.cosmetics.sol.fx.effects.JumpFx();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.You YOU = new io.github.georgwav.cosmetics.sol.fx.effects.You();
+    public static final io.github.georgwav.cosmetics.sol.fx.effects.WorldFx WORLD_FX = new io.github.georgwav.cosmetics.sol.fx.effects.WorldFx();
+    public static final io.github.georgwav.cosmetics.client.hud.ComboHud COMBO = new io.github.georgwav.cosmetics.client.hud.ComboHud();
+    public static final io.github.georgwav.cosmetics.client.hud.KillFeedHud KILL_FEED =
+            new io.github.georgwav.cosmetics.client.hud.KillFeedHud();
 
-    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, CRYSTAL_PVP, HITBOXES, HELD_ITEMS,
+    private static final List<Module> ALL = List.of(ATMOSPHERE, CAMERA, PVP_TWEAKS, PVP_EFFECTS, KILL_EFFECTS, HIT_EFFECTS, TOTEMS, TARGET_MARK, CRYSTAL_PVP, JUMP_FX, TRAILS, YOU, WORLD_FX, HITBOXES, HELD_ITEMS, PUNCHY,
             NAMETAGS, SCREEN, PARTICLES, GLINT, FULLBRIGHT, CROSSHAIR, OUTLINE, MOVEMENT, SOL_UI, KEYSTROKES, STATS,
-            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
+            COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS, ACTIVE_MODULES, SOL_TOASTS, SOL_CHAT, WORLD_OVERLAYS, INVENTORY, PERFORMANCE, SCREENSHOTS,
             SOCIAL, SERVERS, COSMETICS);
-    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, MUSIC);
+    private static final List<HudModule> HUD = List.of(KEYSTROKES, STATS, COORDINATES, ARMOUR_ITEMS, POTION_EFFECTS, TARGET, COMBO, KILL_FEED, MUSIC, LYRICS,
+            ACTIVE_MODULES);
 
     private static boolean loading;
     private static boolean started;
 
     private Modules() {
+    }
+
+    /** Whether the saved modules are being read (switching them on then isn't something you did). */
+    public static boolean loading() {
+        return loading;
     }
 
     public static List<Module> all() {
@@ -137,6 +161,7 @@ public final class Modules {
             // Modules left on last time are switched on once the game is up.
             started = true;
             for (Module m : ALL) {
+                m.startup(mc);
                 if (m.enabled()) {
                     m.onEnable(mc);
                 }
@@ -218,6 +243,10 @@ public final class Modules {
                     JsonObject saved = modules.getAsJsonObject(m.id);
                     m.loadEnabled(saved.has("enabled") && saved.get("enabled").getAsBoolean());
                     loadSettings(m, saved);
+                    int seen = defaultsSeen(saved);
+                    if (m.turnOnOnce() || m.onByDefault() && seen < m.onByDefaultSince()) {
+                        m.loadEnabled(true);
+                    }
                 }
             }
         } catch (IOException | RuntimeException e) {
@@ -227,13 +256,26 @@ public final class Modules {
         }
     }
 
+    /**
+     * The version of the defaults settings are saved with: 2 made the theme's colour every colour's default (and
+     * turned on the modules that show it); 3 made the effects smooth (pixel snap off). Saved settings still at an older
+     * default take the new one, once.
+     */
+    public static final int DEFAULTS = 3;
+
+    /** The defaults' version a module's saved settings were written with (1 before it was recorded). */
+    private static int defaultsSeen(JsonObject saved) {
+        return saved.has("defaults") && saved.get("defaults").isJsonPrimitive() ? saved.get("defaults").getAsInt() : 1;
+    }
+
     private static void loadSettings(Module m, JsonObject saved) {
         JsonObject values = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
         m.migrate(values);
+        boolean older = defaultsSeen(saved) < DEFAULTS;
         for (Setting<?> s : m.settings) {
             JsonElement v = values.get(s.id);
             if (v != null) {
-                s.load(v);
+                s.loadSaved(v, older);
             }
         }
         m.loadState(saved.has("state") ? saved.getAsJsonObject("state") : new JsonObject());
@@ -245,6 +287,7 @@ public final class Modules {
         for (Module m : ALL) {
             JsonObject saved = new JsonObject();
             saved.addProperty("enabled", m.enabled());
+            saved.addProperty("defaults", DEFAULTS);
             JsonObject values = new JsonObject();
             for (Setting<?> s : m.settings) {
                 JsonElement value = s.save();

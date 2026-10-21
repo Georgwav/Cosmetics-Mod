@@ -34,15 +34,21 @@ public final class SolScenario {
     private static final String SHOTS = System.getProperty("cosmeticsmod.solShots", "all");
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
-            "quick_mods", "quick_eclipse", "quick_presets", "quick_emotes", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_world_night", "menu_wardrobe", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "quick_mods", "quick_night", "quick_dusk", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
+            "menu_world", "menu_world_night", "menu_presets", "menu_wardrobe", "menu_emotes", "menu_modules_green", "menu_modules_light",
+            "quick_hud_light", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
-            "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
-            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
+            "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_crosshair__your", "menu_drawer_camera",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_kill_effects", "menu_drawer_hit_effects", "menu_drawer_totems", "menu_drawer_target", "menu_drawer_trails", "menu_drawer_you", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "menu_cursor", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
+            "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_off", "tab", "chat", "inventory", "servers", "whats_new", "packs"};
+            "hud_sol", "hud_colour", "hud_off", "tab", "tab_slide", "chat", "inventory", "inventory_slide", "hud_extras", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "hands_stars", "hands_bands", "hands_held", "hands_view", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs",
+            "styles_world", "styles_live", "menu_styles_tools", "menu_styles_tools_full", "menu_styles_crystal", "menu_styles_look", "menu_styles_tree", "menu_styles_editor",
+            "styles_sky", "styles_packsky"};
+    /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
+    private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline", "hands_white", "knife_pinspect"};
     private static final int SETTLE = 70;
     private static final int HOLD = 60;
     /** How long each benchmark preset is measured (ticks). */
@@ -54,6 +60,8 @@ public final class SolScenario {
     /** Night sky shots through the spyglass, on a planet. */
     private static final String ZOOM = "sol_night_zoom_";
     private static final String EVENTS = "sol_night_events_";
+    /** A shot whose view keeps turning (left and right, a little), to show the sky's things turning with the sky. */
+    private static final String SPIN = "_spin";
     private static boolean holdingSpyglass;
     /** The shot from inside a closed room (built in the air above the beach, taken away after). */
     private static final String UNDERGROUND = "sol_ember_underground";
@@ -100,6 +108,13 @@ public final class SolScenario {
 
     /** The time the scenario holds (0 is 06:00), or -1. Read by the time lock. */
     public static volatile long lockedTime = -1L;
+    /** While set, the world's own weather shows during the shots (the effects phase's real rain). */
+    public static volatile boolean realWeather;
+
+    /** Whether the shots keep the sky clear: while they hold the time, unless the world's weather is wanted. */
+    public static boolean clearSky() {
+        return lockedTime >= 0L && !realWeather;
+    }
     /** Whether the scenario is showing a frame: the HUD is hidden and only the crosshair is drawn. */
     public static volatile boolean crosshairOnly;
 
@@ -133,6 +148,8 @@ public final class SolScenario {
 
     /** Only these themes' shots (comma-separated ids; empty for all), for quick looks while tuning. */
     private static final String THEMES = System.getProperty("cosmeticsmod.solThemes", "");
+    /** Only the shots whose names hold one of these (comma-separated; empty for all), for quick looks. */
+    private static final String ONLY = System.getProperty("cosmeticsmod.solOnly", "");
 
     /** CI's mock Cider is running (ci/mock_cider.py): the music shots show its song and are checked. */
     private static final boolean MOCK_CIDER = Boolean.getBoolean("cosmeticsmod.mockCider");
@@ -160,9 +177,27 @@ public final class SolScenario {
             java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(THEMES.split(",")));
             shots.removeIf(s -> !keep.contains(s.theme()) && !s.name().equals("sol_ember_sunlab"));
         }
+        if (!ONLY.isBlank()) {
+            List<String> only = java.util.Arrays.asList(ONLY.split(","));
+            shots.removeIf(s -> only.stream().noneMatch(s.name()::contains));
+        }
+    }
+
+    /** The effects' phase (Part C): every effect staged and grabbed by {@link FxScenario}. */
+    private static final String FX_SHOT = "fx_effects";
+    private FxScenario fx;
+
+    private Shot fxShot() {
+        // Frost on a morning, looking west over the beach with the sun behind: the dummy stands on the sand, and nothing
+        // in the sky moves much between the frames compared.
+        return new Shot(FX_SHOT, FxScenario.PRESET_A, 40f, true, 90f, 4f);
     }
 
     private void planAll() {
+        if ("fx".equals(SHOTS)) {
+            shots.add(fxShot());
+            return;
+        }
         if ("night".equals(SHOTS)) {
             // The night sky on its own (-Dcosmeticsmod.solShots=night): Maple's night, which keeps the world's time.
             // Day 4 is the new moon, day 0 the full moon; 18,000 is midnight, 15,000 is 21:00.
@@ -204,6 +239,12 @@ public final class SolScenario {
             shots.add(new Shot(EVENTS + "comet", "maple_afternoon", 0f, false, comet[0], comet[1], newMoon + dusk));
             float[] death = aimAt("deathstar", 0.75, 0.5f);
             shots.add(new Shot(EVENTS + "ships", "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            // The same while the view turns: the beam stays on the Death Star's dish, not on the screen.
+            shots.add(new Shot(EVENTS + "ships" + SPIN, "maple_afternoon", 0f, false, death[0], death[1] + 3f, newMoon + 18000L));
+            // Looking up at Halo where it's highest, the view turning: it turns with the stars round it.
+            long high = highest("halo", newMoon);
+            float[] halo = aimAt("halo", high / 24000.0, celestial(high));
+            shots.add(new Shot("sol_night_halo" + SPIN, "maple_afternoon", 0f, false, halo[0], Math.max(-89f, halo[1] - 25f), high));
             if ("clip".equals(System.getProperty("cosmeticsmod.solEvents", ""))) {
                 // The events clip: sixteen frames a fifth of a second apart, round the Death Star.
                 for (int k = 0; k < 16; k++) {
@@ -251,14 +292,60 @@ public final class SolScenario {
             float yaw = deep == null ? 180f : deep.base().show().azimuth();
             // Only some menu shots (-Dcosmeticsmod.solUi=hud_sol,hud_off), for quick looks.
             java.util.List<String> only = java.util.Arrays.asList(System.getProperty("cosmeticsmod.solUi", "").split(","));
-            for (String ui : UI_SHOTS) {
+            // The effects first, while the world is as the world shots left it (the menu shots after them stage
+            // scenes of their own).
+            if (only.get(0).isBlank() || only.contains("fx")) {
+                shots.add(fxShot());
+            }
+            java.util.List<String> uiShots = new java.util.ArrayList<>(java.util.Arrays.asList(UI_SHOTS));
+            if (!"reduced".equals(MODE)) {
+                // Each swing style mid-swing, on the full runs only (seven more shots).
+                for (String style : io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES.subList(2,
+                        io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES.size())) {
+                    uiShots.add(uiShots.indexOf("hands_view") + 1, "hands_style_" + style);
+                }
+            }
+            for (String ui : uiShots) {
                 if (!only.get(0).isBlank() && !only.contains(ui)) {
                     continue;
                 }
-                // The HUD in play: Ember Solstice by day, facing west.
-                shots.add(inPlay(ui)
+                // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night, and the gold
+                // swing, as in Georg's video, at Ember's night).
+                shots.add(ui.equals("styles_sky")
+                        // Styles' sun: the game's own sky (Empty), the afternoon sun in the west.
+                        ? new Shot("ui_" + ui, "empty", 40f, false, 90f, -40f)
+                        // A pack's skybox in Sol's sky: Ember by day, looking up to the west.
+                        : ui.equals("styles_packsky") ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -55f)
+                        : ui.equals("hands_swing_gold") || ui.startsWith("hands_gold")
+                        ? new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH)
+                        : inPlay(ui) && !ui.startsWith("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
                         : new Shot("ui_" + ui, "deep_field", -60f, false, yaw, -Extras.SHOW_PITCH));
+            }
+            for (String ui : LOCAL_UI_SHOTS) {
+                if (only.contains(ui)) {
+                    shots.add(new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
+                }
+            }
+            // Local: the hands at other sizes (-Dcosmeticsmod.handTries=size/centre,...), to match a look.
+            for (int i = 0; i < HAND_TRIES.length; i++) {
+                shots.add(new Shot("ui_hands_try" + i, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH));
+            }
+        }
+        // Local: the knife's size next to Punchy's hands (-Dcosmeticsmod.knifePunchyTries=size/centre,...), at rest with
+        // the Punchy module on, for each knife asked for (or the stand-in).
+        for (int i = 0; i < KNIFE_PUNCHY_TRIES.length; i++) {
+            for (int k = 0; k < Math.max(1, KNIFE_IDS.size()); k++) {
+                shots.add(new Shot("ui_knife_ptry" + i + (KNIFE_IDS.isEmpty() ? "" : "_k" + k), "ember_solstice", 40f, false, 90f,
+                        -Extras.SHOW_PITCH));
+            }
+        }
+        if (!KNIFE_IDS.isEmpty()) {
+            // Local checks with real knives (-Dcosmeticsmod.knifeIds=ns:melee/a,... and knifeActions=idle,draw,...).
+            for (int i = 0; i < KNIFE_IDS.size(); i++) {
+                for (String action : System.getProperty("cosmeticsmod.knifeActions", "idle").split(",")) {
+                    shots.add(new Shot("ui_knife_" + action + "_k" + i, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH));
+                }
             }
         }
         if (MOCK_CIDER && !"sheet".equals(SHOTS) && !"bench".equals(MODE)) {
@@ -394,8 +481,24 @@ public final class SolScenario {
         if (tick < 60) {
             return;
         }
+        // The swing shot swings the sword over and over, so the outline's motion trail shows; the swing style shots keep
+        // a swing going (from 26.3 the game draws a swing only while one is under way), held where they show it.
+        String nowShot = index >= 0 && index < shots.size() ? shots.get(index).name() : "";
+        if (nowShot.startsWith("ui_hands_swing") && tick % 7 == 0 || nowShot.startsWith("ui_hands_style_") && tick % 4 == 0) {
+            //? if >=26.3 {
+            /*mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+            *///?} else {
+            mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            //?}
+        }
         if (!built) {
             built = true;
+            // A window that changes size after the game started (a launcher maximising it): -Dcosmeticsmod.resizeTo=WxH.
+            String resize = System.getProperty("cosmeticsmod.resizeTo", "");
+            if (resize.matches("\\d+x\\d+")) {
+                String[] wh = resize.split("x");
+                mc.getWindow().setWindowed(Integer.parseInt(wh[0]), Integer.parseInt(wh[1]));
+            }
             buildScene(mc);
             if (Atmosphere.INSTANCE != null && !Atmosphere.INSTANCE.enabled()) {
                 Atmosphere.INSTANCE.setEnabled(true);
@@ -416,25 +519,76 @@ public final class SolScenario {
         phaseTick++;
         if (index >= 0 && index < shots.size()) {
             Shot s = shots.get(index);
-            // The motion blur shot turns the view a little each tick (the blur needs movement to show).
-            float yaw = s.name().equals("sol_motion_blur") ? s.yaw() + phaseTick * 2.5f : s.yaw();
-            mc.player.yRotO = s.name().equals("sol_motion_blur") ? yaw - 2.5f : yaw;
+            // The motion blur shot turns the view a little each tick (the blur needs movement to show); a spin shot
+            // turns it left and right.
+            float yaw = s.name().equals("sol_motion_blur") ? s.yaw() + phaseTick * 2.5f
+                    : s.name().endsWith(SPIN) ? s.yaw() + 30f * (float) Math.sin(phaseTick * 0.06) : s.yaw();
+            mc.player.yRotO = s.name().equals("sol_motion_blur") ? yaw - 2.5f
+                    : s.name().endsWith(SPIN) ? s.yaw() + 30f * (float) Math.sin((phaseTick - 1) * 0.06) : yaw;
             mc.player.setYRot(yaw);
             mc.player.setXRot(s.pitch());
             mc.player.xRotO = s.pitch();
             boolean play = s.name().startsWith("ui_") && inPlay(s.name().substring(3));
-            if (play && phaseTick == SETTLE - 10) {
+            holdSpot(mc, play, s.name());
+            knifeForShot(s.name().startsWith("ui_") ? s.name().substring(3) : "", s.name());
+            if (s.name().equals(FX_SHOT)) {
+                // The effects' phase runs on its own and holds the shot until it's through.
+                mc.player.setXRot(FxScenario.pitch);
+                mc.player.xRotO = FxScenario.pitch;
+                if (phaseTick >= 10) {
+                    if (fx == null) {
+                        fx = new FxScenario(problems);
+                    }
+                    if (!fx.done()) {
+                        fx.tick(mc);
+                        phaseTick = 10;
+                    }
+                }
+            }
+            if (play && phaseTick == SETTLE - 20) {
+                // A second ahead, so frames draw it before the check even when the game runs slowly (it shows for
+                // two seconds before it fades).
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
+            }
+            String styles = s.name().startsWith("ui_") ? s.name().substring(3) : "";
+            if (phaseTick == 5 && styles.equals("styles_world")) {
+                StylesScenario.scene(mc, c -> asPlayer(mc, c));
+            }
+            if (phaseTick == SETTLE - 10 && StylesScenario.waiting(styles)) {
+                // A Styles shot waits for its change to be applied (a reload of the base takes a while).
+                phaseTick--;
+            }
+            if (phaseTick == SETTLE - 30 && styles.equals("menu_styles_editor")
+                    && io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor ed) {
+                if (!ed.ready() && editorWait++ < 400) {
+                    phaseTick--;
+                } else {
+                    ed.paintForShot(0xFF33DDFF);
+                }
+            }
+            if (phaseTick == SETTLE) {
+                StylesScenario.shot(styles);
+                if (styles.equals("menu_styles_editor") && !(io.github.georgwav.cosmetics.ui.ScreenOpener.current()
+                        instanceof io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor ed && ed.live())) {
+                    problems.add("ui_menu_styles_editor: the editor's stroke didn't go into the game live");
+                }
+            }
+            if (phaseTick == SETTLE - 40 && s.name().equals("ui_hud_colour")) {
+                placeColourBlock(mc);
             }
             if (play && phaseTick == SETTLE - 2) {
                 // The toasts from the items given for the HUD shots.
                 io.github.georgwav.cosmetics.sol.render.Mc.clearToasts();
             }
             // The tab list shot holds the player list key.
-            mc.options.keyPlayerList.setDown(s.name().equals("ui_tab"));
+            mc.options.keyPlayerList.setDown(s.name().equals("ui_tab") || s.name().equals("ui_tab_slide"));
             mc.options.keyUse.setDown(spyglassShot(s.name()) && phaseTick > 4);
             if (phaseTick == SETTLE && play) {
                 checkHud(s.name());
+            }
+            hudExtrasTick(mc, s.name(), phaseTick);
+            if (phaseTick == SETTLE) {
+                checkExtras(s.name());
             }
             if (phaseTick == SETTLE - 20 && s.name().equals("ui_packs") && io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
                 // Typing in the pack screen's search (Sol's before 1.21.9, the game's after).
@@ -443,6 +597,25 @@ public final class SolScenario {
                         box.setValue("default");
                     }
                 }
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.labelsOutside > 0) {
+                // A.8: every label on the wheel lies inside its own segment, at every screen size.
+                problems.add(s.name() + ": " + io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.labelsOutside
+                        + " label(s) on the quick menu's wheel didn't fit inside their segment");
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && io.github.georgwav.cosmetics.sol.render.LightPass.pixelFrames == 0
+                    && !io.github.georgwav.cosmetics.compat.Compat.isShaderPackActive()) {
+                // A.2: the world under the quick menu is drawn in the wheel's pixels.
+                problems.add(s.name() + ": the world under the quick menu wasn't drawn in pixels");
+            }
+            if (phaseTick == SETTLE && (s.name().equals("ui_quick_night") || s.name().equals("ui_quick_eclipse"))
+                    && io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.moonShown != s.name().equals("ui_quick_night")) {
+                // A.8: the moon below the horizon, never in the eclipse.
+                problems.add(s.name() + (s.name().equals("ui_quick_night") ? ": the moon didn't show below the horizon" : ": the moon showed in the eclipse"));
+            }
+            if (phaseTick == SETTLE && s.name().startsWith("ui_") && io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.blursRun > 0) {
+                // A.2: no glass and no blur anywhere in the pixel UI.
+                problems.add(s.name() + ": a Sol screen ran a blur pass (" + io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.blursRun + ")");
             }
             if (phaseTick == SETTLE && s.name().equals("ui_inventory") && io.github.georgwav.cosmetics.client.modules.ScreenTweaks.undimmed == 0) {
                 problems.add(s.name() + ": the inventory darkened the world behind it with Screen's darkening off");
@@ -537,7 +710,10 @@ public final class SolScenario {
             stageUi(s.name());
             spyglass(mc, spyglassShot(s.name()));
             motionBlur(s.name().equals("sol_motion_blur"));
-            ThemeState.setTheme(s.theme(), false);
+            // The "_light" shots (and a light run's) show a light preset, the rest their own, so the colours are
+            // checked on both.
+            boolean light = s.name().startsWith("ui_") && (s.name().endsWith("_light") || LOOK.equals("light"));
+            ThemeState.setTheme(light ? LIGHT_PRESET : s.theme(), false);
             if ("custom".equals(SHOTS)) {
                 ThemeState.setCustomisation(edits(s.name()));
             }
@@ -583,6 +759,8 @@ public final class SolScenario {
         }
     }
 
+    /** Ticks the editor shot has waited for its texture to be read. */
+    private static int editorWait;
     private static boolean screenWasOn;
     private static boolean blurOn;
 
@@ -615,6 +793,8 @@ public final class SolScenario {
 
     private static void stageUi(String name) {
         boolean ui = name.startsWith("ui_");
+        // Only this shot's own cut labels count.
+        io.github.georgwav.cosmetics.sol.ui.kit.TextCuts.drain();
         if (loadingShown) {
             loadingShown = false;
             io.github.georgwav.cosmetics.sol.render.Mc.setOverlay(null);
@@ -624,6 +804,16 @@ public final class SolScenario {
         // HUD hidden.
         String what = ui ? name.substring(3) : "";
         boolean hud = inPlay(what);
+        // Before the music's switches below, which set the album colours per shot after this puts them back.
+        accentForShot(what.equals("hud_colour") || what.equals("quick_presets_colour"));
+        // The "_green" shots show the on glows in Dawn's green (Settings › Sol UI › On glows), the rest in the theme's.
+        var solCfg = io.github.georgwav.cosmetics.sol.config.SolConfig.get();
+        if (onGlowsWas == null) {
+            onGlowsWas = solCfg.onGlows;
+        }
+        // A whole run can be staged in the light preset or with green on glows (-Dcosmeticsmod.solUiLook=light|green).
+        boolean green = what.endsWith("_green") || ui && LOOK.equals("green");
+        solCfg.onGlows = green ? "green" : onGlowsWas;
         if (MOCK_CIDER) {
             // The album's colours only in the music shots: every other shot shows its theme.
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
@@ -641,6 +831,12 @@ public final class SolScenario {
         boolean wardrobe = what.startsWith("wardrobe_") || what.startsWith("cosmetics_settings");
         wearForWardrobe(wardrobe);
         serversForShot(what.equals("servers"));
+        handsForShot(what);
+        handFeaturesForShot(what);
+        hudExtrasForShot(what);
+        blockForShot(what.equals("hud_colour"));
+        stylesForShot(what.equals("hud_styles"));
+        StylesScenario.stage(what);
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -648,7 +844,7 @@ public final class SolScenario {
             }
             return;
         }
-        if (what.startsWith("emote_")) {
+        if (what.startsWith("emote_") || what.startsWith("quick_emote")) {
             // The wheel with emotes on it (a fresh config has none yet).
             for (boolean elytra : new boolean[]{false, true}) {
                 java.util.List<io.github.georgwav.cosmetics.emote.Emote> all = new java.util.ArrayList<>(
@@ -660,12 +856,14 @@ public final class SolScenario {
                     }
                 }
             }
+        }
+        if (what.startsWith("emote_")) {
             var wheel = new io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel(what.equals("emote_wheel_elytra"));
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(what.equals("emote_picker") ? wheel.stage("picker") : wheel);
             return;
         }
-        screenForShot(what.equals("inventory"));
-        if (what.equals("inventory")) {
+        screenForShot(what.startsWith("inventory"));
+        if (what.startsWith("inventory")) {
             // Your inventory over the world, which Screen leaves undarkened.
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(new net.minecraft.client.gui.screens.inventory.InventoryScreen(
                     Minecraft.getInstance().player));
@@ -790,12 +988,26 @@ public final class SolScenario {
                     net.minecraft.network.chat.Component.translatable("sol.notify.undo").getString(), () -> { });
             return;
         }
+        if (what.equals("styles_sky") || what.equals("styles_packsky")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            return;
+        }
+        if (what.equals("menu_styles_editor")) {
+            // The texture editor on the swords as they look now; a few pixels are painted in before the shot.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor.current(null,
+                    io.github.georgwav.cosmetics.sol.styles.PartTable.get().part("swords")));
+            return;
+        }
         if (what.startsWith("quick_")) {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
                     new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null).stage(what.substring("quick_".length())));
+        } else if (what.equals("menu_wardrobe")) {
+            // The menu's Wardrobe tab: the Wardrobe itself, in the window.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.inMenu(null, "all", false));
         } else {
+            String state = what.substring("menu_".length());
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
-                    io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
+                    io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(state.equals("cursor") ? "modules" : state));
         }
     }
 
@@ -953,8 +1165,51 @@ public final class SolScenario {
         if (name.equals("ui_tab") && io.github.georgwav.cosmetics.sol.hud.HudTweaks.pingsWritten == 0) {
             problems.add(name + ": the tab list's ping wasn't written in milliseconds");
         }
+        if (name.equals("ui_hud_sol")) {
+            var keys = io.github.georgwav.cosmetics.client.Modules.KEYSTROKES;
+            Minecraft mc = Minecraft.getInstance();
+            float kx = keys.x(mc.getWindow().getGuiScaledWidth(), mc), ky = keys.y(mc.getWindow().getGuiScaledHeight(), mc);
+            if (!io.github.georgwav.cosmetics.sol.hud.Sidebar.shown()) {
+                problems.add(name + ": the scoreboard's place wasn't seen");
+            } else if (keys.enabled() && io.github.georgwav.cosmetics.sol.hud.Sidebar.covers(kx, ky,
+                    kx + keys.width(mc) * keys.scale(), ky + keys.height(mc) * keys.scale())) {
+                problems.add(name + ": Keystrokes covers the scoreboard");
+            }
+        }
         if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
             problems.add(name + ": Glint didn't recolour any glint texture");
+        }
+        if (name.equals("ui_hands") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run");
+        }
+        if ((name.equals("ui_hands_stars") || name.equals("ui_hands_bands")) && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run");
+        }
+        if (name.equals("ui_hands_held")) {
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.flamesDrawn == 0) {
+                problems.add(name + ": no flames were drawn on the held item");
+            }
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.armsWithItems == 0) {
+                problems.add(name + ": your arm wasn't drawn holding the item");
+            }
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.shieldsTinted == 0) {
+                problems.add(name + ": the shield wasn't tinted by its cooldown");
+            }
+        }
+        if (name.equals("ui_hands_view") && io.github.georgwav.cosmetics.render.FirstPersonHands.stillFrames == 0) {
+            problems.add(name + ": the hands weren't kept still");
+        }
+        if (name.startsWith("ui_hands_style_") && io.github.georgwav.cosmetics.render.FirstPersonHands.styledSwings == 0) {
+            problems.add(name + ": the swing style never posed the arm");
+        }
+        if (name.startsWith("ui_knife") && !name.equals("ui_knife_third") && io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn == 0) {
+            problems.add(name + ": the knife never drew");
+        }
+        if (name.equals("ui_knife_glow") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run on the knife");
+        }
+        if (name.equals("ui_hud_colour")) {
+            checkColourSync(name);
         }
         if (name.equals("ui_hud_off")) {
             for (var p : io.github.georgwav.cosmetics.sol.hud.SolHud.Part.values()) {
@@ -998,7 +1253,681 @@ public final class SolScenario {
 
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
-        return what.equals("hud_sol") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory");
+        return what.equals("hud_sol") || what.equals("hud_colour") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
+                || what.equals("tab_slide") || what.equals("inventory_slide") || what.equals("hud_extras")
+                || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles")
+                || what.equals("styles_world") || what.equals("styles_live");
+    }
+
+    /** The colour the colour shots pick: one that isn't in the quick menu's row, so the picker's own swatch shows it. */
+    private static final int SHOT_ACCENT = 0xFFFF5FA8;
+    /** The accent before the colour shots (in a box, as it may be null), or null while they aren't showing. */
+    private static Integer[] accentWas;
+    /** The block put in front of you in the colour shot, for the block outline, or null. */
+    private static net.minecraft.core.BlockPos colourBlock;
+
+    /** The album colours' switch before the colour shots. */
+    private static boolean albumBeforeColour;
+
+    /**
+     * The colour shots: your own colour picked, as from the picker under the presets wheel (which switches the
+     * album's colours off, as they'd come first). Put back after them.
+     */
+    private static void accentForShot(boolean on) {
+        var music = io.github.georgwav.cosmetics.sol.config.SolConfig.get().music;
+        if (on && accentWas == null) {
+            accentWas = new Integer[]{ThemeState.accentOverride()};
+            albumBeforeColour = music.albumUi;
+            music.albumUi = false;
+            io.github.georgwav.cosmetics.sol.config.SolProfiles.setAccent(SHOT_ACCENT);
+        } else if (!on && accentWas != null) {
+            music.albumUi = albumBeforeColour;
+            io.github.georgwav.cosmetics.sol.config.SolProfiles.setAccent(accentWas[0]);
+            accentWas = null;
+        } else if (on) {
+            music.albumUi = false;
+        }
+    }
+
+    /**
+     * A stone block a few steps ahead in the colour shot, so the block outline (on by default) shows its colour. Put
+     * there once the player stands at the shot's spot, facing its way; taken away after the shot.
+     */
+    private static void placeColourBlock(Minecraft mc) {
+        if (colourBlock == null && mc.player != null) {
+            colourBlock = net.minecraft.core.BlockPos.containing(mc.player.getEyePosition().add(mc.player.getLookAngle().scale(3.5)));
+            asPlayer(mc, List.of("setblock " + colourBlock.getX() + " " + colourBlock.getY() + " " + colourBlock.getZ() + " minecraft:stone"));
+        }
+    }
+
+    private static void blockForShot(boolean on) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!on && colourBlock != null) {
+            asPlayer(mc, List.of("setblock " + colourBlock.getX() + " " + colourBlock.getY() + " " + colourBlock.getZ() + " minecraft:air"));
+            colourBlock = null;
+        }
+    }
+
+    /**
+     * The colour shot: the picked colour is the theme's accent, every colour setting that follows the theme draws in
+     * it, and the modules that show it (crosshair, block outline, glint) are on by default.
+     */
+    private void checkColourSync(String name) {
+        int want = 0xFF000000 | ThemeState.tokens().accent;
+        if ((want & 0xFFFFFF) != (SHOT_ACCENT & 0xFFFFFF)) {
+            problems.add(name + String.format(java.util.Locale.ROOT, ": the picked colour isn't the accent (#%06X)", want & 0xFFFFFF));
+        }
+        int following = 0;
+        for (io.github.georgwav.cosmetics.client.Module m : Modules.all()) {
+            for (io.github.georgwav.cosmetics.client.Setting<?> st : m.settings()) {
+                if (st instanceof io.github.georgwav.cosmetics.client.Setting.Color c && c.followsTheme()) {
+                    following++;
+                    if (c.argb() != want) {
+                        problems.add(name + ": " + m.id + "'s " + c.id + " didn't follow the picked colour");
+                    }
+                }
+            }
+        }
+        for (io.github.georgwav.cosmetics.client.Module m : List.of(Modules.CROSSHAIR, Modules.OUTLINE, Modules.GLINT)) {
+            if (!m.enabled()) {
+                problems.add(name + ": " + m.id + " isn't on (it's on by default)");
+            }
+        }
+        CosmeticsMod.LOGGER.info("[Sol] {}: {} colour settings follow the theme, all in the picked colour", name, following);
+    }
+
+    /** The settings the HUD styles shot changed, to put back after it. */
+    private static java.util.List<io.github.georgwav.cosmetics.client.Setting<?>> stylesSet;
+
+    /**
+     * The HUD styles shot: the selected slot growing instead of lifting, the hotbar and bars a little bigger, the
+     * music with its big cover, Stats without a background.
+     */
+    @SuppressWarnings("unchecked")
+    private static void stylesForShot(boolean on) {
+        if (on && stylesSet == null) {
+            stylesSet = new java.util.ArrayList<>();
+            var ui = io.github.georgwav.cosmetics.client.Modules.SOL_UI;
+            ui.hotbarSelect.set("grow");
+            ui.bottomScale.set(115.0);
+            stylesSet.add(ui.hotbarSelect);
+            stylesSet.add(ui.bottomScale);
+            for (var m : java.util.List.of(io.github.georgwav.cosmetics.client.Modules.MUSIC, io.github.georgwav.cosmetics.client.Modules.STATS)) {
+                for (var st : m.settings()) {
+                    if (m == io.github.georgwav.cosmetics.client.Modules.MUSIC && st.id.equals("style")) {
+                        ((io.github.georgwav.cosmetics.client.Setting<String>) st).set("big_art");
+                        stylesSet.add(st);
+                    } else if (m == io.github.georgwav.cosmetics.client.Modules.STATS && st.id.equals("backing")) {
+                        ((io.github.georgwav.cosmetics.client.Setting<Boolean>) st).set(false);
+                        stylesSet.add(st);
+                    }
+                }
+            }
+        } else if (!on && stylesSet != null) {
+            stylesSet.forEach(io.github.georgwav.cosmetics.client.Setting::reset);
+            stylesSet = null;
+        }
+    }
+
+    /** Whether the Punchy module was on before the hands shot (null while it isn't on). */
+    private static Boolean punchyWas;
+    /** What the hand shots hold, main hand then off hand, as last set. */
+    private static String handHeld = "diamond_sword[enchantment_glint_override=true]|shield";
+
+    /**
+     * The hands shots, with an enchanted sword in hand: the Punchy module on (Sol's arms, the glow), off (the game's
+     * own hands, to compare), swinging (the outline's motion trail), and on again at night with an empty hand (the
+     * dark arm with its outline).
+     */
+    /** Whether the swing shot slowed the game (so the slow test renderer draws the trail's copies close together). */
+    private static boolean slowed;
+    /** The glow's colours before the gold swing shot (null while it isn't on). */
+    private static String coloursWas;
+    /** Whether the glow was on before a "_bare" shot (the same frame without it, to measure the glow by), or null. */
+    private static Boolean glowWas;
+    /** The glow's style before an "_outline" shot (the Outline style instead of Golden), or null. */
+    private static String lookWas;
+
+    /** Dark arms before the gold and night hand shots (null while they aren't on). */
+    private static Boolean darkWas;
+
+    /** The glow's own colour before the white shot (null while it isn't on). */
+    private static Integer colourWas;
+
+    /** The local hand tries (see {@code ui_hands_try<n>}): size and centring, in percent. */
+    private static final String[] HAND_TRIES = System.getProperty("cosmeticsmod.handTries", "").isBlank() ? new String[0]
+            : System.getProperty("cosmeticsmod.handTries").split(",");
+
+    private static void handsForShot(String what) {
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        boolean on = what.startsWith("hands");
+        int tryIndex = what.startsWith("hands_try") ? Integer.parseInt(what.substring("hands_try".length())) : -1;
+        for (var st : punchy.settings()) {
+            if (st instanceof io.github.georgwav.cosmetics.client.Setting.Slider slider
+                    && (st.id.equals("hand_size") || st.id.equals("hands_centre"))) {
+                if (tryIndex >= 0) {
+                    String[] t = HAND_TRIES[tryIndex].split("/");
+                    slider.set(Double.parseDouble(t[st.id.equals("hand_size") ? 0 : 1]));
+                } else if (HAND_TRIES.length > 0) {
+                    slider.reset();
+                }
+            }
+        }
+        // The swing shot runs the game at a quarter speed: this renderer draws a few frames a second, so at full speed
+        // a swing would leave one copy of the outline; slowed, it leaves the fan it does at a real frame rate.
+        boolean slow = what.startsWith("hands_swing");
+        if (slow != slowed) {
+            slowed = slow;
+            asPlayer(Minecraft.getInstance(), List.of("tick rate " + (slow ? 5 : 20)));
+        }
+        if (on && punchyWas == null) {
+            punchyWas = punchy.enabled();
+            asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with diamond_sword[enchantment_glint_override=true]"));
+            io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        // The gold swing: the glow in your own colour (gold until you pick another), as in Georg's video.
+        for (var st : punchy.settings()) {
+            if (st.id.equals("glow_colours")) {
+                @SuppressWarnings("unchecked")
+                var colours = (io.github.georgwav.cosmetics.client.Setting<String>) st;
+                boolean gold = what.equals("hands_swing_gold") || what.startsWith("hands_gold") || what.equals("hands_white");
+                if (gold && coloursWas == null) {
+                    coloursWas = colours.get();
+                    colours.set("custom");
+                } else if (!gold && coloursWas != null) {
+                    colours.set(coloursWas);
+                    coloursWas = null;
+                }
+            }
+            if (st.id.equals("arms_dark")) {
+                // The gold and night hand shots show the arm dark and outlined (dark arms are off by default); the
+                // run's glow check finds the arm by its dark pixels.
+                @SuppressWarnings("unchecked")
+                var dark = (io.github.georgwav.cosmetics.client.Setting<Boolean>) st;
+                boolean want = what.startsWith("hands_gold") || what.startsWith("hands_night");
+                if (want && darkWas == null) {
+                    darkWas = dark.get();
+                    dark.set(true);
+                } else if (!want && darkWas != null) {
+                    dark.set(darkWas);
+                    darkWas = null;
+                }
+            }
+            if (st.id.equals("glow_colour")) {
+                // The white shot (local): the golden glow in white, which must stay white all through.
+                @SuppressWarnings("unchecked")
+                var colour = (io.github.georgwav.cosmetics.client.Setting<Integer>) st;
+                if (what.equals("hands_white") && colourWas == null) {
+                    colourWas = colour.get();
+                    colour.set(0xFFFFFFFF);
+                } else if (!what.equals("hands_white") && colourWas != null) {
+                    colour.set(colourWas);
+                    colourWas = null;
+                }
+            }
+            if (st.id.equals("glow_look")) {
+                @SuppressWarnings("unchecked")
+                var look = (io.github.georgwav.cosmetics.client.Setting<String>) st;
+                boolean outline = what.startsWith("hands") && what.endsWith("_outline");
+                if (outline && lookWas == null) {
+                    lookWas = look.get();
+                    look.set("outline");
+                } else if (!outline && lookWas != null) {
+                    look.set(lookWas);
+                    lookWas = null;
+                }
+            }
+            if (st.id.equals("glow")) {
+                @SuppressWarnings("unchecked")
+                var glow = (io.github.georgwav.cosmetics.client.Setting<Boolean>) st;
+                boolean bare = what.startsWith("hands") && what.endsWith("_bare");
+                if (bare && glowWas == null) {
+                    glowWas = glow.get();
+                    glow.set(false);
+                } else if (!bare && glowWas != null) {
+                    glow.set(glowWas);
+                    glowWas = null;
+                }
+            }
+        }
+        if (on) {
+            punchy.setEnabled(!what.equals("hands_plain"));
+            // At night (and in gold at rest) the hand is empty, so the arm shows (dark, outlined). The local spear shot
+            // holds a spear and a torch at rest, posed like Georg's reference picture.
+            boolean spear = what.equals("hands_gold_spear");
+            boolean empty = !spear && (what.startsWith("hands_night") || what.startsWith("hands_gold"));
+            String held = (empty ? "air" : spear ? "iron_spear" : "diamond_sword[enchantment_glint_override=true]")
+                    + "|" + (spear ? "torch" : "shield");
+            if (!held.equals(handHeld)) {
+                handHeld = held;
+                String[] hands = held.split("\\|");
+                asPlayer(Minecraft.getInstance(), List.of("item replace entity @s weapon.mainhand with " + hands[0],
+                        "item replace entity @s weapon.offhand with " + hands[1]));
+            }
+        } else if (punchyWas != null) {
+            punchy.setEnabled(punchyWas);
+            punchyWas = null;
+        }
+    }
+
+    /** The Punchy settings the hand features' shots changed, with their values before (put back after). */
+    private static final java.util.Map<String, Object> handSet = new java.util.HashMap<>();
+
+    /**
+     * The hand features' shots (C.9): the Stars and Bands glow looks; what you hold (flames, your arm holding the sword,
+     * the shield red from an axe's cooldown); the view model moved, turned and sized with the hands kept still; and each
+     * swing style held a third of the way into a swing.
+     */
+    @SuppressWarnings("unchecked")
+    // ------------------------------------------------------------------ step 11: the HUD's extras
+
+    /** What the step 11 shots changed, as it was (empty while none of them is showing). */
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Setting<?>, Object> EXTRAS_WERE = new java.util.HashMap<>();
+    private static final java.util.Map<io.github.georgwav.cosmetics.client.Module, Boolean> EXTRAS_ON_WERE = new java.util.LinkedHashMap<>();
+    /** Whether the HUD's extras gave you their maces and totem (put back after). */
+    private static boolean extrasItems;
+
+    @SuppressWarnings("unchecked")
+    private static <T> void extra(io.github.georgwav.cosmetics.client.Module m, String id, T value) {
+        for (var st : m.settings()) {
+            if (st.id.equals(id)) {
+                EXTRAS_WERE.putIfAbsent(st, st.get());
+                ((io.github.georgwav.cosmetics.client.Setting<T>) st).set(value);
+            }
+        }
+    }
+
+    private static void extraOn(io.github.georgwav.cosmetics.client.Module m, boolean on) {
+        EXTRAS_ON_WERE.putIfAbsent(m, m.enabled());
+        m.setEnabled(on);
+    }
+
+    /**
+     * Step 11's shots: the HUD's extras (Sol toasts from real events, the active modules list, Breach and Density maces
+     * with a fall shown, a totem's backdrop, the painted crosshair, UI sounds on), the crosshair's painter, an inventory
+     * and the tab list caught as they slide in, and the cursor's sparkles over the menu.
+     */
+    @SuppressWarnings("unchecked")
+    private static void hudExtrasForShot(String what) {
+        Minecraft mc = Minecraft.getInstance();
+        for (var e : EXTRAS_WERE.entrySet()) {
+            ((io.github.georgwav.cosmetics.client.Setting<Object>) e.getKey()).set(e.getValue());
+        }
+        EXTRAS_WERE.clear();
+        for (var e : EXTRAS_ON_WERE.entrySet()) {
+            e.getKey().setEnabled(e.getValue());
+        }
+        EXTRAS_ON_WERE.clear();
+        io.github.georgwav.cosmetics.client.modules.SolToasts.hold = Float.NaN;
+        io.github.georgwav.cosmetics.sol.hud.SolHud.fallOverride = -1f;
+        io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.hold = -1;
+        io.github.georgwav.cosmetics.sol.hud.TabSlide.hold = Float.NaN;
+        io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeX = Float.NaN;
+        io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeY = Float.NaN;
+        boolean extras = what.equals("hud_extras");
+        if (extrasItems && !extras) {
+            asPlayer(mc, List.of("item replace entity @s hotbar.5 with torch 23", "item replace entity @s hotbar.7 with ender_pearl 3",
+                    "item replace entity @s hotbar.8 with air"));
+            extrasItems = false;
+        }
+        if (extras) {
+            extraOn(io.github.georgwav.cosmetics.client.Modules.SOL_TOASTS, true);
+            extraOn(io.github.georgwav.cosmetics.client.Modules.ACTIVE_MODULES, true);
+            extra(io.github.georgwav.cosmetics.client.Modules.CROSSHAIR, "style", "custom");
+            extra(io.github.georgwav.cosmetics.client.Modules.SOL_UI, "ui_sounds", "chime");
+            // A fall of five blocks shown on the maces' slots; the toasts held in place for the frame.
+            io.github.georgwav.cosmetics.sol.hud.SolHud.fallOverride = 5f;
+            io.github.georgwav.cosmetics.client.modules.SolToasts.hold = 1f;
+            //? if >=1.21.5 {
+            String breach = "mace[enchantments={\"minecraft:breach\":4}]", density = "mace[enchantments={\"minecraft:density\":5}]";
+            //?} else {
+            /*String breach = "mace[enchantments={levels:{\"minecraft:breach\":4}}]", density = "mace[enchantments={levels:{\"minecraft:density\":5}}]";
+            *///?}
+            asPlayer(mc, List.of("item replace entity @s hotbar.5 with totem_of_undying", "item replace entity @s hotbar.7 with " + breach,
+                    "item replace entity @s hotbar.8 with " + density));
+            extrasItems = true;
+        }
+        if (what.equals("menu_drawer_crosshair__your")) {
+            extra(io.github.georgwav.cosmetics.client.Modules.CROSSHAIR, "style", "custom");
+        }
+        if (what.equals("inventory_slide")) {
+            io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.hold = 1;
+        }
+        if (what.equals("tab_slide")) {
+            io.github.georgwav.cosmetics.sol.hud.TabSlide.hold = 0.07f;
+        }
+        if (what.equals("menu_cursor")) {
+            extra(io.github.georgwav.cosmetics.client.Modules.SOL_UI, "cursor_particles", "sparkles");
+        }
+    }
+
+    /** During step 11's shots: the events the toasts show (a tick apart, so each is its own), and the cursor's path. */
+    private static void hudExtrasTick(Minecraft mc, String name, int tick) {
+        if (name.equals("ui_hud_extras")) {
+            if (tick == 6) {
+                // A module switched on its own (Movement), then a totem popping.
+                extraOn(io.github.georgwav.cosmetics.client.Modules.MOVEMENT, !io.github.georgwav.cosmetics.client.Modules.MOVEMENT.enabled());
+            } else if (tick == 9 && mc.player != null) {
+                io.github.georgwav.cosmetics.sol.fx.FxEvents.totem(mc.player);
+            }
+        }
+        if (name.equals("ui_menu_cursor")) {
+            float w = mc.getWindow().getGuiScaledWidth(), h = mc.getWindow().getGuiScaledHeight();
+            io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeX = w * 0.5f + w * 0.18f * (float) Math.cos(tick * 0.25);
+            io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.fakeY = h * 0.55f + h * 0.12f * (float) Math.sin(tick * 0.5);
+        }
+    }
+
+    /** Step 11's checks, at the moment of the shot. */
+    private void checkExtras(String name) {
+        switch (name) {
+            case "ui_hud_extras" -> {
+                if (io.github.georgwav.cosmetics.client.modules.SolToasts.posted < 3
+                        || io.github.georgwav.cosmetics.client.modules.SolToasts.framesDrawn == 0) {
+                    problems.add(name + ": Sol toasts posted " + io.github.georgwav.cosmetics.client.modules.SolToasts.posted
+                            + " (want a switch, a totem and the song) and drew " + io.github.georgwav.cosmetics.client.modules.SolToasts.framesDrawn + " frames");
+                }
+                if (io.github.georgwav.cosmetics.client.hud.ActiveModulesHud.framesDrawn == 0) {
+                    problems.add(name + ": the active modules list didn't draw");
+                }
+                if (io.github.georgwav.cosmetics.sol.hud.SolHud.maceMarked == 0 || io.github.georgwav.cosmetics.sol.hud.SolHud.maceFill <= 0f) {
+                    problems.add(name + ": the maces' slots weren't marked or didn't fill with the fall");
+                }
+                if (io.github.georgwav.cosmetics.sol.hud.SolHud.totemMarked == 0) {
+                    problems.add(name + ": the totem's slot had no backdrop");
+                }
+                if (io.github.georgwav.cosmetics.client.modules.Crosshair.paintedDrawn == 0) {
+                    problems.add(name + ": the painted crosshair wasn't drawn");
+                }
+                if (io.github.georgwav.cosmetics.sol.ui.kit.UiSounds.played == 0) {
+                    problems.add(name + ": no UI sound played for the toasts");
+                }
+            }
+            case "ui_inventory_slide" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.slides == 0
+                        || io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.ditherFrames == 0) {
+                    problems.add(name + ": the inventory didn't slide in through its dither");
+                }
+            }
+            case "ui_tab_slide" -> {
+                if (io.github.georgwav.cosmetics.sol.hud.TabSlide.slidRows == 0) {
+                    problems.add(name + ": no row of the tab list slid in");
+                }
+            }
+            case "ui_menu_drawer_crosshair__your" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.menu.ModulePage.paintersDrawn == 0) {
+                    problems.add(name + ": the crosshair's painter didn't draw");
+                }
+            }
+            case "ui_menu_cursor" -> {
+                if (io.github.georgwav.cosmetics.sol.ui.kit.CursorParticles.spawned == 0) {
+                    problems.add(name + ": no cursor particles came off the pointer");
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private static void handFeaturesForShot(String what) {
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        for (var st : punchy.settings()) {
+            if (handSet.containsKey(st.id)) {
+                ((io.github.georgwav.cosmetics.client.Setting<Object>) st).set(handSet.get(st.id));
+            }
+        }
+        handSet.clear();
+        io.github.georgwav.cosmetics.render.FirstPersonHands.swingHeld = -1f;
+        java.util.Map<String, Object> want = switch (what) {
+            case "hands_stars" -> java.util.Map.of("glow_look", "stars");
+            case "hands_bands" -> java.util.Map.of("glow_look", "bands");
+            case "hands_held" -> java.util.Map.of("flaming_item", true, "arm_with_items", true, "shield_status", true);
+            case "hands_view" -> java.util.Map.of("keep_still", true, "main_x", -2.0, "main_y", 1.0, "main_turn_y", 20.0,
+                    "main_size", 80.0, "off_x", 2.0, "off_turn_z", -15.0);
+            default -> what.startsWith("hands_style_") ? java.util.Map.of("swing_style", what.substring("hands_style_".length()))
+                    : java.util.Map.of();
+        };
+        for (var st : punchy.settings()) {
+            if (want.containsKey(st.id)) {
+                handSet.put(st.id, st.get());
+                ((io.github.georgwav.cosmetics.client.Setting<Object>) st).set(want.get(st.id));
+            }
+        }
+        var player = Minecraft.getInstance().player;
+        if (what.startsWith("hands_style_") && player != null) {
+            // A swing first, so the game knows which hand swings; then held a third of the way in.
+            //? if >=26.3 {
+            /*player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+            *///?} else {
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            //?}
+            io.github.georgwav.cosmetics.render.FirstPersonHands.swingHeld = 0.3f;
+        }
+        if (what.equals("hands_held") && player != null) {
+            // An axe just disabled your shield: twenty seconds of cooldown, red for the first two thirds.
+            //? if >=1.21.2 {
+            player.getCooldowns().addCooldown(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SHIELD), 400);
+            //?} else {
+            /*player.getCooldowns().addCooldown(net.minecraft.world.item.Items.SHIELD, 400);
+            *///?}
+        }
+        if (what.startsWith("hands_")) {
+            io.github.georgwav.cosmetics.render.FirstPersonHands.styledSwings = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.armsWithItems = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.flamesDrawn = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.shieldsTinted = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.stillFrames = 0;
+        }
+    }
+
+    /** Whether this run has the shot called {@code name}. */
+    private boolean shot(String name) {
+        return shots.stream().anyMatch(x -> x.name().equals(name));
+    }
+
+    /** The local tries of a knife's size next to Punchy's hands (see {@code ui_knife_ptry<n>}): size/centre. */
+    private static final String[] KNIFE_PUNCHY_TRIES = System.getProperty("cosmeticsmod.knifePunchyTries", "").isBlank()
+            ? new String[0] : System.getProperty("cosmeticsmod.knifePunchyTries").split(",");
+
+    /** Knives to shoot one by one (local checks with real packs), by cosmetic id. */
+    private static final List<String> KNIFE_IDS = System.getProperty("cosmeticsmod.knifeIds", "").isBlank() ? List.of()
+            : List.of(System.getProperty("cosmeticsmod.knifeIds").split(","));
+    private static String knifeWorn;
+
+    /** What was worn and whether the Punchy module was on before the knife shots (null while they aren't on). */
+    private static java.util.List<String> knifeWornBefore;
+    private static boolean knifePunchyWas;
+    private static io.github.georgwav.cosmetics.client.Setting<Boolean> knifePvp;
+
+    /**
+     * The knife shots: the stand-in knife (or the first knife loaded) worn, a sword in hand, and the knife held at a
+     * moment of an animation (its clock stopped, so the frame is the same everywhere): at rest, mid-draw, a light and a
+     * heavy hit at their strike, mid-inspect; then at rest with the Punchy module on (glow, dark arms) and in PvP mode.
+     */
+    @SuppressWarnings("unchecked")
+    private void knifeForShot(String what, String name) {
+        Minecraft mc = Minecraft.getInstance();
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        var config = io.github.georgwav.cosmetics.config.CosmeticsConfig.get();
+        boolean on = what.startsWith("knife");
+        // A local run's knife (ui_knife_<action>_k<n>); no other shot's name is read this way.
+        int pick = on && what.matches(".*_k\\d+") ? Integer.parseInt(what.substring(what.lastIndexOf("_k") + 2)) : -1;
+        if (pick >= 0) {
+            what = what.substring(0, what.lastIndexOf("_k"));
+        }
+        String wanted = pick >= 0 && pick < KNIFE_IDS.size() ? KNIFE_IDS.get(pick) : null;
+        if (on && (knifeWornBefore == null || wanted != null && !wanted.equals(knifeWorn))) {
+            java.util.List<String> worn = config.localEquipped();
+            if (knifeWornBefore == null) {
+                knifeWornBefore = new java.util.ArrayList<>(worn);
+                knifePunchyWas = punchy.enabled();
+            }
+            String knife = wanted;
+            for (var c : io.github.georgwav.cosmetics.model.CosmeticRegistry.all()) {
+                if (wanted == null && c.slot() == io.github.georgwav.cosmetics.model.CosmeticSlot.MELEE
+                        && (knife == null || c.id().startsWith(io.github.georgwav.cosmetics.melee.StandInKnife.NAMESPACE + ":"))) {
+                    knife = c.id();
+                }
+            }
+            if (knife != null && io.github.georgwav.cosmetics.model.CosmeticRegistry.get(knife) == null) {
+                problems.add(name + ": no knife " + knife);
+                knife = null;
+            }
+            knifeWorn = knife;
+            if (knife == null) {
+                problems.add(name + ": no knife loaded (the stand-in pack didn't mount)");
+            } else {
+                worn.removeIf(id -> {
+                    var c = io.github.georgwav.cosmetics.model.CosmeticRegistry.get(id);
+                    return c != null && c.slot() == io.github.georgwav.cosmetics.model.CosmeticSlot.MELEE;
+                });
+                worn.add(knife);
+                io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+            }
+            // A shield in the other hand: it must not show while the knife is out.
+            asPlayer(mc, List.of("item replace entity @s weapon.mainhand with diamond_sword",
+                    "item replace entity @s weapon.offhand with shield"));
+            if (pick >= 0) {
+                // The local runs with many knives are long: no mob comes to end them.
+                asPlayer(mc, List.of("difficulty peaceful"));
+            }
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn = 0;
+            for (var st : punchy.settings()) {
+                if (st.id.equals("pvp")) {
+                    knifePvp = (io.github.georgwav.cosmetics.client.Setting<Boolean>) st;
+                }
+            }
+        } else if (!on && knifeWornBefore != null) {
+            java.util.List<String> worn = config.localEquipped();
+            worn.clear();
+            worn.addAll(knifeWornBefore);
+            knifeWornBefore = null;
+            knifeWorn = null;
+            asPlayer(mc, List.of("item replace entity @s weapon.offhand with air"));
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            io.github.georgwav.cosmetics.source.EquippedCosmetics.invalidate();
+            punchy.setEnabled(knifePunchyWas);
+            if (knifePvp != null) {
+                knifePvp.reset();
+            }
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(1f);
+        }
+        var camera = what.equals("knife_third") ? net.minecraft.client.CameraType.THIRD_PERSON_FRONT
+                : net.minecraft.client.CameraType.FIRST_PERSON;
+        if (on && mc.options.getCameraType() != camera) {
+            mc.options.setCameraType(camera);
+        }
+        if (!on) {
+            return;
+        }
+        if (phaseTick == SETTLE && what.equals("knife_third") && io.github.georgwav.cosmetics.melee.KnifeThirdPerson.drawn
+                != 0 && !io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeInThirdPerson()) {
+            // Third person shows the sword unless the knife is asked for there.
+            problems.add(name + ": the knife was drawn in third person, which is off");
+        }
+        boolean module = what.equals("knife_glow") || what.equals("knife_pvp") || what.equals("knife_trail")
+                || what.startsWith("knife_ptry") || what.equals("knife_pinspect");
+        if (what.equals("knife_pinspect")) {
+            // Local, with Punchy: its own inspect key pressed with the knife out must inspect the knife.
+            // Pressed 0.6 s before the shot: the shortest inspect (the stand-in's 1.2 s one) is still playing then.
+            if (phaseTick == SETTLE - 12) {
+                for (net.minecraft.client.KeyMapping k : mc.options.keyMappings) {
+                    if ("key.punchy.inspect".equals(k.getName()) && !k.isUnbound()) {
+                        // Between ticks, as a real key press comes in (in a tick, Punchy could read it first).
+                        var key = com.mojang.blaze3d.platform.InputConstants.getKey(k.saveString());
+                        //? if >=1.21.3 {
+                        mc.schedule(() -> net.minecraft.client.KeyMapping.click(key));
+                        //?} else {
+                        /*mc.tell(() -> net.minecraft.client.KeyMapping.click(key));
+                        *///?}
+                    }
+                }
+            }
+            var v = io.github.georgwav.cosmetics.melee.KnifeRenderer.current();
+            if (phaseTick == SETTLE && (v == null || !v.behaviour.inspecting())) {
+                problems.add(name + ": Punchy's inspect key didn't inspect the knife");
+            }
+        }
+        if (what.startsWith("knife_ptry")) {
+            String[] t = KNIFE_PUNCHY_TRIES[Integer.parseInt(what.substring("knife_ptry".length()))].split("/");
+            io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeWithPunchyTry =
+                    new float[]{Float.parseFloat(t[0]), Float.parseFloat(t[1])};
+        } else {
+            io.github.georgwav.cosmetics.client.modules.PunchyModule.knifeWithPunchyTry = null;
+        }
+        // The trail shot: a light attack in slow motion, a twentieth of its speed, so each of the few frames a second
+        // this renderer draws moves the knife about as far as a frame at 60 FPS does; shot at its strike (0.15 s in, as
+        // the light attack shot holds it: three seconds at this speed).
+        io.github.georgwav.cosmetics.melee.KnifeRenderer.timeScale(what.equals("knife_trail") ? 0.05f : 1f);
+        if (what.equals("knife_trail") && phaseTick == SETTLE - 60) {
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.play("light");
+        }
+        if (punchy.enabled() != module) {
+            punchy.setEnabled(module);
+        }
+        if (knifePvp != null && knifePvp.get() != what.equals("knife_pvp")) {
+            knifePvp.set(what.equals("knife_pvp"));
+        }
+        if (phaseTick == 1) {
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.release();
+            io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames = 0;
+        }
+        if (knifeWorn != null) {
+            // The colour shot (local knifeActions=tint): the knife picked blue in its Wardrobe page; back after.
+            var options = config.options(knifeWorn);
+            Integer blue = what.equals("knife_tint") ? 0x2F7BFF : null;
+            if (!java.util.Objects.equals(options.color, blue)) {
+                options.color = blue;
+            }
+        }
+        if (phaseTick == SETTLE - 25 && what.equals("knife_spam")) {
+            // Spam-inspect: an inspect, then the key again mid-way (a fresh one at once, below).
+            io.github.georgwav.cosmetics.melee.KnifeRenderer.play("inspect");
+        }
+        if (phaseTick == SETTLE - 17 && what.equals("knife_light")) {
+            // A real attack click (the knife's input hook), then the light attack held at its strike. The key by its
+            // name: the left button's number differs from 26.3 on (SDL).
+            net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.getKey("key.mouse.left"));
+        }
+        if (phaseTick == SETTLE - 15 && !what.equals("knife_trail") && !what.equals("knife_pinspect")) {
+            switch (what) {
+                case "knife_draw" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("draw", 0.25f);
+                case "knife_light" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("light", 0.15f);
+                case "knife_heavy" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("heavy", 0.15f);
+                case "knife_inspect" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("inspect", 0.5f);
+                case "knife_spam" -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("inspect", 0.3f);
+                default -> io.github.georgwav.cosmetics.melee.KnifeRenderer.hold("idle", 0f);
+            }
+        }
+    }
+
+    /** Where the player stands for the in-play shots (null while they aren't on). */
+    private static net.minecraft.world.phys.Vec3 playSpot;
+
+    /**
+     * Keeps the player on their spot through the in-play shots. They're in survival there, and in one CI run on
+     * 1.21.4 the player walked off into the lake during the hands shots (nothing of ours pressed a key; the cause
+     * wasn't found), which put every shot after it under water. Put back, and said in the log.
+     */
+    private void holdSpot(Minecraft mc, boolean play, String name) {
+        if (!play || mc.player == null) {
+            playSpot = null;
+            return;
+        }
+        if (playSpot == null) {
+            if (phaseTick > 5) {
+                playSpot = mc.player.position();
+            }
+            return;
+        }
+        double moved = mc.player.position().distanceTo(playSpot);
+        if (moved > 0.5 && phaseTick % 20 == 0) {
+            CosmeticsMod.LOGGER.info("[Sol] {}: the player had moved {} blocks from their spot; put back", name,
+                    String.format(java.util.Locale.ROOT, "%.1f", moved));
+            asPlayer(mc, List.of(String.format(java.util.Locale.ROOT, "tp @s %.3f %.3f %.3f", playSpot.x, playSpot.y, playSpot.z)));
+            mc.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        }
     }
 
     /** The game mode before the HUD shots (null while they aren't on). */
@@ -1021,11 +1950,12 @@ public final class SolScenario {
             solUiBefore = cfg.solUi;
             // Hunger first (food 20 to about 15 in 2 s), so the hearts don't heal back before the shot; the golden
             // apple in hand shows the shanks it would fill.
-            // Easy, so the hearts don't heal back as they do in peaceful. The game rule's name changed in 1.21.11; one
-            // of the two works.
+            // Easy, so the hearts don't heal back as they do in peaceful, with no mobs spawning (a slime from the flat
+            // world once ended a long run). The game rules' names changed in 1.21.11; one of each pair works.
             difficultyBefore = mc.level == null ? "peaceful" : mc.level.getDifficulty().getSerializedName();
             chatShown = true;
             asPlayer(mc, List.of("gamerule announceAdvancements false", "gamerule show_advancement_messages false",
+                    "gamerule doMobSpawning false", "gamerule spawn_mobs false", "kill @e[type=minecraft:slime]",
                     "difficulty easy", "gamemode survival @s", "clear @s", "effect clear @s",
                     "effect give @s minecraft:hunger 2 199 true",
                     "item replace entity @s hotbar.0 with golden_apple 5", "item replace entity @s hotbar.1 with bow[enchantment_glint_override=true]",
@@ -1051,14 +1981,26 @@ public final class SolScenario {
         }
         if (on) {
             cfg.solUi = !vanilla;
+            // The enchanted bow and chestplate show Glint's outline round their shape too.
+            glintInventory("both");
         } else if (modeBefore != null) {
+            glintInventory("glint");
             cfg.solUi = solUiBefore;
             asPlayer(mc, List.of("clear @s", "effect clear @s", "xp set @s 0 levels", "xp set @s 0 points",
                     "bossbar remove cosmeticsmod:show", "scoreboard objectives remove solshow",
                     "gamerule announceAdvancements true", "gamerule show_advancement_messages true",
-                    "difficulty " + difficultyBefore,
+                    "gamerule doMobSpawning true", "gamerule spawn_mobs true", "difficulty " + difficultyBefore,
                     "effect give @s minecraft:instant_health 1 10 true", "gamemode " + modeBefore.getName() + " @s"));
             modeBefore = null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void glintInventory(String how) {
+        for (io.github.georgwav.cosmetics.client.Setting<?> st : io.github.georgwav.cosmetics.client.Modules.GLINT.settings()) {
+            if (st.id.equals("inventory")) {
+                ((io.github.georgwav.cosmetics.client.Setting<String>) st).set(how);
+            }
         }
     }
 
@@ -1097,7 +2039,8 @@ public final class SolScenario {
             switch (id) {
                 // The lab's cameras (its azimuths are from north through east, the game's from south through west).
                 case "aurora" -> shots.add(new Shot(name, id, 0f, false, 222f, -30f, 18000L));
-                case "nebula" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
+                // Sakura's nebulae, looking up toward them.
+                case "sakura_dusk" -> shots.add(new Shot(name, id, 0f, false, 2f, -46f, 18000L));
                 case "grace" -> shots.add(new Shot(name, id, 0f, false, 342f, -22f, 18000L));
                 case "deep_field" -> shots.add(new Shot(name, id, 0f, false, 45f, -18f, 4 * 24000L + 15000L));
                 case "silver_night" -> shots.add(new Shot(name, id, 0f, false, 20f, -10f, 18000L));
@@ -1177,6 +2120,20 @@ public final class SolScenario {
         return new float[]{(float) Math.toDegrees(Math.atan2(-w[0], w[2])), -(float) Math.toDegrees(Math.asin(w[1])) - 8f};
     }
 
+    /** The day time on the night from {@code day} (a day's first tick) when a planet stands highest. */
+    private static long highest(String id, long day) {
+        long best = day + 18000L;
+        float top = Float.MAX_VALUE;
+        for (long t = day + 13000L; t <= day + 23000L; t += 250L) {
+            float pitch = aimAt(id, t / 24000.0, celestial(t))[1];
+            if (pitch < top) {
+                top = pitch;
+                best = t;
+            }
+        }
+        return best;
+    }
+
     /** The view (yaw, pitch) onto a planet on a day of the sky's year at a time of day (0 noon). */
     private static float[] aimAt(String id, double days, float timeOfDay) {
         io.github.georgwav.cosmetics.sol.sky.SkySphere sky = new io.github.georgwav.cosmetics.sol.sky.SkySphere();
@@ -1232,12 +2189,48 @@ public final class SolScenario {
         io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride = Double.NaN;
         io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride = null;
         crosshairOnly = false;
+        problems.addAll(StylesScenario.finish(mc, c -> asPlayer(mc, c)));
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
         }
+        // The knife's own cost, steady: at most 0.2 ms a frame, and nothing allocated per frame.
+        java.util.List<io.github.georgwav.cosmetics.melee.Knife> benchKnives = new java.util.ArrayList<>();
+        for (String id : KNIFE_IDS.isEmpty() ? List.of(io.github.georgwav.cosmetics.melee.StandInKnife.NAMESPACE + ":melee/"
+                + io.github.georgwav.cosmetics.melee.StandInKnife.ID) : KNIFE_IDS) {
+            var k = io.github.georgwav.cosmetics.melee.KnifeRegistry.get(id);
+            if (k != null) {
+                benchKnives.add(k);
+            }
+        }
+        if (shot("ui_knife_idle") || !KNIFE_IDS.isEmpty()) {
+            for (var k : benchKnives) {
+                double[] cost = io.github.georgwav.cosmetics.melee.KnifeBench.run(k, 20_000, 3_000);
+                CosmeticsMod.LOGGER.info("[Sol] knife bench, steady: {}: {} ms and {} bytes a frame", k.id,
+                        String.format(java.util.Locale.ROOT, "%.4f", cost[0]), String.format(java.util.Locale.ROOT, "%.1f", cost[1]));
+                if (cost[0] > 0.2) {
+                    problems.add("knife " + k.id + " took " + String.format(java.util.Locale.ROOT, "%.3f", cost[0])
+                            + " ms a frame (budget 0.2)");
+                }
+                if (cost[1] > 1.0) {
+                    problems.add("knife " + k.id + " allocated " + String.format(java.util.Locale.ROOT, "%.0f", cost[1]) + " bytes a frame");
+                }
+            }
+        }
+        // And in the shots' own frames (this software renderer, so for information): its hand-over and vertices.
+        if (io.github.georgwav.cosmetics.melee.KnifeRenderer.benchFrames > 0) {
+            int frames = io.github.georgwav.cosmetics.melee.KnifeRenderer.benchFrames;
+            double ms = io.github.georgwav.cosmetics.melee.KnifeRenderer.benchNanos / 1.0e6 / frames;
+            double bytes = (double) io.github.georgwav.cosmetics.melee.KnifeRenderer.benchBytes / frames;
+            CosmeticsMod.LOGGER.info("[Sol] knife bench, in the shots: {} ms and {} bytes a frame over {} frames (with the game's hand-over)",
+                    String.format(java.util.Locale.ROOT, "%.4f", ms), String.format(java.util.Locale.ROOT, "%.1f", bytes), frames);
+        }
         // Every module hook each frame passes through was reached; the chat's too (the HUD shots post messages).
         for (io.github.georgwav.cosmetics.sol.Hooks hook : io.github.georgwav.cosmetics.sol.Hooks.values()) {
-            boolean expected = hook.everyFrame || hook == io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD && chatShown;
+            boolean expected = hook.everyFrame || hook == io.github.georgwav.cosmetics.sol.Hooks.CHAT_ADD && chatShown
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_PACKS
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND && shot("ui_knife_idle")
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_INPUT && shot("ui_knife_light")
+                    || hook == io.github.georgwav.cosmetics.sol.Hooks.KNIFE_THIRD && shot("ui_knife_third");
             if (expected && hook.count() == 0) {
                 problems.add("the " + hook.name().toLowerCase(java.util.Locale.ROOT) + " hook was never reached");
             }
@@ -1258,6 +2251,16 @@ public final class SolScenario {
             com.google.gson.JsonObject out = new com.google.gson.JsonObject();
             out.addProperty("passed", passed);
             out.add("problems", new com.google.gson.Gson().toJsonTree(problems));
+            // For the image checks (ci/mcci.py): the pixel UI's accent, and the quick menu's own time per frame.
+            out.add("uiAccents", accents);
+            out.add("textCuts", cuts);
+            if (io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.framesRendered > 0) {
+                // Medians over the last frames drawn, so the first frame's texture work isn't counted as a steady one.
+                out.addProperty("quickMenuMs", Math.round(io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.median(
+                        io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.frameNanos) / 1e4) / 100.0);
+                out.addProperty("quickMenuBytesPerFrame", io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.median(
+                        io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.frameBytes));
+            }
             if (bench.size() > 0) {
                 out.add("bench", bench);
             }
@@ -1292,7 +2295,28 @@ public final class SolScenario {
         CosmeticsMod.LOGGER.info("[Sol] Bench {}: {}", preset, o);
     }
 
+    /** The look a whole run of UI shots is staged in: "light", "green" or "" (each shot's own). */
+    private static final String LOOK = System.getProperty("cosmeticsmod.solUiLook", "");
+    /** The light preset the "_light" shots use. */
+    private static final String LIGHT_PRESET = "frost_morning";
+
+    /** The on glows' colour before the shots (the "_green" shots switch it). */
+    private static String onGlowsWas;
+
+    /** The pixel UI's accent at each UI shot (the image check compares the shot with it). */
+    private static final com.google.gson.JsonObject accents = new com.google.gson.JsonObject();
+
+    /** The main labels each UI shot had to cut (the image check fails on any). */
+    private static final com.google.gson.JsonObject cuts = new com.google.gson.JsonObject();
+
     private static void marker(Minecraft mc, String name) {
+        if (name.startsWith("ui_")) {
+            accents.addProperty(name, String.format("#%06X", io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get().acc & 0xFFFFFF));
+            java.util.List<String> cut = io.github.georgwav.cosmetics.sol.ui.kit.TextCuts.drain();
+            if (!cut.isEmpty()) {
+                cuts.add(name, new com.google.gson.Gson().toJsonTree(cut));
+            }
+        }
         try {
             Path p = mc.gameDirectory.toPath().resolve("cosmeticsmod-phase-" + name);
             Files.writeString(p, name);

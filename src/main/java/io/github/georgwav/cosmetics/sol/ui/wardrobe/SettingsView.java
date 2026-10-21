@@ -10,6 +10,7 @@ import io.github.georgwav.cosmetics.model.CosmeticSlot;
 import io.github.georgwav.cosmetics.render.RenderGuard;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.TextField;
@@ -60,18 +61,20 @@ final class SettingsView {
         }
         int sel = CosmeticControls.PAGES.indexOf(page);
         // The page tabs on the left (the segmented control is placed by its right edge), the search on the right.
-        SolFont tf = g.font(SolFont.Family.MEDIUM, 12f);
-        float segW = 4f;
-        for (String n : names) {
-            segW += g.width(tf, n) + 20f;
-        }
+        float segW = ui.segmentedWidth(names);
         ui.segmented(tk, x + segW, top + 17f, names, sel, i -> {
             page = CosmeticControls.PAGES.get(i);
             scroll.reset();
         });
-        search.draw(g, ui, tk, x + w - Math.min(300f, w * 0.42f), top, Math.min(300f, w * 0.42f), 34f, "search",
-                WardrobeScreen.t("settings_search"), screen.dt());
-        float bodyTop = top + 50f;
+        // The search beside the tabs when it has room for its hint, else on its own line under them.
+        float sw = Math.min(300f, w - segW - 12f);
+        boolean below = sw < 180f;
+        if (below) {
+            search.draw(g, ui, tk, x, top + 40f, w, 34f, "search", WardrobeScreen.t("settings_search"), screen.dt());
+        } else {
+            search.draw(g, ui, tk, x + w - sw, top, sw, 34f, "search", WardrobeScreen.t("settings_search"), screen.dt());
+        }
+        float bodyTop = top + (below ? 92f : 50f);
         g.rect(x, bodyTop - 6f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         g.clip(x - 4f, bodyTop, x + w + 6f, top + h);
         PageRows rows = new PageRows(g, ui, tk, x, bodyTop - scroll.value(), w, query);
@@ -183,8 +186,13 @@ final class SettingsView {
                 rows.info(label, n == 0 ? WardrobeScreen.t("errors.none") : String.valueOf(n), n == 0 ? tk.accent : Tokens.AMBER);
             }
             case "reload" -> rows.button(label, null, label, false, () -> {
-                CosmeticLoader.reload(Minecraft.getInstance().getResourceManager());
-                EquippedCosmetics.invalidate();
+                // Read off the game's thread (thousands of cosmetics take a while), put in place on it.
+                var manager = Minecraft.getInstance().getResourceManager();
+                java.util.concurrent.CompletableFuture.supplyAsync(() -> CosmeticLoader.prepare(manager))
+                        .thenAcceptAsync(prepared -> {
+                            CosmeticLoader.apply(prepared);
+                            EquippedCosmetics.invalidate();
+                        }, Minecraft.getInstance());
             });
             case "reset_settings" -> rows.button(label, WardrobeScreen.tr("sol.wardrobe.reset_note"), label, false, () -> {
                 // Every setting back to its default; what you wear, your outfits and each cosmetic's settings stay.
@@ -217,18 +225,18 @@ final class SettingsView {
                 KeyBinds.bind(mapping, mapping.getDefaultKey());
                 Minecraft.getInstance().options.save();
             }) + 6f;
-            SolFont f = g.font(SolFont.Family.MONO, 12f);
+            SolFont f = g.font(SolFont.Family.PIXEL, 12f);
             String name = KeyBinds.name(mapping);
             String shown = waiting ? "> " + name + " <" : name;
             float bw = Math.max(96f, g.width(f, shown) + 24f), bh = 26f;
             float bx = r - bw, by = cy - bh / 2f;
             boolean hover = ui.over(bx, by, bw, bh);
             int fi = ui.click(bx, by, bw, bh, () -> screen.listeningFor = waiting ? null : mapping);
-            g.round(bx, by, bw, bh, 8f, waiting ? tk.accent : hover ? 0x24FFFFFF : 0x14FFFFFF);
-            g.stroke(bx, by, bw, bh, 8f, Math.max(1f, g.d.u), waiting ? tk.accent : 0x1FFFFFFF);
+            Pix.fill(g, bx, by, bw, bh, waiting ? tk.accent : hover ? 0x24FFFFFF : 0x14FFFFFF);
+            Pix.frame(g, bx, by, bw, bh, waiting ? tk.accent : 0x1FFFFFFF);
             g.textCentre(f, g.fit(f, shown, bw - 12f), bx + bw / 2f, cy, waiting ? tk.onAccent : conflict ? Tokens.AMBER : 0xFFFFFFFF);
             if (ui.focused(fi)) {
-                g.stroke(bx - 2f, by - 2f, bw + 4f, bh + 4f, 10f, 2f * g.d.u, tk.accent);
+                Pix.frame(g, bx - 2f, by - 2f, bw + 4f, bh + 4f, tk.accent);
             }
         }
         if (hintAfter) {

@@ -14,8 +14,9 @@ import io.github.georgwav.cosmetics.sol.util.Mulberry32;
  * sky and leaves a glowing green train drifting in the wind; rarely an earthgrazer skimming slowly along the
  * horizon. A comet with two tails in the evening sky, a straight blue ion tail and a curved golden dust tail, both
  * away from the sun. Satellites crawling across, one now and then flaring. Ships jumping to hyperspace in streaks,
- * and when the Death Star is up, its superlaser firing. Drawn in screen pixels on the sky's pixel grid, in two
- * batches. Render thread only; nothing allocated per frame.
+ * and when the Death Star is up, its superlaser firing out of its dish. Each placed in the sky (or on the Death Star),
+ * so it stays there as you turn, and drawn in screen pixels on the sky's pixel grid, in two batches. Render thread
+ * only; nothing allocated per frame.
  */
 public final class SkyEvents {
     /** The seasons' meteor showers: right ascension (hours) and declination of each radiant (spring first). */
@@ -57,8 +58,10 @@ public final class SkyEvents {
     private static final float[] sU = new float[SATS], sW = new float[SATS], sFlare = new float[SATS];
     private static boolean satsMade;
 
-    // The superlaser: age (-1 off), angle on the screen, time to the next shot.
-    private static float laserAge = -1f, laserAngle, nextLaser = 7f;
+    // The superlaser: age (-1 off), time to the next shot.
+    private static float laserAge = -1f, nextLaser = 7f;
+    /** The superlaser's eight beams start this far round the dish from its middle (degrees), and meet this far out. */
+    private static final double LASER_RIM = 11, LASER_FOCUS = 1.8;
 
     private static final float[] a = new float[3], b = new float[3], tmp = new float[3], rad = new float[3];
     private static final double[] eq = new double[3];
@@ -627,31 +630,38 @@ public final class SkyEvents {
 
     // ------------------------------------------------------------------ the superlaser
 
-    /** The Death Star's superlaser: eight green beams meet in front of its dish, then the main beam fires. */
+    /**
+     * The Death Star's superlaser: eight green beams from round its dish meet in front of it, then the main beam fires
+     * straight out of the dish. Worked out on the Death Star itself (its dish where its picture shows it, turned with
+     * the sky), so the beams stay on the dish as it and you turn. It fires only while the dish faces you, turned a
+     * little to the side so the beam crosses the sky; a shot waits for that.
+     */
     private static void laser(Atmosphere at, float dt, float p, boolean glows) {
         boolean up = NightSky.layer("ships") && Planets.deathA >= 0.4f;
         if (!up) {
             laserAge = -1f;
             return;
         }
+        double[] n = Planets.dish;
+        double side = Math.sqrt(n[0] * n[0] + n[1] * n[1]);
         if (!glows && dt > 0f) {
             if (laserAge < 0f) {
                 nextLaser -= dt;
-                if (nextLaser <= 0f) {
+                if (nextLaser <= 0f && n[2] > 0.3 && side > 0.3) {
                     laserAge = 0f;
-                    laserAngle = -2.3f + ((float) rnd.next() - 0.5f) * 0.6f;
                     nextLaser = 26f + (float) rnd.next() * 30f;
                 }
             } else if ((laserAge += dt) > 2.6f) {
                 laserAge = -1f;
             }
         }
-        if (laserAge < 0f) {
+        // Not once the dish has turned away (or straight at you, when there's no beam across the sky to see).
+        if (laserAge < 0f || n[2] < 0.1 || side < 0.05) {
             return;
         }
-        float age = laserAge, r = Planets.deathD / 2f, dx = (float) Math.cos(laserAngle), dy = (float) Math.sin(laserAngle);
-        float cx = Planets.deathX + dx * r * 0.62f, cy = Planets.deathY + dy * r * 0.62f;
-        float fx = Planets.deathX + dx * r * 1.7f, fy = Planets.deathY + dy * r * 1.7f;
+        float age = laserAge, r = Planets.deathD / 2f, ox = Planets.deathX, oy = Planets.deathY;
+        // Points on the Death Star (its radius 1; x right, y up, z toward you) to the screen (y down).
+        float fx = ox + (float) (n[0] * LASER_FOCUS) * r, fy = oy - (float) (n[1] * LASER_FOCUS) * r;
         float a2 = Ease.smoothstep(0.9f, 1.1f, age) * (1f - Ease.smoothstep(2.1f, 2.6f, age));
         if (glows) {
             if (age > 0.9f) {
@@ -662,11 +672,22 @@ public final class SkyEvents {
         }
         float a1 = Ease.smoothstep(0f, 0.5f, age) * (1f - Ease.smoothstep(2.1f, 2.6f, age));
         int c = Colors.withAlpha(0xFF6EFF8C, 0.7f * a1);
+        // Two directions across the dish: t1 = n x z (level in the picture), t2 = n x t1.
+        double t1x = n[1] / side, t1y = -n[0] / side;
+        double t2x = -n[2] * t1y, t2y = n[2] * t1x, t2z = n[0] * t1y - n[1] * t1x;
+        double cr = Math.cos(Math.toRadians(LASER_RIM)), sr = Math.sin(Math.toRadians(LASER_RIM));
         for (int i = 0; i < 8; i++) {
-            double an = i / 8.0 * Math.PI * 2;
-            line(cx + (float) Math.cos(an) * r * 0.24f, cy + (float) Math.sin(an) * r * 0.24f, fx, fy, p * 0.5f, c, c);
+            double an = i / 8.0 * Math.PI * 2, ca = Math.cos(an), sa = Math.sin(an);
+            double qx = n[0] * cr + sr * (ca * t1x + sa * t2x), qy = n[1] * cr + sr * (ca * t1y + sa * t2y);
+            double qz = n[2] * cr + sr * sa * t2z;
+            if (qz < 0) {
+                continue;
+            }
+            line(ox + (float) qx * r, oy - (float) qy * r, fx, fy, p * 0.5f, c, c);
         }
         if (age > 0.9f) {
+            // Out of the dish, the way it faces, across the sky.
+            float dx = (float) (n[0] / side), dy = (float) (-n[1] / side);
             float len = Math.max(NightSky.sw, NightSky.sh) * 1.6f * Ease.smoothstep(0.9f, 1.4f, age);
             float[] lw = {9f, 4f, 1.6f}, la = {0.12f, 0.35f, 1f};
             for (int k = 0; k < 3; k++) {
@@ -686,6 +707,9 @@ public final class SkyEvents {
         staging = what;
         stageFrames = 0;
         held = what != null;
+        if (what == null) {
+            Planets.dishTurn = Double.NaN;
+        }
     }
 
     /** The events clip: its frames are this many seconds apart. */
@@ -711,6 +735,7 @@ public final class SkyEvents {
         java.util.Arrays.fill(hOn, false);
         fireFlash = 0f;
         laserAge = -1f;
+        Planets.dishTurn = Double.NaN;
         if (what.startsWith("clip")) {
             // The clip: the ships' scene starting out, meteors arriving; a burst soon.
             setUp("ships", fp);
@@ -760,7 +785,7 @@ public final class SkyEvents {
             if (g >= 0) {
                 mAge[g] = mDur[g] * 0.5f;
             }
-        } else if ("ships".equals(what)) {
+        } else if (what.startsWith("ships")) {
             // A squadron jumping, a satellite flaring overhead, the superlaser firing.
             for (int k = 0; k < 20 && count(hOn) < 4; k++) {
                 java.util.Arrays.fill(hOn, false);
@@ -777,8 +802,9 @@ public final class SkyEvents {
             sU[0] = 0f;
             sFlare[0] = 1.2f;
             satsMade = true;
+            // The Death Star turned so its dish faces you, a little to the side, firing.
+            Planets.dishTurn = 0.6;
             laserAge = 1.6f;
-            laserAngle = -2.3f;
         }
     }
 

@@ -9,6 +9,7 @@ import io.github.georgwav.cosmetics.sol.Feature;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
@@ -197,18 +198,17 @@ public final class HudEditor extends SolScreen {
             float rad = Math.min(6f, Math.min(x1 - x0, y1 - y0) / 2f);
             if (b instanceof PartBox) {
                 // The game's own parts: a tinted glass frame; the game draws them (moved) underneath.
-                g.round(x0, y0, x1 - x0, y1 - y0, rad, Colors.withAlpha(tk.accent, lit ? 0.16f : 0.07f));
+                Pix.fill(g, x0, y0, x1 - x0, y1 - y0, Colors.withAlpha(tk.accent, lit ? 0.16f : 0.07f));
             }
             if (lit) {
-                g.glow(x0, y0, x1 - x0, y1 - y0, rad, 12f, Colors.withAlpha(tk.glow, 0.3f));
+                Pix.frame(g, x0 - 1f, y0 - 1f, x1 - x0 + 2f, y1 - y0 + 2f, Colors.withAlpha(tk.glow, 0.6f));
             }
-            g.stroke(x0 - 1f, y0 - 1f, x1 - x0 + 2f, y1 - y0 + 2f, rad + 1f, Math.max(1f, g.d.u),
-                    lit ? tk.accent : b instanceof PartBox ? Colors.withAlpha(tk.accent, 0.45f) : 0x59FFFFFF);
+            Pix.frame(g, x0 - 1f, y0 - 1f, x1 - x0 + 2f, y1 - y0 + 2f, lit ? tk.accent : b instanceof PartBox ? Colors.withAlpha(tk.accent, 0.45f) : 0x59FFFFFF);
             if (lit) {
                 String name = b.label();
                 float lw = g.width(label, name) + 14f, ly = y0 - 22f < 4f ? y1 + 4f : y0 - 22f;
-                g.round(x0, ly, lw, 18f, 9f, Colors.withAlpha(tk.panel, 0.9f));
-                g.stroke(x0, ly, lw, 18f, 9f, Math.max(1f, g.d.u), tk.rim);
+                Pix.fill(g, x0, ly, lw, 18f, Colors.withAlpha(tk.panel, 0.9f));
+                Pix.frame(g, x0, ly, lw, 18f, tk.rim);
                 g.textMid(label, name, x0 + 7f, ly + 9f, 0xFFFFFFFF);
             }
         }
@@ -239,10 +239,7 @@ public final class HudEditor extends SolScreen {
         float bw = g.width(small, done) + g.width(small, modules) + 80f + (reset != null ? g.width(small, reset) + 40f : 0f);
         float w = 16f + 34f + 12f + textW + 20f + bw, h = 54f;
         float x = 640f - w / 2f, y = 18f;
-        g.glow(x, y, w, h, h / 2f, 24f, Colors.withAlpha(tk.glow, 0.14f));
-        g.round(x, y, w, h, h / 2f, tk.panel);
-        g.stroke(x, y, w, h, h / 2f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(x, y, w, h, h / 2f, 0x38FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), x, y, w, h);
         ui.area(x, y, w, h, () -> { });
         g.circle(x + 16f + 17f, y + h / 2f, 17f, 0x14FFFFFF);
         Icons.draw(g, "hud", x + 16f + 8f, y + h / 2f - 9f, 18f, tk.accent, Icons.FILL_ON, 0);
@@ -265,15 +262,13 @@ public final class HudEditor extends SolScreen {
      */
     private void chips(Gfx g, Tokens tk) {
         List<HudModule> all = Modules.hud();
-        SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
         float w = 12f;
         for (HudModule m : all) {
-            w += g.width(f, m.name()) + 22f + 6f;
+            w += ui.chipWidth(m.name()) + 6f;
         }
         w += 6f;
         float x = 640f - w / 2f, y = 82f, h = 38f;
-        g.round(x, y, w, h, h / 2f, Colors.withAlpha(tk.panel, 0.92f));
-        g.stroke(x, y, w, h, h / 2f, Math.max(1f, g.d.u), 0x24FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.recess(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), x, y, w, h);
         ui.area(x, y, w, h, () -> { });
         float cx = x + 12f;
         for (HudModule m : all) {

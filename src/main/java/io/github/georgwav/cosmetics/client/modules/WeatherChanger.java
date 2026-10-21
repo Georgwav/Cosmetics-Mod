@@ -11,7 +11,7 @@ public final class WeatherChanger {
 
     /** The rain level to show (0 to 1), or a negative number for the server's. */
     public static float rain() {
-        if (io.github.georgwav.cosmetics.devtools.SolScenario.lockedTime >= 0L) {
+        if (io.github.georgwav.cosmetics.devtools.SolScenario.clearSky()) {
             return 0f;
         }
         return io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.lockedRain();
@@ -19,7 +19,7 @@ public final class WeatherChanger {
 
     /** The thunder level to show (0 to 1), or a negative number for the server's. */
     public static float thunder() {
-        if (io.github.georgwav.cosmetics.devtools.SolScenario.lockedTime >= 0L) {
+        if (io.github.georgwav.cosmetics.devtools.SolScenario.clearSky()) {
             return 0f;
         }
         return io.github.georgwav.cosmetics.sol.atmosphere.Atmosphere.lockedThunder();

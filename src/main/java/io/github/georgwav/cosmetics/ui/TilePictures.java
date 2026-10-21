@@ -94,7 +94,7 @@ public final class TilePictures {
      */
     public boolean draw(Canvas g, BakedCosmetic cosmetic, int x, int y, int size, boolean turning) {
         float yaw = YAW + (back(cosmetic) ? 180f : 0f);
-        if (turning) {
+        if (turning && cosmetic.definition().icon() == null) {
             yaw += (System.nanoTime() - startNanos) / 1.0e9f * SPIN;
         }
         yaw = Math.round(yaw % 360f);
@@ -149,6 +149,9 @@ public final class TilePictures {
 
     /** Paints the cosmetic turned {@code yaw} degrees into the texture; false when it has no geometry. */
     private boolean paint(BakedCosmetic cosmetic, float yaw, PictureTexture texture) {
+        if (cosmetic.definition().icon() != null) {
+            return icon(texture(cosmetic.definition().icon()), texture);
+        }
         float[] frame = framing.computeIfAbsent(cosmetic.id(), id -> frame(cosmetic));
         if (frame == null) {
             return false;
@@ -180,6 +183,27 @@ public final class TilePictures {
             }
         });
         texture.upload(raster.pixels());
+        return true;
+    }
+
+    /** A cosmetic's own picture (a knife's slot icon), fitted into the texture as it is, pixels kept square. */
+    private boolean icon(SoftRaster.Texture image, PictureTexture texture) {
+        if (image == SoftRaster.Texture.WHITE) {
+            return false;
+        }
+        raster.clear();
+        int[] out = raster.pixels();
+        float scale = SIZE * FILL / Math.max(image.width(), image.height());
+        int w = Math.max(1, Math.round(image.width() * scale)), h = Math.max(1, Math.round(image.height() * scale));
+        int x0 = (SIZE - w) / 2, y0 = (SIZE - h) / 2;
+        for (int y = 0; y < h; y++) {
+            int sy = Math.min(image.height() - 1, (int) (y / scale));
+            for (int x = 0; x < w; x++) {
+                int sx = Math.min(image.width() - 1, (int) (x / scale));
+                out[(y0 + y) * SIZE + x0 + x] = image.argb()[sy * image.width() + sx];
+            }
+        }
+        texture.upload(out);
         return true;
     }
 
@@ -233,7 +257,7 @@ public final class TilePictures {
         return textures.computeIfAbsent(id, TilePictures::read);
     }
 
-    static SoftRaster.Texture read(String id) {
+    public static SoftRaster.Texture read(String id) {
         try {
             //? if >=1.21.11 {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.parse(id));

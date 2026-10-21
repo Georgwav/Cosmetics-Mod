@@ -61,8 +61,9 @@ import java.util.NoSuchElementException;
             fillCapeSway(info, player, partialTick);
             this.buffers = bufferSource;
             PlayerModel<AbstractClientPlayer> model = getParentModel();
-            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body,
-                    new ModelPart[]{model.leftArm, model.rightArm, model.leftLeg, model.rightLeg}, this);
+            ModelPart[] limbs = {model.leftArm, model.rightArm, model.leftLeg, model.rightLeg};
+            CosmeticRenderer.render(poseStack, packedLight, info, null, model.head, model.body, limbs, this);
+            io.github.georgwav.cosmetics.melee.KnifeThirdPerson.draw(poseStack, bufferSource, packedLight, player, limbs);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -109,7 +110,8 @@ import java.util.NoSuchElementException;
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, PlayerRenderState state,
                        float yRot, float xRot) {
         try {
-            if (!fillCommon(info, entity(state.id), chest(state))) {
+            Entity entity = entity(state.id);
+            if (!fillCommon(info, entity, chest(state))) {
                 return;
             }
             info.capeFlap = state.capeFlap;
@@ -117,7 +119,9 @@ import java.util.NoSuchElementException;
             info.capeLean2 = state.capeLean2;
             this.buffers = bufferSource;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
+            ModelPart[] limbs = limbs(root);
+            CosmeticRenderer.render(poseStack, packedLight, info, root, child(root, "head"), child(root, "body"), limbs, this);
+            io.github.georgwav.cosmetics.melee.KnifeThirdPerson.draw(poseStack, bufferSource, packedLight, entity, limbs);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {
@@ -144,7 +148,8 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
     public void submit(PoseStack poseStack, SubmitNodeCollector nodeCollector, int lightCoords, AvatarRenderState state,
                        float yRot, float xRot) {
         try {
-            if (!fillCommon(info, entity(state.id), chest(state))) {
+            Entity entity = entity(state.id);
+            if (!fillCommon(info, entity, chest(state))) {
                 return;
             }
             info.capeFlap = state.capeFlap;
@@ -152,7 +157,9 @@ public final class CosmeticsLayer<M extends EntityModel<? super AvatarRenderStat
             info.capeLean2 = state.capeLean2;
             this.collector = nodeCollector;
             ModelPart root = getParentModel().root();
-            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), limbs(root), this);
+            ModelPart[] limbs = limbs(root);
+            CosmeticRenderer.render(poseStack, lightCoords, info, root, child(root, "head"), child(root, "body"), limbs, this);
+            io.github.georgwav.cosmetics.melee.KnifeThirdPerson.draw(poseStack, nodeCollector, lightCoords, entity, limbs);
         } catch (RuntimeException | LinkageError e) {
             RenderGuard.layerFailed(e);
         } finally {

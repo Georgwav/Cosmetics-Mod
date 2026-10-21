@@ -98,14 +98,14 @@ public final class CoordinatesHud extends TextHud {
 
     private float cardWidth(Minecraft mc) {
         int[] p = xyz(mc);
-        float mono = HudKit.measure(SolFont.Family.MONO, HudKit.TEXT, "0", scale());
+        float mono = HudKit.measure(SolFont.Family.PIXEL_BOLD, HudKit.TEXT, "0", scale());
         float w = 0f;
         for (int v : p) {
             w += mono * (2 + Integer.toString(v).length()) + 5f;
         }
         String sub = sub(mc);
         if (sub != null) {
-            w = Math.max(w, HudKit.measure(SolFont.Family.MEDIUM, HudKit.SMALL, sub, scale()));
+            w = Math.max(w, HudKit.measure(HudKit.LABEL, HudKit.SMALL, sub, scale()));
         }
         return w - 5f + PAD_X * 2f;
     }
@@ -154,7 +154,7 @@ public final class CoordinatesHud extends TextHud {
         HudKit.card(g, tk, x, y, STRIP_W, STRIP_H, STRIP_H / 2f);
         float heading = mc.player == null ? 0f : Mth.wrapDegrees(mc.player.getYRot() + 180f);
         float k = STRIP_W / 120f, mid = x + STRIP_W / 2f, cy = y + STRIP_H / 2f;
-        SolFont small = HudKit.small(g), letter = g.font(SolFont.Family.SEMIBOLD, HudKit.SMALL);
+        SolFont small = HudKit.small(g), letter = g.font(SolFont.Family.PIXEL_BOLD, HudKit.SMALL);
         g.clip(x + 3f, y, x + STRIP_W - 3f, y + STRIP_H);
         int first = (int) Math.floor((heading - 60f) / 15f) * 15;
         for (int d = first; d <= heading + 60f; d += 15) {
@@ -168,11 +168,10 @@ public final class CoordinatesHud extends TextHud {
                 String n = deg == 45 ? "NE" : deg == 135 ? "SE" : deg == 225 ? "SW" : "NW";
                 g.textCentre(small, n, px, cy, Colors.fade(0x99FFFFFF, 0.3f + 0.7f * fade));
             } else {
-                g.rect(px - 0.25f, cy - 1.25f, 0.5f, 2.5f, Colors.fade(0x66FFFFFF, fade));
+                HudKit.box(g, (float) Math.floor(px), (float) Math.floor(cy - 1f), 1f, 2f, Colors.fade(0x66FFFFFF, fade));
             }
         }
         g.endClip();
-        g.glowSprite(mid, cy, 3f, 6f, Colors.withAlpha(tk.accent, 0.5f));
-        g.rect(mid - 0.5f, y + 2f, 1f, STRIP_H - 4f, tk.accent);
+        HudKit.box(g, (float) Math.floor(mid), y + 2f, 1f, STRIP_H - 4f, tk.accent);
     }
 }

@@ -42,7 +42,7 @@ public final class KeyLight {
     public static float flash;
     /**
      * A second light colour and how strongly the two sweep across the ground in slow bands (the aurora's green and
-     * violet, the nebula's pink and violet); 0 lights the world in {@link #color} alone.
+     * violet); 0 lights the world in {@link #color} alone.
      */
     public static int color2 = 0xFFFFFFFF;
     public static float bands;
@@ -111,22 +111,6 @@ public final class KeyLight {
             rim = 1.2f;
             faceRim = 0.7f;
             rimAll = 0.6f;
-        } else if (!theme.nebula().isEmpty()) {
-            // The nebula's light falls from high above, pink then violet.
-            setAltAz(64f, theme.show().azimuth());
-            float k = 0.5f + 0.5f * (float) Math.sin(t * 0.11f);
-            int pink = theme.nebula().size() > 1 ? theme.nebula().get(1).color() : 0xFFFF4FA3;
-            int violet = theme.nebula().get(0).color();
-            color = Colors.mix(Colors.mix(pink, violet, k), 0xFFFFFFFF, 0.3f);
-            color2 = Colors.mix(Colors.mix(pink, violet, 1f - k), 0xFFFFFFFF, 0.3f);
-            bands = 0.7f;
-            glow = Colors.mix(pink, violet, k);
-            strength = 0.8f * tk.night * (1f - rain * 0.6f);
-            visible = 0.5f * tk.night;
-            shafts = 0.45f;
-            rim = 1.1f;
-            faceRim = 0.6f;
-            rimAll = 0.7f;
         } else if (theme.galaxy() != null) {
             ThemeSpec.Galaxy g = theme.galaxy();
             Extras.directionOf(g.x(), g.y(), theme.show().azimuth(), true, dir);

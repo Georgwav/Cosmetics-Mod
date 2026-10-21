@@ -1,0 +1,138 @@
+{
+  "name": "Mini You",
+  "slot": "pet",
+  "pet_position": "follow",
+  "texture": "cosmeticsmod:textures/cosmetic/sol_mini_you.png",
+  "texture_size": [
+    64,
+    32
+  ],
+  "parts": [
+    {
+      "name": "head",
+      "cubes": [
+        {
+          "from": [
+            -2,
+            -11,
+            -2
+          ],
+          "to": [
+            2,
+            -7,
+            2
+          ],
+          "uv": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "body",
+      "cubes": [
+        {
+          "from": [
+            -2,
+            -7,
+            -1
+          ],
+          "to": [
+            2,
+            -3,
+            1
+          ],
+          "uv": [
+            16,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arm_left",
+      "cubes": [
+        {
+          "from": [
+            2,
+            -7,
+            -1
+          ],
+          "to": [
+            3,
+            -3,
+            1
+          ],
+          "uv": [
+            28,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arm_right",
+      "cubes": [
+        {
+          "from": [
+            -3,
+            -7,
+            -1
+          ],
+          "to": [
+            -2,
+            -3,
+            1
+          ],
+          "uv": [
+            34,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "leg_left",
+      "cubes": [
+        {
+          "from": [
+            0,
+            -3,
+            -1
+          ],
+          "to": [
+            2,
+            0,
+            1
+          ],
+          "uv": [
+            40,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "leg_right",
+      "cubes": [
+        {
+          "from": [
+            -2,
+            -3,
+            -1
+          ],
+          "to": [
+            0,
+            0,
+            1
+          ],
+          "uv": [
+            48,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

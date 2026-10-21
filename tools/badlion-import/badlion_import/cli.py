@@ -339,6 +339,7 @@ def cmd_bundle(args) -> int:
     result = bundle.bundle(jar, packs, output)
     print(f"Wrote {output}: {result.files} file(s) from {len(result.packs)} pack(s), {result.cosmetics} cosmetic(s) "
           f"and {result.emotes} emote file(s)"
+          + (f", {result.styles} personal style(s)" if result.styles else "")
           + (f", {len(result.merged)} translation file(s) merged" if result.merged else "")
           + (f", {result.dropped} file(s) of the earlier bundle replaced" if result.dropped else ""))
     if result.emotes == 0:

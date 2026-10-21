@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.sol.theme.Customisation;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.ColorPicker;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.ModuleIcons;
@@ -66,12 +67,27 @@ public final class ModulePage implements Page {
     private boolean skyDrawing;
     private final java.util.concurrent.atomic.AtomicReference<int[]> skyDone = new java.util.concurrent.atomic.AtomicReference<>();
     private int skyW, skyH;
+    /** An effects module's live scene (its effects on a dummy, replayed every two seconds). */
+    private io.github.georgwav.cosmetics.sol.fx.FxPreview.Scene scene;
     /** The preview's box in screen pixels, for the game's own drawing (the crosshair). */
     private int pvX0, pvY0, pvX1, pvY1;
 
+    /** Only these groups' settings (the HUD page shows Sol UI's settings part by part), or all of them when null. */
+    private final java.util.Set<String> only;
+
     ModulePage(Module module) {
+        this(module, null);
+    }
+
+    ModulePage(Module module, java.util.Set<String> only) {
         this.module = module;
+        this.only = only;
         this.knob = module.enabled() ? 1f : 0f;
+    }
+
+    /** Its settings column alone, in a box of a menu section (the HUD page's). */
+    void settings(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float top, float x1, float bottom) {
+        right(menu, g, ui, tk, x, top, x1, bottom);
     }
 
     public Module module() {
@@ -80,10 +96,7 @@ public final class ModulePage implements Page {
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk) {
-        g.glow(X, Y, W, H, 22f, 40f, Colors.withAlpha(tk.glow, 0.18f));
-        g.round(X, Y, W, H, 22f, 0xFF0B0C11);
-        g.stroke(X, Y, W, H, 22f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(X, Y, W, H, 22f, 0x40FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), X, Y, W, H);
         ui.area(X, Y, W, H, () -> { });
         boolean on = module.enabled();
         knob += ((on ? 1f : 0f) - knob) * Math.min(1f, menu.dt() * 16f);
@@ -97,7 +110,7 @@ public final class ModulePage implements Page {
 
     private void header(SolMenu menu, Gfx g, Ui ui, Tokens tk, boolean on) {
         float iy = Y + 16f;
-        g.round(X + PAD, iy, 46f, 46f, 13f, 0x1AFFFFFF);
+        Pix.fill(g, X + PAD, iy, 46f, 46f, 0x1AFFFFFF);
         Icons.draw(g, ModuleIcons.module(module.id), X + PAD + 11f, iy + 11f, 24f, tk.accent, Icons.FILL_ON,
                 Colors.withAlpha(tk.glow, 0.5f));
         float right = X + W - PAD;
@@ -114,7 +127,7 @@ public final class ModulePage implements Page {
             menu.toast(SolMenu.tr("sol.notify.reset", module.name()));
         });
         float tx = X + PAD + 60f, room = fx - 10f - rw - 16f - tx;
-        SolFont name = g.font(SolFont.Family.SEMIBOLD, 22f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
+        SolFont name = g.font(SolFont.Family.PIXEL_BOLD, 16f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
         g.textMid(name, g.fit(name, module.name(), room), tx, Y + 30f, 0xFFFFFFFF);
         g.textMid(desc, g.fit(desc, ModulesSection.description(module), room), tx, Y + 52f, 0x94FFFFFF);
         g.rect(X + 1f, Y + 76f, W - 2f, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
@@ -124,8 +137,23 @@ public final class ModulePage implements Page {
 
     private void left(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float top, float bottom) {
         float ph = 214f;
-        preview(g, tk, x, top, LEFT_W, ph);
+        preview(menu, g, tk, x, top, LEFT_W, ph);
         float ky = top + ph + 16f;
+        if (module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule fm) {
+            // Try it: in a world, on a copy of you three blocks ahead (the menu closes to show it); here, at once.
+            ui.button(tk, x + LEFT_W, ky + 12f, SolMenu.tr("sol.fx.try_it"), true, () -> {
+                if (scene != null) {
+                    scene.restart();
+                }
+                if (Minecraft.getInstance().level != null && io.github.georgwav.cosmetics.sol.fx.FxPreview.tryInWorld(fm)) {
+                    menu.onClose();
+                }
+            });
+            SolFont hint = g.font(SolFont.Family.MEDIUM, 11.5f);
+            g.textMid(hint, g.fit(hint, SolMenu.tr(Minecraft.getInstance().level != null ? "sol.fx.try_it.world" : "sol.fx.try_it.menu"),
+                    LEFT_W - 110f), x, ky + 12f, 0x8CFFFFFF);
+            ky += 40f;
+        }
         SolFont h = g.font(SolFont.Family.SEMIBOLD, 13f), f = g.font(SolFont.Family.MEDIUM, 13f), dim = g.font(SolFont.Family.MEDIUM, 11.5f);
         g.textMid(h, SolMenu.tr("sol.menu.page.keys"), x, ky + 8f, 0xFFFFFFFF);
         ky += 22f;
@@ -169,15 +197,15 @@ public final class ModulePage implements Page {
         return ui.button(tk, right, cy, label, waiting, () -> binding = waiting ? null : key);
     }
 
-    private void preview(Gfx g, Tokens tk, float x, float y, float w, float h) {
-        g.round(x, y, w, h, 14f, 0x0AFFFFFF);
-        g.stroke(x, y, w, h, 14f, Math.max(1f, g.d.u), 0x14FFFFFF);
+    private void preview(SolMenu menu, Gfx g, Tokens tk, float x, float y, float w, float h) {
+        Pix.fill(g, x, y, w, h, 0x0AFFFFFF);
+        Pix.frame(g, x, y, w, h, 0x14FFFFFF);
         pvX0 = Math.round(g.d.sx(x));
         pvY0 = Math.round(g.d.sy(y));
         pvX1 = Math.round(g.d.sx(x + w));
         pvY1 = Math.round(g.d.sy(y + h));
-        SolFont cap = g.font(SolFont.Family.MONO, 10.5f);
-        if (module == Atmosphere.INSTANCE) {
+        SolFont cap = g.font(SolFont.Family.PIXEL, 10f);
+        if (module == Atmosphere.INSTANCE || module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule) {
             var e = ThemeState.baseEntry();
             int[] px = skyDone.getAndSet(null);
             if (px != null) {
@@ -210,12 +238,23 @@ public final class ModulePage implements Page {
                 g.image(sky, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
                 g.endClip();
             }
+            if (module instanceof io.github.georgwav.cosmetics.sol.fx.FxModule fm) {
+                // The effects on a dummy, drawn on the CPU at a texel's few pixels and shown without smoothing.
+                if (scene == null) {
+                    scene = new io.github.georgwav.cosmetics.sol.fx.FxPreview.Scene(fm, Math.round(w / 2f), Math.round(h / 2f));
+                }
+                SolTexture pic = scene.paint(menu.dt());
+                if (pic != null && !pic.released()) {
+                    g.image(pic, x, y, w, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+                }
+                g.text(cap, SolMenu.tr("sol.fx.preview"), x + 12f, y + h - 10f, 0x8CFFFFFF);
+                return;
+            }
             g.text(cap, Widgets.themeName(e), x + 12f, y + h - 10f, 0x8CFFFFFF);
         } else if (module.previewHeight() > 0f) {
             // Drawn by the game itself, as it will look (see game()).
             g.text(cap, SolMenu.tr("sol.menu.drawer.live"), x + 12f, y + h - 10f, 0x8CFFFFFF);
         } else {
-            g.glowSprite(x + w / 2f, y + h / 2f, 54f, 54f, Colors.withAlpha(tk.glow, 0.35f));
             Icons.draw(g, ModuleIcons.module(module.id), x + w / 2f - 34f, y + h / 2f - 34f, 68f, tk.accent, Icons.FILL_ON,
                     Colors.withAlpha(tk.glow, 0.6f));
             g.text(cap, SolMenu.tr("sol.menu.drawer.live_game"), x + 12f, y + h - 10f, 0x8CFFFFFF);
@@ -246,7 +285,7 @@ public final class ModulePage implements Page {
         Map<String, List<Setting<?>>> groups = new LinkedHashMap<>();
         List<Setting<?>> advanced = new ArrayList<>();
         for (Setting<?> st : module.settings()) {
-            if (!q.isEmpty() && !matches(st, q)) {
+            if (!q.isEmpty() && !matches(st, q) || only != null && !only.contains(st.group) || !st.shown()) {
                 continue;
             }
             if (st.advanced) {
@@ -275,7 +314,7 @@ public final class ModulePage implements Page {
             shownAny = true;
         }
         KeyMapping toggle = module.toggleKey();
-        boolean toggleShown = toggle != null && (q.isEmpty() || SolMenu.tr("sol.menu.page.toggle_mod").toLowerCase(Locale.ROOT).contains(q));
+        boolean toggleShown = toggle != null && only == null && (q.isEmpty() || SolMenu.tr("sol.menu.page.toggle_mod").toLowerCase(Locale.ROOT).contains(q));
         int count = advanced.size() + (toggleShown ? 1 : 0);
         if (count > 0) {
             boolean open = advancedOpen || !q.isEmpty();
@@ -373,11 +412,13 @@ public final class ModulePage implements Page {
                     picking = null;
                 }
             });
-            g.round(dx, cy - 10f, dw, 20f, 10f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
+            Pix.fill(g, dx, cy - 10f, dw, 20f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
             g.textMid(df, d, dx + 8f, cy, 0xB3FFFFFF);
         }
         float extra = 0f;
-        if (st instanceof Setting.Toggle t) {
+        if (st instanceof Setting.Pixels px) {
+            extra = painter(g, ui, tk, px, x, y + rh);
+        } else if (st instanceof Setting.Toggle t) {
             ui.smallSwitch(tk, right - 30f, cy - 9f, t.get(), () -> t.set(!t.get()));
         } else if (st instanceof Setting.Slider sl) {
             float v = (float) ((sl.get() - sl.min) / Math.max(1e-9, sl.max - sl.min));
@@ -401,8 +442,8 @@ public final class ModulePage implements Page {
                     picker = new ColorPicker(() -> c.argb() & 0xFFFFFF, rgb -> c.set((c.argb() & 0xFF000000) | (rgb & 0xFFFFFF)));
                 }
             });
-            g.round(right - sw, cy - 12f, sw, 24f, 7f, c.argb() | 0xFF000000);
-            g.stroke(right - sw, cy - 12f, sw, 24f, 7f, Math.max(1f, g.d.u), open ? tk.accent : 0x40FFFFFF);
+            Pix.fill(g, right - sw, cy - 12f, sw, 24f, c.argb() | 0xFF000000);
+            Pix.frame(g, right - sw, cy - 12f, sw, 24f, open ? tk.accent : 0x40FFFFFF);
             float tx = right - sw - 10f;
             if (c.themed) {
                 // "Theme": the colour follows the theme's accent (lit while it does).
@@ -411,13 +452,13 @@ public final class ModulePage implements Page {
                 float cw = g.width(cf, tl) + 18f, chipX = tx - cw;
                 boolean on = c.followsTheme();
                 ui.click(chipX, cy - 11f, cw, 22f, () -> c.set(on ? c.argb() : Setting.Color.THEME));
-                g.round(chipX, cy - 11f, cw, 22f, 11f, on ? Colors.withAlpha(tk.accent, 0.9f)
+                Pix.fill(g, chipX, cy - 11f, cw, 22f, on ? Colors.withAlpha(tk.accent, 0.9f)
                         : ui.over(chipX, cy - 11f, cw, 22f) ? 0x29FFFFFF : 0x12FFFFFF);
                 g.textMid(cf, tl, chipX + 9f, cy, on ? tk.onAccent : 0xB3FFFFFF);
                 tx = chipX - 10f;
             }
             if (!c.followsTheme()) {
-                SolFont m = g.font(SolFont.Family.MONO, 11.5f);
+                SolFont m = g.font(SolFont.Family.PIXEL, 11f);
                 g.textRight(m, String.format(Locale.ROOT, "#%06X", c.get() & 0xFFFFFF), tx, cy, 0xB3FFFFFF);
             }
             if (open && picker != null) {
@@ -431,23 +472,21 @@ public final class ModulePage implements Page {
             }
         } else if (st instanceof Setting.Choice c) {
             String[] names = new String[c.options.size()];
-            float total = 0f;
-            SolFont of = g.font(SolFont.Family.MEDIUM, 12f);
             for (int i = 0; i < names.length; i++) {
                 names[i] = module.optionName(c, c.options.get(i));
-                total += g.width(of, names[i]) + 20f;
             }
+            float total = ui.segmentedWidth(names);
             int sel = Math.max(0, c.options.indexOf(c.get()));
             if (total <= w * 0.46f) {
                 ui.segmented(tk, right, cy, names, sel, i -> c.set(c.options.get(i)));
             } else {
                 // Too many to sit side by side: they open under the row.
                 boolean open = choosing == c;
-                ui.button(tk, right, cy, names[sel] + "  …", open, () -> choosing = open ? null : c);
+                ui.dropButton(tk, right, cy, names[sel], open, () -> choosing = open ? null : c);
                 if (open) {
                     float ox = x, oy = y + rh + 4f;
                     for (int i = 0; i < names.length; i++) {
-                        float cw = g.width(of, names[i]) + 22f;
+                        float cw = ui.chipWidth(names[i]);
                         if (ox + cw > right) {
                             ox = x;
                             oy += 30f;
@@ -465,6 +504,53 @@ public final class ModulePage implements Page {
         }
         g.rect(x, y + rh + extra - 1f, w, Math.max(1f / g.d.u, 1f), 0x0AFFFFFF);
         return y + rh + extra;
+    }
+
+    /** The painter's tool: 0 brush, 1 fill, 2 eraser. */
+    private int paintTool;
+    /** For the in-game test: frames a painter was drawn. */
+    public static int paintersDrawn;
+
+    /**
+     * A picture setting's painter (the crosshair's Custom style): its grid, a cell per pixel, with the middle row and
+     * column marked; drag to paint with the brush, the fill (every joined empty pixel) or the eraser; and Clear.
+     * Returns its height.
+     */
+    private float painter(Gfx g, Ui ui, Tokens tk, Setting.Pixels px, float x, float y) {
+        paintersDrawn++;
+        int n = px.size;
+        float cell = 12f, side = cell * n, gx = x + 4f, gy = y + 4f;
+        int m = n / 2;
+        Pix.fill(g, gx - 4f, gy - 4f, side + 8f, side + 8f, 0x66000000);
+        int hx = ui.over(gx, gy, side, side) ? (int) ((ui.mx - gx) / cell) : -1;
+        int hy = hx >= 0 ? (int) ((ui.my - gy) / cell) : -1;
+        for (int cy = 0; cy < n; cy++) {
+            for (int cx = 0; cx < n; cx++) {
+                int c = px.at(cx, cy) ? tk.accent | 0xFF000000
+                        : cx == m || cy == m ? 0x24FFFFFF : ((cx + cy) & 1) == 0 ? 0x0DFFFFFF : 0x17FFFFFF;
+                g.rect(gx + cx * cell, gy + cy * cell, cell - 1f, cell - 1f, c);
+            }
+        }
+        if (hx >= 0 && hx < n && hy >= 0 && hy < n) {
+            Pix.frame(g, gx + hx * cell - 1f, gy + hy * cell - 1f, cell + 1f, cell + 1f, 0xCCFFFFFF);
+        }
+        ui.drag(gx, gy, side, side, (mx, my) -> {
+            int cx = (int) Math.floor((mx - gx) / cell), cy = (int) Math.floor((my - gy) / cell);
+            switch (paintTool) {
+                case 1 -> px.fill(cx, cy);
+                case 2 -> px.put(cx, cy, false);
+                default -> px.put(cx, cy, true);
+            }
+        });
+        String[] tools = {SolMenu.tr("sol.menu.page.paint.brush"), SolMenu.tr("sol.menu.page.paint.fill"),
+                SolMenu.tr("sol.menu.page.paint.eraser")};
+        float tx = gx + side + 24f;
+        for (int i = 0; i < tools.length; i++) {
+            final int tool = i;
+            ui.chip(tk, tx, gy + 14f + i * 36f, tools[i], paintTool == i, () -> paintTool = tool);
+        }
+        ui.chip(tk, tx, gy + 14f + 3 * 36f + 12f, SolMenu.tr("sol.menu.page.paint.clear"), false, px::clear);
+        return side + 16f;
     }
 
     /** The key that switches the whole module on and off: "Toggle mod". */
@@ -492,6 +578,11 @@ public final class ModulePage implements Page {
     }
 
     // ------------------------------------------------------------------ input
+
+    /** Searches its settings for {@code query} (the dev scenario's shot of one part of a long page). */
+    public void showSearch(String query) {
+        search.set(query);
+    }
 
     /** Opens Advanced and scrolls to it (the dev scenario's shot of the folded groups). */
     public void showAdvanced() {
@@ -545,6 +636,10 @@ public final class ModulePage implements Page {
     public void release() {
         if (sky != null) {
             sky.release();
+        }
+        if (scene != null) {
+            scene.release();
+            scene = null;
         }
     }
 }

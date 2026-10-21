@@ -35,13 +35,13 @@ final class OutfitPage {
         CosmeticsConfig config = CosmeticsConfig.get();
         SolFont small = g.font(SolFont.Family.MEDIUM, 12f);
         String back = WardrobeScreen.t("detail.back");
-        ui.button(tk, x + g.width(small, back) + 20f, top + 13f, back, false, () -> screen.openOutfit(null));
-        name.draw(g, ui, tk, x, top + 34f, Math.min(360f, w), 34f, "ring", WardrobeScreen.t("outfits.name_hint"), screen.dt());
+        ui.bigButton(x, top, "left", back, false, true, () -> screen.openOutfit(null));
+        name.draw(g, ui, tk, x, top + 52f, Math.min(360f, w), 38f, "ring", WardrobeScreen.t("outfits.name_hint"), screen.dt());
         if (nameProblem) {
             g.textMid(small, g.fit(small, WardrobeScreen.t("outfits.name_taken"), w - 380f), x + Math.min(360f, w) + 14f,
-                    top + 51f, Tokens.AMBER);
+                    top + 71f, Tokens.AMBER);
         }
-        float bodyTop = top + 82f;
+        float bodyTop = top + 104f;
         g.rect(x, bodyTop - 6f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         g.clip(x - 4f, bodyTop, x + w + 6f, top + h);
         PageRows rows = new PageRows(g, ui, tk, x, bodyTop - scroll.value(), w, null);

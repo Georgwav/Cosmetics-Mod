@@ -60,7 +60,8 @@ theme("aurora",4,"Aurora","Deep teal night, green and violet ribbons, slow snow.
   ui("#5effc1","rgba(8,30,36,.52)","rgba(120,255,210,.5)"),
   sky("#04070f","#08182a","#0f3342","#1f6a6a",0.1), fog("#0e2b36",.5), {"tint":"#9fffe0","strength":0.12},
   {"phase":"night","azimuth":180,"hold":True,"time":0.42},
-  {"day":{"sky":sky("#5a8ca8","#86b4c4","#cfe6e8","#e6f6f2",0.2),"fog":fog("#b8d4d8",.45),"light":{"tint":"#eafff8","strength":0.06},"clouds":{"tint":"#eef8f8"},"particleScale":0.5},
+  # Polar day: a deep blue sky the curtains still show against.
+  {"day":{"sky":sky("#173f68","#3373a0","#9fd0d8","#d2f0e8",0.2),"fog":fog("#86b0be",.45),"light":{"tint":"#eafff8","strength":0.06},"clouds":{"tint":"#eef8f8"},"particleScale":0.5},
    "dawn":{"sky":sky("#1e3450","#3a5a74","#8ab4b8","#c8e4d8",0.3),"fog":fog("#4a6a74",.5)},
    "dusk":{"sky":sky("#142238","#2a4a60","#6a9aa0","#a8d8c8",0.3),"fog":fog("#3a5a64",.5)}},
   moon={"size":.02,"color":"#e8f0ff","halo":"#9fd9ff","haloRadius":.12,"haloAlpha":.3,"ring":True,"x":.17,"y":.2},
@@ -68,19 +69,6 @@ theme("aurora",4,"Aurora","Deep teal night, green and violet ribbons, slow snow.
   aurora=["#46f096","#7850eb"],
   clouds={"tint":"#16303a","litBySun":True}, wind=[0.12,0.0,0.04],
   particles=em([["snow",50,["#dff6ff"],[1.1,2.4]],["dust",20,["#7affd0"],[1,2]]]))
-
-theme("nebula",5,"Nebula","Violet space close enough to touch, star dust and shooting stars.",
-  ui("#c78bff","rgba(30,14,52,.52)","rgba(210,170,255,.55)"),
-  sky("#07031a","#1d0b3d","#55245e","#ff7ab8",0.1), fog("#3a1747",.45), {"tint":"#d8b8ff","strength":0.14},
-  {"phase":"night","azimuth":180,"hold":True,"time":0.42},
-  {"day":{"sky":sky("#6a5aa8","#9a84c4","#e2b4d4","#ffcce0",0.2),"fog":fog("#c8a8d0",.4),"light":{"tint":"#f4e8ff","strength":0.06},"clouds":{"tint":"#f4e4f4"},"particleScale":0.5},
-   "dawn":{"sky":sky("#2a1a5a","#5a3a7c","#c87aa0","#ffa0c0",0.3),"fog":fog("#6a3a6a",.45)},
-   "dusk":{"sky":sky("#1a0e40","#4a2468","#b05a90","#ff8ab8",0.3),"fog":fog("#5a2a5c",.45)}},
-  stars={"count":210,"palette":"nebula","milkyWay":0.7,"shooting":True,"meteorNights":5},
-  nebula=[{"x":.28,"y":.22,"r":.36,"color":"#7b2cff"},{"x":.72,"y":.32,"r":.3,"color":"#ff4fa3"},{"x":.55,"y":.12,"r":.24,"color":"#3b7bff"}],
-  planets={"enabled":True,"style":"nebula"},
-  clouds={"tint":"#2a1440","litBySun":True}, wind=[0.1,0.0,0.05],
-  particles=em([["dust",70,["#ffd6f5","#c9b6ff","#ffffff"],[1,2.4]],["sparkle",12,["#ffffff"],[3,6]]]))
 
 theme("firefly_meadow",6,"Firefly Meadow","Warm green dusk; fireflies blink low over the grass.",
   ui("#d6f26a","rgba(22,34,26,.52)","rgba(220,255,140,.5)"),
@@ -200,9 +188,6 @@ LOOK = {
   "aurora": dict(fog=dict(near=8, far=110, scatter=0.6, haze=0.35), light=dict(strength=0.7, boost=1.0, sun="#c4ffec", shadow="#0a1e2c"),
     grade=dict(highlights="#c6fff0", shadows="#03121a", saturation=1.12, contrast=1.06, bloomTint="#7affd0", bloom=1.0, threshold=0.52, vignette=0.18),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)))),
-  "nebula": dict(fog=dict(near=8, far=118, scatter=0.55, haze=0.3), light=dict(strength=0.68, boost=1.0, sun="#e4ccff", shadow="#1c0e36"),
-    grade=dict(highlights="#ffd8f4", shadows="#100524", saturation=1.14, contrast=1.06, bloomTint="#ff9ad8", bloom=1.0, threshold=0.52, vignette=0.18),
-    kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)))),
   "firefly_meadow": dict(fog=dict(near=4, far=76, scatter=0.9, haze=0.5), light=dict(strength=0.58, boost=1.45, sun="#ffd88e", shadow="#1e3436"),
     grade=dict(highlights="#fff0b6", shadows="#0c1812", saturation=1.1, contrast=1.05, bloomTint="#f2ff9a", bloom=0.92, threshold=0.58, vignette=0.16),
     kf=dict(day=dict(fog=dict(near=16, far=200), light=dict(boost=1.05)), night=dict(fog=dict(near=6, far=90), light=dict(boost=1.0)))),
@@ -248,7 +233,6 @@ NIGHT = {
     "frost_morning":   ("halo",      light(.74, .88, 1.12), ["#081528", "#142a4c", "#2c4c72"], hexc(90, 150, 210)),
     "monsoon":         ("corona",    light(.7, .78, .92),  ["#070b13", "#111925", "#1d2938"], hexc(60, 90, 120)),
     "aurora":          ("silver",    light(.66, .92, .98), ["#04101b", "#082333", "#0f3545"], hexc(60, 200, 140)),
-    "nebula":          ("blue",      light(.8, .74, 1.12), ["#0f0622", "#210d3b", "#3a1c56"], hexc(150, 80, 210)),
     "deep_field":      ("newmoon",   light(.8, .8, .8),    ["#020203", "#06060a", "#121218"], hexc(100, 100, 100)),
     "silver_night":    ("supermoon", light(.8, .86, 1.06), ["#0a0e1c", "#19213b", "#30405f"], hexc(120, 140, 190)),
     "eclipse":         ("blood",     light(1, .42, .3),    ["#0b0406", "#1d080a", "#561409"], hexc(170, 40, 30)),
@@ -256,6 +240,22 @@ NIGHT = {
 }
 # Monsoon's broken cloud over the stars (lit by the lightning); Silver Night's silver haze along the horizon.
 NIGHT_EXTRA = {"monsoon": {"clouds": True}, "silver_night": {"haze": hexc(150, 165, 205)}}
+# The painted nebulae (once the Nebula theme's own) at night in some themes, each tinted to the theme: "big" picks
+# which of the three (0 magenta and violet, 1 coral and pink, 2 blue), "tint" how far it leans to the theme's colour,
+# "strength" how bright. x, y and r place it on the menu's little sky.
+NEB_AT = {0: (.28, .22, .36), 1: (.72, .32, .3), 2: (.55, .12, .24)}
+def neb(big, color, tint, strength):
+    x, y, r = NEB_AT[big]
+    return {"x": x, "y": y, "r": r, "color": color, "big": big, "tint": tint, "strength": strength}
+NEBULAE = {
+    "sakura_dusk": [neb(0, "#d27cff", .4, .85), neb(1, "#ff7ab4", .45, .7)],
+    "frost_morning": [neb(2, "#8cc8ff", .6, .75)],
+    "silver_night": [neb(2, "#c4d0ff", .65, .55)],
+    "maple_afternoon": [neb(1, "#ff9c62", .5, .6)],
+}
+for id, o in T:
+    if id in NEBULAE:
+        o["nebula"] = NEBULAE[id]
 # Clear skies like the prototypes', except where clouds are the point (Monsoon's overcast) and in Empty, which is
 # the vanilla sky. The game's blocky clouds would cover Maple's and Frost's skies, which the prototypes keep clear.
 CLOUDY = {"monsoon", "empty"}
@@ -284,7 +284,7 @@ SKYK = [(10, "#4f74ad", "#91b2d8", "#f2cfa2"), (3, "#3f5f98", "#7b8fc0", "#ffb47
         (-15, "#070f2a", "#0f1b46", "#1d2a5e"), (-19, "#050b20", "#0a1436", "#172350")]
 # Themes whose own sky colour is their identity keep it through blue hour and pre-dawn (Eclipse's sky stays red-black).
 OWN_TWILIGHT = {"eclipse"}
-PASTEL = {"sakura_dusk", "frost_morning", "ember_solstice", "firefly_meadow", "maple_afternoon", "aurora", "nebula", "silver_night"}
+PASTEL = {"sakura_dusk", "frost_morning", "ember_solstice", "firefly_meadow", "maple_afternoon", "aurora", "silver_night"}
 
 def rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
 def ishex(v): return isinstance(v, str) and v.startswith("#") and len(v) in (7, 9)

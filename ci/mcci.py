@@ -22,6 +22,7 @@ checks the log for mixin failures, crashes and errors from this mod, and screens
 Standard library only.
 """
 import argparse
+import atexit
 import hashlib
 import json
 import os
@@ -56,6 +57,9 @@ MIXIN_PROBLEM = re.compile(
 # Startup failures the game never recovers from (26.2+ tries OpenGL, then Vulkan).
 STARTUP_FATAL = re.compile(r"Failed to create backend \w+")
 OUR_ERROR = re.compile(r"(?:/ERROR|ERROR\]).*CosmeticsMod|CosmeticsMod.*(?:/ERROR|ERROR\])")
+# Our shaders: in our namespace, or named sol_* (1.21.1 keeps its programs in the game's namespace).
+SHADER_PROBLEM = re.compile(r"(Couldn't (compile|link)|Could not (compile|link)|Failed to load shader|Invalid shader).*(cosmeticsmod|sol_)"
+                            r"|(cosmeticsmod|sol_)\S* was invalid")
 # A line of logs/cosmeticsmod.log (ci/log4j2-ci.xml): time, thread, level, our logger, message.
 OUR_LINE = re.compile(r"^\[\d\d:\d\d:\d\d\] \[(?P<thread>[^\]]*)/(?P<level>[A-Z]+)\] \(CosmeticsMod\): (?P<msg>.*)$")
 # Warnings a CI run is expected to log, each at most once; any other warning or error of ours fails the run.
@@ -442,12 +446,21 @@ class Display:
             cls._shared = cls()
         return cls._shared
 
-    def __init__(self, number=99, size="1280x720"):
+    def __init__(self, number=None, size=None):
+        # MCCI_DISPLAY: another display number, so runs side by side don't draw on (and screenshot) one screen.
+        number = number if number is not None else int(os.environ.get("MCCI_DISPLAY", "99"))
+        # MCCI_SCREEN=WxH: a bigger virtual screen (with MCCI_WINDOW the same size), for shots measured at 1080p.
+        size = size or os.environ.get("MCCI_SCREEN", "1280x720")
         self.name = f":{number}"
         self.size = size
         self.proc = subprocess.Popen(["Xvfb", self.name, "-screen", "0", f"{size}x24", "-nolisten", "tcp"],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(2)
+        if self.proc.poll() is not None:
+            # Another Xvfb holds the display (an earlier run's): its screen may be another size.
+            raise SystemExit(f"Xvfb couldn't start on {self.name} (the display is taken; pick another MCCI_DISPLAY)")
+        # Stopped with the script, so the next run gets a screen of its own size.
+        atexit.register(self.proc.terminate)
 
     def screenshot(self, png_path):
         """Grabs the whole virtual screen with xwd and converts it to PNG (no extra tools needed)."""
@@ -473,9 +486,20 @@ def xwd_to_rgb(data):
     byte_order, bits_per_pixel, bytes_per_line = h[7], h[11], h[12]
     red_mask, green_mask, blue_mask, ncolors = h[14], h[15], h[16], h[19]
     offset = header_size + ncolors * 12
-    if bits_per_pixel != 32:
+    if bits_per_pixel not in (24, 32):
         raise ValueError(f"unsupported xwd depth {bits_per_pixel}")
     rows = []
+    if bits_per_pixel == 24 and byte_order == 0 and (red_mask, green_mask, blue_mask) == (0xFF0000, 0xFF00, 0xFF):
+        # Packed B, G, R (seen after the game resized its window on Xvfb).
+        for y in range(height):
+            base = offset + y * bytes_per_line
+            px = data[base:base + width * 3]
+            row = bytearray(width * 3)
+            row[0::3], row[1::3], row[2::3] = px[2::3], px[1::3], px[0::3]
+            rows.append(bytes(row))
+        return width, height, rows
+    if bits_per_pixel == 24:
+        raise ValueError("unsupported 24-bit xwd layout")
     if byte_order == 0 and (red_mask, green_mask, blue_mask) == (0xFF0000, 0xFF00, 0xFF):
         # The usual Xvfb layout: bytes B, G, R, X per pixel. Reorder with slices (fast).
         for y in range(height):
@@ -562,6 +586,14 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     launcher.mkdir()
     shutil.copy(ROOT / "src" / "test" / "resources" / "skins" / "app.db", launcher / "app.db")
     (game_dir / "config" / "cosmeticsmod-client.json").write_text(json.dumps({"mainFolder": str(launcher.resolve())}))
+    if mode == "sol":
+        # Sol Styles' test packs (B.4), made from this version's own jar; no real pack is ever part of CI.
+        packs = game_dir / "resourcepacks"
+        packs.mkdir()
+        made = subprocess.run([inst.java, str(ROOT / "tools" / "styles-packs" / "MakePacks.java"), inst.classpath[-1], str(packs)],
+                              capture_output=True, text=True, timeout=900)
+        LOG(f"[{inst.mc}/{label}] Styles test packs: " + (made.stdout.strip().splitlines() or ["(none)"])[-1]
+            + (f" (failed: {made.stderr.strip()[-300:]})" if made.returncode else ""))
     if shaderpack:
         (game_dir / "shaderpacks").mkdir()
         shutil.copy(shaderpack, game_dir / "shaderpacks")
@@ -594,13 +626,18 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     ]
     if mode != "sol" and SOL_SCENARIO_IN_SMOKE:
         jvm.append("-Dcosmeticsmod.solScenario=" + SOL_SCENARIO_IN_SMOKE)
+    if mode == "sol" or SOL_SCENARIO_IN_SMOKE:
+        # The knife shots' knife: generated by the mod (no knife pack is ever part of CI).
+        jvm.append("-Dcosmeticsmod.standInKnife=true")
     if mode == "sol":
         # Local look runs: compare light-pass strengths in one run, or judge at another quality.
-        for env, prop in (("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes"), ("MCCI_SOL_UI", "solUi"), ("MCCI_SOL_EVENTS", "solEvents")):
+        for env, prop in (("MCCI_SOL_ONLY", "solOnly"), ("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes"), ("MCCI_SOL_UI", "solUi"), ("MCCI_SOL_LOOK", "solUiLook"), ("MCCI_SOL_EVENTS", "solEvents")):
             if os.environ.get(env):
                 jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
         jvm.append("-Dcosmeticsmod.benchmark.copies=50")
+    # Local profiling, e.g. MCCI_JVM_EXTRA="-XX:StartFlightRecording=filename=/tmp/load.jfr,settings=profile".
+    jvm += os.environ.get("MCCI_JVM_EXTRA", "").split()
     # The Sol scenario's music shots: a mock Cider (REST, Socket.IO, Apple lyrics, a cover) and LRCLIB on Cider's port.
     mock = None
     if mode == "sol":
@@ -620,7 +657,11 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         "--username", "CosmeticsCI", "--version", inst.mc, "--gameDir", str(game_dir),
         "--assetsDir", str(inst.assets_dir), "--assetIndex", inst.asset_index,
         "--uuid", uuid.uuid3(uuid.NAMESPACE_DNS, "cosmetics-ci").hex, "--accessToken", "0",
-        "--userType", "msa", "--versionType", "release", "--width", "1280", "--height", "720",
+        "--userType", "msa", "--versionType", "release",
+        # MCCI_WINDOW=WxH: start at another size (854x480 is the game's own), with MCCI_JVM_EXTRA's
+        # -Dcosmeticsmod.resizeTo=WxH to change it in the world.
+        "--width", os.environ.get("MCCI_WINDOW", "1280x720").split("x")[0],
+        "--height", os.environ.get("MCCI_WINDOW", "1280x720").split("x")[1],
         "--quickPlaySingleplayer", "smoke",
     ]
     cmd = [inst.java, *jvm, "-cp", os.pathsep.join(inst.classpath), inst.fabric["mainClass"], *game]
@@ -742,6 +783,152 @@ def crash_summary(game_dir, max_lines=40):
     return out[:max_lines]
 
 
+def read_png(path):
+    """Width, height and RGB rows of a PNG this script wrote (8-bit RGB, every row unfiltered)."""
+    data = Path(path).read_bytes()
+    width, height = struct.unpack(">II", data[16:24])
+    idat, at = b"", 8
+    while at < len(data):
+        (length,) = struct.unpack(">I", data[at:at + 4])
+        if data[at + 4:at + 8] == b"IDAT":
+            idat += data[at + 8:at + 8 + length]
+        at += 12 + length
+    raw, stride = zlib.decompress(idat), width * 3 + 1
+    return width, height, [raw[y * stride + 1:(y + 1) * stride] for y in range(height)]
+
+
+# Glow shots and their twins without the glow (the same frame, the Punchy glow off).
+GLOW_TWINS = (("ui_hands_gold", "ui_hands_gold_bare"), ("ui_hands_night", "ui_hands_night_bare"))
+
+
+def glow_problems(game_dir, shots):
+    """
+    The hand glow must show: in the lower half of the screen, enough pixels right next to the dark arm (within 4 px,
+    in the frame without the glow) must be brighter with it (the count scales with the screen area);
+    what else moves between the two frames (particles, the action bar) mostly isn't next to the arm.
+    """
+    problems = []
+    for name, bare in GLOW_TWINS:
+        if f"screenshot-{name}.png" not in shots or f"screenshot-{bare}.png" not in shots:
+            continue
+        w, h, on = read_png(game_dir / f"screenshot-{name}.png")
+        w2, h2, off = read_png(game_dir / f"screenshot-{bare}.png")
+        if (w, h) != (w2, h2):
+            problems.append(f"{name} and {bare} aren't the same size")
+            continue
+        def dark(x, y):
+            return 0 <= x < w and 0 <= y < h and sum(off[y][x * 3:x * 3 + 3]) < 60
+
+        lit = 0
+        for y in range(h // 2, h):
+            a, b = on[y], off[y]
+            for x in range(0, w * 3, 3):
+                if ((a[x] * 2 + a[x + 1] * 7 + a[x + 2]) - (b[x] * 2 + b[x + 1] * 7 + b[x + 2]) >= 400
+                        and any(dark(x // 3 + dx, y + dy) for dx, dy in ((4, 0), (-4, 0), (0, 4), (0, -4), (2, 0), (-2, 0), (0, 2), (0, -2)))):
+                    lit += 1
+        need = int(2000 * (h / 1080) ** 2)  # with the glow about 4,000 to 7,000 at 1080p; without it under 1,100
+        if lit < need:
+            problems.append(f"the hand glow didn't show in {name}: {lit} pixels lit by it, at least {need} expected")
+    return problems
+
+
+def _lab(c):
+    """sRGB 0..255 to CIE L*a*b* (D65)."""
+    def lin(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (lin(v) for v in c)
+    x, y, z = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, r * 0.2126 + g * 0.7152 + b * 0.0722, \
+        (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x), f(y), f(z)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def delta_e(a, b):
+    la, lb = _lab(a), _lab(b)
+    return sum((p - q) ** 2 for p, q in zip(la, lb)) ** 0.5
+
+
+# The pixel window's shots whose title bar is checked (A.8).
+PIXEL_BAR_SHOTS = ("ui_menu_modules", "ui_menu_presets", "ui_menu_settings")
+
+
+def pixel_ui_problems(game_dir, shots, results):
+    """
+    A.8: the pixel window's title bar (back, the quick menu's tab and the tabs) is flat pixel art: few colours, none
+    of them smoothing between two others; and the theme's accent shows in it (the open tab's outline) within delta E
+    12 (the accent the scenario had when it took the shot). The bar is opaque, so the world behind it can't add colours.
+    """
+    problems = []
+    accents = (results or {}).get("uiAccents", {})
+    for name in PIXEL_BAR_SHOTS:
+        file = f"screenshot-{name}.png"
+        if file not in shots:
+            continue
+        hexa = accents.get(name)
+        accent = tuple(int(hexa[i:i + 2], 16) for i in (1, 3, 5)) if hexa else None
+        w, h, rows = read_png(game_dir / file)
+        u = min(w / 1280, h / 720)
+        ox, oy = (w - 1280 * u) / 2, (h - 720 * u) / 2
+        x0, x1, y0, y1 = int(ox + 170 * u), int(ox + 850 * u), int(oy + 68 * u), int(oy + 100 * u)
+        colours, near = set(), 0
+        for y in range(y0, y1):
+            row = rows[y]
+            for x in range(x0, x1):
+                colours.add(bytes(row[x * 3:x * 3 + 3]))
+        for c in colours:
+            if accent and delta_e(tuple(c), accent) <= 12:
+                near += 1
+        # The window's left outline: a run of whole screen pixels in one colour, round(3 u) wide.
+        ey = int(oy + 400 * u)
+        ex = int(round(ox + 40 * u))
+        if 0 <= ey < h and 0 <= ex < w:
+            row, run = rows[ey], 0
+            edge = bytes(row[ex * 3:ex * 3 + 3])
+            while ex + run < w and bytes(row[(ex + run) * 3:(ex + run) * 3 + 3]) == edge:
+                run += 1
+            want = max(1, int(3 * u + 0.5))  # as Java rounds (half up)
+            if run != want:
+                problems.append(f"{name}: the window's outline is {run} px wide, not a whole {want} px")
+        if len(colours) > 64:
+            problems.append(f"{name}: the title bar has {len(colours)} colours; flat pixel art has a few dozen at most (smoothing?)")
+        if accent and near == 0:
+            problems.append(f"{name}: the accent {hexa} isn't in the title bar within delta E 12")
+        soft = soft_edges(rows, x0, x1, y0, y1)
+        if soft > 0:
+            problems.append(f"{name}: {soft} in-between pixels on the title bar's edges (icons and outlines must be hard)")
+    # No main label (a tab, a button, a card's or a tile's name) had to be cut to fit its slab.
+    for name, labels in sorted(((results or {}).get("textCuts") or {}).items()):
+        problems.append(f"{name}: labels cut to fit: {', '.join(labels[:5])}")
+    return problems
+
+
+def soft_edges(rows, x0, x1, y0, y1):
+    """Pixels between two clearly different neighbours (left and right, or above and below) whose colour sits on
+    the line between theirs, part way: what smoothing leaves along an edge. Hard pixel art has none."""
+    count = 0
+    for y in range(y0 + 1, y1 - 1):
+        for x in range(x0 + 1, x1 - 1):
+            p = rows[y][x * 3:x * 3 + 3]
+            for a, b in ((rows[y][(x - 1) * 3:(x - 1) * 3 + 3], rows[y][(x + 1) * 3:(x + 1) * 3 + 3]),
+                         (rows[y - 1][x * 3:x * 3 + 3], rows[y + 1][x * 3:x * 3 + 3])):
+                if a == p or b == p or a == b:
+                    continue
+                d = [b[i] - a[i] for i in range(3)]
+                dd = sum(v * v for v in d)
+                if dd < 60 * 60:
+                    continue
+                t = sum((p[i] - a[i]) * d[i] for i in range(3)) / dd
+                if not 0.25 < t < 0.75:
+                    continue
+                off = sum((p[i] - a[i] - t * d[i]) ** 2 for i in range(3))
+                if off <= 6 * 6:
+                    count += 1
+                    break
+    return count
+
+
 def our_log_problems(game_dir):
     """The log gate, on our own log file: unexpected warnings and errors, expected ones more than once, and any
     identical line more than REPEAT_LIMIT times (per-frame or per-tick logging)."""
@@ -774,6 +961,157 @@ def our_log_problems(game_dir):
     return problems
 
 
+def _hexrgb(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _changed(a, b, w, h, step=1):
+    """The pixels that differ by more than 40 in some channel, as (x, y) with the new colour, every step-th pixel."""
+    out = []
+    for y in range(0, h, step):
+        ra, rb = a[y], b[y]
+        for x in range(0, w * 3, 3 * step):
+            if abs(ra[x] - rb[x]) > 40 or abs(ra[x + 1] - rb[x + 1]) > 40 or abs(ra[x + 2] - rb[x + 2]) > 40:
+                out.append((x // 3, y, (ra[x], ra[x + 1], ra[x + 2])))
+    return out
+
+
+def _vivid(rgb):
+    """The accent as the effects wear it (FxColour.vivid): the same hue, saturation at least 0.7 and value at least
+    0.95; a grey stays grey."""
+    import colorsys
+    h, s, v = colorsys.rgb_to_hsv(*(c / 255.0 for c in rgb))
+    if s < 0.06:
+        return rgb
+    r, g, b = colorsys.hsv_to_rgb(h, max(s, 0.7), max(v, 0.95))
+    return (round(r * 255), round(g * 255), round(b * 255))
+
+
+def _mix(a, b, t):
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+
+def _accent_family(accent):
+    """
+    The colours an effect in the accent wears: the accent and the vivid form of it the effects draw in
+    (FxColour.vivid), and their tints toward white (light: a glow's hot middle, a lit edge) and shades toward black (a
+    shadowed side), in steps.
+    """
+    out = []
+    for base in (accent, _vivid(accent)):
+        out += [_mix(base, (255, 255, 255), t / 20) for t in range(0, 13)]
+        out += [_mix(base, (0, 0, 0), t / 20) for t in range(1, 9)]
+    return out
+
+
+def _accent_near(pixels, accent):
+    """Whether the effect's saturated colours include the accent: of its colours (in 16-step bins) that cover at least
+    half a percent of what it changed, any within delta E 12 of it or of one of its tints and shades (an effect of
+    light shows as the accent lightened toward white; _accent_family). Returns (ok, best delta E, the colour)."""
+    family = _accent_family(accent)
+    bins = {}
+    for _, _, c in pixels:
+        mx, mn = max(c), min(c)
+        if mx < 40 or mx - mn < 30:
+            continue  # greys, white and black say nothing of the colour
+        key = (c[0] >> 4, c[1] >> 4, c[2] >> 4)
+        e = bins.setdefault(key, [0, 0, 0, 0])
+        e[0] += 1
+        e[1] += c[0]
+        e[2] += c[1]
+        e[3] += c[2]
+    best = (999.0, None)
+    floor = max(20, len(pixels) // 200)
+    for n, r, g, b in sorted(bins.values(), reverse=True):
+        if n < floor:
+            break
+        col = (r // n, g // n, b // n)
+        d = min(delta_e(col, f) for f in family)
+        if d < best[0]:
+            best = (d, col)
+    return best[0] <= 12, best[0], best[1]
+
+
+def fx_problems(game_dir, summary_phases):
+    """
+    Part C's checks (section D) on the effects the scenario staged: each one shows (its frames differ from the frame
+    with nothing playing), its colour is the preset's accent within delta E 12 on both presets (when the effect takes
+    the preset's colour), a grey one doesn't show through a wall, and a contact sheet of its six frames is written
+    (screenshot-fxsheet_<effect>.png).
+    """
+    path = game_dir / "cosmeticsmod-fx-results.json"
+    if not path.exists():
+        return []
+    problems = []
+    res = json.loads(path.read_text())
+    for case in res.get("cases", []):
+        name = case["name"]
+        off_file = game_dir / f"fx-{name}-off.png"
+        frames = [game_dir / f"fx-{name}-{k}.png" for k in range(6)]
+        if not off_file.exists() or not all(f.exists() for f in frames):
+            problems.append(f"fx {name}: frames missing")
+            continue
+        w, h, off = read_png(off_file)
+        shown, colour_px = [], []
+        imgs = []
+        for k, f in enumerate(frames):
+            fw, fh, rows = read_png(f)
+            imgs.append(rows)
+            changed = _changed(rows, off, w, h)
+            shown.append(len(changed))
+            if k in (1, 2, 3):
+                colour_px.extend(changed)
+        info = {"life": case.get("life"), "shown": "/".join(str(n) for n in shown)}
+        need = max(30, int(30 * (w * h) / (854 * 480)))
+        if max(shown[:5]) < need:
+            problems.append(f"fx {name}: not visible (changed pixels per frame {info['shown']}, at least {need} wanted)")
+        if case.get("colour"):
+            ok, d, col = _accent_near(colour_px, _hexrgb(case["accent_a"]))
+            info["dE_a"] = round(d, 1)
+            if not ok:
+                problems.append(f"fx {name}: its colour isn't the accent {case['accent_a']} on {res['preset_a']} (nearest delta E {d:.1f}, {col})")
+            boff_file = game_dir / f"fx-{name}-boff.png"
+            b_files = [game_dir / f"fx-{name}-b{k}.png" for k in (1, 2, 3)]
+            if boff_file.exists() and all(f.exists() for f in b_files):
+                _, _, boff = read_png(boff_file)
+                # Against the same scene on the second preset without the effect, at the same three moments.
+                changed_b = []
+                for f in b_files:
+                    changed_b.extend(_changed(read_png(f)[2], boff, w, h))
+                ok, d, col = _accent_near(changed_b, _hexrgb(case["accent_b"]))
+                info["dE_b"] = round(d, 1)
+                if not ok:
+                    problems.append(f"fx {name}: its colour isn't the accent {case['accent_b']} on {res['preset_b']} (nearest delta E {d:.1f}, {col})")
+        if not case.get("cleaned", True):
+            problems.append(f"fx {name}: still in the pool after its life")
+        if case.get("wall"):
+            # A grey effect (one that could tell you something) played behind a wall mustn't show through it.
+            wall_off = game_dir / f"fx-{name}-wall-off.png"
+            wall_files = [game_dir / f"fx-{name}-wall-{k}.png" for k in (1, 2, 3)]
+            if wall_off.exists() and all(f.exists() for f in wall_files):
+                _, _, wo = read_png(wall_off)
+                # The game's own "Saving world" notice may come up in the bottom right corner: not the effect.
+                through = [sum(1 for x, y, _ in _changed(read_png(f)[2], wo, w, h) if not (x > w * 0.7 and y > h - 48))
+                           for f in wall_files]
+                info["wall"] = "/".join(str(n) for n in through)
+                if max(through) > need // 3:
+                    problems.append(f"fx {name}: shows through a wall (changed pixels {info['wall']})")
+            else:
+                problems.append(f"fx {name}: its frames behind a wall are missing")
+        # The contact sheet: the six frames side by side at half size.
+        hw, hh = w // 2, h // 2
+        rows_out = []
+        for y in range(hh):
+            line = bytearray()
+            for rows in imgs:
+                src = rows[y * 2]
+                line += b"".join(src[x * 6:x * 6 + 3] for x in range(hw))
+            rows_out.append(bytes(line))
+        write_png(game_dir / f"screenshot-fxsheet_{name}.png", hw * len(imgs), hh, rows_out)
+        summary_phases[f"fx_{name}"] = info
+    return problems
+
+
 def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, node):
     problems = []
     results_path = game_dir / ("cosmeticsmod-sol-results.json" if mode == "sol" else "cosmeticsmod-results.json")
@@ -799,6 +1137,15 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
     if ours:
         problems.append(f"{len(ours)} error line(s) from this mod, e.g. {ours[0]}")
     problems.extend(our_log_problems(game_dir))
+    # One of our shaders that doesn't compile is logged by the game, not by us, and its pass then draws nothing.
+    broken = sorted({line.strip()[:240] for line in text.splitlines() if SHADER_PROBLEM.search(line)})
+    if broken:
+        problems.append(f"{len(broken)} shader(s) of this mod didn't compile, e.g. {broken[0]}")
+    fx_phases = {}
+    if mode == "sol":
+        problems.extend(glow_problems(game_dir, shots))
+        problems.extend(pixel_ui_problems(game_dir, shots, results))
+        problems.extend(fx_problems(game_dir, fx_phases))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()
@@ -815,7 +1162,7 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
         "passed": not problems,
         "problems": problems,
         "seconds": seconds,
-        "phases": (results or {}).get("phases", {}),
+        "phases": {**(results or {}).get("phases", {}), **fx_phases},
         "screenshots": shots,
     }
 
@@ -868,7 +1215,9 @@ def cmd_look(args):
     mc = args.release or info["test"][-1]
     jar = mod_jar_for(args.node, args.jars)
     inst = Instance(mc, java_for(info["java"]), args.cache)
-    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout)
+    # MCCI_EXTRA_MODS: a folder of other mods' jars to run alongside (a look at Sol with them installed).
+    summary = run_game(inst, jar, args.out, "sol", mode="sol", node=args.node, timeout=args.timeout,
+                       extra_mods_dir=os.environ.get("MCCI_EXTRA_MODS") or None)
     return 0 if summary["passed"] else 1
 
 
@@ -1221,7 +1570,7 @@ def main():
     p.add_argument("--node", required=True, help="build (Stonecutter version), e.g. 1.21.11")
     p.add_argument("--release", default="", help="Minecraft release to run (default: the build's newest)")
     p.add_argument("--sol", default="full", help="Sol scenario: full, reduced or look")
-    p.add_argument("--timeout", type=int, default=1500)
+    p.add_argument("--timeout", type=int, default=2400)
     p.add_argument("--jars", default=str(ROOT / "build" / "libs"))
     p.add_argument("--cache", default=str(ROOT / "ci" / "work" / "cache"))
     p.add_argument("--out", default=str(ROOT / "ci" / "work" / "runs"))

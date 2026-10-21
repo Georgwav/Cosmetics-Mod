@@ -300,7 +300,7 @@ public record Customisation(float hue, float sat, float density, Float fog, floa
             int ref0 = ref.nebula().isEmpty() ? nebula.get(0).color() : ref.nebula().get(0).color();
             List<ThemeSpec.Nebula> out = new ArrayList<>();
             for (ThemeSpec.Nebula n : nebula) {
-                out.add(new ThemeSpec.Nebula(n.x(), n.y(), n.r(), col("nebula", n.color(), ref0)));
+                out.add(new ThemeSpec.Nebula(n.x(), n.y(), n.r(), col("nebula", n.color(), ref0), n.big(), n.tint(), n.strength()));
             }
             nebula = List.copyOf(out);
         }

@@ -31,6 +31,31 @@ class TintTest {
     }
 
     @Test
+    void everyCosmeticFollowsTheThemeUnlessItHasItsOwnColour() {
+        java.util.function.IntUnaryOperator themeWas = Tint.theme;
+        java.util.function.Supplier<String> everyWas = Tint.every;
+        try {
+            Tint.theme = which -> which == 1 ? 0x112233 : 0xFF5FA8;
+            Tint.every = () -> "accent";
+            CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
+            assertEquals(0xFFFF5FA8, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0), "no colour of its own: the accent");
+            options.themeColor = "glow";
+            assertEquals(0xFF112233, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0), "its own follow setting comes first");
+            options.themeColor = "own";
+            assertEquals(0xFF2266AA, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0), "Off keeps its own colour");
+            options.themeColor = null;
+            options.color = 0x336699;
+            assertEquals(0xFF336699, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0), "a picked colour stays");
+            options.color = null;
+            Tint.every = () -> null;
+            assertEquals(0xFF2266AA, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0), "switched off: its own colour");
+        } finally {
+            Tint.theme = themeWas;
+            Tint.every = everyWas;
+        }
+    }
+
+    @Test
     void defaultColourUntilThePlayerPicksOne() {
         CosmeticsConfig.CosmeticOptions options = new CosmeticsConfig.CosmeticOptions();
         assertEquals(0xFF2266AA, Tint.argb(options, CosmeticOption.ALL, 0x2266AA, 0));

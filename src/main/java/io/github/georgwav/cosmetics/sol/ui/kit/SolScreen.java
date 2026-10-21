@@ -26,8 +26,8 @@ import net.minecraft.client.input.MouseButtonEvent;
  * <ul>
  *   <li><b>Drawing:</b> the screen draws through {@link Gfx} in screen pixels. Shapes are smooth and text is sharp
  *   at every GUI scale.</li>
- *   <li><b>Background:</b> the game's blur only (when the player keeps menu blur on), never the game's dark menu
- *   wash; every Sol screen lays its own veil so the world stays visible.</li>
+ *   <li><b>Background:</b> never a blur and never the game's dark menu wash: the pixel UI dims the world with flat
+ *   black at 24% (screens that show the world as it is, such as the HUD editor, don't).</li>
  *   <li><b>Input:</b> arrives in design pixels, with Ctrl and Shift.</li>
  *   <li><b>Errors:</b> a screen that throws while drawing is closed (Guard switches the Sol UI off and says so
  *   once), never the game.</li>
@@ -85,6 +85,20 @@ public abstract class SolScreen extends Screen {
         return false;
     }
 
+    /** A key let go (the editor's space-to-pan). */
+    protected boolean keyUp(int key) {
+        return false;
+    }
+
+    /** Files dropped on the window (the editor's PNG import). */
+    protected void dropped(java.util.List<java.nio.file.Path> paths) {
+    }
+
+    @Override
+    public void onFilesDrop(java.util.List<java.nio.file.Path> paths) {
+        dropped(paths);
+    }
+
     /** A typed character, for type-to-search. */
     protected boolean typed(String text) {
         return false;
@@ -102,10 +116,16 @@ public abstract class SolScreen extends Screen {
     protected void game(Canvas canvas, int mouseX, int mouseY) {
     }
 
-    /** Whether the game behind is blurred (the HUD editor shows the game as it is). */
+    /**
+     * Whether the world behind is dimmed with flat black at 24% (Settings › "Dim the world behind menus"; the HUD
+     * editor shows the game as it is).
+     */
     protected boolean blurs() {
-        return true;
+        return io.github.georgwav.cosmetics.sol.config.SolConfig.get().menuBlur;
     }
+
+    /** Sol's menus never blur the world (the pixel UI's rule); counted for the checks. */
+    public static int blursRun;
 
     /** Called when the screen is closed or replaced; free textures here. */
     protected void closed() {
@@ -133,11 +153,24 @@ public abstract class SolScreen extends Screen {
         super.removed();
     }
 
+    private boolean opened;
+
+    /** Whether it sounds UI sounds' open as it first draws (the title screen doesn't). */
+    protected boolean openSound() {
+        return true;
+    }
+
     private void draw(Canvas canvas, int mouseX, int mouseY) {
         long now = System.nanoTime();
         dt = lastNanos == 0L ? 0f : Math.min(0.05f, (now - lastNanos) / 1e9f);
         lastNanos = now;
         time += dt;
+        if (!opened) {
+            opened = true;
+            if (openSound()) {
+                UiSounds.open();
+            }
+        }
         double gs = minecraft.getWindow().getGuiScale();
         d.update(width, height, gs);
         mx = pointerOff ? -1000f : d.mouseX(mouseX);
@@ -145,6 +178,14 @@ public abstract class SolScreen extends Screen {
         canvas.push();
         canvas.scale((float) (1.0 / gs), (float) (1.0 / gs));
         g.begin(canvas);
+        if (minecraft.level == null) {
+            // Before any world (the title screen at launch): the theme's colours from the first frame, and a theme
+            // change animating every frame.
+            io.github.georgwav.cosmetics.sol.theme.ThemeState.update(Float.NaN);
+        }
+        if (blurs() && minecraft.level != null) {
+            g.rectScreen(0f, 0f, d.screenW, d.screenH, 0x3D000000, 0x3D000000);
+        }
         boolean ok = Guard.on(feature) && Guard.run(feature, () -> frame(g));
         g.end();
         canvas.pop();
@@ -213,6 +254,11 @@ public abstract class SolScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(KeyEvent event) {
+        return keyUp(event.key()) || super.keyReleased(event);
+    }
+
+    @Override
     public boolean charTyped(CharacterEvent event) {
         return typed(event.codepointAsString()) || super.charTyped(event);
     }
@@ -241,6 +287,11 @@ public abstract class SolScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        return keyUp(keyCode) || super.keyReleased(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public boolean charTyped(char c, int modifiers) {
         return typed(String.valueOf(c)) || super.charTyped(c, modifiers);
     }
@@ -259,9 +310,6 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             extractPanorama(graphics, partialTick);
         }
-        if (blurs()) {
-            extractBlurredBackground(graphics);
-        }
     }
     *///?} elif >=1.21.6 {
     @Override
@@ -273,9 +321,6 @@ public abstract class SolScreen extends Screen {
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
-        }
-        if (blurs()) {
-            renderBlurredBackground(graphics);
         }
     }
     //?} elif >=1.21.2 {
@@ -290,9 +335,6 @@ public abstract class SolScreen extends Screen {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
         }
-        if (blurs()) {
-            renderBlurredBackground();
-        }
     }
     *///?} else {
     /*@Override
@@ -305,9 +347,6 @@ public abstract class SolScreen extends Screen {
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (minecraft.level == null) {
             renderPanorama(graphics, partialTick);
-        }
-        if (blurs()) {
-            renderBlurredBackground(partialTick);
         }
     }
     *///?}

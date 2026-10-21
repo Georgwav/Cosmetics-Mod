@@ -45,13 +45,12 @@ public final class Scroll {
         max = Float.MAX_VALUE;
     }
 
-    /** A thin scrollbar at the right of a view, when the content is taller. */
+    /** The pixel scrollbar (6 px, the accent thumb on its track) ending at {@code right}, when the content is taller. */
     public void bar(Gfx g, float right, float y, float h) {
         if (max <= 0f) {
             return;
         }
-        float th = Math.max(24f, h * h / (h + max));
-        float ty = y + (h - th) * (value / max);
-        g.round(right - 4f, ty, 3f, th, 1.5f, 0x40FFFFFF);
+        float content = h + max;
+        Pix.scrollbar(g, PixelTokens.get(), right - 6f, y, h, value / content, (value + h) / content);
     }
 }

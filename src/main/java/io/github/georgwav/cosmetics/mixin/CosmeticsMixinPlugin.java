@@ -21,6 +21,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SolOverlayMixin");
         all.add("SolCloudsMixin");
         all.add("SolGameRendererMixin");
+        all.add("PunchyArmsMixin");
+        all.add("DarkArmsMixin");
         all.add("TitleSwapMixin");
         all.add("LoadingLookMixin");
         all.add("ButtonLookMixin");
@@ -29,6 +31,33 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("DeathLookMixin");
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
+        all.add("KnifePackMixin");
+        all.add("SpriteContentsAccess");
+        all.add("KnifeHandMixin");
+        all.add("HandMotionMixin");
+        all.add("HandsMixin");
+        all.add("HandsBobMixin");
+        all.add("ShieldStatusMixin");
+        all.add("ItemPhysicsMixin");
+        all.add("CosmosCracksMixin");
+        all.add("ContainerScreenAccessor");
+        all.add("ScreenSlideMixin");
+        // Chunk rise: not on 1.21.5 (ChunkRise).
+        //? if >=1.21.6 {
+        all.add("ChunkRiseMixin");
+        //?} elif <1.21.5 {
+        /*all.add("ChunkRiseMixin");
+        *///?}
+        all.add("KnifeInputMixin");
+        //? if <26.3 {
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("punchy")) {
+            all.add("KnifePunchyMixin");
+            all.add("KnifeKeyMixin");
+        }
+        //?}
+        //? if >=1.21.11 {
+        all.add("PlayerCritAccess");
+        //?}
         all.add("PackEntryAccess");
         all.add("PackSearchMixin");
         all.add("TotemSizeMixin");
@@ -38,9 +67,6 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("NametagHealthMixin");
         all.add("NametagShadowMixin");
         all.add("BeaconLevelsAccess");
-        all.add("HitboxColorMixin");
-        all.add("HitboxWidthMixin");
-        all.add("HitboxFilterMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");
@@ -51,6 +77,8 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("DeathStreamerMixin");
         all.add("SolHudLookMixin");
         all.add("TotemPopMixin");
+        all.add("TotemParticleMixin");
+        all.add("ExplosionMixin");
         all.add("EndCrystalLookMixin");
         all.add("CrystalRemovalMixin");
         //? if >=1.21.9 && <1.21.11 {
@@ -70,6 +98,10 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ParticleTweaksMixin");
         all.add("ScreenshotMixin");
         all.add("ItemDecorationsMixin");
+        all.add("GlintFoilMixin");
+        //? if <1.21.4 {
+        /*all.add("GlintGuiContextMixin");
+        *///?}
         all.add("DisconnectedScreenMixin");
         all.add("ServerEntryMixin");
         all.add("ServerEntryCountMixin");
@@ -111,7 +143,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "GuiMixin", "BossOverlayMixin");
         *///?} else {
-        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
+        /*return List.of("SolSkyMixin", "SolLevelRendererMixin", "SolFogMixin", "SolTintMixin", "ItemInHandRendererMixin", "ItemInHandLayerMixin", "ShieldItemRendererMixin", "PlayerModelMixin", "PlayerRendererMixin",
                 "ElytraModelMixin", "WingsLayerMixin", "OptionInstanceAccessor", "OptionsMixin", "LevelMixin", "AbstractClientPlayerMixin",
                 "GuiMixin", "GuiAirMixin", "BossOverlayMixin");
         *///?}

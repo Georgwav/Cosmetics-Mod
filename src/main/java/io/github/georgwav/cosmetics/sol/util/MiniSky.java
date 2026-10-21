@@ -21,7 +21,6 @@ public final class MiniSky {
             Map.entry("frost_morning", new int[]{0xFFE9EEF3, 0xFFB8C2C9}),
             Map.entry("ember_solstice", new int[]{0xFFFCCF71, 0xFFE8A64E}),
             Map.entry("aurora", new int[]{0xFF2B4A3C, 0xFF1D2B2A}),
-            Map.entry("nebula", new int[]{0xFF3B2B52, 0xFF22183A}),
             Map.entry("firefly_meadow", new int[]{0xFF4F7A2E, 0xFF5A4630}),
             Map.entry("monsoon", new int[]{0xFF3D5A3A, 0xFF3A3833}),
             Map.entry("maple_afternoon", new int[]{0xFF9C8A35, 0xFF7A5235}),
@@ -43,6 +42,11 @@ public final class MiniSky {
 
     /** The theme's frame at {@code w} x {@code h} pixels (the prototypes' cards are 112 x 46 at 2x). */
     public static PixelCanvas render(ThemeSpec th, String id, int w, int h, float t) {
+        return render(th, id, w, h, t, true);
+    }
+
+    /** The same, with or without the theme's particles (left out where they are drawn live over the picture). */
+    public static PixelCanvas render(ThemeSpec th, String id, int w, int h, float t, boolean particles) {
         PixelCanvas g = new PixelCanvas(w, h);
         float W = w, H = h, sc = H / 560f, hz = H * 0.64f;
         int[] sky = {th.sky().top(), th.sky().middle(), th.sky().horizon()};
@@ -72,10 +76,10 @@ public final class MiniSky {
         // Sky and the fog below the horizon.
         g.fillRect(0, 0, W, hz + 1, PixelCanvas.linear(0, 0, 0, hz, PixelCanvas.Stops.of(0f, sky[0], 0.55f, sky[1], 1f, sky[2])));
         g.fillRect(0, hz, W, H - hz, fog);
-        // Nebula.
+        // The nebulae, which only show at night.
         g.setLighter(true);
-        for (ThemeSpec.Nebula n : th.nebula()) {
-            g.setGlobalAlpha(0.38f + 0.06f * (float) Math.sin(t * 0.3f + n.x() * 9f));
+        for (ThemeSpec.Nebula n : "night".equals(th.show().phase()) ? th.nebula() : java.util.List.<ThemeSpec.Nebula>of()) {
+            g.setGlobalAlpha((0.38f + 0.06f * (float) Math.sin(t * 0.3f + n.x() * 9f)) * Math.min(1f, n.strength()));
             float rr = n.r() * W;
             g.drawImage(Sprites.glow(n.color()), n.x() * W - rr, n.y() * H - rr * 0.7f, rr * 2f, rr * 1.4f, true);
         }
@@ -193,7 +197,7 @@ public final class MiniSky {
         if (fd > 0.6f) {
             g.fillRect(0, hz, W, H - hz, Colors.withAlpha(fog, (fd - 0.6f) * 0.9f));
         }
-        for (Part p : parts) {
+        for (Part p : particles ? parts : List.<Part>of()) {
             part(g, p, W, H, sc, fd, t);
         }
         g.setGlobalAlpha(1f);

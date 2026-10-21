@@ -10,6 +10,7 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeSpec;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.ColorPicker;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
@@ -72,10 +73,7 @@ public final class ThemePage implements Page {
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk) {
-        g.glow(X, Y, W, H, 22f, 40f, Colors.withAlpha(tk.glow, 0.18f));
-        g.round(X, Y, W, H, 22f, 0xFF0B0C11);
-        g.stroke(X, Y, W, H, 22f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(X, Y, W, H, 22f, 0x40FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), X, Y, W, H);
         ui.area(X, Y, W, H, () -> { });
         ThemeRegistry.Entry e = ThemeState.baseEntry();
         header(menu, g, ui, tk, e);
@@ -88,8 +86,7 @@ public final class ThemePage implements Page {
 
     private void header(SolMenu menu, Gfx g, Ui ui, Tokens tk, ThemeRegistry.Entry e) {
         float iy = Y + 16f;
-        g.round(X + PAD, iy, 46f, 46f, 13f, 0x1AFFFFFF);
-        g.glowSprite(X + PAD + 23f, iy + 23f, 30f, 30f, Colors.withAlpha(tk.glow, 0.6f));
+        Pix.fill(g, X + PAD, iy, 46f, 46f, 0x1AFFFFFF);
         g.rect(X + PAD + 15f, iy + 15f, 16f, 16f, tk.accent);
         float right = X + W - PAD;
         ui.tool(tk, right - 26f, Y + 26f, "close", false, menu::closeDrawer);
@@ -105,7 +102,7 @@ public final class ThemePage implements Page {
             menu.toast(SolMenu.tr("sol.notify.theme_reset", Widgets.themeName(e)));
         });
         float tx = X + PAD + 60f, room = bx - aw - 10f - rw - 16f - tx;
-        SolFont name = g.font(SolFont.Family.SEMIBOLD, 22f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
+        SolFont name = g.font(SolFont.Family.PIXEL_BOLD, 16f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
         g.textMid(name, g.fit(name, SolMenu.tr("sol.menu.theme.title", Widgets.themeName(e)), room), tx, Y + 30f, 0xFFFFFFFF);
         g.textMid(desc, g.fit(desc, SolMenu.tr("sol.menu.theme.line"), room), tx, Y + 52f, 0x94FFFFFF);
         g.rect(X + 1f, Y + 76f, W - 2f, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
@@ -128,14 +125,14 @@ public final class ThemePage implements Page {
     }
 
     private static void preview(Gfx g, SolTexture t, float x, float y, float h, String caption) {
-        g.round(x, y, LEFT_W, h, 14f, 0x0AFFFFFF);
+        Pix.fill(g, x, y, LEFT_W, h, 0x0AFFFFFF);
         if (t != null && !t.released()) {
             g.clip(x, y, x + LEFT_W, y + h);
             g.image(t, x, y, LEFT_W, h, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
             g.endClip();
         }
-        g.stroke(x, y, LEFT_W, h, 14f, Math.max(1f, g.d.u), 0x14FFFFFF);
-        SolFont cap = g.font(SolFont.Family.MONO, 10.5f);
+        Pix.frame(g, x, y, LEFT_W, h, 0x14FFFFFF);
+        SolFont cap = g.font(SolFont.Family.PIXEL, 10f);
         g.text(cap, caption, x + 12f, y + h - 10f, 0xB3FFFFFF);
     }
 
@@ -347,7 +344,7 @@ public final class ThemePage implements Page {
             String d = SolMenu.tr("sol.menu.page.default");
             float dw = g.width(df, d) + 16f, dx = x + labelW + 10f;
             ui.click(dx, cy - 10f, dw, 20f, reset);
-            g.round(dx, cy - 10f, dw, 20f, 10f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
+            Pix.fill(g, dx, cy - 10f, dw, 20f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
             g.textMid(df, d, dx + 8f, cy, 0xB3FFFFFF);
         }
         return rh;
@@ -390,15 +387,14 @@ public final class ThemePage implements Page {
         String now = picked != null ? picked : own;
         var cur = looks.get(now);
         String name = cur != null ? cur.name() : now;
-        ui.button(tk, x + w, y + rh / 2f, name + "  …", choosingLook, () -> choosingLook = !choosingLook);
+        ui.dropButton(tk, x + w, y + rh / 2f, name, choosingLook, () -> choosingLook = !choosingLook);
         float extra = 0f;
         if (choosingLook) {
-            SolFont of = g.font(SolFont.Family.MEDIUM, 12f);
             float ox = x, oy = y + rh + 4f;
             for (var entry : looks.entrySet()) {
                 String id = entry.getKey();
                 String label = entry.getValue().name() + (id.equals(own) ? " · " + SolMenu.tr("sol.menu.theme.own") : "");
-                float cw = g.width(of, label) + 22f;
+                float cw = ui.chipWidth(label);
                 if (ox + cw > x + w) {
                     ox = x;
                     oy += 30f;
@@ -442,9 +438,9 @@ public final class ThemePage implements Page {
                 picker = new ColorPicker(() -> current(part) & 0xFFFFFF, rgb -> set(c().withColour(part, 0xFF000000 | rgb)));
             }
         });
-        g.round(right - sw, cy - 12f, sw, 24f, 7f, shown | 0xFF000000);
-        g.stroke(right - sw, cy - 12f, sw, 24f, 7f, Math.max(1f, g.d.u), open ? tk.accent : 0x40FFFFFF);
-        SolFont m = g.font(SolFont.Family.MONO, 11.5f);
+        Pix.fill(g, right - sw, cy - 12f, sw, 24f, shown | 0xFF000000);
+        Pix.frame(g, right - sw, cy - 12f, sw, 24f, open ? tk.accent : 0x40FFFFFF);
+        SolFont m = g.font(SolFont.Family.PIXEL, 11f);
         g.textRight(m, own != null ? String.format(Locale.ROOT, "#%06X", own & 0xFFFFFF) : SolMenu.tr("sol.menu.theme.own"),
                 right - sw - 10f, cy, own != null ? 0xB3FFFFFF : 0x73FFFFFF);
         float extra = 0f;

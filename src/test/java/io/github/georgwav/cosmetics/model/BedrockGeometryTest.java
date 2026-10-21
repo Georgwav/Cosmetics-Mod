@@ -108,6 +108,66 @@ class BedrockGeometryTest {
     }
 
     @Test
+    void eachFaceGetsItsPictureByGeorgsFaceTable() {
+        // A 2x3x4 cube at the origin, each face its own rectangle. The table names a face's corners in Bedrock
+        // coordinates: left-top, right-top, left-bottom, right-bottom of the picture (u left = smaller, v top = smaller).
+        String[] names = {"up", "down", "east", "west", "north", "south"};
+        float[][][] table = {
+                {{0, 3, 4}, {2, 3, 4}, {0, 3, 0}, {2, 3, 0}},
+                {{0, 0, 0}, {2, 0, 0}, {0, 0, 4}, {2, 0, 4}},
+                {{0, 3, 4}, {0, 3, 0}, {0, 0, 4}, {0, 0, 0}},
+                {{2, 3, 0}, {2, 3, 4}, {2, 0, 0}, {2, 0, 4}},
+                {{0, 3, 0}, {2, 3, 0}, {0, 0, 0}, {2, 0, 0}},
+                {{2, 3, 4}, {0, 3, 4}, {2, 0, 4}, {0, 0, 4}},
+        };
+        StringBuilder faces = new StringBuilder();
+        for (int f = 0; f < names.length; f++) {
+            faces.append(f == 0 ? "" : ", ").append('"').append(names[f]).append("\": {\"uv\": [").append(f * 10)
+                    .append(", 20], \"uv_size\": [4, 6]}");
+        }
+        CosmeticDefinition.Cube cube = onlyCube(convert(
+                "[{\"name\": \"b\", \"cubes\": [{\"origin\": [0, 0, 0], \"size\": [2, 3, 4], \"uv\": {" + faces + "}}]}]"));
+        float[] data = CosmeticBaker.bake(definition(cube)).layers()[0].mesh().data();
+        int stride = BakedMesh.FLOATS_PER_VERTEX;
+        for (int f = 0; f < names.length; f++) {
+            float u0 = f * 10 / 64f, v0 = 20 / 64f, u1 = (f * 10 + 4) / 64f, v1 = 26 / 64f;
+            float[][] uvs = {{u0, v0}, {u1, v0}, {u0, v1}, {u1, v1}};
+            int found = 0;
+            for (int q = 0; q < data.length; q += BakedMesh.FLOATS_PER_QUAD) {
+                // This face's quad has exactly the table's four corners.
+                int matched = 0;
+                for (int i = 0; i < 4; i++) {
+                    int c = corner(data, q, stride, table[f][i]);
+                    if (c >= 0) {
+                        matched++;
+                    }
+                }
+                if (matched < 4) {
+                    continue;
+                }
+                found++;
+                for (int i = 0; i < 4; i++) {
+                    int c = corner(data, q, stride, table[f][i]);
+                    assertArrayEquals(uvs[i], new float[]{data[c + 3], data[c + 4]}, EPS, names[f] + " corner " + i);
+                }
+            }
+            assertEquals(1, found, names[f]);
+        }
+    }
+
+    /** The offset of the quad's vertex at Bedrock point {@code p}, or -1. Ours is (x, 24 - y, z) / 16. */
+    private static int corner(float[] data, int quad, int stride, float[] p) {
+        for (int v = 0; v < 4; v++) {
+            int o = quad + v * stride;
+            if (Math.abs(data[o] * 16 - p[0]) < EPS && Math.abs(24 - data[o + 1] * 16 - p[1]) < EPS
+                    && Math.abs(data[o + 2] * 16 - p[2]) < EPS) {
+                return o;
+            }
+        }
+        return -1;
+    }
+
+    @Test
     void perFaceUvsMatchTheBoxUvLayoutOfTheSameCube() {
         // Blockbench writes a box-UV cube's faces into per-face UVs like this when exporting Bedrock
         // (its box layout, with up/down stored corner-swapped). Imported, it must equal our box UV.

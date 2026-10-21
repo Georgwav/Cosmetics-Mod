@@ -24,8 +24,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * on Sol's CPU thread into a small picture the size it is on the screen ({@link BodyRender}), about ten times a
  * second while it turns, lit from the sun's side at its real phase, and drawn added over a disc of darker sky (so
  * the stars behind it are hidden), with a soft glow round it. Every planet is up every night at the same hours, set
- * from the sun on the ecliptic; the wild worlds from the point opposite the sun. Render thread only, apart from the
- * pictures' making.
+ * from the sun on the ecliptic; the wild worlds from the point opposite the sun. A picture is painted turned to the
+ * sky as it was then, and drawn turned on to the sky as it is this frame, so a body turns with the stars round it
+ * when you look up and turn, not with your screen. Render thread only, apart from the pictures' making.
  */
 final class Planets {
     /** The lab's default moon glow (45%). */
@@ -41,6 +42,10 @@ final class Planets {
      * upload (which waits on a busy renderer, as with Voxy).
      */
     private static final float REPAINT = 0.25f;
+    /** A body is painted again sooner once the sky has turned this far on the screen since (radians), as you turn. */
+    private static final double REPAINT_TURN = 0.15;
+    /** Below this turn (radians) a picture is drawn square, its pixels on the screen's. */
+    private static final float STILL = 0.002f;
 
     /**
      * A body's picture: what was asked for, what's ready, and the texture it's drawn from. Two textures take turns,
@@ -57,6 +62,8 @@ final class Planets {
         int turn;
         SolTexture tex;
         int texSize, n, s;
+        /** The shown picture's turn on the screen when it was painted, its tilt and how far it had spun (radians). */
+        double shownPa, shownTilt, shownSpin;
         int askedN = -1;
         float askedAt = -99f;
 
@@ -65,14 +72,14 @@ final class Planets {
         }
     }
 
-    private record Picture(int n, int s, int[] px) {
+    private record Picture(int n, int s, int[] px, double pa, double tilt, double spin) {
     }
 
     // This frame's bodies, drawn in four passes.
     private static final int MAX = 24;
     private static final Slot[] seen = new Slot[MAX];
     private static final float[] seenX = new float[MAX], seenY = new float[MAX], seenD = new float[MAX], seenA = new float[MAX];
-    private static final float[] seenNx = new float[MAX], seenNy = new float[MAX];
+    private static final float[] seenNx = new float[MAX], seenNy = new float[MAX], seenTurn = new float[MAX];
     private static final int[] seenSky = new int[MAX];
     private static int seenCount;
 
@@ -108,6 +115,13 @@ final class Planets {
 
     /** The Death Star on the screen this frame (pixels; its diameter; how visible, 0 when it isn't up), for its superlaser. */
     static float deathX, deathY, deathD, deathA;
+    /** Its dish this frame, where the superlaser fires from: a unit vector in its picture (x right, y up, z toward you). */
+    static final double[] dish = new double[3];
+    /**
+     * For the scenario's frozen moments: the Death Star turned so its dish is this far round from facing you (radians),
+     * or NaN to let it spin.
+     */
+    static double dishTurn = Double.NaN;
 
     /** Draws the planets and the wild worlds (sky pass, after the stars). */
     static void render(Tokens tk, Atmosphere at, float t, float rain) {
@@ -158,15 +172,19 @@ final class Planets {
             screenDir(POLE, dir);
             float ndx = dir[0], ndy = dir[1];
             Slot slot = slot(b);
-            if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt)) {
+            double pa = Math.atan2(-ndx, ndy) + Math.toRadians(b.turn());
+            // Gargantua's picture is painted the same way up whatever its turn, and turned on the screen.
+            boolean fixed = b.kind() == Bodies.Kind.BLACK_HOLE;
+            boolean turned = !fixed && slot.tex != null && Math.abs(wrap(pa - slot.light.pa)) > REPAINT_TURN;
+            if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt || turned)) {
                 BodyRender.Light l = slot.light;
                 double ps = Math.toRadians(b.phase());
                 l.lx = Math.sin(ps) * sdx;
                 l.ly = Math.sin(ps) * sdy;
                 l.lz = Math.cos(ps);
-                l.pa = Math.atan2(-ndx, ndy) + Math.toRadians(b.turn());
+                l.pa = pa;
                 l.tilt = Math.toRadians(b.tilt());
-                l.spin = t * b.spin();
+                l.spin = "deathstar".equals(b.id()) && !Double.isNaN(dishTurn) ? Math.toRadians(BodyMaps.DISH_LON) - dishTurn : t * b.spin();
                 horizonTint(alt, l);
                 l.earthshine = 0;
                 l.er = 0;
@@ -186,12 +204,15 @@ final class Planets {
             seenA[k] = a;
             seenNx[k] = ndx;
             seenNy[k] = ndy;
+            seenTurn[k] = (float) wrap(pa - (fixed ? 0 : slot.shownPa));
             seenSky[k] = Colors.scale(SkyPass.skyAt(tk, alt, rain), 0.55f);
             if ("deathstar".equals(b.id())) {
                 deathX = px;
                 deathY = py;
                 deathD = diam;
                 deathA = a;
+                // The dish as the picture shows it, turned on to the sky as it is now.
+                BodyRender.surface(pa, slot.shownTilt, slot.shownSpin, BodyMaps.DISH_LON, BodyMaps.DISH_LAT, dish);
             }
             if (names && alt > 2f) {
                 SkyLabels.add(px + diam * (float) b.box() / 2f, py, b.name(), SkyLabels.PLANET, a);
@@ -228,7 +249,7 @@ final class Planets {
         }
         WorldDraw.end();
         for (int i = 0; i < seenCount; i++) {
-            sprite(seen[i], seenX[i], seenY[i], seenD[i], seenA[i]);
+            sprite(seen[i], seenX[i], seenY[i], seenD[i], seenA[i], seenTurn[i]);
         }
         // Jupiter's four moons in a line, moving night to night.
         WorldDraw.begin(WorldDraw.SKY_ALPHA, SkyDraw.disc());
@@ -251,14 +272,26 @@ final class Planets {
         WorldDraw.end();
     }
 
-    /** A body's picture, added, its pixels on whole screen pixels. */
-    private static void sprite(Slot slot, float x, float y, float diam, float a) {
+    /**
+     * A body's picture, added, turned on the screen by {@code turn} (radians, anticlockwise) to where the sky has
+     * turned since it was painted; when it hasn't, its pixels on whole screen pixels.
+     */
+    private static void sprite(Slot slot, float x, float y, float diam, float a, float turn) {
         float size = diam * slot.s / slot.n, half = size / 2f;
-        float x0 = Math.round(x - half), y0 = Math.round(y - half);
         float uv = (float) slot.s / slot.texSize;
         WorldDraw.begin(WorldDraw.SKY_ADD, slot.tex);
-        NightSky.box(x0, y0, x0 + size, y0 + size, 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, a));
+        if (Math.abs(turn) < STILL) {
+            float x0 = Math.round(x - half), y0 = Math.round(y - half);
+            NightSky.box(x0, y0, x0 + size, y0 + size, 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, a));
+        } else {
+            NightSky.quad(x, y, half, half, -(float) Math.sin(turn), -(float) Math.cos(turn), 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, a));
+        }
         WorldDraw.end();
+    }
+
+    /** An angle into -pi..pi. */
+    private static double wrap(double a) {
+        return Math.IEEEremainder(a, Math.PI * 2);
     }
 
     /** Low down, a body is reddened like the stars. */
@@ -301,11 +334,12 @@ final class Planets {
         slot.askedAt = t;
         Bodies.Body b = slot.body;
         BodyRender.Light l = slot.light;
+        double pa = l.pa, tilt = l.tilt, spin = l.spin;
         SolExecutors.cpu(Feature.SKY, () -> {
             int s = BodyRender.size(b, n);
             int[] px = new int[s * s];
             BodyRender.render(b, map, n, l, px);
-            slot.ready.set(new Picture(n, s, px));
+            slot.ready.set(new Picture(n, s, px, pa, tilt, spin));
         });
     }
 
@@ -340,6 +374,9 @@ final class Planets {
         slot.texSize = slot.sizes[k];
         slot.n = p.n();
         slot.s = p.s();
+        slot.shownPa = p.pa();
+        slot.shownTilt = p.tilt();
+        slot.shownSpin = p.spin();
         slot.pending = false;
     }
 
@@ -413,13 +450,15 @@ final class Planets {
         float ndx = dir[0], ndy = dir[1];
         int n = Math.max(10, Math.min(160, Math.round(diam / (NightSky.pixel * 1.1f))));
         Slot slot = slot(Bodies.find(lk.body()));
-        if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt)) {
+        double pa = Math.atan2(-ndx, ndy);
+        boolean turned = slot.tex != null && Math.abs(wrap(pa - slot.light.pa)) > REPAINT_TURN;
+        if (!slot.pending && (n != slot.askedN || t - slot.askedAt > REPAINT || t < slot.askedAt || turned)) {
             BodyRender.Light l = slot.light;
             double ps = Math.toRadians(sp.phaseAngle);
             l.lx = Math.sin(ps) * sdx;
             l.ly = Math.sin(ps) * sdy;
             l.lz = Math.cos(ps);
-            l.pa = Math.atan2(-ndx, ndy);
+            l.pa = pa;
             l.tilt = 0;
             l.spin = Math.sin(t * .07) * .08;
             double k = 0.82 + 0.28 * NightSky.MOON_GLOW, low = lk.harvest() ? Ease.smoothstep(1f, 20f, sp.moonAlt) : 1f;
@@ -439,34 +478,59 @@ final class Planets {
         if (slot.tex == null) {
             return;
         }
-        // A harvest moon on the horizon is squashed flat by the air.
+        // A harvest moon on the horizon is squashed flat by the air, along the sky's up there.
         float squash = lk.harvest() ? 1f - .13f * (1f - Ease.smoothstep(0f, 6f, sp.moonAlt)) : 1f;
+        float[] m = sp.moon;
+        NightSky.skyUp(m[0], m[1], m[2], px, py, up);
+        float ux = up[0], uy = up[1];
         // The dark sky behind it hides the stars by night. In twilight a bright moon still stands solid against the
         // sky (a harvest moon rising orange), while a thin crescent's unlit part is lost in it.
         float solid = Math.max(NightSky.dark, Math.min(1f, ill * 1.2f));
         if (solid > 0.01f) {
             WorldDraw.begin(WorldDraw.SKY_ALPHA, SkyDraw.disc());
-            float rx = diam / 2f * 0.97f, ry = rx * squash;
+            float rx = diam / 2f * 0.97f;
             int sky = Colors.scale(SkyPass.skyAt(tk, sp.moonAlt, rain), 0.55f);
-            NightSky.box(px - rx, py - ry, px + rx, py + ry, Colors.withAlpha(sky, vis * solid));
+            squashed(rx, 0f, ux, uy, squash, va);
+            squashed(0f, -rx, ux, uy, squash, vb);
+            NightSky.para(px, py, va[0], va[1], vb[0], vb[1], 0f, 0f, 1f, 1f, Colors.withAlpha(sky, vis * solid));
             WorldDraw.end();
         }
         float side = diam * slot.s / slot.n, half = side / 2f;
-        float x0 = Math.round(px - half), y0 = Math.round(py - half * squash);
         float uv = (float) slot.s / slot.texSize;
+        // Turned on to the sky as it is now, from how it was when the picture was painted.
+        float turn = (float) wrap(pa - slot.shownPa), cs = (float) Math.cos(turn), sn = (float) Math.sin(turn);
         WorldDraw.begin(WorldDraw.SKY_ADD, slot.tex);
-        NightSky.box(x0, y0, x0 + side, y0 + side * squash, 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, vis));
+        if (Math.abs(turn) < STILL && squash >= 0.999f) {
+            float x0 = Math.round(px - half), y0 = Math.round(py - half);
+            NightSky.box(x0, y0, x0 + side, y0 + side, 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, vis));
+        } else {
+            squashed(cs * half, -sn * half, ux, uy, squash, va);
+            squashed(-sn * half, -cs * half, ux, uy, squash, vb);
+            NightSky.para(px, py, va[0], va[1], vb[0], vb[1], 0f, 0f, uv, uv, Colors.withAlpha(0xFFFFFFFF, vis));
+        }
         WorldDraw.end();
         if (lk.halo()) {
-            halo(px, py, diam, tc, glowK, vis);
+            halo(px, py, diam, tc, glowK, vis, ux, uy);
         }
         if (!"none".equals(lk.corona())) {
-            corona("pink".equals(lk.corona()), px, py, diam, vis, t);
+            corona("pink".equals(lk.corona()), px, py, diam, vis, t, ux, uy);
         }
     }
 
-    /** A frosty night: a 22° ring in three colours, a moon dog either side, and a pillar when the moon is low. */
-    private static void halo(float px, float py, float diam, int tc, float glowK, float vis) {
+    private static final float[] up = new float[2], va = new float[2], vb = new float[2];
+
+    /** Screen vector (x, y) squashed to {@code k} of itself along the unit direction (ux, uy), into {@code out}. */
+    private static void squashed(float x, float y, float ux, float uy, float k, float[] out) {
+        float d = (x * ux + y * uy) * (1f - k);
+        out[0] = x - ux * d;
+        out[1] = y - uy * d;
+    }
+
+    /**
+     * A frosty night: a 22° ring in three colours, a moon dog either side, and a pillar when the moon is low; the
+     * dogs level with it and the pillar standing up the sky ((upX, upY) its up on the screen), whichever way you look.
+     */
+    private static void halo(float px, float py, float diam, int tc, float glowK, float vis, float upX, float upY) {
         SkySphere sp = NightSky.SPHERE;
         float[] m = sp.moon;
         // A point 22° straight above the moon, for the ring's size on the screen.
@@ -497,20 +561,25 @@ final class Planets {
                 continue;
             }
             float qx = NightSky.screen[0], qy = NightSky.screen[1], r2 = diam * .55f;
-            NightSky.box(qx - r2, qy - r2 * .8f, qx + r2, qy + r2 * .8f, Colors.withAlpha(0xFFFFDCC8, .4f * vis));
-            float cx = qx + sgn * r2 * .3f;
-            NightSky.box(cx - r2 * .6f, qy - r2 * .6f, cx + r2 * .6f, qy + r2 * .6f, Colors.withAlpha(0xFFAAC8FF, .25f * vis));
+            NightSky.skyUp(dx, dy, dz, qx, qy, up);
+            NightSky.quad(qx, qy, r2, r2 * .8f, up[0], up[1], 0f, 0f, 1f, 1f, Colors.withAlpha(0xFFFFDCC8, .4f * vis));
+            // Its blue on the side away from the moon.
+            float ox = qx - px, oy = qy - py, ol = (float) Math.sqrt(ox * ox + oy * oy);
+            if (ol > 1e-3f) {
+                float cx = qx + ox / ol * r2 * .3f, cy = qy + oy / ol * r2 * .3f, h = r2 * .6f;
+                NightSky.box(cx - h, cy - h, cx + h, cy + h, Colors.withAlpha(0xFFAAC8FF, .25f * vis));
+            }
         }
-        // A pillar of light over a low moon.
+        // A pillar of light over a low moon, standing up the sky.
         if (sp.moonAlt < 10f && sp.moonAlt > -2f) {
             float a = .11f * (1f - sp.moonAlt / 10f) * Math.min(1.3f, glowK) * vis;
-            NightSky.box(px - diam * .18f, py - diam * 2.6f, px + diam * .18f, py + diam * 1.4f, Colors.withAlpha(tc, a));
+            NightSky.quad(px + upX * diam * .6f, py + upY * diam * .6f, diam * .18f, diam * 2f, upX, upY, 0f, 0f, 1f, 1f, Colors.withAlpha(tc, a));
         }
         WorldDraw.end();
     }
 
-    /** Thin cloud passing over the moon: pastel rings round it. */
-    private static void corona(boolean pink, float px, float py, float diam, float vis, float t) {
+    /** Thin cloud passing over the moon: pastel rings round it, the cloud drifting along the sky ((ux, uy) its up). */
+    private static void corona(boolean pink, float px, float py, float diam, float vis, float t, float ux, float uy) {
         SolTexture tex = coronaTexture(pink);
         float rc = diam * 3f;
         WorldDraw.begin(WorldDraw.SKY_ADD, tex);
@@ -521,7 +590,9 @@ final class Planets {
         for (int i = 0; i < 7; i++) {
             float ox = (float) (((t * 4 + i * 90) % 600 + 600) % 600 - 300) * diam / 60f;
             float oy = (float) Math.sin(i * 2.3) * diam * 1.4f, r2 = diam * (1.4f + (i % 3) * .5f);
-            NightSky.box(px + ox - r2, py + oy - r2 * .5f, px + ox + r2, py + oy + r2 * .5f, Colors.withAlpha(0xFF96A0BE, .1f * vis));
+            // Along the sky: across it (right of up) and up it.
+            float cx = px - uy * ox - ux * oy, cy = py + ux * ox - uy * oy;
+            NightSky.quad(cx, cy, r2, r2 * .5f, ux, uy, 0f, 0f, 1f, 1f, Colors.withAlpha(0xFF96A0BE, .1f * vis));
         }
         WorldDraw.end();
     }

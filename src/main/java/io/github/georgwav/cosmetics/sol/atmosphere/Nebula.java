@@ -10,9 +10,9 @@ import io.github.georgwav.cosmetics.sol.util.Ease;
 import io.github.georgwav.cosmetics.sol.util.SolExecutors;
 
 /**
- * The Nebula theme's three huge painted nebulae (the Night Sky lab's {@code NEBBIG}): magenta, coral and blue clouds
- * of gas fixed among the stars, nearly a hundred degrees across at the biggest, each turned to celestial north so
- * they wheel with the sky through the night. The dark dust that crosses them is laid over the stars behind first,
+ * The three huge painted nebulae (the Night Sky lab's {@code NEBBIG}): magenta, coral and blue clouds of gas fixed
+ * among the stars, nearly a hundred degrees across at the biggest, each turned to celestial north so they wheel with
+ * the sky through the night. A theme shows some of them at night, each leaning toward its own colour. The dark dust that crosses them is laid over the stars behind first,
  * then the glowing gas is added on top. Painted once on Sol's CPU thread ({@link NebulaTex}). Render thread only;
  * nothing allocated per frame.
  */
@@ -27,7 +27,7 @@ final class Nebula {
     private Nebula() {
     }
 
-    static void render(float rain) {
+    static void render(java.util.List<io.github.georgwav.cosmetics.sol.theme.ThemeSpec.Nebula> list, float rain) {
         SkySphere sp = NightSky.SPHERE;
         float k = Ease.smoothstep(-6f, -16f, sp.sunAlt) * (1f - rain);
         if (k <= 0.004f) {
@@ -38,11 +38,14 @@ final class Nebula {
             SolExecutors.CPU.execute(Nebula::bake);
         }
         double raS = Math.toRadians(sp.lamSun);
-        for (int i = 0; i < N; i++) {
-            if (!uploaded(i)) {
+        for (int j = 0; j < list.size(); j++) {
+            var own = list.get(j);
+            int i = own.big() >= 0 ? own.big() : j;
+            if (i >= N || !uploaded(i)) {
                 continue;
             }
             NebulaTex.Spec n = NebulaTex.BIG[i];
+            int tint = Colors.mix(0xFFFFFFFF, own.color(), own.tint());
             double a = raS + Math.PI + Math.toRadians(n.dra() * 15), d = Math.toRadians(n.dec());
             sp.toWorld(Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d), w);
             // Thinned by the air near the horizon, gone below it.
@@ -55,10 +58,10 @@ final class Nebula {
             float turn = (float) (Math.atan2(nd[0], nd[1]) + Math.toRadians(n.rot()));
             float rx = (float) Math.tan(Math.toRadians(n.w() / 2)) / SkyDraw.T, ry = rx * (float) (n.h() / n.w());
             WorldDraw.begin(WorldDraw.SKY_ALPHA, dust[i]);
-            SkyDraw.rotRect(0f, 0f, turn, -rx, -ry, rx, ry, Colors.withAlpha(0xFFFFFFFF, k * ext * 0.9f));
+            SkyDraw.rotRect(0f, 0f, turn, -rx, -ry, rx, ry, Colors.withAlpha(0xFFFFFFFF, Math.min(1f, k * ext * 0.9f * own.strength())));
             WorldDraw.end();
             WorldDraw.begin(WorldDraw.SKY_ADD, emission[i]);
-            SkyDraw.rotRect(0f, 0f, turn, -rx, -ry, rx, ry, Colors.withAlpha(0xFFFFFFFF, k * ext * (float) n.a()));
+            SkyDraw.rotRect(0f, 0f, turn, -rx, -ry, rx, ry, Colors.withAlpha(tint, Math.min(1f, k * ext * (float) n.a() * own.strength())));
             WorldDraw.end();
         }
     }

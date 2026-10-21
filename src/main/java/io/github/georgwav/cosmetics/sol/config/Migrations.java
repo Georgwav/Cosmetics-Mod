@@ -108,7 +108,60 @@ public final class Migrations {
             fold(settings, weather, "lock_weather", "weather");
         }
         stats(modules, out);
+        killEffects(out);
+        totemPop(out);
         return out;
+    }
+
+    /**
+     * Held Items' totem pop size moved to Totems: a file with a smaller pop and no Totems yet gets Totems on at that
+     * size with its other effects off, so the pop looks as it did.
+     */
+    static void totemPop(JsonObject out) {
+        JsonObject held = object(out, "held_items");
+        if (held == null || out.has("totems") || !held.has("settings") || !held.get("settings").isJsonObject()) {
+            return;
+        }
+        JsonObject old = held.getAsJsonObject("settings");
+        if (!old.has("totem_size") || !old.get("totem_size").isJsonPrimitive() || old.get("totem_size").getAsDouble() == 100.0) {
+            return;
+        }
+        JsonObject totems = new JsonObject();
+        totems.addProperty("enabled", held.has("enabled") && held.get("enabled").getAsBoolean());
+        JsonObject settings = new JsonObject();
+        settings.add("pop_scale", old.get("totem_size"));
+        for (String off : new String[]{"ghost_on", "shatter_on", "angel_on", "flash_on", "pop_particles_on", "count_on"}) {
+            settings.addProperty(off, false);
+        }
+        totems.add("settings", settings);
+        out.add("totems", totems);
+    }
+
+    /**
+     * PvP Effects' kill effect (lightning or a burst) moved to Kill Effects: a file that had one on and no Kill Effects
+     * yet gets Kill Effects on with that style, for the same victims.
+     */
+    static void killEffects(JsonObject out) {
+        JsonObject pvp = object(out, "pvp_effects");
+        if (pvp == null || out.has("kill_effects") || !pvp.has("settings") || !pvp.get("settings").isJsonObject()) {
+            return;
+        }
+        JsonObject old = pvp.getAsJsonObject("settings");
+        String effect = old.has("kill_effect") && old.get("kill_effect").isJsonPrimitive() ? old.get("kill_effect").getAsString() : "";
+        if (!effect.equals("lightning") && !effect.equals("burst")) {
+            return;
+        }
+        JsonObject kill = new JsonObject();
+        kill.addProperty("enabled", pvp.has("enabled") && pvp.get("enabled").getAsBoolean());
+        JsonObject settings = new JsonObject();
+        settings.addProperty("kill_style", effect);
+        boolean playersOnly = old.has("players_only") && old.get("players_only").getAsBoolean();
+        settings.addProperty("kill_who", playersOnly ? "players" : "everything");
+        if (old.has("kill_volume") && old.get("kill_volume").isJsonPrimitive()) {
+            settings.add("kill_volume", old.get("kill_volume"));
+        }
+        kill.add("settings", settings);
+        out.add("kill_effects", kill);
     }
 
     private static void fold(JsonObject settings, JsonObject old, String lock, String value) {

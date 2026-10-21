@@ -39,7 +39,8 @@ public final class Hud {
     }
 
     public static void register() {
-        // The client's crosshair in place of the game's while it's on (before 1.21.6 a mixin on Gui does this).
+        // The client's crosshair in place of the game's while it's on, and Hit Effects' hitmarker over either (before
+        // 1.21.6 a mixin on Gui does this).
         //? if >=26.1 {
         /*HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
             if (Modules.CROSSHAIR.enabled()) {
@@ -47,6 +48,7 @@ public final class Hud {
             } else {
                 vanilla.extractRenderState(graphics, delta);
             }
+            io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
         });
         *///?} elif >=1.21.6 {
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
@@ -55,6 +57,7 @@ public final class Hud {
             } else {
                 vanilla.render(graphics, delta);
             }
+            io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
         });
         //?}
         // The game's own HUD parts, each drawn moved by where the HUD editor put it (VanillaHud), and in Sol UI's look
@@ -136,8 +139,9 @@ public final class Hud {
     private static void draw(Canvas g) {
         Minecraft mc = Minecraft.getInstance();
         countClicks(mc);
-        // The game's HUD (and so this) isn't drawn while the HUD is hidden (F1).
-        if (editing || mc.player == null) {
+        // Not while the HUD is hidden (F1): from 1.21.6 the game skips this with its own HUD, but before that Fabric's
+        // HUD callback runs either way.
+        if (editing || mc.player == null || io.github.georgwav.cosmetics.sol.render.Mc.hudHidden()) {
             return;
         }
         framesDrawn++;
@@ -146,6 +150,7 @@ public final class Hud {
         long t0 = io.github.georgwav.cosmetics.sol.render.SolTiming.start();
         io.github.georgwav.cosmetics.client.modules.CrystalPvp.drawHud(g, mc, w, h);
         io.github.georgwav.cosmetics.client.modules.Movement.drawHud(g, mc, w, h);
+        io.github.georgwav.cosmetics.sol.fx.effects.Totems.drawHud(g);
         for (HudModule hud : Modules.hud()) {
             if (hud.enabled()) {
                 hud.render(g, mc, w, h);

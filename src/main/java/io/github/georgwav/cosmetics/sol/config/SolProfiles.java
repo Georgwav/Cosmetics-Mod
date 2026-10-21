@@ -182,9 +182,10 @@ public final class SolProfiles {
         skinKey = skin != null && skin.has("key") && skin.get("key").isJsonPrimitive() ? skin.get("key").getAsString() : null;
         skinSlim = skin != null && skin.has("slim") && skin.get("slim").getAsBoolean();
         cape = p.has("cape") && p.get("cape").isJsonPrimitive() ? p.get("cape").getAsString() : null;
+        io.github.georgwav.cosmetics.sol.styles.Styles.adopt(io.github.georgwav.cosmetics.sol.styles.StyleSetup.fromJson(p.get("styles")));
         unknown = p.deepCopy();
         // "servers" too: server profiles were dropped, so an old list of them isn't written back.
-        for (String known : new String[]{"schema", "modules", "pinned", "theme", "cosmetics", "skin", "cape", "servers"}) {
+        for (String known : new String[]{"schema", "modules", "pinned", "theme", "cosmetics", "skin", "cape", "servers", "styles"}) {
             unknown.remove(known);
         }
     }
@@ -249,6 +250,7 @@ public final class SolProfiles {
         } else {
             p.add("cape", JsonNull.INSTANCE);
         }
+        p.add("styles", io.github.georgwav.cosmetics.sol.styles.Styles.setup().toJson());
         return p;
     }
 

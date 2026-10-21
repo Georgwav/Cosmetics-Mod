@@ -28,7 +28,7 @@ stops the game or the other cosmetics.
 
 | Key | Required | Meaning |
 |---|---|---|
-| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `aura`, `pet`, `arm` or `feet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. |
+| `slot` | yes | `head`, `face`, `body`, `back`, `cape`, `shield`, `melee`, `aura`, `pet`, `arm` or `feet`. Decides the anchor (head, body, or the held shield) and which per-slot setting applies. A `melee` cosmetic is a knife: see [Knives](#knives). |
 | `texture` | yes | Default texture for all parts. `namespace:path`; without a namespace the file's namespace is used. |
 | `texture_size` | no | `[width, height]` used for UV maths. Default `[64, 64]`. |
 | `parts` | yes, unless `model` is set | One or more parts. |
@@ -41,10 +41,13 @@ stops the game or the other cosmetics.
 | `default_style` | no | Which [style](#styles) shows until a player picks another. Default: the first. |
 | `wings` | no | Wings that flap with what the player does. See [Wings](#wings). |
 | `prop` | no | `true`: only shown while an emote that brings it plays (a cloud to ride), and not listed in the Wardrobe. See [Emotes](#emotes). |
-| `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head` or `floating`. See [Slots](#top-level). |
+| `pet_position` | no | For the `pet` slot: `left_shoulder` (default), `right_shoulder`, `head`, `floating`, `follow` or `follow_flying`. See [Slots](#top-level). |
 | `kind` | no | What the cosmetic counts as when players wear one of a kind at a time, e.g. `"hat"` and `"ears"` so a hat and ears can be worn together. Default: `"wings"` for wings, else the slot. See [Equipping](#equipping). |
 | `first_person_turned` | no | `true`: a held cosmetic (a shield) made to face the other way round in first person than in third; it is turned half around its middle there. |
 | `default_color` | no | Tint the cosmetic has until a player picks another: `"#RRGGBB"` or a number. Default white (the texture's own colours). |
+| `icon` | no | A picture (`namespace:path.png`) for the cosmetic's Wardrobe card, shown as it is instead of a render of the model. |
+| `group` | no | A name the Wardrobe lists the cosmetic under, with others that share it (a knife's finishes). |
+| `melee` | for the `melee` slot | The knife's model, animations and fixes. See [Knives](#knives). |
 
 ## Parts
 
@@ -73,8 +76,15 @@ models: +Y is **down**, -Z is the player's front, +Z their back.
 - **`pet` slot**: the pet sits on the wearer's left shoulder: model it standing on the origin, which is the top of
   that shoulder (body space `[6, 0, 0]`), growing upwards (-Y). `pet_position` moves it: `right_shoulder` (body
   `[-6, 0, 0]`), `head` (on top of the head, which it turns with) or `floating` (beside the left shoulder, a little
-  above and behind it, bobbing). Players can move any pet on its Wardrobe page. A pet with a `shoulder` or `air`
-  [style](#styles) plays `air` while floating and `shoulder` elsewhere, unless the player picks a style.
+  above and behind it, bobbing), `follow` (on the ground: it runs after the wearer to a spot behind and beside them,
+  steps up blocks, falls down them and sits when they stop) or `follow_flying` (in the air: it flies after them and
+  hovers low when they stop). Players can move any pet on its Wardrobe page. A pet with a `shoulder` or `air`
+  [style](#styles) plays `air` while floating or flying after you, `follow` while following on the ground (when it
+  has one) and `shoulder` elsewhere, unless the player picks a style. A following pet is drawn in the world on its
+  own, so `q.is_moving`, `q.ground_speed`, `q.modified_distance_moved` and `q.is_sitting` are its own walking and
+  sitting (see [Model animations](#model-animations)); in the Wardrobe it stands at the wearer's left foot (or hovers
+  by the hip). Sol's dog and little ghost (`cosmeticsmod:sol_dog`, `cosmeticsmod:sol_ghost`) are made this way: their
+  feet at the neck's height (24) in Blockbench, so they stand on the origin.
 - **`arm` slot**: on the left arm (`"sides": "right"` or `"both"` to change it), the origin halfway down the arm; the
   arm spans `[-2, -6, -2]` to `[2, 6, 2]` around it.
 - **`feet` slot**: on both legs (`"sides"` as above), modelled standing on the origin, the sole; the leg spans
@@ -424,7 +434,8 @@ What is supported in animation files:
   `q.anim_time` (seconds into the animation), `q.life_time`, `q.is_in_gui` (Wardrobe pictures), `q.is_first_person`
   (a held shield in first person), `q.is_elytra_flying` / `q.is_gliding`, `q.is_swimming`, `q.is_sneaking`,
   `q.is_flying`, `q.is_blocking`, `q.is_moving`, `q.is_on_ground`, `q.is_sprinting`, `q.is_riding`,
-  `q.ground_speed` (blocks per second) and `q.modified_distance_moved`. Other queries and functions are 0.
+  `q.ground_speed` (blocks per second), `q.modified_distance_moved` and `q.is_sitting` (a following pet sitting, or
+  the wearer riding something). Other queries and functions are 0.
 
 The cosmetic's **Animate** and **Animation speed** settings apply: off holds every animation at its start.
 
@@ -616,6 +627,71 @@ In `config/cosmeticsmod.json`:
 
 Putting a cosmetic on in the Wardrobe takes off the one of its `kind` you wore (new wings replace your wings,
 not your backpack), unless "Wear several of one kind" is on in Display (`severalOfAKind` in the config).
+
+## Knives
+
+A cosmetic in the `melee` slot is a knife: hold a sword and you see it in first person, with your own arms, playing
+its draw, attacks and inspects (see the Punchy module's Knives settings). It isn't built from `parts`; its `melee`
+block names a Bedrock model and animations made the way gunpacks for TACZ / LR Tactical make them, and the knife
+renderer draws them as TACZ does. Inventory, dropped items and item frames keep the vanilla sword.
+
+You don't usually write these files. Drop gunpacks (zips or folders, or a zip of several) into `client/melee/` in the
+main folder and the client mounts each `display/melee/<id>.json` as a knife, in a resource pack it generates
+("Sol Client: your knives", always on). Names, skipped knives and per-knife fixes go in `client/melee/knives.json`,
+written with the defaults the first time:
+
+```json
+{
+  "skip": ["delta_wt:null_annihil"],
+  "knives": {
+    "cs2_wt:cs2_m9emerald": { "name": "M9 Bayonet | Emerald" },
+    "wtyj:desire_blade": { "name": "VCT Lock In", "hand_scale": 0.72 },
+    "wtyj:eternal_karambit": { "name": "Prime Karambit", "camera": [1, -1, 4] },
+    "cs2_wt:cs2_skeleton_ruby": { "name": "Skeleton Knife | Ruby", "finish_of": "cs2_wt:cs2_skeleton", "finish": "ruby" }
+  }
+}
+```
+
+Defaults added in later versions still apply to an older file: per knife, what the file says wins, and a default
+knife or finish is turned off by putting its id in `skip`.
+
+A name `Knife | Finish` lists the knife under `Knife` in the Wardrobe, with its other finishes. The packs' files are
+only read on your computer; nothing of them is ever part of the mod.
+
+**Sol finishes.** An entry with `finish_of` (a knife's id, in the same namespace) and `finish` is a finish Sol makes
+from that knife: the same model and animations, with its texture and slot picture recoloured when the knives are
+mounted. `ruby` is the one there is: the metal through a ruby ramp with a Doppler finish's light and dark patches,
+the dark metal and the grip wrap near black.
+
+**Borrowed animations.** A display may name another pack's files by that pack's namespace, for a model of your own
+that plays another knife's animations: `"animation": "wtyj:melee/desire_blade"` in your pack's display plays VCT
+Lock In's draws, attacks and inspects (and their sounds) on your model, when the Valorant pack is in the folder too.
+The model needs the bones those animations move.
+
+The `melee` block:
+
+| Key | Required | Meaning |
+|---|---|---|
+| `model` | yes | The Bedrock geometry file, `namespace:path.json`. |
+| `animations` | yes | The Bedrock animations file. The animation names the knife uses: `static_idle` (and `static_idle_1`, taking turns), `idle`, `draw`, `draw_1`, ..., `melee_1`, `melee_2` (light attacks, alternating), `melee_3` (the heavy attack, on critical hits), `inspect`, `inspect_1`, ..., and `run_start`, `run`, `run_end` or `walk*`. `*_angel` versions are a second set (Devil or Angel). |
+| `sounds` | no | The namespace the animations' `sound_effects` keys play from. Default: the file's namespace. |
+| `pack` | no | The gunpack it came from, shown on its Wardrobe page. |
+| `hand_scale` | no | The arms' size around the fist, 0.25 to 4. Default 1. |
+| `camera` | no | Moves the eye from the model's `idle_view` bone by `[x, y, z]` pixels: x to the right, y up, z back. |
+| `angel` | no | For a knife with `*_angel` animations: `random` (default, picked on each draw), `devil` or `angel`. |
+| `grip` | no | Moves the right arm onto the handle by `[x, z]` pixels across the arm (in the `righthand_pos` bone's frame). Default: worked out from the model, at most 2 px. |
+| `transforms` | no | Third-person placement: `thirdperson_righthand` / `thirdperson_lefthand`, each with `rotation` (degrees), `translation` (pixels) and `scale`, relative to the model's `thirdperson_hand` bone. |
+
+How the model is read:
+
+- UVs are divided by the geometry's own `texture_width` / `texture_height`, not the picture's size. A face's
+  rectangle is `uv` to `uv + uv_size` (a negative size flips it); `uv_rotation` is ignored.
+- Bones named `*illuminated*` (or under one) draw at full light. `1p_effect*`, `effect*` and `glint*` are slash
+  trails and glints, shown only while an animation scales them up. `*_pos` bones are where your arms go (your skin,
+  right arm x -8 to -4, y 0 to 12 with the fist at +y, z -2 to 2; the left mirrored); their own cubes are never
+  drawn. `camera` keys in an attack shake the view a little; `camera`, `view`, `idle_view`, `iron_view`,
+  `refit_view`, `positioning`, `ground`, `fixed`, `thirdperson_hand` and `constraint` draw nothing.
+- Animated rotation applies after the bone's own rotation. A catmull-rom segment starts from its first key's `pre`.
 
 ## Emotes
 

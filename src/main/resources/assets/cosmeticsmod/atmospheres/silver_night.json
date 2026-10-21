@@ -259,6 +259,17 @@
       "particleScale": 1.0
     }
   },
+  "nebula": [
+    {
+      "x": 0.55,
+      "y": 0.12,
+      "r": 0.24,
+      "color": "#c4d0ff",
+      "big": 2,
+      "tint": 0.65,
+      "strength": 0.55
+    }
+  ],
   "grade": {
     "highlights": "#e8eeff",
     "shadows": "#060a1a",

@@ -80,5 +80,29 @@ class MusicServiceTest {
         ThemeSpec sky = AlbumTheme.apply(base, p, true);
         assertEquals(0xFF2E88, sky.sky().glow() & 0xFFFFFF);
         assertNotEquals(base.fog().color(), sky.fog().color());
+        assertEquals(0xFF2E88, sky.sun().halo() & 0xFFFFFF, "the sun's halo takes the album's colour");
+        assertEquals(Colors.mix(0xFFFF2E88, 0xFFFFFFFF, 0.55f) & 0xFFFFFF, sky.light().tint() & 0xFFFFFF, "and the light");
+    }
+
+    @Test
+    void albumColoursReachTheParticlesAndTheEclipse() throws java.io.IOException {
+        ThemeSpec eclipse = bundled("eclipse");
+        AlbumTheme.Palette p = new AlbumTheme.Palette(0xFFD8D8D8, 0xFFB0B0B0, 0xFF101010, 0xFFF0F0F0);
+        ThemeSpec grey = AlbumTheme.apply(eclipse, p, true);
+        assertEquals(0xD8D8D8, grey.eclipse().corona() & 0xFFFFFF, "a grey cover's eclipse burns grey, not orange");
+        for (ThemeSpec.Emitter e : grey.particles()) {
+            for (int c : e.colors()) {
+                assertTrue(Colors.toHsl(c)[1] < 0.15f, e.type() + " particles take the cover's grey: " + Integer.toHexString(c));
+            }
+        }
+    }
+
+    private static ThemeSpec bundled(String id) throws java.io.IOException {
+        java.nio.file.Path f = java.nio.file.Path.of("src/main/resources/assets/cosmeticsmod/atmospheres", id + ".json");
+        if (!java.nio.file.Files.exists(f)) {
+            f = java.nio.file.Path.of("../../").resolve(f);
+        }
+        return ThemeParser.parse(id, java.nio.file.Files.readString(f), ThemeParser.DEFAULTS, w -> {
+        });
     }
 }

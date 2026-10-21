@@ -115,6 +115,8 @@ public final class SkyPass {
         SolTiming.end(SolTiming.Part.NIGHT, tp);
         tp = SolTiming.start();
         Extras.renderNight(theme, t, rain);
+        // A pack's sky (Styles' Sky part), over the stars.
+        PackSky.render(sunAngle, rain);
         SolTiming.end(SolTiming.Part.EXTRAS, tp);
         tp = SolTiming.start();
         Planets.render(tk, at, t, rain);

@@ -49,6 +49,9 @@ public abstract class Module {
         } else {
             onDisable(mc);
         }
+        if (!Modules.loading()) {
+            io.github.georgwav.cosmetics.sol.fx.FxEvents.toggled(this, on);
+        }
         Modules.save();
     }
 
@@ -129,6 +132,22 @@ public abstract class Module {
         return false;
     }
 
+    /**
+     * The version of the defaults ({@link Modules#DEFAULTS}) that made it on by default; 0 when it always was.
+     * Settings saved before that version turn it on once.
+     */
+    public int onByDefaultSince() {
+        return 0;
+    }
+
+    /**
+     * After its saved settings load: whether it turns itself on this once (its default changed to on since they were
+     * saved). Asked once per load.
+     */
+    public boolean turnOnOnce() {
+        return false;
+    }
+
     /** Its other keys' names, in the order declared. */
     public java.util.Set<String> keyNames() {
         return keys.keySet();
@@ -148,6 +167,10 @@ public abstract class Module {
             }
         };
         return setting;
+    }
+
+    /** Once the game is up, on or off (before {@link #onEnable} for a module left on). */
+    protected void onStartup(Minecraft mc) {
     }
 
     /** Switched on (also at startup when it was left on). */
@@ -184,6 +207,10 @@ public abstract class Module {
     }
 
     protected void loadState(JsonObject state) {
+    }
+
+    void startup(Minecraft mc) {
+        onStartup(mc);
     }
 
     void loadEnabled(boolean on) {

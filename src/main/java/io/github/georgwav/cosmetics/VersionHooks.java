@@ -1,22 +1,20 @@
 package io.github.georgwav.cosmetics;
 
-import io.github.georgwav.cosmetics.model.CosmeticLoader;
+import io.github.georgwav.cosmetics.model.CosmeticReload;
 import io.github.georgwav.cosmetics.render.CosmeticRenderer;
 import io.github.georgwav.cosmetics.render.CosmeticsLayer;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.Entity;
 //? if <1.21.9 {
 /*import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.resources.ResourceLocation;
 *///?} else {
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 //?}
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier;
@@ -137,45 +135,74 @@ final class VersionHooks {
             ScreenOpener.requestOpen();
             return 1;
         }));
+        // /friend add|remove <name> (names from the tab list), /friend list: Target's friends.
+        dispatcher.register(LiteralArgumentBuilder.<S>literal("friend")
+                .then(LiteralArgumentBuilder.<S>literal("add").then(friendName(true)))
+                .then(LiteralArgumentBuilder.<S>literal("remove").then(friendName(false)))
+                .then(LiteralArgumentBuilder.<S>literal("list").executes(context -> {
+                    String list = io.github.georgwav.cosmetics.client.Modules.TARGET_MARK.friends.get();
+                    say(net.minecraft.network.chat.Component.translatable(list.isBlank() ? "sol.friend.none" : "sol.friend.list", list));
+                    return 1;
+                })));
+    }
+
+    private static <S> com.mojang.brigadier.builder.RequiredArgumentBuilder<S, String> friendName(boolean add) {
+        return com.mojang.brigadier.builder.RequiredArgumentBuilder.<S, String>argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                .suggests((context, builder) -> {
+                    var connection = Minecraft.getInstance().getConnection();
+                    if (connection != null) {
+                        for (var info : connection.getOnlinePlayers()) {
+                            //? if >=1.21.9 {
+                            builder.suggest(info.getProfile().name());
+                            //?} else {
+                            /*builder.suggest(info.getProfile().getName());
+                            *///?}
+                        }
+                    }
+                    return builder.buildFuture();
+                })
+                .executes(context -> {
+                    String name = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "name");
+                    boolean changed = io.github.georgwav.cosmetics.client.Modules.TARGET_MARK.setFriend(name, add);
+                    say(net.minecraft.network.chat.Component.translatable(changed ? add ? "sol.friend.added" : "sol.friend.removed"
+                            : add ? "sol.friend.already" : "sol.friend.not", name));
+                    return 1;
+                });
+    }
+
+    private static void say(net.minecraft.network.chat.Component line) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gui != null) {
+            //? if >=26.2 {
+            /*mc.gui.hud.getChat().addClientSystemMessage(line);
+            *///?} elif >=26.1 {
+            /*mc.gui.getChat().addClientSystemMessage(line);
+            *///?} else {
+            mc.gui.getChat().addMessage(line);
+            //?}
+        }
     }
 
     /** Loads cosmetics from resource packs on startup and on every F3+T. */
     static void registerReloadListener() {
         //? if <1.21.9 {
         /*ResourceLocation id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+        final class Listener extends CosmeticReload implements IdentifiableResourceReloadListener {
             @Override
             public ResourceLocation getFabricId() {
                 return id;
             }
-
-            @Override
-            public void onResourceManagerReload(ResourceManager manager) {
-                CosmeticLoader.reload(manager);
-                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
-            }
-        });
+        }
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new Listener());
         *///?} elif <1.21.11 {
         /*ResourceLocation id = ResourceLocation.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, new CosmeticReload());
         *///?} elif <26.1 {
         Identifier id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(id, new CosmeticReload());
         //?} else {
         /*Identifier id = Identifier.fromNamespaceAndPath(CosmeticsMod.MOD_ID, "cosmetics");
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(id, reloadListener());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(id, new CosmeticReload());
         *///?}
     }
-
-    //? if >=1.21.9 {
-    private static ResourceManagerReloadListener reloadListener() {
-        return new ResourceManagerReloadListener() {
-            @Override
-            public void onResourceManagerReload(ResourceManager manager) {
-                CosmeticLoader.reload(manager);
-                io.github.georgwav.cosmetics.sol.Sol.onResourceReload(manager);
-            }
-        };
-    }
-    //?}
 }

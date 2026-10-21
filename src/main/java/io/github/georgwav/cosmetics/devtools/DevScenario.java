@@ -659,7 +659,8 @@ public final class DevScenario {
                 boolean waiting = phase == Phase.WARDROBE_SKINS && !WardrobeScreen.skinsRead() && ticks < UI_TAB_TICKS * 10;
                 if (ticks >= UI_TAB_TICKS && !waiting) {
                     int frames = (phase == Phase.QUICK_MENU ? QuickMenu.framesRendered
-                            : phase == Phase.WARDROBE_SKINS ? WardrobeScreen.framesRendered : SolMenu.framesRendered) - hubFramesAtStart;
+                            : phase == Phase.WARDROBE_SKINS || phase == Phase.MENU_WARDROBE ? WardrobeScreen.framesRendered
+                            : SolMenu.framesRendered) - hubFramesAtStart;
                     String page = switch (phase) {
                         case QUICK_MENU -> "quick";
                         case MENU_MODULES -> "menu_modules";
@@ -1010,6 +1011,12 @@ public final class DevScenario {
 
     /** The full menu on a section (and in a state, such as a module's drawer). */
     private void openMenu(String section, String state) {
+        if (section.equals("wardrobe")) {
+            // The menu's Wardrobe tab is the Wardrobe itself, in the same window.
+            hubFramesAtStart = WardrobeScreen.framesRendered;
+            ScreenOpener.open(WardrobeScreen.inMenu(null, "all", false));
+            return;
+        }
         hubFramesAtStart = SolMenu.framesRendered;
         SolMenu menu = SolMenu.create(null, section, false);
         ScreenOpener.open(state != null ? menu.stage(state) : menu);

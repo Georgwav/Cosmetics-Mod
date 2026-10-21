@@ -30,7 +30,7 @@ final class NightPage {
             return;
         }
         Customisation c = ThemeState.customisation();
-        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), hf = g.font(SolFont.Family.SEMIBOLD, 13f), mono = g.font(SolFont.Family.MONO, 11f);
+        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), hf = g.font(SolFont.Family.SEMIBOLD, 13f), mono = g.font(SolFont.Family.PIXEL, 11f);
         g.clip(x - 4f, y - 4f, x + w + 4f, y + h);
         float colW = (w - 32f) / 2f, top = y + 6f - scroll.value();
 

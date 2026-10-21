@@ -8,12 +8,14 @@ import io.github.georgwav.cosmetics.sol.util.Ease;
 import io.github.georgwav.cosmetics.sol.util.Mulberry32;
 
 /**
- * The aurora of the Night Sky lab ({@code AURIB}, {@code AURRAY}): three curtains of light hanging over the northern
- * sky, the nearest lowest and widest. Each winds and folds as it drifts, light running along it in waves. Its lower
- * edge is sharp, a thin pink fringe under a white-green line, and it rises through green into violet and fades out at
- * the top. Fine vertical rays come from a texture of hundreds of streaks laid twice along each curtain, drifting
- * opposite ways, and a soft green glow inside the curtains lights the sky round them. All added to the sky, so the
- * stars shine through. Render thread only; nothing is allocated per frame.
+ * The aurora of the Night Sky lab ({@code AURIB}, {@code AURRAY}), grown into a storm: three curtains of light over
+ * the northern sky (the nearest lowest and widest), two more round the sides and behind you, a high band across the
+ * sky and a corona overhead, its rays meeting at the zenith. Each winds and folds as it drifts, light running along it
+ * in waves. Its lower edge is sharp, a thin pink fringe under a white-green line, and it rises through green into
+ * violet and fades out at the top. Fine vertical rays come from a texture of hundreds of streaks laid twice along each
+ * curtain, drifting opposite ways, and a soft green glow inside the curtains lights the sky round them. At night it is
+ * added to the sky, so the stars shine through; by day the curtains are laid over the bright sky in their colours, so
+ * they still show. Render thread only; nothing is allocated per frame.
  */
 final class Aurora {
     /** The curtain texture: rays tiling along a curtain (u), its lower edge at the bottom (v = 1). */
@@ -27,10 +29,16 @@ final class Aurora {
      * The lab's curtains: azimuth span (degrees from the theme's facing), lower edge and ray length (degrees), how far
      * they fold and at what frequencies, how fast light runs along them, and how bright they are.
      */
-    private static final float[] A0 = {-75f, -40f, -15f}, A1 = {95f, 70f, 45f};
-    private static final float[] BASE = {10f, 19f, 30f}, TALL = {24f, 20f, 15f};
-    private static final float[] FOLD = {9f, 7f, 5f}, F1 = {1.6f, 2.3f, 1.2f}, F2 = {3.7f, 4.4f, 5.1f};
-    private static final float[] SPEED = {.12f, -.1f, .08f}, WAVE = {.6f, -.45f, .8f}, BRIGHT = {1f, .75f, .55f};
+    private static final float[] A0 = {-75f, -40f, -15f, 105f, -205f, -70f, -180f}, A1 = {95f, 70f, 45f, 215f, -95f, 70f, 180f};
+    private static final float[] BASE = {10f, 19f, 30f, 13f, 16f, 44f, 60f}, TALL = {24f, 20f, 15f, 21f, 22f, 22f, 25f};
+    private static final float[] FOLD = {9f, 7f, 5f, 8f, 10f, 6f, 3f}, F1 = {1.6f, 2.3f, 1.2f, 1.9f, 1.4f, 2.7f, 3f},
+            F2 = {3.7f, 4.4f, 5.1f, 3.3f, 4.8f, 4f, 5f};
+    private static final float[] SPEED = {.12f, -.1f, .08f, -.09f, .11f, .07f, .05f}, WAVE = {.6f, -.45f, .8f, .55f, -.7f, .5f, .9f},
+            BRIGHT = {1f, .75f, .55f, .6f, .65f, .5f, .55f};
+    /** The last curtain is the corona: all the way round the sky high up, its rays meeting overhead. */
+    private static final int CORONA = 6;
+    /** How strongly the curtains show by day, laid over the bright sky. */
+    private static final float DAY = 0.5f;
     private static final int PINK = 0xFFFF6EBE, TOP = 0xFFAA3CC8;
 
     private static SolTexture tex;
@@ -48,8 +56,10 @@ final class Aurora {
 
     /** Draws the curtains facing {@code az} (degrees, the game's: 180 is north), at time {@code t} (seconds). */
     static void render(int[] colors, float az, float t, float rain) {
-        float k = Ease.smoothstep(-7f, -15f, NightSky.SPHERE.sunAlt) * (1f - rain);
-        if (k <= 0.004f) {
+        float night = Ease.smoothstep(-7f, -15f, NightSky.SPHERE.sunAlt);
+        float k = night * (1f - rain);
+        float day = (1f - night) * (1f - rain) * DAY;
+        if (k <= 0.004f && day <= 0.004f) {
             return;
         }
         float boost = MusicSky.auroraBoost();
@@ -60,12 +70,23 @@ final class Aurora {
         SolTexture rays = texture(low, high);
         for (int c = 0; c < A0.length; c++) {
             columns(c, az, t, tall);
-            WorldDraw.begin(WorldDraw.SKY_ADD, rays);
-            for (int layer = 0; layer < REPEAT.length; layer++) {
-                strips(REPEAT[layer], c * 0.37f + layer * 0.21f + t * DRIFT[layer], LAYER_ALPHA[layer] * k);
+            // The corona breathes, slowly brightening and fading.
+            float pulse = c == CORONA ? 0.6f + 0.4f * (float) Math.sin(t * 0.37f) : 1f;
+            if (day > 0.004f) {
+                WorldDraw.begin(WorldDraw.SKY_ALPHA, rays);
+                for (int layer = 0; layer < REPEAT.length; layer++) {
+                    strips(REPEAT[layer], c * 0.37f + layer * 0.21f + t * DRIFT[layer], LAYER_ALPHA[layer] * day * pulse);
+                }
+                WorldDraw.end();
             }
-            WorldDraw.end();
-            glow(low, k);
+            if (k > 0.004f) {
+                WorldDraw.begin(WorldDraw.SKY_ADD, rays);
+                for (int layer = 0; layer < REPEAT.length; layer++) {
+                    strips(REPEAT[layer], c * 0.37f + layer * 0.21f + t * DRIFT[layer], LAYER_ALPHA[layer] * k * pulse);
+                }
+                WorldDraw.end();
+                glow(low, k * pulse);
+            }
         }
     }
 
@@ -79,7 +100,9 @@ final class Aurora {
             float b0 = BASE[c] + 2.2f * (float) Math.sin(u * tau * 1.3f + t * 0.15f) + 1.2f * (float) LabNoise.vn1(u * 9 + t * 0.2f);
             colAlt[i] = b0;
             colTop[i] = b0 + TALL[c] * tall * (0.65f + 0.35f * (float) LabNoise.vn1(u * 16 + t * 0.3f));
-            colA[i] = Ease.smoothstep(0f, 0.12f, u) * Ease.smoothstep(1f, 0.88f, u)
+            // The corona goes all the way round: no ends to fade.
+            float ends = c == CORONA ? 1f : Ease.smoothstep(0f, 0.12f, u) * Ease.smoothstep(1f, 0.88f, u);
+            colA[i] = ends
                     * (0.35f + 0.65f * (float) LabNoise.vn1(u * 11 - t * WAVE[c]))
                     * (0.55f + 0.45f * (float) LabNoise.vn1(u * 70 + t * 1.6f)) * BRIGHT[c];
         }

@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.sol.music.NowPlaying;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.TextField;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
@@ -72,7 +73,7 @@ final class MusicSection implements Section {
         SolConfig.Music cfg = SolConfig.get().music;
         NowPlaying n = MusicService.now();
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr("sol.section.music");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         String state = n == null ? SolMenu.tr("sol.menu.music.count")
@@ -135,9 +136,10 @@ final class MusicSection implements Section {
         int pages = Math.max(1, (items.size() + PER_PAGE - 1) / PER_PAGE);
         page = Math.min(page, pages - 1);
         if (pages > 1) {
-            float bx = x + w - 52f;
-            ui.tool(tk, bx, y - 2f, "prev", false, () -> page = Math.max(0, page - 1));
-            ui.tool(tk, bx + 28f, y - 2f, "next", false, () -> page = Math.min(pages - 1, page + 1));
+            // Beside the tabs when there's room, else in the row's bottom right corner.
+            float bx = x + w - 52f, by = cx + 4f > bx ? y + h - 26f : y - 2f;
+            ui.tool(tk, bx, by, "prev", false, () -> page = Math.max(0, page - 1));
+            ui.tool(tk, bx + 28f, by, "next", false, () -> page = Math.min(pages - 1, page + 1));
         }
         float ty = y + 32f;
         SolFont small = g.font(SolFont.Family.MEDIUM, 12f);
@@ -161,7 +163,7 @@ final class MusicSection implements Section {
             if (t != null) {
                 g.image(t, ix, ty, art, art, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
             } else {
-                g.roundV(ix, ty, art, art, 6f, Colors.mix(tk.skyTop, 0xFF000000, 0.2f), tk.glow);
+                noCover(g, tk, ix, ty, art);
                 Icons.draw(g, "note", ix + art * 0.3f, ty + art * 0.3f, art * 0.4f, 0x99FFFFFF, Icons.FILL, 0);
             }
             ui.click(ix, ty, art, art, () -> {
@@ -169,7 +171,7 @@ final class MusicSection implements Section {
                 menu.toast(SolMenu.tr("sol.notify.music_playing", item.title()));
             });
             if (ui.over(ix, ty, art, art)) {
-                g.round(ix, ty, art, art, 6f, 0x66000000);
+                Pix.fill(g, ix, ty, art, art, 0x66000000);
                 Icons.draw(g, "play", ix + art / 2f - 10f, ty + art / 2f - 10f, 20f, 0xFFFFFFFF, Icons.FILL_ON, 0);
             }
             g.text(name, g.fit(name, item.title(), col - 8f), ix, ty + art + 14f, 0xFFFFFFFF);
@@ -196,22 +198,22 @@ final class MusicSection implements Section {
         float ax = x + 22f, ay = y + 22f;
         Covers.Cover cover = Covers.current();
         if (cover != null && Covers.large() != null) {
-            g.glowSprite(ax + 70f, ay + 74f, 100f, 90f, Colors.withAlpha(cover.palette().glow(), 0.3f));
             g.image(Covers.large(), ax, ay, 140f, 140f, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
         }
-        SolFont b = g.font(SolFont.Family.SEMIBOLD, 16f), s = g.font(SolFont.Family.MEDIUM, 12f), mono = g.font(SolFont.Family.MONO, 11f);
+        SolFont b = g.font(SolFont.Family.SEMIBOLD, 16f), s = g.font(SolFont.Family.MEDIUM, 12f), mono = g.font(SolFont.Family.PIXEL, 11f);
         g.text(b, g.fit(b, n.title(), 160f), ax, ay + 166f, 0xFFFFFFFF);
         g.text(s, g.fit(s, n.artist() == null ? "" : n.artist(), 160f), ax, ay + 184f, 0x99FFFFFF);
-        g.round(ax, ay + 196f, 140f, 3f, 1.5f, 0x24FFFFFF);
-        g.round(ax, ay + 196f, Math.max(3f, 140f * n.progress()), 3f, 1.5f, tk.accent);
+        Pix.fill(g, ax, ay + 196f, 140f, 3f, 0x24FFFFFF);
+        Pix.fill(g, ax, ay + 196f, Math.max(3f, 140f * n.progress()), 3f, tk.accent);
         g.textMid(mono, time(n.position()) + " / " + time(n.durationMs()), ax, ay + 210f, 0x99FFFFFF);
         // The lyric timing nudge for this song (some lyrics run a little early or late).
         long nudge = MusicService.offset(n);
         float nx = ax;
         nx += ui.chip(tk, nx, ay + 236f, "\u2212 0.1 s", false, () -> MusicService.nudgeLyrics(-100L)) + 6f;
-        nx += ui.chip(tk, nx, ay + 236f, "+ 0.1 s", false, () -> MusicService.nudgeLyrics(100L)) + 8f;
+        ui.chip(tk, nx, ay + 236f, "+ 0.1 s", false, () -> MusicService.nudgeLyrics(100L));
+        // How far off they're nudged, under the two (beside them it would run into the lyrics).
         g.textMid(mono, nudge == 0L ? SolMenu.tr("sol.menu.music.in_time") : String.format(java.util.Locale.ROOT, "%+.1f s", nudge / 1000f),
-                nx, ay + 236f, 0x99FFFFFF);
+                ax, ay + 262f, 0x99FFFFFF);
 
         float lx = x + 210f, lw = w - 210f - 30f, mid = y + h * 0.45f;
         long pos = n.position(), off = MusicService.offset(n);
@@ -256,29 +258,33 @@ final class MusicSection implements Section {
     }
 
     private static void card(Gfx g, Tokens tk, float x, float y, float w, float h) {
-        g.glow(x, y, w, h, 16f, 26f, Colors.withAlpha(tk.glow, 0.16f));
-        g.round(x, y, w, h, 16f, tk.panel);
-        g.stroke(x, y, w, h, 16f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(x, y, w, h, 16f, 0x38FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), x, y, w, h);
+    }
+
+    /** Where a song has no cover: the theme's sky in three hard bands, top to bottom. */
+    private static void noCover(Gfx g, Tokens tk, float x, float y, float size) {
+        int top = Colors.mix(tk.skyTop, 0xFF000000, 0.2f);
+        Pix.fill(g, x, y, size, size, top);
+        Pix.fill(g, x, y + Math.round(size * 0.5f), size, size - Math.round(size * 0.5f), Colors.mix(top, tk.glow, 0.5f));
+        Pix.fill(g, x, y + Math.round(size * 0.8f), size, size - Math.round(size * 0.8f), tk.glow);
     }
 
     private static void nowPlaying(Gfx g, Ui ui, Tokens tk, NowPlaying n, float x, float cy, float cw) {
         float ax = x + 14f, ay = cy + 14f, tx = ax + 110f, room = cw - 14f - 110f - 14f;
         Covers.Cover cover = n == null ? null : Covers.current();
         if (cover != null && Covers.large() != null) {
-            g.glowSprite(ax + 48f, ay + 52f, 70f, 62f, Colors.withAlpha(cover.palette().glow(), 0.32f));
             g.image(Covers.large(), ax, ay, 96f, 96f, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
         } else {
-            g.roundV(ax, ay, 96f, 96f, 10f, Colors.mix(tk.skyTop, 0xFF000000, 0.2f), tk.glow);
+            noCover(g, tk, ax, ay, 96f);
             Icons.draw(g, "note", ax + 30f, ay + 30f, 36f, 0xCCFFFFFF, Icons.FILL, 0);
         }
         SolFont b = g.font(SolFont.Family.SEMIBOLD, 16f), s = g.font(SolFont.Family.MEDIUM, 12f);
-        SolFont mono = g.font(SolFont.Family.MONO, 11f);
+        SolFont mono = g.font(SolFont.Family.PIXEL, 11f);
         if (n == null) {
             g.text(b, SolMenu.tr("sol.menu.music.nothing"), tx, ay + 26f, 0xFFFFFFFF);
             boolean on = Modules.MUSIC.enabled();
             g.text(s, g.fit(s, SolMenu.tr(on ? "sol.menu.music.start" : "sol.menu.music.module_off"), room), tx, ay + 46f, 0x99FFFFFF);
-            g.round(tx, ay + 60f, room, 4f, 2f, 0x24FFFFFF);
+            Pix.fill(g, tx, ay + 60f, room, 4f, 0x24FFFFFF);
             return;
         }
         g.text(b, g.fit(b, n.title(), room), tx, ay + 18f, 0xFFFFFFFF);
@@ -288,10 +294,9 @@ final class MusicSection implements Section {
         }
         g.text(s, g.fit(s, by, room), tx, ay + 36f, 0x99FFFFFF);
         float k = n.progress();
-        g.round(tx, ay + 46f, room, 4f, 2f, 0x24FFFFFF);
+        Pix.fill(g, tx, ay + 46f, room, 4f, 0x24FFFFFF);
         if (k > 0f) {
-            g.glow(tx, ay + 46f, room * k, 4f, 2f, 4f, Colors.withAlpha(tk.accent, 0.35f));
-            g.round(tx, ay + 46f, Math.max(4f, room * k), 4f, 2f, tk.accent);
+            Pix.fill(g, tx, ay + 46f, Math.max(4f, room * k), 4f, tk.accent);
         }
         g.textMid(mono, time(n.position()), tx, ay + 58f, 0x99FFFFFF);
         if (n.durationMs() > 0) {

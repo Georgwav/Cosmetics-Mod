@@ -39,7 +39,9 @@ bool isSky(float depth) {
 
 // Distance along the view axis from a depth-buffer value (the projection's own mapping, reversed or not).
 float linearDepth(float depth) {
-    return 1.0 / max(1e-6, depth * P(8) + P(9));
+    // A depth the projection can't give (a range mismatch) reads as the end of the world, not a million blocks away.
+    float d = depth * P(8) + P(9);
+    return d > 1e-6 ? 1.0 / d : max(16.0, P(30));
 }
 
 vec3 viewAt(vec2 uv, float depth) {
@@ -57,10 +59,17 @@ void main() {
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
         return;
     }
+    vec3 base = col;
     // A theme that dims its own day dims the world (the sky and the light it adds stay bright).
     col *= P(58);
     vec3 pos = viewAt(texCoord, depth);
     float dist = length(pos);
+    // Where the depth buffer's land ends while far land goes on (P(59) blocks; along the view axis to the game's far
+    // plane with Voxy, whose land past it reads as sky, or out from the eye to the last chunks with Distant Horizons,
+    // whose land never reaches it): Sol's light on the land fades out before it, so that land and the far land after
+    // it meet without a line. Without either, the game's land ends well short of it.
+    float reach = (P(60) > 0.5 ? -pos.z : dist) / max(16.0, P(59));
+    float landFade = 1.0 - smoothstep(0.55, 0.97, reach);
     vec3 dir = pos / max(dist, 1e-4);
     vec3 sunV = normalize(P3(3));
     float cosS = dot(dir, sunV);
@@ -121,6 +130,12 @@ void main() {
         edge = max(edge, isSky(dD) ? 1.0 : 0.0);
         // Only the land's skyline: clouds (far above the eye) keep plain edges.
         edge *= 1.0 - smoothstep(24.0, 48.0, dot(pos, P3(24)));
+        // And only at the end of the game's own land (its chunks reach out to their corners, 1.42 render distances): a
+        // hill, a player or a tree in front of farther land or of the sky keeps a plain edge. Voxy's land past the
+        // game's far plane reads as sky in the depth buffer: where its land crosses that plane (a few render
+        // distances out) and round its hills in front of it, no line is drawn on the land.
+        float atEnd = dist / max(16.0, P(30));
+        edge *= smoothstep(0.82, 0.94, atEnd) * (1.0 - smoothstep(1.45, 1.6, atEnd));
         col += mix(P3(41), sunCol, 0.35) * edge * P(23) * smoothstep(0.7, 0.99, cosS) * P(2) * (1.0 - fogged * 0.5);
         // At night the light's glow lines every skyline (the prototypes' lit horizon edges).
         col += mix(P3(41), sunCol, 0.5) * edge * P(50) * 0.55;
@@ -156,8 +171,10 @@ void main() {
     vec3 scat = mix(P3(38), P3(41), clamp(phase * 1.4, 0.0, 1.0));
     // Night thins the scattering, unless the theme's own light (the rune, the moon) is lighting the fog.
     float amount = (1.0 - exp(-dist / fogFar * 2.0)) * P(16) * (0.12 + phase) * 0.6 * (1.0 - 0.5 * P(29) * (1.0 - P(12)));
-    float h = dot(pos, P3(24));
-    float haze = P(17) * exp(-max(0.0, h + 1.62) / 2.5) * (1.0 - exp(-dist / 18.0));
+    float h = clamp(dot(pos, P3(24)), -256.0, 256.0);
+    // Haze lies low over the land: thickest near sea level, thinning over some 20 blocks of height in the world,
+    // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
+    float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
     col = mix(col, scat, clamp(amount + haze * 0.4, 0.0, 0.85));
-    fragColor = vec4(col + shafts, 1.0);
+    fragColor = vec4(mix(base, col, landFade) + shafts, 1.0);
 }

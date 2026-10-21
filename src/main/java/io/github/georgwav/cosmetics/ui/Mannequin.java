@@ -150,6 +150,7 @@ public final class Mannequin {
         info.uuid = Minecraft.getInstance().getUser().getProfileId();
         info.local = true;
         info.onGround = true;
+        info.gui = true;
         CosmeticRenderer.render(pose, MeshEmitter.FULL_BRIGHT, info, null, head, body, limbs,
                 (p, c, layer, light, color, textureFrame, clip, clipTime, cloth) -> {
                     PictureTexture.load(p, matrix, normal);

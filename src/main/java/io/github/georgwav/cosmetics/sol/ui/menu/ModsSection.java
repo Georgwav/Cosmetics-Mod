@@ -4,6 +4,7 @@ import io.github.georgwav.cosmetics.compat.Compat;
 import io.github.georgwav.cosmetics.sol.config.SolConfig;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
@@ -73,7 +74,7 @@ final class ModsSection implements Section {
             }
         }
         float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h2 = g.font(SolFont.Family.PIXEL_BOLD, 15f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String title = SolMenu.tr("sol.section.mods");
         g.textMid(h2, title, x, headY, 0xFFFFFFFF);
         g.textMid(mono, SolMenu.tr("sol.menu.mods.count", styled.size() + overlaps.size() + alongside.size(), overlaps.size()),
@@ -98,10 +99,19 @@ final class ModsSection implements Section {
         hr -= ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.browse"), true,
                 () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(menu, ""))) + 8f;
         if (!missing.isEmpty()) {
-            // The speed mods worth having: the browser, searching for the first one missing.
+            // The speed mods worth having: the browser, searching for the first one missing. Named when there's room
+            // between the head and the buttons, else counted.
             String first = missingIds.get(0);
-            ui.button(tk, hr, headY, SolMenu.tr("sol.menu.mods.worth", String.join(", ", missing)), false,
-                    () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(menu, first)));
+            float room = hr - (x + g.width(h2, title) + 14f + g.width(mono, SolMenu.tr("sol.menu.mods.count",
+                    styled.size() + overlaps.size() + alongside.size(), overlaps.size())) + 16f);
+            String worth = SolMenu.tr("sol.menu.mods.worth", String.join(", ", missing));
+            if (ui.buttonWidth(worth) > room) {
+                worth = SolMenu.tr("sol.menu.mods.worth_count", missing.size());
+            }
+            if (ui.buttonWidth(worth) <= room) {
+                ui.button(tk, hr, headY, worth, false,
+                        () -> io.github.georgwav.cosmetics.ui.ScreenOpener.open(new io.github.georgwav.cosmetics.sol.ui.screens.ModBrowser(menu, first)));
+            }
         }
 
         float gy = y + 42f, gh = h - 42f;
@@ -121,7 +131,7 @@ final class ModsSection implements Section {
     /** One group (heading and rows); returns its height. */
     private float group(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, String heading, List<ModContainer> mods,
                         Kind kind) {
-        SolFont head = g.font(SolFont.Family.MONO, 11f), b = g.font(SolFont.Family.SEMIBOLD, 13.5f), s = g.font(SolFont.Family.MEDIUM, 11.5f);
+        SolFont head = g.font(SolFont.Family.PIXEL, 11f), b = g.font(SolFont.Family.SEMIBOLD, 13.5f), s = g.font(SolFont.Family.MEDIUM, 11.5f);
         g.textSpaced(head, heading.toUpperCase(java.util.Locale.ROOT), x, y + 8f, 1.1f, 0x80FFFFFF);
         float ry = y + 22f;
         if (mods.isEmpty()) {
@@ -132,9 +142,9 @@ final class ModsSection implements Section {
             String id = mod.getMetadata().getId();
             Known k = KNOWN.get(id);
             float rh = 52f;
-            g.round(x, ry, w, rh, 12f, 0x0AFFFFFF);
-            g.stroke(x, ry, w, rh, 12f, Math.max(1f, g.d.u), 0x12FFFFFF);
-            g.round(x + 12f, ry + 9f, 34f, 34f, 9f, 0x12FFFFFF);
+            Pix.fill(g, x, ry, w, rh, 0x0AFFFFFF);
+            Pix.frame(g, x, ry, w, rh, 0x12FFFFFF);
+            Pix.fill(g, x + 12f, ry + 9f, 34f, 34f, 0x12FFFFFF);
             Icons.draw(g, k != null ? k.icon() : "puzzle", x + 20f, ry + 17f, 18f, 0xBFFFFFFF, Icons.FILL, 0);
             String noteKey = "sol.mods." + id + ".note";
             String note = Widgets.has(noteKey) ? SolMenu.tr(noteKey)

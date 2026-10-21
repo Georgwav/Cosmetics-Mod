@@ -33,8 +33,10 @@ The only required dependency is Fabric API.
 ### Atmosphere
 
 Atmosphere replaces the sky with a theme, chosen in the menu's World section, the quick menu's presets or Ctrl+K.
-- **Themes:** Empty (the vanilla sky), Sakura Dusk, Frost Morning, Ember Solstice, Aurora, Nebula, Firefly Meadow,
-  Monsoon, Maple Afternoon, Eclipse, Deep Field, Silver Night and Grace.
+- **Themes:** Empty (the vanilla sky), Sakura Dusk, Frost Morning, Ember Solstice, Aurora, Firefly Meadow, Monsoon,
+  Maple Afternoon, Eclipse, Deep Field, Silver Night and Grace.
+- **Nebulae at night:** Sakura Dusk, Frost Morning, Silver Night and Maple Afternoon show huge painted nebulae among
+  the stars at night, each in the theme's own colours.
 - **Each theme's light:** it lights the world the way Ember's low sun lights the sand. Its colour falls on the
   faces turned toward it and the theme's shadow colour on the faces turned away. It adds rims, bloom, light shafts,
   scattering in the fog, lit particles and the theme's colour grade.
@@ -42,7 +44,6 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
   - Grace: the rune.
   - Eclipse: the burning ring.
   - Aurora: the curtains' moving green and violet light.
-  - Nebula: pink and violet light from above.
   - Deep Field: cold silver.
   - Silver Night: the moon, with a glitter path on water.
   - Monsoon: each lightning flash.
@@ -54,19 +55,44 @@ Atmosphere replaces the sky with a theme, chosen in the menu's World section, th
 
 ### The quick menu (Right Shift)
 
-A sundial: the sun circles the dial and lights the screen.
-- **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there.
+A sundial in pixels: the wheel is pixel art at two design pixels a pixel, and the world behind it is drawn in the
+same pixels. The sun circles the dial and lights the screen; below the horizon the moon takes its place.
+- **Top bar:** the Quick menu tab, Modules, Presets, Wardrobe and Emotes, search, you, and the red close.
+- **Sections:** point at one (HUD, Modules, World, Music, Settings, Mods) to open the full menu there. Every label
+  fits inside its own segment at any window size (a test checks each ring at four screen sizes).
 - **Your own ring:** pointing at yourself starts the eclipse and opens your ring: Presets, Emotes and Wardrobe.
+- **Colours:** along the bottom of the presets wheel: Default (the theme's own), Music (the playing song's), a row of
+  colours and a picker for any colour (the square, the hue bar, a hex code). The colour you pick is the theme's
+  colour everywhere at once, live while you drag.
 - **The tray:** your pinned modules, presets with live sky thumbnails, profiles, and emotes.
 - **Search:** type anywhere.
 
 ### The full menu
 
-- **Sections:** seven stops on the sun's arc: Modules, HUD, World, Wardrobe, Music, Mods and Settings.
+A pixel window with a title bar: Sol's icon, back, the tabs, you and the red close. Sol's horizon runs under the
+bar, with the sun sitting on it under the tab you're on.
+- **Tabs:** Modules, HUD, World, Presets, Wardrobe, Emotes, Music, Mods and Settings; Sol's icon goes back to the
+  quick menu.
 - **Ctrl+K:** finds and runs any module, setting, preset, section, profile or action.
-- **Profiles:** the popover at the top right switches whole setups.
-- **Modules:** cards with a switch, a star (pin) and a settings drawer.
+- **Profiles:** your slab in the title bar switches whole setups.
+- **Modules:** Dawn's mod menu in Sol's pixels. Cards four to a row, each with its icon, ENABLED or DISABLED, a pin
+  star and a gear for its settings; filter tabs and a search.
+- **Presets:** every theme as a card with its sky in pixels; the preview pane shows the one you point at under Sol's
+  logo. Apply preset and Random.
+- **Emotes:** your wheel's page as eight slots, the page controls in the middle, and you on the right doing it.
+- **Wardrobe:** the Wardrobe itself, in the same window (below).
 - **Main folder:** Settings › Main folder.
+
+**Everything else Sol draws** uses the same pixel pieces: the HUD editor, the emote wheel and picker, the mod
+browser, What's new, the colour picker, text fields, the server list, the command bar and the Night page. With Sol
+UI on, the game's own buttons, tooltips and list selections are pixel slabs too, the pause screen dims the world
+flat and the death screen fades in red steps; with Sol UI off they are the game's own.
+
+### Title screen
+
+Your landscape, Sol's logo and three slabs: Singleplayer, Multiplayer and the Sol menu. Under them Realms, Mods,
+Options and Quit, each named underneath. You stand on the right, with what you wear: click yourself (or your slab
+in the corner) to open the Wardrobe.
 
 ### Wardrobe
 
@@ -76,8 +102,10 @@ A sundial: the sun circles the dial and lights the screen.
 - the menu's Wardrobe section;
 - Settings › Cosmetics.
 
-**Layout:** the views down the left (with counts and the source they come from), glass tiles in the middle, and
-you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts one on you).
+**Layout:** a tab of the full menu's window. The views down the left (with counts and the source they come from),
+pixel tiles in the middle, and you on the right in a 3D preview over your preset's sky (drag to turn and tilt; the
+Elytra chip puts one on you). What you wear glows in the on colour with a WORN tag; the gear in a tile's corner
+opens its page.
 
 **Tiles:**
 - Each tile has its own picture of the cosmetic alone, turned three quarters towards you.
@@ -93,7 +121,8 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
   - Whole cosmetic.
   - Coloured parts.
   - Classic tint.
-- **Follow theme colour:** off, the theme's accent, or its glow.
+- **Follow theme colour:** Default (as "Theme colour on every cosmetic" says), Off (its own colour), the theme's
+  accent, or its glow.
 - **Saturation, hue and brightness.**
 - **Its colours:** change one of its own colours and its shades; the others stay.
 - **Size, Turn around, Upside down,** and move it sideways, up and forward.
@@ -105,6 +134,7 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
 - **Reset.**
 
 **Outfits:**
+- Each outfit is a tile with its cosmetics' pictures and how many items it holds.
 - Save what you wear, with each cosmetic's settings.
 - Point at an outfit to see it on you; click it to wear it.
 - Its page renames it, updates it to what you wear now, or deletes it.
@@ -131,8 +161,47 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
 
 Players' names move up above their hats, halos and other head cosmetics, so they never overlap.
 
+### Sol Styles
+
+The menu's Styles tab mixes resource packs part by part: the crystal from one pack, the swords from another, the fire
+from a third, over a base pack of your choice. Open it from the tab, Ctrl+K or its own key (unbound by default).
+- **Tabs:** Crystal, Anchor, Armor, Tools, Inventory, Fire, Sky, Deepslate, Stone and Snow (each with its parts:
+  the totem, swords, shield, GUI, particles and the rest), then Extras, Cosmetics, More (Sol's parts and the whole
+  texture tree) and Your look (everything you mixed, in one list).
+- **Tiles:** every pack that has the part shows it as a tile with its own picture; packs with the same files show
+  once (+N). Besides the packs: the base, Vanilla, Off where it makes sense, and Sol's own looks (see-through crystal,
+  low fire, eight recolours). Packs that change everything sit folded at the end of each part.
+- **Your colour:** each part can stay as is, take a tint, go rainbow or follow your theme's colour; hue, saturation
+  and brightness sliders; glint parts can follow the Glint module's colour. Items can be flat, 3D or one of Sol's own
+  models (a sword, a totem and a crystal). The crystal's frame and core take colours apart; spin and bounce live here. The anchor's charge glow takes its own
+  colour, can step into four hard pixel tones, and a fully charged anchor can wear a frame in that colour.
+- **Preview:** the part on a turntable, armour on a mannequin, blocks, fire, the sky, GUI pieces and particles, live
+  as you change it.
+- **Editor:** the brush on a tile (or the colour panel's Edit) opens a pixel editor: pencil, eraser, fill, line,
+  rectangle, picker, select and move, replace colour, hue shift, gradient, outline; mirror, grid, onion skin, the
+  texture's UV islands, frames for animated textures, undo, 16/32/64 sizes, PNG drop and export. It paints live into
+  the game (on the mannequin too) and saves as your own style in `client/styles/<tab>/<name>/`.
+- **Skies:** OptiFine sky layers (`optifine/sky/world0/sky*.properties`, with fades, blend, rotation and weather) and
+  FabricSkyboxes skies from the Sky part's pack or the base, drawn in Sol's sky pass.
+- **Presets, share and import:** save a mix by name, copy it as text and paste it back; recent mixes stay listed.
+- Applying is one resource reload with only the files you changed; the mix always sits above the base pack.
+
 Changes apply immediately and are saved when the Wardrobe closes. Reset settings restores the defaults but keeps
 what you wear, your outfits and how each cosmetic looks; each cosmetic's page has its own reset.
+
+### HUD tab
+
+The menu's HUD section lists every element of the HUD: yours (Stats, Coordinates, Music, Lyrics, ...) and the game's
+own parts (hotbar, hearts, hunger, boss bars, scoreboard, ...), each with its switch. Beside the list is a live
+picture of the layout with the picked element lit (click a box to pick it), and that element's settings:
+- **Your elements:** their look, size, text (shadow, font, colour) and background, which can go fully off (the text
+  then gets a shadow in Sol's look).
+- **The game's parts:** Sol UI's settings for them. The hotbar's selected slot lifts, grows in place or is only
+  ringed; slot numbers, its light sweep and its backing (down to none) are switches; the hotbar and the bars over it
+  can be sized; the hearts' and experience bar's glow can go.
+
+In Sol UI's look every card, the hotbar and the bars are the menus' pixel slabs at the game's GUI scale: one GUI
+pixel outlines, a lit top edge, labels and numbers in Silkscreen, and glows in hard steps; no glass and no blur.
 
 ### HUD editor
 
@@ -156,7 +225,7 @@ on or off.
 
 ### Modules
 
-The module grid has 29 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
+The module grid has 43 modules. Sol UI and Cosmetics start on; the starting profiles turn Atmosphere on as well;
 the rest start off. Of the modules, only freelook (Left Alt) and fullbright (G) have keys until you bind more.
 Pinned by default: Crosshair, Glint, Atmosphere and Camera.
 
@@ -164,24 +233,49 @@ A profile keeps every module's settings, the HUD layout, the pins, the theme, wh
 skin and your cape. Switching profiles puts all of it back: the skin is sent to Mojang and the cape worn on your
 account, only when they differ from what Sol last sent.
 
+**The theme's colour everywhere.** Every colour setting can follow the theme's colour, and for every colour the
+client draws, that's the default: the menus and HUD, the crosshair, the block outline, glint, the hit colour,
+hitboxes, the hand glow, text HUDs, the movement status. Pick a colour under the presets wheel and all of them change
+with it, at once. Colours there to stand out keep their own by default and can follow the theme too: the
+crosshair's outline (black) and its colour on a target (red), keystroke text (white), Crystal PvP's low-health warning
+(red). Crosshair, Block outline and Glint are on by default. Settings saved before this that were still at the old
+default (a white crosshair, a cyan glint, a gold hand glow) follow the theme now; colours you picked stay.
+Cosmetics keep their own colours unless you ask: "Theme colour on every cosmetic" (in the Cosmetics settings, off by
+default) gives all of them the accent or the glow, and each cosmetic's page can follow it, stay its own or follow
+the theme by itself.
+
 | Module | What it does |
 |---|---|
-| Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks), stars, planets, time and weather locks. |
-| Camera | Freelook (Left Alt) and freecam (singleplayer, or as an operator). |
+| Atmosphere | The theme's sky, sun, stars and planets, fog, light and particles. Advanced: each sun layer, theme fog and underwater view, clouds, more ambience (leaf bits, rain splashes, fireflies, sparks, and up to 40 glowing cubes in the preset's colours that spin, drift, fall slowly and bounce off blocks), stars, planets, time and weather locks. |
+| Camera | Freelook (Left Alt) and freecam (singleplayer, or as an operator). F5 glide (on): switching to third person glides the camera out from just behind your head over a quarter of a second, switching back glides it in, and leaving the freecam glides it home; your hands wait until it's back. Off with calm motion. |
 | PvP Tweaks | Hurt cam strength, low fire, hit colour. |
-| PvP Effects | Hit sounds, and a kill effect (lightning, a burst or a sound) only you see. |
+| PvP Effects | Hit, crit and kill sounds only you hear, from one of Sol's sound packs (Tick, Glass, Thock, Chime, Pop, Zap) or your own, with their volume and pitch, and crits only. |
+| Kill Effects | Where something you hit in the last three seconds dies, an effect only you see, in Sol's texels: Soul rise (its copy rises, tinted, dissolving from the top), Lightning (a stepped bolt with a sky flash and thunder), Firework, Shatter (it breaks into its own skin's texels), Black hole, Sky laser, Gravestone (Sol's stone with its name), Confetti, Burning copy, Burst (in the effect's colour, red or soul blue) and Shockwave (rings over the ground). One at a time, or random from the ones you tick; for players only or everything. |
+| Hit Effects | What a hit looks like, only on your screen. Hit particles off the exact point you hit (Pixels, Stars, Hearts, Crystals, Orbs or Sparks; twice as many on a crit; they fall and come to rest), in place of the game's sharpness sparks while they're on; a bubble that swells and pops into droplets; word hits (HIT, CRIT!, KILL, or your own words) that pop up and float away; a hitmarker round the crosshair (yours or the game's) that opens and fades, red on a kill with its own sound; damage numbers rising off what you hit, as health or hearts, crits in gold, never through walls. The hit sounds stay in PvP Effects; one kill makes one kill sound. |
+| Totems | What a pop looks like, only on your screen. Your floating totem the game's way or one of Sol's (Roll, Rocket, Fall, Spin, Zoom, Fade: your pack's totem as crisp pixels), placed, sized and timed as you like, or hidden (the pop size from Held Items moved here). A gold copy of whoever popped rising, shrinking and fading (Pop ghost); the totem breaking into gold shards that tumble to the ground (Shatter; your own breaks where the floating totem ends); a winged totem with a halo rising out of them (Angel); a two-step flash round the screen's edge in your colour when you pop; the pop particles in two colours of yours fading to a third; and your totem count under the crosshair while you hold one. |
+| Target | A mark on the one you're fighting, only what you could already see (depth-tested, never through walls): the last one you hit in three seconds or the one you look at, players only by default, flashing on each hit. Ring (a pixel ring turning at its feet), Jello (a ring sliding up and down), Sims (a plumbob), Wisps (circling, with tails; a circle or a spiral), Chains (two rings of links turning opposite ways), Comets (on tilted orbits), Lightning (tiny bolts strike its head on each hit) and Halo (crystals over its head). A green crystal over your friends: a list in the profile, added with `/friend add <name>` (names from the tab list), `/friend remove` and `/friend list`. Chams: players and crystals in a flat colour, a glowing fill, an outline or a pixel texture, a colour each for friends, others and crystals, drawn only over the parts you can already see. |
+| Jump FX | When you land (or jump, or both), only on your screen: a Square ring (Sol's square sun as a ripple), a Ring, a Double ring, a Hexagon, a Star burst shattering outward over the ground, a Block wave (copies of the nearby blocks' tops rippling out six blocks while the real ones stay put), Landing bolts, or a Hologram (a see-through copy of you in your colour for a second; not in first person unless you ask). The rings lie on the terrain and grow with the fall, and any of them can throw up a particle set: the preset's, Ice, Fire, Soul or Galaxy. |
+| Crystal PvP | The crystal optimizer (a crystal you hit is gone from your screen at once when the hit breaks it; one the server keeps comes back), the crystals' size, a chat line when anyone near you pops a totem with their count, a warning when your offhand has no totem but your inventory does, a red pulse round the screen at low health, and explosion rings: two rings of texels that spread and rise where a crystal appears or anything explodes near you. |
+| Trails | Projectile trails: arrows, ender pearls, tridents and thrown potions leave trails of texels (dots, sparkles, hearts or Sol's glyph) that fade in 0.6 s; yours only, or everyone's; each kind on its own switch. Behind you, hidden in first person unless you ask: a Ribbon of whole-texel bands from your waist or feet, stepping a texel up and down like the Nyan Cat's (theme bands, rainbow bands, or blue, pink and white; width and length), a Firefly tail of blinking dots left drifting, a Ghost trail of 3 to 6 copies of you in colours shifting round yours, Footsteps (pixel prints that fade after a set time) and Elytra contrails: streams from the wing tips that close in as the wings fold, with a two-step afterburner flare and a puff of smoke on every rocket. Each piece is laid where you were, tick by tick, so the trails stay in the world as you move on. |
+| You | What you do, a little louder, only on your screen: a Naruto run (your arms sweep back and you lean into it while you sprint, 10 to 40 degrees; in third person and on the settings page's copy of you), chat bubbles (what a player says pops up in a pixel bubble over their head for 4 s, in the preset's colour; everyone's, or others' only) and eating effects (crumbs in the food's own colours, or drips in the potion's, burst at the mouth; everyone's or yours, amount and size). |
+| World FX | The world, a little more alive, only on your screen, each part with a quiet sound of its own (and one volume for them). Snow prints: walking through snow leaves pixel footprints in the snow's own shade that stay 30 s. Rainbow: when rain stops in daylight, seven stepped bands of the spectrum come out opposite the sun, stay a minute and go in steps. Leaves: pixel leaves drop from leaf blocks near you and blow with the wind, in each leaf's own colour (or yours). Rain ripples: pixel rings on the ground and on water where real rain falls (no wet reflections). Cosmos break (off): the block you mine fills with stars in the theme's tones and Sol's own glowing cracks spread over it in place of the game's, then it bursts into stars when it breaks. Item physics (off): dropped items lie flat on the ground (blocks sit still) and tumble as they fall. Chunk rise (off): new chunk sections rise from 8 blocks below over 0.6 s, in whole blocks on 1.21.11 and 26.x; not on 1.21.5, nor with Sodium (they draw the chunks their own way). |
 | Hitboxes | Hitboxes always on, in your colour and line width, for players only if you like. |
-| Held Items | A lower shield and a smaller totem pop. |
+| Held Items | A lower shield, and the shield's and the totem's size in your hand. |
+| Punchy | On by default (the Punchy mod itself stays optional). Switches the [Punchy](https://modrinth.com/mod/punchy-fpa) mod's first-person animations on and off when it's installed (off with the module), and gives Punchy Sol's tuning once: smaller hands nearer the middle. Sol arms (without Punchy by default, or always, or off): your arms and what they hold smaller and closer to the middle (hand size and centring sliders), the fallback when Punchy isn't installed; set to always with Punchy, the sliders move its hands on from its tuning. PvP mode (off): tones all of Punchy's animations down. Dark arms (off): your arms as flat black silhouettes. A glow round your hands and held item, in the theme's colours (or the item's, a rainbow or yours; gold by default when you pick your own): golden light round them (gold by default; its rise, bright core and deep edge are settings, the core and edge shades of whatever colour you pick, and no outline unless you turn it on), or a thin bright outline on its own, or a softer glow all round, with the hands themselves flat, and a motion trail: as your hands (or your knife) move, the light stays along the path they took, fading (not on 1.21.2 to 1.21.5). Rising lines of light through the softer glow are an option. Two more glow looks: Stars (your hands and what they hold as a window onto a drifting pixel starfield in the theme's tones, outlined) and Bands (the theme's four tones in stepped rings round them, the trail stepping down the same tones). The arms and glow work without Punchy too. View model: each hand moved across, up and forward (±8 px), tilted, turned and rolled (±180°) and sized (25–200%), written for a hand on the right with the left mirroring it; knives and Sol arms go on top. Keep hands still (off): no sway as you turn and no bob as you walk (your view still bobs as the game's option says). Swing styles: Minecraft's, 1.7 (no dip after each hit), Exhibition, Sigma, Swong, Spin, Stab, Slide and Push, each an arm pose played in your weapon's own swing time (spears keep their stab). What you hold: Flaming item (off: little three-frame pixel flames lick up from the held item's outline, in the theme's colour or yours, sized 50–200%), Shield status (on: your shield as it is when ready, amber while it cools down, red right after an axe disabled it; a shield cosmetic keeps its own look), Arm with items (off: your arm stays on screen holding whatever you carry, the item in your fist where an empty hand shows; a shield keeps its place). While Punchy's own animations draw the hands (Punchy installed and this module on), Punchy places them its own way, so the view model, swing styles, flames and arm with items stand aside and their settings say so; keeping the hands still and the shield's status still work. Knives: wear a knife (a melee cosmetic from gunpacks you drop into `client/melee`, see [docs/COSMETIC_FORMAT.md](docs/COSMETIC_FORMAT.md#knives)) and the sword in your hand is that knife in first person, with your own arms: it draws, slashes (light attacks in turn, the heavy one on a critical hit), inspects on V (with Punchy installed, on Punchy's own inspect key, which then never plays Punchy's sword inspect while a knife is out) and shakes the view a little as in its own game, at its own pace (or fitted to Minecraft's sword). Settings: timing, heavy hit on crits, camera shake, sway, knife sounds, show hands the pack hides, knife in third person (off: third person shows the sword), use on swords or swords and axes; each knife's colour (tint, rainbow, colouring, saturation, hue, brightness, its own colours), model set and hand size on its Wardrobe page. While a knife is out, the shield or totem in your other hand stays hidden (the knife draws that hand). Sol makes a Ruby finish of the CS2 Skeleton Knife from your pack, and a model of your own can play another pack's animations. With Punchy installed, the knife is drawn alone while it shows (no Punchy hands under it), its hands at the size of Punchy's tuned ones, in the corner where Punchy's hand is. No knife pack is part of the mod. |
 | Nametags | Health above heads; your own tag, size, backing and text shadow. |
 | Screen | Switch off the pumpkin mask, powder snow frost, vignette, portal swirl, nausea, the underwater overlay and the darkening behind inventories; motion blur (not on 1.21.2 to 1.21.5). |
 | Particles | A multiplier for hit particles, sharpness sparks on every hit, and fewer block, explosion and weather particles. |
-| Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's, and an outline or glow in inventories. |
+| Glint | The enchantment shimmer in one colour, two, a rainbow or the theme's; in inventories the shimmer, an outline round the item's shape, or both. |
 | Fullbright | Brightness (G), with night vision so it works with shaders. |
-| Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. |
-| Block outline | The outline round the block you look at, in your colour and opacity. |
+| Crosshair | Style, arm length, gap, thickness, dot, colour, opacity and outline, sharp at any GUI scale. Custom: paint your own on a 15 by 15 grid on the module's page (brush, fill, eraser, clear), each painted pixel 1 to 4 pixels big. |
+| Block outline | The outline round the block you look at, in your colour, opacity and width, with a see-through fill. Looks: Lines (the game's), or Glow (a one-texel line in the colour's brightest tone over a band of its main tone, with fainter stepped bands round it). The fill flat, or End stars: each face a window onto a deep sky with twinkling stars in the colour's tones. |
 | Movement | Toggle sprint and sneak. |
-| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). |
-| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music | HUD modules. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing with live lyrics. |
+| Sol UI | The game's HUD in the theme (hotbar, hearts, hunger with AppleSkin's data when it's installed, armour, XP, air, mount), plus tweaks: the hotbar (selected slot lifts, grows or is ringed; numbers, light sweep, glass), the size of the hotbar and bars, the hearts' and experience glow, the tab list (ping in ms, heads, players online, size), the scoreboard (shown, red numbers, size), boss bars and titles (shown, size). Mace slots: a Breach mace's slot violet, a Density mace's blue (a plain one in the accent), filling from the bottom a pixel at a time as you fall, full at eight blocks; totems on a gold backdrop. As the tab list opens, its players slide in one after another. Inventories, containers and the chat slide up 8 pixels into place in three whole steps, fading in through a dither in the theme's panel colour (nothing is scaled). Cursor particles in menus (off, stars, hearts or Sol's sparkles) and UI sounds (off, or one of Sol's sound packs or yours: a click for buttons, a toggle for switches, a softer click as a menu opens, a pop for toasts), with their volume. |
+| Active modules | The modules that are on, down the right edge in pixel type, the widest at the top, each row in the next of the theme's tones (or the accent, or white); they slide in and out as you switch them. Below the kill feed while it shows kills. HUD modules left out unless you ask. |
+| Sol toasts | Small pixel toasts with an icon and one line for what happens, each kind on its own switch: a module switched with its key or a wheel, a totem popping (yours or another player's, with the count), a kill, the song changing, your health getting low. They slide in from the corner you pick in whole steps, up to three stacked, past any HUD module already in that corner, and leave after 2.5 s. Several modules switched at once (a profile, a preset) make none. |
+| Combo | Your hit streak as a big pixel number that pops on every hit (from two hits on, ringed from five), ending when you're hit or after two seconds with no hit (both settings). |
+| Kill feed | Kills slide in at the top right, newest on top: who, with what (the item's icon, or a fist) and whom; yours in your colour, your deaths in red. Yours from what you see die; everyone else's from the server's death messages (a setting). Five lines, four seconds each, both settings. |
+| Keystrokes, Stats, Coordinates, Armour & Items, Potion Effects, Music, Lyrics | HUD modules, each with its size, text and background (or none). Keystrokes sits at the right edge's middle by default, leaving the top right to the kill feed, and steps left of a server's scoreboard while one shows there. Stats has FPS, CPS, ping, clock, memory, reach, combo, speed, server, resource pack, day, play time and a stopwatch, with or without its dots and labels; Coordinates a direction bar; Armour & Items an item counter, cooldowns, totem pops and durability warnings; Music what's playing as a card, a big cover, a slim pill or the cover alone, with live lyrics under it in pixel type, each word filling in the accent as it's sung; Lyrics the line being sung on its own, anywhere. |
 | Sol Chat | Timestamps (click to copy a message), stacked repeats, up to 5,000 messages kept, emoji shortcodes and an emoji picker. |
 | World Overlays | Chunk borders, where mobs can spawn, beacon range, slime chunks (from the world's seed in singleplayer, `/seed` for operators, or a seed you type) and structure outlines in singleplayer. |
 | Inventory | Durability as numbers on items. |
@@ -190,6 +284,24 @@ account, only when they differ from what Sol last sent.
 | Social | Discord status, and streamer mode (hides your name, skin, the server's address and private messages). |
 | Servers | Auto reconnect, and the server list upgrade: pings in ms, players online, and folders (name a server `Folder/Name`). |
 | Cosmetics | Capes, wings, hats and the rest, set up in the Wardrobe. |
+
+### Effects
+
+Effects modules (Kill Effects, Hit Effects, Totems, Target, Crystal PvP's rings, Jump FX, Trails, You and World FX)
+draw in Sol's texels: squares of 1/16 block, positions on that grid and fades in a few steps (Pixel snap, on by
+default, can make them smooth), each in four tones of its colour, with a stepped glow behind. Only on your screen.
+- **Every effect's settings:** its style (or random from the ticked styles), colour (the preset's, so it changes with
+  the preset; your own; a rainbow; two colours), size, amount, speed and duration (50 to 200%), glow (soft, off,
+  strong), pixel snap, its sound (one of Sol's packs, yours, or off) and volume, and who it's for.
+- **Live preview:** the module's page shows its effects on a copy of you under your preset's sky, played again every
+  two seconds as you change them.
+- **Try it:** plays them on a copy of you three blocks ahead in the world.
+- **Sol picks:** a chip on the Modules page that switches on a set picked to go together, and off again, putting back
+  what you had.
+- **Your own sounds:** a folder in `client/sounds/` with `hit.ogg`, `crit.ogg`, `kill.ogg`, `pop.ogg`, `click.ogg` and
+  `toggle.ogg` (any of them) shows in every sound setting by its folder's name after a restart. Sol's six packs are
+  made by `tools/sol-sounds/make_sounds.py`.
+- With calm motion, effects keep their look but only hold their key moment, and nothing flashes.
 
 ### Main folder
 
@@ -224,6 +336,10 @@ names from d3-celestial by Olaf Frohn (BSD 3-clause); see `assets/cosmeticsmod/s
   - `cosmeticsmod:ember_aura`, `cosmeticsmod:frost_aura`, `cosmeticsmod:heart_aura` (particle auras); the starlight cape
     also leaves a sparkle trail while you move
   - `cosmeticsmod:pocket_slime` (a pet: sits on your left shoulder and bobs)
+  - `cosmeticsmod:sol_dog`, `cosmeticsmod:sol_ghost`, `cosmeticsmod:sol_mini_you` (pets that follow you: the dog runs
+    after you, steps up blocks and sits when you stop; the little ghost flies after you and hovers low when you stop;
+    the mini you is a little copy of you in your own skin). Any pet can follow you: set "Where it sits" to "Follows
+    you" or "Flies after you" on its Wardrobe page.
   - `cosmeticsmod:wristband` (on the left arm) and `cosmeticsmod:cloud_boots` (on both feet, puffing little clouds as
     you walk)
 - **Add more** from any resource pack at `assets/<ns>/cosmetics/*.json`. Write cubes and meshes by hand,
@@ -288,8 +404,9 @@ repaired on load.
 | `maxMeshTriangles` | `100000` | Most mesh triangles one cosmetic may have (1000 to 200000); wings count once per side. Bigger cosmetics aren't loaded. Applies on resource reload (F3+T). |
 | `slotPriority` | `CAPE` `OVERRIDE`, the rest `DEFER` | `DEFER`: if another mod already uses the slot for that player (a vanilla or other mod's cape, a Figura avatar), ours is not drawn. `OVERRIDE`: draw ours anyway; on `CAPE` this also hides the vanilla cape for players wearing one of our capes, so a cape you put on is the one you see. |
 | `deferToFigura` | `true` | Players with a Figura avatar don't get our cosmetics in `DEFER` slots. |
+| `themeColorAll` | left out | `accent` or `glow`: every cosmetic without its own colour or follow setting takes the theme's colour. Left out: off. |
 | `equipped` | `{"local": []}` | Who wears what: `local` is you, other keys are player UUIDs. |
-| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1, the tint, or the texture when it has no tint), `hue` (degrees, -180 to 180) and `brightness` (0 to 2) of the texture, `swaps` (its own colours changed one by one: a list of `{"from": RGB, "to": RGB}`, one per colour of its texture, a kept one to itself), `colorStyle` (`WHOLE`, `COLORED_PARTS` or `CLASSIC`; left out = automatic), `scale` (0.5 to 3), `turned`, `upsideDown`, `elytra` (capes: shown on your elytra too, on by default), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets; a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
+| `cosmeticOptions` | `{}` | Per-cosmetic settings, keyed by cosmetic id: `color` (RGB number, white = original; left out = the cosmetic's own default colour), `rainbow`, `rainbowSpeed` (0.1 to 5), `saturation` (0 to 1, the tint, or the texture when it has no tint), `hue` (degrees, -180 to 180) and `brightness` (0 to 2) of the texture, `swaps` (its own colours changed one by one: a list of `{"from": RGB, "to": RGB}`, one per colour of its texture, a kept one to itself), `colorStyle` (`WHOLE`, `COLORED_PARTS` or `CLASSIC`; left out = automatic), `scale` (0.5 to 3), `turned`, `upsideDown`, `elytra` (capes: shown on your elytra too, on by default), `offsetX` / `offsetY` / `offsetZ` (pixels, -8 to 8, model axes), `glow`, `animate`, `animationSpeed` (0.1 to 3), `style` (left out = the cosmetic's default), `particles` (on or off), `particleAmount` (0 to 3) and `particleSize` (0.25 to 3) for cosmetics with particles, `petPosition` (`LEFT_SHOULDER`, `RIGHT_SHOULDER`, `HEAD` or `FLOATING`; left out = where the pet's creator put it) for pets, `themeColor` (`accent` or `glow` to follow the theme, `own` to keep its own colour; left out = as `themeColorAll` says); a colour or rainbow also colours their particles. Only cosmetics you changed are listed. Settings a cosmetic doesn't allow are ignored. |
 | `savedOutfits` | `[]` | Your outfits, in order: `name`, `cosmetics` (ids) and `options` (each cosmetic's settings as saved, as in `cosmeticOptions`; one left out had its creator's). Outfits from older files (`outfits`, names to ids) are moved here. |
 
 ## Building
@@ -330,8 +447,15 @@ badlion-import bundle solclient-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badli
   own cosmetics. The path is relative to this repository's root, or absolute.
 - The jars are named `solclient-<v>+mc<minecraft>-personal.jar`.
 - A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
+- The pack's `styles/<tab>/<name>/` folders (Sol Styles you made in the editor) come along as built-in styles.
 - Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
   checks this mechanism with a tiny made-up pack.
+
+**Your knives inside the jar too:** `-Pcosmetics.bundleKnives=<your knives folder>` (what you'd drop into
+`client/melee`, packs and add-ons alike) zips them into the jar, which is then `-personal` as well. On start the mod
+unpacks them to `client/melee/.bundled` and mounts them with your own, and a pack you also dropped in yourself wins.
+The knife packs are all rights reserved, so build these jars on your own computer and keep them to yourself: they
+never go into this repository, its CI or its releases, and `ci/pack_guard.py` fails a jar that holds them.
 
 **In GitHub Actions**, the manual "Personal release" workflow (`.github/workflows/personal-release.yml`) builds every
 Minecraft version with the pack and publishes the `-personal` jars as a release of this repository. It refuses to
@@ -374,3 +498,35 @@ To run the same scenario yourself, start the game with these JVM arguments:
 
 Locally, `python3 ci/mcci.py runtime --node 1.21.8` does what CI does. You need Xvfb, `xwd` and the jar in
 `build/libs`.
+
+The Sol scenario (`--sol`) also stages every effect (C, section D): each one on a copy of you, its clock frozen at
+six moments of its life and each frame saved by the game itself; CI stitches them into a contact sheet
+(`screenshot-fxsheet_<effect>.png`) and checks that the effect shows, that its colour is the preset's accent (within
+delta E 12, on two presets), and that nothing of it is left a second after it ends. Damage numbers are also played
+behind a wall of blocks, where nothing of them may show; the hitmarker is staged with the HUD showing. One kill goes
+through the real events: a pig you hit and the server kills must start hit particles, a kill effect and a line in the
+kill feed. So must a pig popping a totem (Totems), an end crystal appearing and TNT going off high in the air (Crystal
+PvP's rings), an arrow in flight (Trails), a three-block drop (Jump FX), a walk in third person (the Ribbon, laid from
+your own ticks), a chat line you send (its bubble), eating a golden apple (crumbs), sprinting (the Naruto run's lean),
+more ambience switched on (a dozen glowing cubes) and Sol's three following pets put on you: they must follow your walk
+and the dog sit when you stop. World FX through the world's own events: a walk through a layer of snow (prints), real
+rain (rings on the ground) that then stops (a rainbow), a canopy of leaves (falling leaves), a plank mined by hand in
+survival (the block of stars drawn, then the burst), a diamond and a block dropped (lying flat), the glow outline with
+stars looked at, chunk rise switched on (sections rising, where the version has it) and F5 there and back (two
+glides). Target's marks are also played behind a wall, and its chams are drawn
+over a real end crystal (and behind a wall) and over you from behind. `-Dcosmeticsmod.solShots=fx` runs only that
+part. One release per era (1.21.1, 1.21.11 and 26.3) plays every effect in every style; the other releases play each
+effect once in its default style, every grey one and the real events (`-Dcosmeticsmod.fxAll=true` plays them all).
+The hands (Punchy) are shot with the Stars and Bands looks, with what you hold (flames on the sword, your arm holding
+it, the shield red from an axe's cooldown, each counted as drawn) and with the view model moved and the hands kept
+still; on those three releases each swing style is shot a third of the way into a swing. The HUD's extras are shot together: Sol toasts
+from real events (a module switched, a totem popping, the song), the active modules list, a Breach and a Density mace
+with a fall shown on their slots, a totem's backdrop and the painted crosshair, with UI sounds on (each counted as
+drawn or played); also the crosshair's painter, an inventory and the tab list caught as they slide in, and the cursor's
+sparkles over the menu.
+
+[docs/gallery.html](docs/gallery.html) shows it all in one page: every UI shot (for 1.21.11, 1.21.1 or 26.3), the Styles
+shots with how long each change took to apply, and every effect's contact sheet with its settings. Its pictures are
+CI's own from the `ci-screenshots` branch (a commit with `[shots]` in its message publishes them, with 1.21.11's
+contact sheets and results); `python3 tools/gallery/make_gallery.py <fx results> <styles results>` rebuilds the page
+from a run's `cosmeticsmod-fx-results.json` and `cosmeticsmod-styles-results.json`.

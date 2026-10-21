@@ -58,6 +58,11 @@ public final class CosmeticsConfig {
      * wings, say). A cosmetic none of whose parts take colour is then coloured all over.
      */
     public boolean colorAnyCosmetic = true;
+    /**
+     * Sol Client: every cosmetic in the theme's colour ("accent" or "glow"), unless it has a colour of its own (picked,
+     * a rainbow, or its own follow-theme setting); null (the default, and never written) keeps their own colours.
+     */
+    public String themeColorAll = null;
     /** Your shield cosmetic also shows on the shield item in your inventory and hotbar. */
     public boolean shieldItemIcons = true;
     /** Hide capes while an elytra is worn, like the vanilla cape. */
@@ -275,13 +280,33 @@ public final class CosmeticsConfig {
         public List<ColorSwap> swaps = null;
         /**
          * Sol Client: the colour follows the theme ("accent" or "glow") instead of {@link #color}, so a halo turns
-         * white in Deep Field and orange in Ember; null (the default, and never written) keeps its own colour.
+         * white in Deep Field and orange in Ember, or "own" keeps its own colour even when every cosmetic follows the
+         * theme ({@link CosmeticsConfig#themeColorAll}); null (the default, and never written) does as that says.
          */
         public String themeColor = null;
+        /**
+         * Sol Client, for a knife with a second set of animations (Dark Star's Devil and Angel): "random" each draw,
+         * "devil" or "angel"; null (never written) for what the knife's own file says.
+         */
+        public String knifeSet = null;
+        /** Sol Client, for a knife: its arms' size times this (around the fist); null (never written) for as made. */
+        public Float knifeHands = null;
 
         /** A copy, to keep in an outfit (or take out of one) without the two changing together. */
         public CosmeticOptions copy() {
             return GSON.fromJson(GSON.toJsonTree(this), CosmeticOptions.class);
+        }
+
+        /** A fingerprint of how it looks (colours, shape, style, glow, animation): changes when any of them does. */
+        public int lookHash() {
+            int swapHash = 0;
+            if (swaps != null) {
+                for (ColorSwap s : swaps) {
+                    swapHash = swapHash * 31 + s.from * 17 + s.to;
+                }
+            }
+            return java.util.Objects.hash(color, rainbow, rainbowSpeed, saturation, hue, brightness, scale, offsetX, offsetY,
+                    offsetZ, glow, animate, animationSpeed, style, turned, upsideDown, colorStyle, themeColor, swapHash);
         }
 
         /** Whether every setting is the same as {@code other}'s. */
@@ -297,7 +322,7 @@ public final class CosmeticsConfig {
                     && animate == d.animate && animationSpeed == d.animationSpeed && style == null && cloth == d.cloth
                     && elytra == d.elytra && particles == d.particles && particleAmount == d.particleAmount
                     && particleSize == d.particleSize && petPosition == null && turned == d.turned && upsideDown == d.upsideDown
-                    && colorStyle == null && themeColor == null
+                    && colorStyle == null && themeColor == null && knifeSet == null && knifeHands == null
                     && !swapsAny();
         }
 
@@ -321,8 +346,17 @@ public final class CosmeticsConfig {
             animationSpeed = clamp(animationSpeed, 0.1f, 3f, 1f);
             particleAmount = clamp(particleAmount, 0f, 3f, 1f);
             particleSize = clamp(particleSize, 0.25f, 3f, 1f);
-            if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow")) {
+            if (themeColor != null && !themeColor.equals("accent") && !themeColor.equals("glow") && !themeColor.equals("own")) {
                 themeColor = null;
+            }
+            if (knifeSet != null && !knifeSet.equals("random") && !knifeSet.equals("devil") && !knifeSet.equals("angel")) {
+                knifeSet = null;
+            }
+            if (knifeHands != null) {
+                knifeHands = clamp(knifeHands, 0.5f, 1.5f, 1f);
+                if (knifeHands == 1f) {
+                    knifeHands = null;
+                }
             }
             if (swaps != null) {
                 swaps.removeIf(java.util.Objects::isNull);
@@ -370,7 +404,8 @@ public final class CosmeticsConfig {
     /** The options players may change on a cosmetic: what its file allows, plus colour with {@link #colorAnyCosmetic}. */
     public int allowedOptions(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
         int allowed = cosmetic.definition().options();
-        return colorAnyCosmetic ? allowed | COLOR_OPTIONS : allowed;
+        // Knives keep their packs' own colours.
+        return colorAnyCosmetic && cosmetic.slot() != CosmeticSlot.MELEE ? allowed | COLOR_OPTIONS : allowed;
     }
 
     public boolean allows(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic,
@@ -528,6 +563,7 @@ public final class CosmeticsConfig {
         hideHeadwearWithHelmet = defaults.hideHeadwearWithHelmet;
         severalOfAKind = defaults.severalOfAKind;
         colorAnyCosmetic = defaults.colorAnyCosmetic;
+        themeColorAll = defaults.themeColorAll;
         shieldItemIcons = defaults.shieldItemIcons;
         hideCapeWithElytra = defaults.hideCapeWithElytra;
         elytraCloseToBack = defaults.elytraCloseToBack;
@@ -593,6 +629,9 @@ public final class CosmeticsConfig {
 
     /** Repairs a hand-edited or older file: fills missing entries, clamps numbers into range. */
     void sanitize() {
+        if (themeColorAll != null && !themeColorAll.equals("accent") && !themeColorAll.equals("glow")) {
+            themeColorAll = null;
+        }
         if (slotPriority == null) {
             slotPriority = defaultPriorities();
         }
@@ -603,6 +642,9 @@ public final class CosmeticsConfig {
         }
         slotVisible.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
+            if (newerSlot(slot)) {
+                continue;
+            }
             slotPriority.putIfAbsent(slot, defaultPriority(slot));
             slotVisible.putIfAbsent(slot, true);
         }
@@ -678,10 +720,20 @@ public final class CosmeticsConfig {
         return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
     }
 
+    /**
+     * Slots added after format 5 (knives): kept out of the slot maps until set (their getters default), so a file
+     * from the cosmetics mod saves back unchanged.
+     */
+    private static boolean newerSlot(CosmeticSlot slot) {
+        return slot == CosmeticSlot.MELEE;
+    }
+
     private static Map<CosmeticSlot, SlotPriority> defaultPriorities() {
         Map<CosmeticSlot, SlotPriority> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, defaultPriority(slot));
+            if (!newerSlot(slot)) {
+                map.put(slot, defaultPriority(slot));
+            }
         }
         return map;
     }
@@ -694,7 +746,9 @@ public final class CosmeticsConfig {
     private static Map<CosmeticSlot, Boolean> defaultVisibility() {
         Map<CosmeticSlot, Boolean> map = new EnumMap<>(CosmeticSlot.class);
         for (CosmeticSlot slot : CosmeticSlot.values()) {
-            map.put(slot, true);
+            if (!newerSlot(slot)) {
+                map.put(slot, true);
+            }
         }
         return map;
     }

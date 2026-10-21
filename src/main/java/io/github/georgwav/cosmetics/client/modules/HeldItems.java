@@ -7,24 +7,52 @@ import io.github.georgwav.cosmetics.client.Setting;
 import net.minecraft.world.entity.HumanoidArm;
 
 /**
- * Held Items: the shield lower in first person (it covers less of the view) and the totem's pop on screen smaller.
+ * Held Items: the shield lower in first person (it covers less of the view), and the shield's and the totem's size
+ * in your hand. The totem's pop on screen moved to Totems.
  */
 public final class HeldItems extends Module {
     /** The shield sits lower in first person, so it covers less of the view. */
     private final Setting.Toggle lowShield = add(new Setting.Toggle("low_shield", false));
-    /** The totem's pop on screen, smaller. */
-    private final Setting.Slider totem = add(new Setting.Slider("totem_size", 100, 25, 100, 5, v -> Math.round(v) + "%"));
+    /** The shield's and the totem's size in your hand (first person). */
+    private final Setting.Slider shieldSize = add(new Setting.Slider("shield_size", 100, 40, 150, 5, v -> Math.round(v) + "%"));
+    private final Setting.Slider totemHand = add(new Setting.Slider("totem_hand", 100, 40, 150, 5, v -> Math.round(v) + "%"));
 
     public HeldItems() {
         super("held_items", Category.VIEW, "hand");
     }
 
-    /** Lowers a held shield after the game has put it by its arm. */
+    /** Lowers and sizes a held shield, and sizes a held totem, after the game has put it by its arm. */
     public static void apply(PoseStack pose, HumanoidArm arm) {
         HeldItems h = Modules.HELD_ITEMS;
-        if (h.enabled() && h.lowShield.get() && holds(arm, net.minecraft.world.item.Items.SHIELD)) {
-            pose.translate(0f, -0.22f, 0f);
+        if (!h.enabled()) {
+            return;
         }
+        if (holds(arm, net.minecraft.world.item.Items.SHIELD)) {
+            if (h.lowShield.get()) {
+                pose.translate(0f, -0.22f, 0f);
+            }
+            float k = (float) (h.shieldSize.get() / 100.0);
+            if (k != 1f) {
+                pose.scale(k, k, k);
+            }
+        } else if (holds(arm, net.minecraft.world.item.Items.TOTEM_OF_UNDYING)) {
+            float k = (float) (h.totemHand.get() / 100.0);
+            if (k != 1f) {
+                pose.scale(k, k, k);
+            }
+        }
+    }
+
+    /** How much {@link #apply} sizes what that arm holds (1 when it doesn't). */
+    public static float size(HumanoidArm arm) {
+        HeldItems h = Modules.HELD_ITEMS;
+        if (!h.enabled()) {
+            return 1f;
+        }
+        if (holds(arm, net.minecraft.world.item.Items.SHIELD)) {
+            return (float) (h.shieldSize.get() / 100.0);
+        }
+        return holds(arm, net.minecraft.world.item.Items.TOTEM_OF_UNDYING) ? (float) (h.totemHand.get() / 100.0) : 1f;
     }
 
     /** Whether the item in that arm is {@code item}. */
@@ -35,11 +63,5 @@ public final class HeldItems extends Module {
         }
         var hand = arm == player.getMainArm() ? net.minecraft.world.InteractionHand.MAIN_HAND : net.minecraft.world.InteractionHand.OFF_HAND;
         return player.getItemInHand(hand).is(item);
-    }
-
-    /** The size of the totem's pop on screen (1 = the game's). */
-    public static float totemScale() {
-        HeldItems h = Modules.HELD_ITEMS;
-        return h.enabled() ? (float) (h.totem.get() / 100.0) : 1f;
     }
 }

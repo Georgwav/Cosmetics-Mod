@@ -201,7 +201,8 @@ public final class ThemeParser {
                 if (e.isJsonObject()) {
                     Reader n = new Reader(e.getAsJsonObject(), warn);
                     nebulaOut.add(new ThemeSpec.Nebula(n.number("x", 0.5f, -1f, 2f), n.number("y", 0.3f, -1f, 2f),
-                            n.number("r", 0.3f, 0.01f, 1.5f), n.color("color", 0xFF7B2CFF)));
+                            n.number("r", 0.3f, 0.01f, 1.5f), n.color("color", 0xFF7B2CFF), Math.round(n.number("big", -1f, -1f, 2f)),
+                            n.number("tint", 0f, 0f, 1f), n.number("strength", 1f, 0f, 2f)));
                 } else if (e.isJsonArray() && e.getAsJsonArray().size() == 4) {
                     // The prototype's [x, y, r, "#colour"] form.
                     JsonArray a = e.getAsJsonArray();

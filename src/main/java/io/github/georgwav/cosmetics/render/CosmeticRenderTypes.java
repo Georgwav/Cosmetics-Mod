@@ -52,7 +52,7 @@ public final class CosmeticRenderTypes {
         return (RenderType) cached;
     }
 
-    static RenderType create(String texture, RenderMode mode) {
+    public static RenderType create(String texture, RenderMode mode) {
         //? if >=26.1 {
         /*Identifier id = Identifier.parse(texture);
         // 26.1 renamed entityCutoutNoCull to entityCutout (the culling one is now entityCutoutCull).

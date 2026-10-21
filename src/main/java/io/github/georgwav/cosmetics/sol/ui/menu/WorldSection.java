@@ -9,120 +9,104 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeRegistry;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
-import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
+import io.github.georgwav.cosmetics.sol.ui.kit.LogoRenderer;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
+import io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
 import io.github.georgwav.cosmetics.sol.ui.kit.Widgets;
 import io.github.georgwav.cosmetics.sol.ui.quick.PresetThumbs;
-import io.github.georgwav.cosmetics.sol.util.Colors;
-
-import java.util.List;
 
 /**
- * World: the presets (each theme's showpiece as a card) and the world's quick settings under them, or the Night
- * sky page ({@link NightPage}).
+ * World: the world's settings for the preset in use (Atmosphere, particles, fog, clouds, ambience, the time lock) in
+ * a recess beside the preview pane with its sky; Customise opens the theme's page, Night sky the Night page
+ * ({@link NightPage}). The presets themselves have their own tab.
  */
 final class WorldSection implements Section {
-    private final Scroll scroll = new Scroll();
-    private final PresetThumbs thumbs = new PresetThumbs();
+    private static final float PANE_W = PresetsSection.PANE_W, ROW_H = 52f;
+    private static final int SKY_W = 197, SKY_H = 240;
+    private final PresetThumbs skies = new PresetThumbs(SKY_W, SKY_H, false);
+    private final LogoRenderer logo = new LogoRenderer(false);
     private final NightPage nightPage = new NightPage();
     private boolean night;
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
+        PixelTokens p = PixelTokens.get();
         ThemeRegistry.Entry cur = ThemeState.baseEntry();
-        float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
-        String title = SolMenu.tr("sol.section.world");
-        g.textMid(h2, title, x, headY, 0xFFFFFFFF);
-        g.textMid(mono, SolMenu.tr("sol.menu.world.count", Widgets.themeName(cur)), x + g.width(h2, title) + 14f, headY, 0x8CFFFFFF);
-        float bw = ui.button(tk, x + w, headY, SolMenu.tr("sol.menu.world.customise", Widgets.themeName(cur)), false,
-                () -> menu.openTheme(night));
-        bw += 8f + ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr(night ? "sol.menu.world.themes" : "sol.menu.world.night"), night,
-                () -> night = !night);
-        if (!night) {
-            ui.button(tk, x + w - bw - 8f, headY, SolMenu.tr("sol.menu.world.packs"), false,
-                    () -> menu.toast(SolMenu.tr("sol.notify.packs")));
-        }
+        String name = Widgets.themeName(cur);
+        // The head: Customise and the Night sky.
+        String cust = SolMenu.tr("sol.menu.world.customise", name), nl = SolMenu.tr(night ? "sol.menu.world.themes" : "sol.menu.world.night");
+        float right = x + w - ui.bigButtonWidth("brush", cust);
+        ui.bigButton(right, y, "brush", cust, false, false, () -> menu.openTheme(night));
+        right -= 8f + ui.bigButtonWidth(night ? "sun" : "moon", nl);
+        ui.bigButton(right, y, night ? "sun" : "moon", nl, night, true, () -> night = !night);
+        SolMenu.head(g, SolMenu.tr("sol.menu.world.head"), SolMenu.tr("sol.menu.world.count", name), x, y + 21f);
 
-        float gy = y + 42f, gh = h - 42f;
+        float gy = y + 42f + 16f, gh = h - 42f - 16f;
         if (night) {
             nightPage.draw(menu, g, ui, tk, x, gy, w, gh);
             return;
         }
-        g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);
-        float top = gy + 2f - scroll.value();
-        List<ThemeRegistry.Entry> themes = ThemeRegistry.all();
-        int cols = menu.drawer() != null ? 4 : 6;
-        float gap = 10f, cw = (w - gap * (cols - 1) - 8f) / cols, thumbH = 70f, ch = thumbH + 30f;
-        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 12f);
-        for (int i = 0; i < themes.size(); i++) {
-            ThemeRegistry.Entry e = themes.get(i);
-            float cx = x + (i % cols) * (cw + gap), cy = top + (i / cols) * (ch + gap);
-            if (cy + ch < gy - 8f || cy > gy + gh + 8f) {
-                continue;
-            }
-            boolean on = e.id().equals(cur.id());
-            boolean hover = ui.over(cx, cy, cw, ch);
-            float lift = hover ? 2f : 0f;
-            int fi = ui.click(cx, cy - lift, cw, ch, () -> apply(menu, e));
-            if (on) {
-                g.glow(cx, cy - lift, cw, ch, 12f, 22f, Colors.withAlpha(tk.glow, 0.35f));
-            }
-            g.round(cx, cy - lift, cw, ch, 12f, tk.panel);
-            SolTexture t = thumbs.get(e);
-            if (t != null) {
-                g.clip(cx, cy - lift, cx + cw, cy - lift + thumbH);
-                float aspect = (float) PresetThumbs.W / PresetThumbs.H;
-                float tw = Math.max(cw, thumbH * aspect);
-                g.image(t, cx + (cw - tw) / 2f, cy - lift, tw, thumbH, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
-                g.endClip();
-            }
-            g.text(nf, g.fit(nf, Widgets.themeName(e), cw - 18f), cx + 9f, cy - lift + thumbH + 19f, 0xFFFFFFFF);
-            g.stroke(cx, cy - lift, cw, ch, 12f, Math.max(1f, g.d.u), on ? tk.rim : 0x1AFFFFFF);
-            if (ui.focused(fi)) {
-                g.stroke(cx - 2f, cy - lift - 2f, cw + 4f, ch + 4f, 14f, 2f * g.d.u, tk.accent);
-            }
-        }
-        int rows = (themes.size() + cols - 1) / cols;
-        float qy = top + rows * (ch + gap) + 14f;
-        quickRow(menu, g, ui, tk, x, qy, w);
-        g.endClip();
-        float contentH = rows * (ch + gap) + 14f + 40f;
-        scroll.setMax(contentH - gh);
-        scroll.step(menu.dt());
-        scroll.bar(g, x + w + 4f, gy, gh);
-    }
-
-    private void quickRow(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w) {
+        float gw = w - PANE_W - 18f;
+        Pix.recess(g, p, x, gy, gw, gh);
+        float rx = x + Pix.E + 18f, rr = x + gw - Pix.E - 18f, ry = gy + Pix.E + 10f;
+        SolFont lf = g.font(SolFont.Family.SEMIBOLD, 14f), sf = g.font(SolFont.Family.MEDIUM, 12f);
         Atmosphere at = Atmosphere.INSTANCE;
         Customisation c = ThemeState.customisation();
-        SolFont f = g.font(SolFont.Family.MEDIUM, 13f);
-        float cy = y + 13f;
-        float lx = x;
-        g.textMid(f, SolMenu.tr("sol.menu.world.particles"), lx, cy, 0xFFFFFFFF);
-        lx += g.width(f, SolMenu.tr("sol.menu.world.particles")) + 8f;
-        float pv = c.density() / 3f;
-        ui.slider(tk, lx + 140f + 44f, cy, pv, Math.round(c.density() * 100f) + "%", k -> customise(c.withDensity(k * 3f)));
-        lx += 140f + 44f + 22f;
-        g.textMid(f, SolMenu.tr("sol.menu.world.fog"), lx, cy, 0xFFFFFFFF);
-        lx += g.width(f, SolMenu.tr("sol.menu.world.fog")) + 8f;
-        float fog = c.fog() == null ? ThemeState.baseEntry().base().fog().density() : c.fog();
-        ui.slider(tk, lx + 140f + 44f, cy, fog, Math.round(fog * 100f) + "%", k -> customise(ThemeState.customisation().withFog(k)));
-        lx += 140f + 44f + 22f;
-        if (at == null) {
-            return;
+        // Atmosphere itself.
+        if (Modules.ATMOSPHERE != null) {
+            boolean on = Modules.ATMOSPHERE.enabled();
+            row(g, lf, sf, rx, ry, Modules.ATMOSPHERE.name(), SolMenu.tr("sol.menu.world.atmosphere_line"));
+            ui.smallSwitch(tk, rr - 30f, ry + ROW_H / 2f - 9f, on, () -> {
+                Modules.ATMOSPHERE.setEnabled(!Modules.ATMOSPHERE.enabled());
+                Modules.save();
+            });
+            ry = divider(g, p, rx, rr, ry);
         }
-        lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.clouds"), at.clouds.get(), () -> at.clouds.set(!at.clouds.get()));
-        lx = toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.ambience"), at.ambience.get(), () -> at.ambience.set(!at.ambience.get()));
-        toggle(g, ui, tk, f, lx, cy, SolMenu.tr("sol.menu.world.lock_time"), at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
+        row(g, lf, sf, rx, ry, SolMenu.tr("sol.menu.world.particles"), SolMenu.tr("sol.menu.world.particles_line"));
+        ui.slider(tk, rr, ry + ROW_H / 2f, c.density() / 3f, Math.round(c.density() * 100f) + "%", k -> customise(c.withDensity(k * 3f)));
+        ry = divider(g, p, rx, rr, ry);
+        float fog = c.fog() == null ? cur.base().fog().density() : c.fog();
+        row(g, lf, sf, rx, ry, SolMenu.tr("sol.menu.world.fog"), SolMenu.tr("sol.menu.world.fog_line"));
+        ui.slider(tk, rr, ry + ROW_H / 2f, fog, Math.round(fog * 100f) + "%", k -> customise(ThemeState.customisation().withFog(k)));
+        ry = divider(g, p, rx, rr, ry);
+        if (at != null) {
+            row(g, lf, sf, rx, ry, SolMenu.tr("sol.menu.world.clouds"), SolMenu.tr("sol.menu.world.clouds_line"));
+            ui.smallSwitch(tk, rr - 30f, ry + ROW_H / 2f - 9f, at.clouds.get(), () -> at.clouds.set(!at.clouds.get()));
+            ry = divider(g, p, rx, rr, ry);
+            row(g, lf, sf, rx, ry, SolMenu.tr("sol.menu.world.ambience"), SolMenu.tr("sol.menu.world.ambience_line"));
+            ui.smallSwitch(tk, rr - 30f, ry + ROW_H / 2f - 9f, at.ambience.get(), () -> at.ambience.set(!at.ambience.get()));
+            ry = divider(g, p, rx, rr, ry);
+            row(g, lf, sf, rx, ry, SolMenu.tr("sol.menu.world.lock_time"), SolMenu.tr("sol.menu.world.lock_time_line"));
+            ui.smallSwitch(tk, rr - 30f, ry + ROW_H / 2f - 9f, at.lockTime.get(), () -> at.lockTime.set(!at.lockTime.get()));
+        }
+        // The pane: the preset's sky with Sol's logo.
+        float vx = x + w - PANE_W;
+        Pix.pane(g, p, vx, gy, PANE_W, gh);
+        SolTexture sky = skies.get(cur);
+        if (sky != null) {
+            Pix.pixels(g, sky, SKY_W, SKY_H, vx + Pix.E, gy + Pix.E, PANE_W - 2f * Pix.E, gh - 2f * Pix.E);
+        }
+        SolTexture t = logo.texture(cur, menu.time(), menu.dt());
+        int k = Math.max(1, Math.round(3f * g.d.u));
+        float lw = LogoRenderer.W * k, lh = LogoRenderer.H * k;
+        float lx = Math.round(g.d.sx(vx + PANE_W / 2f) - lw / 2f), ly = Math.round(g.d.sy(gy + 50f));
+        g.imageScreen(t, lx, ly, lx + lw, ly + lh, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+        Pix.paneEdge(g, p, vx, gy, PANE_W, gh);
+        Pix.caption(g, p, vx, gy, PANE_W, gh, name, Widgets.themeLine(cur));
     }
 
-    private static float toggle(Gfx g, Ui ui, Tokens tk, SolFont f, float x, float cy, String label, boolean on, Runnable toggle) {
-        g.textMid(f, label, x, cy, 0xFFFFFFFF);
-        float sx = x + g.width(f, label) + 8f;
-        ui.smallSwitch(tk, sx, cy - 9f, on, toggle);
-        return sx + 30f + 22f;
+    /** A settings row's name and its line, at the row's top {@code y}. */
+    private static void row(Gfx g, SolFont lf, SolFont sf, float x, float y, String name, String line) {
+        g.textMid(lf, name, x, y + ROW_H / 2f - 8f, PixelTokens.INK);
+        g.textMid(sf, line, x, y + ROW_H / 2f + 10f, PixelTokens.INK3);
+    }
+
+    /** The 3 px line under a row; returns the next row's top. */
+    private static float divider(Gfx g, PixelTokens p, float x0, float x1, float y) {
+        Pix.fill(g, x0, y + ROW_H + 2f, x1 - x0, Pix.E, 0xFF2A2A2E);
+        return y + ROW_H + 8f;
     }
 
     /** Opens on the Night sky page (the scenario's shot). */
@@ -144,17 +128,16 @@ final class WorldSection implements Section {
         SolProfiles.setAccent(null);
         ThemeState.setTheme(e.id(), true);
         SolProfiles.setTheme(e.id());
-        menu.toast(empty ? SolMenu.tr("sol.notify.preset_empty")
-                : SolMenu.tr("sol.notify.preset", Widgets.themeName(e), SolProfiles.active()));
     }
 
     @Override
     public boolean scroll(float amount) {
-        return night ? nightPage.scroll(amount) : scroll.wheel(amount);
+        return night && nightPage.scroll(amount);
     }
 
     @Override
     public void closed() {
-        thumbs.release();
+        skies.release();
+        logo.release();
     }
 }

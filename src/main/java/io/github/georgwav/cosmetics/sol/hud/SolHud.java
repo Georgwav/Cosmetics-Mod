@@ -33,9 +33,10 @@ import java.util.Random;
 /**
  * Sol UI's take on the game's own HUD, from the brief. Each part sits where the game puts it, so mods drawing beside
  * it still line up, and the HUD editor moves it.
- * - Hotbar: glass slots; the selected one lifts, rings in the accent and catches a passing sweep of light. Slot
- *   numbers, counts in mono, durability bars from the accent to amber to red, the offhand on its own glass.
- * - Hearts: pixel hearts in the accent with a soft glow. Poison, wither, frozen, absorption and hardcore keep their
+ * - Hotbar: pixel slots on the kit's slab; the selected one lifts, takes the accent outline with its stepped rings and
+ *   catches a band of light stepping across. Slot numbers and counts in Silkscreen, durability bars from the accent to
+ *   amber to red, the offhand on its own slab.
+ * - Hearts: pixel hearts in the accent with a stepped glow. Poison, wither, frozen, absorption and hardcore keep their
  *   meaning. The game's heart logic is ported: the blink after damage, the regeneration wave, the low-health jitter
  *   and half hearts.
  * - Hunger: shanks in the glow, emptying as the game's do; hunger keeps its green. With AppleSkin installed, its
@@ -43,7 +44,7 @@ import java.util.Random;
  *   saturation, the shanks a held food would fill blinking, and the exhaustion line under the shanks; AppleSkin's
  *   own overlays are cancelled ({@link AppleSkinBridge}). Without it the bar shows what the game's does.
  * - Armour: pixel chestplates in light silver.
- * - XP: a glowing line from the glow to the accent, the level above it in the accent.
+ * - XP: a line stepping from the glow to the accent, the level above it in the accent in Silkscreen.
  * - Air and mount health: the same pixel icons in the theme's colours. The jump and locator bars stay the game's.
  * Each part can be switched back to the game's own (SolConfig.solUiOff), and Sol UI off brings all of it back.
  */
@@ -53,7 +54,7 @@ public final class SolHud {
         HOTBAR("hotbar"), HEALTH("health"), ARMOR("armor"), FOOD("food"), AIR("air"), MOUNT("mount"), XP("xp"), LEVEL("level"),
         // Restyled rather than redrawn (SolHudCards): the game still lays them out and writes their text.
         BOSS("boss"), SIDEBAR("sidebar"), TAB("tab"), ACTION_BAR("action_bar"),
-        // The client's HUD modules (Stats, Coordinates, ...) in Sol's glass.
+        // The client's HUD modules (Stats, Coordinates, ...) on Sol's slabs.
         MODULES("modules"),
         // The chat's backgrounds in the theme's panel colour.
         CHAT("chat");
@@ -144,27 +145,63 @@ public final class SolHud {
             }
             Tokens tk = ThemeState.tokens();
             int w = mc.getWindow().getGuiScaledWidth(), h = mc.getWindow().getGuiScaledHeight();
-            switch (part) {
-                case HOTBAR -> hotbar(c, mc, player, tk, w, h, partialTick);
-                case HEALTH -> hearts(c, mc, player, tk, w, h);
-                case ARMOR -> armor(c, player, tk, w, h);
-                case FOOD -> food(c, mc, player, tk, w, h);
-                case AIR -> air(c, mc, player, tk, w, h);
-                case MOUNT -> mount(c, player, tk, w, h);
-                case XP -> experience(c, player, tk, w, h);
-                case LEVEL -> level(c, mc, player, tk, w, h);
-                default -> {
+            // The hotbar and the bars over it, sized round the bottom middle of the screen.
+            float s = bottom(part) ? bottomScale() : 1f;
+            if (s != 1f) {
+                c.push();
+                c.translate(w / 2f, h);
+                c.scale(s, s);
+                c.translate(-w / 2f, -h);
+                partScale = s;
+            }
+            try {
+                drawPart(part, c, mc, player, tk, w, h, partialTick);
+            } finally {
+                if (s != 1f) {
+                    partScale = 1f;
+                    c.pop();
                 }
             }
         });
         io.github.georgwav.cosmetics.sol.render.SolTiming.end(io.github.georgwav.cosmetics.sol.render.SolTiming.Part.SOL_UI, t0);
     }
 
+    /** The size the hotbar and the bars over it are drawn at (Sol UI's setting). */
+    public static float bottomScale() {
+        return (float) (io.github.georgwav.cosmetics.client.Modules.SOL_UI.bottomScale.get() / 100.0);
+    }
+
+    /** The parts sized with the hotbar. */
+    private static boolean bottom(Part part) {
+        return switch (part) {
+            case HOTBAR, HEALTH, ARMOR, FOOD, AIR, MOUNT, XP, LEVEL -> true;
+            default -> false;
+        };
+    }
+
+    /** The size the part being drawn has on top of the GUI scale (so the kit picks its text at that size). */
+    private static float partScale = 1f;
+
+    private static void drawPart(Part part, Canvas c, Minecraft mc, Player player, Tokens tk, int w, int h, float partialTick) {
+        switch (part) {
+            case HOTBAR -> hotbar(c, mc, player, tk, w, h, partialTick);
+            case HEALTH -> hearts(c, mc, player, tk, w, h);
+            case ARMOR -> armor(c, player, tk, w, h);
+            case FOOD -> food(c, mc, player, tk, w, h);
+            case AIR -> air(c, mc, player, tk, w, h);
+            case MOUNT -> mount(c, player, tk, w, h);
+            case XP -> experience(c, player, tk, w, h);
+            case LEVEL -> level(c, mc, player, tk, w, h);
+            default -> {
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ the kit in GUI pixels
 
     /** The kit with design units = the game's GUI units, so Sol's glass lines up with the game's HUD. */
     static Gfx begin(Canvas c) {
-        return begin(c, 1f);
+        return begin(c, partScale);
     }
 
     /**
@@ -186,10 +223,12 @@ public final class SolHud {
         Guard.run(Feature.SOL_UI, () -> {
             Gfx g = begin(c, scale);
             HudKit.glass = module.glass();
+            g.shadow = module.textShadow();
             try {
                 module.drawSolLook(g, ThemeState.tokens(), mc);
             } finally {
                 HudKit.glass = 1f;
+                g.shadow = false;
             }
             end(c);
         });
@@ -198,6 +237,26 @@ public final class SolHud {
     static void end(Canvas c) {
         G.end();
         c.pop();
+    }
+
+    /**
+     * Something drawn with the kit over the HUD in GUI units (Totems' floating totem), guarded; {@code draw} should be
+     * a method reference that captures nothing, so a frame allocates nothing.
+     */
+    public static void custom(Canvas c, java.util.function.Consumer<Gfx> draw) {
+        Guard.run(Feature.FX, () -> {
+            Gfx g = begin(c, 1f);
+            draw.accept(g);
+            end(c);
+        });
+    }
+
+    /** Pixel text with a hard drop one GUI pixel under it, so it reads on any sky. */
+    static void dropped(Gfx g, SolFont f, String s, float x, float cy, int argb, int align) {
+        float was = g.drop;
+        g.drop = 1f;
+        draw(g, f, s, x, cy, argb, align);
+        g.drop = was;
     }
 
     /** Text with a soft dark shadow, so it reads on any sky. */
@@ -229,37 +288,60 @@ public final class SolHud {
         /*int selected = player.getInventory().selected;
         *///?}
         float t = (float) (millis() % 1_000_000L) / 1000f;
+        var ui = io.github.georgwav.cosmetics.client.Modules.SOL_UI;
+        String style = ui.hotbarSelect.get();
+        float lift = style.equals("lift") ? 2f : 0f, grow = style.equals("grow") ? 1.18f : 1f;
+        float dark = (float) (ui.hotbarGlass.get() / 100.0);
         Gfx g = begin(c);
         // The glass behind the nine slots, where the game's hotbar frame is.
-        glass(g, tk, cx - 91, h - 22, 182, 22, 5f);
-        if (!offhand.isEmpty()) {
-            glass(g, tk, offArm == HumanoidArm.LEFT ? cx - 91 - 29 : cx + 91 + 7, h - 22, 22, 22, 5f);
+        if (dark > 0f) {
+            glass(g, tk, cx - 91, h - 22, 182, 22, dark);
+            if (!offhand.isEmpty()) {
+                glass(g, tk, offArm == HumanoidArm.LEFT ? cx - 91 - 29 : cx + 91 + 7, h - 22, 22, 22, dark);
+            }
         }
         for (int m = 0; m < 9; m++) {
-            float sx = cx - 90 + m * 20 + 1, sy = h - 20;
             boolean sel = m == selected;
+            float size = sel ? 18f * grow : 18f;
+            float sx = cx - 90 + m * 20 + 1 - (size - 18f) / 2f, sy = h - 20 - (size - 18f) / 2f;
             if (sel) {
-                sy -= 2f;
-                g.glow(sx, sy, 18f, 18f, 3.5f, 6f, Colors.withAlpha(tk.glow, 0.4f));
+                sy -= lift;
             }
-            g.round(sx, sy, 18f, 18f, 3.5f, sel ? Colors.withAlpha(tk.accent, 0.18f) : 0x1C000000);
-            g.stroke(sx, sy, 18f, 18f, 3.5f, sel ? 1.2f / g.d.u * g.d.gs : 1f / g.d.u, sel ? tk.accent : 0x1AFFFFFF);
-            if (sel && !SolScreen.calm()) {
-                // A light sweeping across the selected slot every 2.8 s.
+            HudKit.box(g, sx, sy, size, size, sel ? Colors.withAlpha(tk.accent, grow > 1f ? 0.26f : 0.18f)
+                    : Colors.withAlpha(0xFF000000, Math.min(1f, 0.11f * dark)));
+            slotMark(g, ui, player, player.getInventory().getItem(m), sx, sy, size, tk);
+            if (sel) {
+                // The on glow: the accent outline with two stepped rings outside it.
+                HudKit.rings(g, sx, sy, size, size, tk.accent);
+            } else {
+                HudKit.frame(g, sx, sy, size, size, Colors.withAlpha(0xFFFFFFFF, Math.min(1f, 0.1f * dark)));
+            }
+            if (sel && ui.hotbarSweep.get() && !SolScreen.calm()) {
+                // A band of light stepping across the selected slot every 2.8 s, a GUI pixel at a time.
                 float k = (t % 2.8f) / 2.8f;
-                float bx = sx - 10f + k * 38f;
-                g.clip(sx, sy, sx + 18f, sy + 18f);
-                g.glowSprite(bx, sy + 9f, 5f, 14f, 0x40FFFFFF);
-                g.endClip();
+                float bx = (float) Math.floor(sx - 4f + k * (size + 8f));
+                float x0 = Math.max(sx + 1f, bx), x1 = Math.min(sx + size - 1f, bx + 3f);
+                if (x1 > x0) {
+                    HudKit.box(g, x0, sy + 1f, x1 - x0, size - 2f, 0x30FFFFFF);
+                }
             }
         }
-        // The items, drawn by the game in GUI units over the glass.
+        // The items, drawn by the game in GUI units over the glass; the selected one bigger when its slot is.
         Canvas gc = g.game();
         gc.push();
         gc.scale(g.d.gs, g.d.gs);
         for (int m = 0; m < 9; m++) {
-            int ix = cx - 90 + m * 20 + 2, iy = h - 19 - (m == selected ? 2 : 0);
-            item(gc, player.getInventory().getItem(m), ix, iy, pt);
+            int ix = cx - 90 + m * 20 + 2, iy = h - 19 - (m == selected ? Math.round(lift) : 0);
+            if (m == selected && grow > 1f) {
+                gc.push();
+                gc.translate(ix + 8, iy + 8);
+                gc.scale(grow, grow);
+                gc.translate(-(ix + 8), -(iy + 8));
+                item(gc, player.getInventory().getItem(m), ix, iy, pt);
+                gc.pop();
+            } else {
+                item(gc, player.getInventory().getItem(m), ix, iy, pt);
+            }
         }
         int oy = h - 19, ox = offArm == HumanoidArm.LEFT ? cx - 91 - 26 : cx + 91 + 10;
         if (!offhand.isEmpty()) {
@@ -270,11 +352,15 @@ public final class SolHud {
         // Over the items: slot numbers, counts and durability, and cooldowns (raised over them as the game's are).
         c.push();
         c.lift(200f);
-        SolFont num = g.font(SolFont.Family.MONO, 5f), cnt = g.font(SolFont.Family.SEMIBOLD, 6.5f);
+        SolFont num = g.font(SolFont.Family.PIXEL_BOLD, 5f), cnt = g.font(SolFont.Family.PIXEL_BOLD, 8f);
         for (int m = 0; m < 9; m++) {
-            float sx = cx - 90 + m * 20 + 1, sy = h - 20 - (m == selected ? 2 : 0);
-            g.textMid(num, Integer.toString(m + 1), sx + 1.8f, sy + 3.2f, m == selected ? Colors.withAlpha(tk.accent, 0.9f) : 0x66FFFFFF);
-            decorations(g, player, player.getInventory().getItem(m), sx, sy, tk, cnt, pt);
+            boolean sel = m == selected;
+            float off = sel ? (18f * grow - 18f) / 2f : 0f;
+            float sx = cx - 90 + m * 20 + 1, sy = h - 20 - (sel ? lift : 0f);
+            if (ui.hotbarNumbers.get()) {
+                g.textMid(num, Integer.toString(m + 1), sx + 1.8f - off, sy + 3.2f - off, sel ? Colors.withAlpha(tk.accent, 0.9f) : 0x66FFFFFF);
+            }
+            decorations(g, player, player.getInventory().getItem(m), sx + off, sy + off, tk, cnt, pt);
         }
         if (!offhand.isEmpty()) {
             decorations(g, player, offhand, ox - 1, oy - 1, tk, cnt, pt);
@@ -284,9 +370,9 @@ public final class SolHud {
             float f = player.getAttackStrengthScale(0f);
             if (f < 1f) {
                 float ax = offArm == HumanoidArm.RIGHT ? cx - 91 - 22 : cx + 91 + 6, ay = h - 20;
-                glass(g, tk, ax, ay, 18, 18, 4f);
-                float fill = 16f * f;
-                g.round(ax + 1, ay + 17 - fill, 16f, fill, 3f, Colors.withAlpha(tk.accent, 0.8f));
+                glass(g, tk, ax, ay, 18, 18, Math.max(0.6f, dark));
+                float fill = (float) Math.floor(16f * f);
+                HudKit.box(g, ax + 1, ay + 17 - fill, 16f, fill, Colors.withAlpha(tk.accent, 0.8f));
             }
         }
         G.end();
@@ -294,11 +380,67 @@ public final class SolHud {
         c.pop();
     }
 
-    static void glass(Gfx g, Tokens tk, float x, float y, float w, float h, float r) {
-        // A touch darker than the menus' glass: the HUD sits over bright sand and snow too.
-        g.round(x, y, w, h, r, Colors.withAlpha(tk.panel, Math.max(0.62f, tk.glass)));
-        g.stroke(x, y, w, h, r, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.5f));
-        g.highlight(x, y, w, h, r, 0x24FFFFFF);
+    /** A Breach mace's slot colour (it pierces armour) and a Density mace's (it hits harder the further you fall). */
+    public static final int BREACH = 0xFFB56CFF, DENSITY = 0xFF5C8CFF;
+    /** The totem's backdrop gold. */
+    public static final int TOTEM = 0xFFFFC23C;
+    /** For the in-game test: mace slots marked and how full the fullest was, and totem backdrops drawn. */
+    public static int maceMarked, totemMarked;
+    public static float maceFill;
+    /** For the shot of a mace filling: a fall (blocks) shown in place of yours (negative: yours). */
+    public static float fallOverride = -1f;
+
+    /**
+     * A slot's own mark under its item: a mace's frame in its enchantment's colour (the accent for a plain one) that
+     * fills from the bottom, a pixel at a time, as you fall (full at eight blocks, where the smash hits hardest for
+     * its cost); a totem's stepped gold backdrop.
+     */
+    private static void slotMark(Gfx g, io.github.georgwav.cosmetics.client.modules.SolUiModule ui, Player player, ItemStack stack,
+                                 float sx, float sy, float size, Tokens tk) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        if (ui.totemBackdrop.get() && stack.is(net.minecraft.world.item.Items.TOTEM_OF_UNDYING)) {
+            HudKit.box(g, sx + 1f, sy + 1f, size - 2f, size - 2f, Colors.withAlpha(TOTEM, 0.22f));
+            HudKit.box(g, sx + 3f, sy + 3f, size - 6f, size - 6f, Colors.withAlpha(TOTEM, 0.2f));
+            totemMarked++;
+            return;
+        }
+        if (!ui.maceSlots.get() || !stack.is(net.minecraft.world.item.Items.MACE)) {
+            return;
+        }
+        int colour = enchanted(stack, net.minecraft.world.item.enchantment.Enchantments.BREACH) ? BREACH
+                : enchanted(stack, net.minecraft.world.item.enchantment.Enchantments.DENSITY) ? DENSITY : tk.accent | 0xFF000000;
+        HudKit.box(g, sx + 1f, sy + 1f, size - 2f, size - 2f, Colors.withAlpha(colour, 0.14f));
+        float fall = fallOverride >= 0f ? fallOverride : player.onGround() ? 0f : (float) player.fallDistance;
+        float k = Math.max(0f, Math.min(1f, (fall - 1.5f) / 6.5f));
+        float fill = (float) Math.floor((size - 2f) * k);
+        if (fill > 0f) {
+            HudKit.box(g, sx + 1f, sy + size - 1f - fill, size - 2f, fill, Colors.withAlpha(colour, 0.5f));
+        }
+        HudKit.frame(g, sx, sy, size, size, Colors.withAlpha(colour, 0.85f));
+        maceMarked++;
+        maceFill = Math.max(maceFill, k);
+    }
+
+    private static boolean enchanted(ItemStack stack, net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> key) {
+        var ench = stack.getOrDefault(net.minecraft.core.component.DataComponents.ENCHANTMENTS,
+                net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+        for (var holder : ench.keySet()) {
+            if (holder.is(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static void glass(Gfx g, Tokens tk, float x, float y, float w, float h) {
+        glass(g, tk, x, y, w, h, 1f);
+    }
+
+    /** The HUD's backing (the pixel UI's slab at GUI scale) at {@code dark} times its usual darkness. */
+    static void glass(Gfx g, Tokens tk, float x, float y, float w, float h, float dark) {
+        HudKit.slab(g, tk, x, y, w, h, dark);
     }
 
     /** An item as the game's hotbar draws it, with its pop when picked up. */
@@ -314,9 +456,12 @@ public final class SolHud {
             c.scale(1f / k, (k + 1f) / 2f);
             c.translate(-(x + 8), -(y + 12));
             c.item(stack, x, y);
+            io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
             c.pop();
         } else {
             c.item(stack, x, y);
+            // Sol's hotbar draws its own counts and bars, so Glint's outline goes on here.
+            io.github.georgwav.cosmetics.client.modules.GlintModule.decorate(c, stack, x, y);
         }
     }
 
@@ -329,8 +474,8 @@ public final class SolHud {
             float k = stack.getBarWidth() / 13f;
             int col = k > 0.5f ? tk.accent : k > 0.25f ? Colors.mix(Tokens.AMBER, tk.accent, (k - 0.25f) / 0.25f)
                     : Colors.mix(Tokens.RED, Tokens.AMBER, k / 0.25f);
-            g.round(sx + 2.5f, sy + 14.5f, 13f, 1.6f, 0.8f, 0xA0000000);
-            g.round(sx + 2.5f, sy + 14.5f, 13f * k, 1.6f, 0.8f, col);
+            HudKit.box(g, sx + 2f, sy + 14f, 13f, 2f, 0xA0000000);
+            HudKit.box(g, sx + 2f, sy + 14f, Math.round(13f * k), 1f, col);
         }
         //? if >=1.21.2 {
         float cd = player.getCooldowns().getCooldownPercent(stack, pt);
@@ -338,10 +483,11 @@ public final class SolHud {
         /*float cd = player.getCooldowns().getCooldownPercent(stack.getItem(), pt);
         *///?}
         if (cd > 0f) {
-            g.round(sx + 1f, sy + 1f + 16f * (1f - cd), 16f, 16f * cd, 2.5f, 0x80FFFFFF);
+            float ch = (float) Math.ceil(16f * cd);
+            HudKit.box(g, sx + 1f, sy + 17f - ch, 16f, ch, 0x80FFFFFF);
         }
         if (stack.getCount() > 1) {
-            shadowed(g, cnt, Integer.toString(stack.getCount()), sx + 17f, sy + 14f, 0xFFFFFFFF, 1);
+            dropped(g, cnt, Integer.toString(stack.getCount()), sx + 18f, sy + 13.5f, 0xFFFFFFFF, 1);
         }
     }
 
@@ -406,10 +552,10 @@ public final class SolHud {
         int absorbHearts = Mth.ceil(l.absorb() / 2.0);
         int twice = hearts * 2;
         // A soft glow under the full hearts (the brief: "filled with the theme's accent and a soft glow").
-        if (full == HudIconAtlas.Icon.HEART_FULL && i > 0) {
+        if (full == HudIconAtlas.Icon.HEART_FULL && i > 0 && io.github.georgwav.cosmetics.client.Modules.SOL_UI.heartsGlow.get()) {
             Gfx g = begin(c);
             int lit = Math.min(10, Mth.ceil(i / 2.0));
-            g.glowSprite(l.left() + lit * 4f, l.y() + 4.5f, lit * 4f + 6f, 7f, Colors.withAlpha(tk.glow, 0.22f));
+            HudKit.glow(g, l.left(), l.y() + 1f, lit * 8f + 1f, 7f, Colors.withAlpha(tk.glow, 0.3f));
             end(c);
         }
         for (int s = hearts + absorbHearts - 1; s >= 0; s--) {
@@ -505,8 +651,9 @@ public final class SolHud {
         if (exhaustion > 0f) {
             Gfx g = begin(c);
             float k = Math.min(1f, exhaustion / 4f);
-            g.round(l.right() - 80f, l.y() + 9.5f, 80f, 1f, 0.5f, 0x40000000);
-            g.round(l.right() - 80f * k, l.y() + 9.5f, 80f * k, 1f, 0.5f, Colors.withAlpha(tk.glow, 0.85f));
+            HudKit.box(g, l.right() - 80f, l.y() + 9f, 80f, 1f, 0x40000000);
+            float fw = Math.round(80f * k);
+            HudKit.box(g, l.right() - fw, l.y() + 9f, fw, 1f, Colors.withAlpha(tk.glow, 0.85f));
             end(c);
         }
     }
@@ -599,13 +746,22 @@ public final class SolHud {
     private static void experience(Canvas c, Player player, Tokens tk, int w, int h) {
         float x = w / 2f - 91f, y = h - 28f;
         Gfx g = begin(c);
-        g.round(x, y, 182f, 3f, 1.5f, 0x80080610);
-        g.stroke(x, y, 182f, 3f, 1.5f, 1f / g.d.u, 0x1FFFFFFF);
+        HudKit.box(g, x, y, 182f, 3f, 0x80080610);
+        HudKit.frame(g, x, y, 182f, 3f, 0x1FFFFFFF);
         float k = Mth.clamp(player.experienceProgress, 0f, 1f);
         if (k > 0f) {
-            float fw = 182f * k;
-            g.glow(x, y, fw, 3f, 1.5f, 4f, Colors.withAlpha(tk.glow, 0.35f));
-            g.hgradient(x, y, fw, 3f, new float[]{0f, 1f}, new int[]{tk.glow, tk.accent}, 2);
+            float fw = Math.max(1f, Math.round(182f * k));
+            if (io.github.georgwav.cosmetics.client.Modules.SOL_UI.xpGlow.get()) {
+                // The glow in hard steps, never a blur.
+                HudKit.glow(g, x, y, fw, 3f, Colors.withAlpha(tk.glow, 0.4f));
+            }
+            // The fill in four whole-pixel steps from the glow colour to the accent.
+            float step = fw / 4f;
+            for (int i = 0; i < 4; i++) {
+                float a = Math.round(step * i), b = i == 3 ? fw : Math.round(step * (i + 1));
+                HudKit.box(g, x + a, y, b - a, 3f, Colors.mix(tk.glow, tk.accent, i / 3f));
+            }
+            HudKit.box(g, x, y, fw, 1f, 0x33FFFFFF);
         }
         end(c);
     }
@@ -615,11 +771,10 @@ public final class SolHud {
             return;
         }
         Gfx g = begin(c);
-        SolFont f = g.font(SolFont.Family.SEMIBOLD, 8f);
+        SolFont f = g.font(SolFont.Family.PIXEL_BOLD, 8f);
         String s = Integer.toString(player.experienceLevel);
         float cy = h - 34f;
-        g.glowSprite(w / 2f, cy, g.width(f, s) / 2f + 6f, 6f, Colors.withAlpha(tk.accent, 0.3f));
-        shadowed(g, f, s, w / 2f, cy, tk.accent, 0);
+        dropped(g, f, s, w / 2f, cy, tk.accent, 0);
         end(c);
     }
 }

@@ -22,6 +22,9 @@ public final class Compat {
     public static final boolean FIGURA = loaded("figura");
     public static final boolean VOXY = loaded("voxy");
     public static final boolean MOD_MENU = loaded("modmenu");
+    public static final boolean PUNCHY = loaded("punchy");
+    /** Sodium draws the chunks its own way (World FX's chunk rise stands aside). */
+    public static final boolean SODIUM = loaded("sodium");
 
     private Compat() {
     }
@@ -45,6 +48,16 @@ public final class Compat {
         return IRIS && IrisCompat.setShadersEnabled(enabled);
     }
 
+    /**
+     * Switches Punchy on or off, with its calm PvP values or the player's own (kept in {@code own}); nothing
+     * without Punchy.
+     */
+    public static void setPunchy(boolean on, boolean calm, java.util.Map<String, Object> own) {
+        if (PUNCHY) {
+            io.github.georgwav.cosmetics.compat.punchy.PunchyCompat.apply(on, calm, own);
+        }
+    }
+
     /** True if a Figura avatar is active for this player (it may hide or replace the vanilla model). */
     public static boolean hasFiguraAvatar(UUID player) {
         return FIGURA && FiguraCompat.hasAvatar(player);
@@ -56,7 +69,7 @@ public final class Compat {
             {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "Entity Culling"},
             {"entity_model_features", "Entity Model Features"}, {"entity_texture_features", "Entity Texture Features"},
             {"skinlayers3d", "3D Skin Layers"}, {"figura", "Figura"}, {"essential", "Essential"},
-            {"modmenu", "Mod Menu"}, {"waveycapes", "Wavey Capes"},
+            {"modmenu", "Mod Menu"}, {"waveycapes", "Wavey Capes"}, {"punchy", "Punchy"},
     };
 
     /** Installed tracked mods: display name to version. Used by the log and the settings screen. */

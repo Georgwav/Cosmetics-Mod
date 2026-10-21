@@ -119,8 +119,15 @@ public record ThemeSpec(
     public record Galaxy(float x, float y, float r, float tilt) {
     }
 
-    /** One nebula cloud: centre, radius (fraction of width), colour. */
-    public record Nebula(float x, float y, float r, int color) {
+    /**
+     * One of the painted nebulae at night: where it sits on the menu's little sky (centre, radius as a fraction of
+     * the width), its colour, which of the three painted nebulae it is ({@code big}, -1 for the one in its place in
+     * the list), how far its own colours lean toward {@code color} ({@code tint}) and how bright it is.
+     */
+    public record Nebula(float x, float y, float r, int color, int big, float tint, float strength) {
+        public Nebula(float x, float y, float r, int color) {
+            this(x, y, r, color, -1, 0f, 1f);
+        }
     }
 
     /** The eclipsed sun: centre, half-size, corona colour. */

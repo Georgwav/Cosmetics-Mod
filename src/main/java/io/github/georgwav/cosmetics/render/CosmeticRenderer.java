@@ -106,6 +106,9 @@ public final class CosmeticRenderer {
             int sides = cosmetic.definition().sides();
             CosmeticsConfig.CosmeticOptions options = config.options(cosmetic.id());
             PetPosition pet = slot == CosmeticSlot.PET ? petPosition(cosmetic, options) : null;
+            if (pet != null && pet.follows() && !info.gui) {
+                continue; // a pet that follows you is drawn in the world on its own (FollowPets)
+            }
             BoneRig bones = cosmetic.bones();
             boolean following = false;
             if (bones != null) {
@@ -436,6 +439,12 @@ public final class CosmeticRenderer {
                 float bob = (float) Math.sin(seconds * Math.PI * 0.8) * 0.8f;
                 poseStack.translate(12f / 16f, (-7f + bob) / 16f, 5f / 16f);
             }
+            // In a screen, a pet that follows you stands on the ground at your left foot, or hovers by your hip.
+            case FOLLOW -> poseStack.translate(14f / 16f, 24f / 16f, 3f / 16f);
+            case FOLLOW_FLYING -> {
+                float bob = (float) Math.sin(seconds * Math.PI * 0.8) * 0.8f;
+                poseStack.translate(15f / 16f, (8f + bob) / 16f, 5f / 16f);
+            }
             default -> poseStack.translate(6f / 16f, 0f, 0f);
         }
     }
@@ -540,7 +549,49 @@ public final class CosmeticRenderer {
                 .set(Molang.Query.IS_RIDING, info.riding)
                 .set(Molang.Query.IS_MOVING, info.moveSpeed > 0.01f)
                 .set(Molang.Query.GROUND_SPEED, info.moveSpeed * 20f)
-                .set(Molang.Query.MODIFIED_DISTANCE_MOVED, info.walked);
+                .set(Molang.Query.MODIFIED_DISTANCE_MOVED, info.walked)
+                .set(Molang.Query.IS_SITTING, info.riding);
+    }
+
+    /** The queries for a pet that follows its owner on its own: its own walking, speed and sitting. */
+    public static Molang.Context petContext(boolean moving, float blocksPerSecond, float walked, boolean sitting, boolean flying) {
+        return MOLANG.clear()
+                .set(Molang.Query.IS_MOVING, moving)
+                .set(Molang.Query.GROUND_SPEED, blocksPerSecond)
+                .set(Molang.Query.MODIFIED_DISTANCE_MOVED, walked)
+                .set(Molang.Query.IS_ON_GROUND, !flying)
+                .set(Molang.Query.IS_FLYING, flying)
+                .set(Molang.Query.IS_SITTING, sitting);
+    }
+
+    /**
+     * Draws one pet standing on its own (one that follows its owner): its bones posed for {@code context}, its
+     * settings (colour, size, position, animation) as the owner set them, from {@code poseStack} at its feet in the
+     * models' upside-down space, into {@code sink}. {@code owner} keeps its animations apart from the owner's own.
+     */
+    public static void drawAlone(PoseStack poseStack, BakedCosmetic cosmetic, java.util.UUID owner, int light, Molang.Context context,
+                                 Sink sink) {
+        CosmeticsConfig.CosmeticOptions options = CosmeticsConfig.get().options(cosmetic.id());
+        double seconds = seconds();
+        BoneRig bones = cosmetic.bones();
+        if (bones != null) {
+            poseBones(bones, cosmetic, options, owner, seconds, context);
+        }
+        applyPlacement(poseStack, options, cosmetic);
+        applyTurn(poseStack, options, cosmetic);
+        int color = Tint.argb(options, cosmetic, seconds);
+        boolean glow = options.glow || !cosmetic.allows(CosmeticOption.GLOW);
+        boolean animate = options.animate || !cosmetic.allows(CosmeticOption.ANIMATION);
+        float animationSpeed = cosmetic.allows(CosmeticOption.ANIMATION) ? options.animationSpeed : 1f;
+        int style = cosmetic.allows(CosmeticOption.STYLE) ? cosmetic.styleIndex(options.style) : cosmetic.defaultStyle();
+        if (options.style == null || !cosmetic.allows(CosmeticOption.STYLE)) {
+            int fitting = cosmetic.styleNamed(petPosition(cosmetic, options).preferredStyle());
+            if (fitting >= 0) {
+                style = fitting;
+            }
+        }
+        drawLayers(poseStack, cosmetic, light, color, glow, animate, animationSpeed, style, 1f, null, 0f, 0.0, seconds, false, null,
+                null, null, sink);
     }
 
     /** Works out a cosmetic's bones for one player now (each animation's speed and on/off from its settings). */

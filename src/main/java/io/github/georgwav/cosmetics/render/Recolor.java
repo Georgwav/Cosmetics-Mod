@@ -157,6 +157,20 @@ public record Recolor(int hue, float saturation, float brightness, Paint paint, 
         return Tint.hsvToRgb(hue - (float) Math.floor(hue), hsv[1], hsv[2]);
     }
 
+    /** The share of an ARGB image's seen pixels that are coloured (see {@link #coloured(int)}), for {@link #paintFor}. */
+    public static float coloured(int[] argb) {
+        int seen = 0, coloured = 0;
+        for (int c : argb) {
+            if ((c >>> 24) >= 0x20) {
+                seen++;
+                if (coloured(c)) {
+                    coloured++;
+                }
+            }
+        }
+        return seen == 0 ? 0f : coloured / (float) seen;
+    }
+
     /** Whether an ARGB pixel counts as coloured, not white, grey or black (and is seen: not see-through). */
     static boolean coloured(int argb) {
         if ((argb >>> 24) < 0x20) {

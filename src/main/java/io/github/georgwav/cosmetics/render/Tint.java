@@ -15,6 +15,11 @@ public final class Tint {
      * Client; null (no theme) in the tests.
      */
     public static volatile java.util.function.IntUnaryOperator theme;
+    /**
+     * What every cosmetic follows ("accent", "glow" or null: their own colours), {@link CosmeticsConfig#themeColorAll};
+     * set by Sol Client, null in the tests.
+     */
+    public static volatile java.util.function.Supplier<String> every;
 
     private Tint() {
     }
@@ -28,10 +33,24 @@ public final class Tint {
             return null;
         }
         java.util.function.IntUnaryOperator t = theme;
-        if (options.themeColor != null && t != null) {
-            return t.applyAsInt("glow".equals(options.themeColor) ? 1 : 0) & 0xFFFFFF;
+        String follow = follows(options);
+        if (follow != null && t != null) {
+            return t.applyAsInt("glow".equals(follow) ? 1 : 0) & 0xFFFFFF;
         }
         return options.color;
+    }
+
+    /**
+     * Which of the theme's colours the cosmetic follows ("accent" or "glow"), or null: its own setting, else (with no
+     * colour picked and no rainbow) what every cosmetic follows.
+     */
+    public static String follows(CosmeticsConfig.CosmeticOptions options) {
+        String own = options.themeColor;
+        if (own != null) {
+            return own.equals("own") ? null : own;
+        }
+        java.util.function.Supplier<String> all = every;
+        return options.color == null && !options.rainbow && all != null ? all.get() : null;
     }
 
     /** ARGB tint for a cosmetic that allows every option and has no default colour of its own. */

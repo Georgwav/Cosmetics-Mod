@@ -7,37 +7,43 @@ import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.ModuleIcons;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
+import io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
+import io.github.georgwav.cosmetics.sol.ui.kit.TextField;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
 import io.github.georgwav.cosmetics.sol.ui.kit.Widgets;
-import io.github.georgwav.cosmetics.sol.util.Colors;
 import net.minecraft.client.resources.language.I18n;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
 /**
- * Modules: every module as a card with its switch on the card; the gear opens its settings in the drawer, the star
- * pins it (Starred, the quick menu's tray). Filters, not folders: All, On, Starred and the categories.
+ * Modules, as Dawn's mod menu in Sol's pixels (A.7.2): filter tabs and a search over a recess of cards, four to a row.
+ * Each card has the module's name and its pin star, its big icon, a line on what it does, an ENABLED (glowing, with
+ * the sparkle) or DISABLED button, and the gear for its settings. Filters, not folders: All, On, Pinned and the
+ * categories.
  */
 final class ModulesSection implements Section {
     static final String[] FILTERS = {"all", "on", "starred", "pvp", "visual", "world", "hud", "utility", "social", "kept"};
+    /** A card's size and the grid's gaps (design px). */
+    static final float CARD_H = 196f, GAP = 14f, PAD = 14f;
     private String filter = "all";
     private final Scroll scroll = new Scroll();
-    private final Map<String, Float> knobs = new HashMap<>();
-    private final Map<String, Float> lift = new HashMap<>();
+    private final TextField search = new TextField(40, s -> scroll.reset());
+    private final List<Module> shown = new ArrayList<>();
 
     /** The prototype's category of a module. */
     static String category(Module m) {
         String id = m.id;
         return switch (id) {
-            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "crosshair", "nametags" -> "pvp";
-            case "camera", "glint", "screen", "particles", "fullbright", "outline" -> "visual";
-            case "atmosphere", "world_overlays", "time", "weather" -> "world";
-            case "sol_chat", "music", "social", "servers" -> "social";
+            case "pvp_tweaks", "pvp_effects", "hitboxes", "held_items", "punchy", "crosshair", "nametags", "kill_effects", "hit_effects",
+                 "totems", "target" -> "pvp";
+            case "camera", "glint", "screen", "particles", "fullbright", "outline", "jump_fx", "trails", "you" -> "visual";
+            case "atmosphere", "world_overlays", "time", "weather", "world_fx" -> "world";
+            case "sol_chat", "music", "lyrics", "social", "servers" -> "social";
             default -> switch (m.category) {
                 case HUD -> "hud";
                 case WORLD -> "world";
@@ -53,8 +59,9 @@ final class ModulesSection implements Section {
         return Widgets.has(key) ? I18n.get(key) : m.note();
     }
 
-    private List<Module> list() {
-        List<Module> out = new ArrayList<>();
+    private void list() {
+        shown.clear();
+        String q = search.text().trim().toLowerCase(Locale.ROOT);
         for (Module m : Modules.all()) {
             if (!m.available()) {
                 continue;
@@ -65,123 +72,167 @@ final class ModulesSection implements Section {
                 case "starred" -> SolProfiles.pinned().contains(m.id);
                 default -> category(m).equals(filter);
             };
-            if (keep) {
-                out.add(m);
+            if (keep && (q.isEmpty() || m.name().toLowerCase(Locale.ROOT).contains(q) || m.id.contains(q))) {
+                shown.add(m);
             }
         }
-        return out;
     }
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h) {
-        int on = 0, all = 0;
+        PixelTokens p = PixelTokens.get();
+        int on = 0;
         for (Module m : Modules.all()) {
-            if (m.available()) {
-                all++;
-                on += m.enabled() ? 1 : 0;
-            }
+            on += m.available() && m.enabled() ? 1 : 0;
         }
-        float headY = y + 15f;
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
-        String title = SolMenu.tr("sol.section.modules");
-        g.textMid(h2, title, x, headY, 0xFFFFFFFF);
-        float tx = x + g.width(h2, title) + 14f;
-        g.textMid(mono, SolMenu.tr("sol.menu.modules.count", on, all), tx, headY, 0x8CFFFFFF);
-        // Filters on the right, laid out from the right edge.
-        float fx = x + w;
-        float[] widths = new float[FILTERS.length];
-        SolFont cf = g.font(SolFont.Family.MEDIUM, 12f);
-        float total = 0f;
-        for (int i = 0; i < FILTERS.length; i++) {
-            widths[i] = g.width(cf, SolMenu.tr("sol.menu.filter." + FILTERS[i])) + 22f;
-            total += widths[i] + 6f;
+        list();
+        // The head: filter tabs on the left; the count and the search on the right.
+        float tabH = 40f, ty = y;
+        SolFont cf = g.font(SolFont.Family.PIXEL, 11f);
+        String count = SolMenu.tr("sol.menu.modules.count_shown", on, shown.size());
+        // The tabs in Silkscreen 12, or 10 when that leaves no room for the search (pixel type has whole steps only).
+        SolFont tf = g.font(SolFont.Family.PIXEL_BOLD, 12f);
+        String picks = SolMenu.tr("sol.fx.picks");
+        // The search keeps at least 220 design px.
+        float room = w - 220f - 12f - g.width(cf, count) - 12f, need = g.width(tf, picks) + 26f + 18f + 12f;
+        for (String f : FILTERS) {
+            need += g.width(tf, SolMenu.tr("sol.menu.filter." + f)) + 26f + 6f;
         }
-        fx = x + w - total + 6f;
-        for (int i = 0; i < FILTERS.length; i++) {
-            String f = FILTERS[i];
-            ui.chip(tk, fx, headY, SolMenu.tr("sol.menu.filter." + f), f.equals(filter), () -> {
+        if (need > room) {
+            tf = g.font(SolFont.Family.PIXEL_BOLD, 10f);
+        }
+        float tx = x;
+        for (String f : FILTERS) {
+            String label = SolMenu.tr("sol.menu.filter." + f);
+            float bw = g.width(tf, label) + 26f;
+            boolean pressed = f.equals(filter), over = ui.over(tx, ty, bw, tabH);
+            int st = pressed ? Pix.ON : ui.pressed(tx, ty, bw, tabH) ? Pix.PRESSED : over ? Pix.HOVER : Pix.NORMAL;
+            Pix.slab(g, p, tx, ty, bw, tabH, st);
+            g.textMid(tf, label, tx + 13f, ty + tabH / 2f + (st == Pix.PRESSED ? Pix.E : 0f), Pix.text(p, st));
+            int fi = ui.click(tx, ty, bw, tabH, () -> {
                 filter = f;
                 scroll.reset();
             });
-            fx += widths[i] + 6f;
+            if (ui.focused(fi)) {
+                Pix.focus(g, tx, ty, bw, tabH);
+            }
+            tx += bw + 6f;
+        }
+        // Sol picks: a curated set of effects in one click, and off again (C.2).
+        {
+            tx += 6f;
+            float bw = g.width(tf, picks) + 26f + 18f;
+            boolean pressed = io.github.georgwav.cosmetics.sol.fx.SolPicks.on(), over = ui.over(tx, ty, bw, tabH);
+            int st = pressed ? Pix.ON : ui.pressed(tx, ty, bw, tabH) ? Pix.PRESSED : over ? Pix.HOVER : Pix.NORMAL;
+            Pix.slab(g, p, tx, ty, bw, tabH, st);
+            float dy = st == Pix.PRESSED ? Pix.E : 0f;
+            // The logo's sparkle before the label.
+            int ink = Pix.text(p, st);
+            Pix.fill(g, tx + 15f, ty + tabH / 2f - 6f + dy, 2f, 12f, ink);
+            Pix.fill(g, tx + 10f, ty + tabH / 2f - 1f + dy, 12f, 2f, ink);
+            g.textMid(tf, picks, tx + 13f + 18f, ty + tabH / 2f + dy, ink);
+            int fi = ui.click(tx, ty, bw, tabH, () -> {
+                io.github.georgwav.cosmetics.sol.fx.SolPicks.toggle();
+                menu.toast(SolMenu.tr(io.github.georgwav.cosmetics.sol.fx.SolPicks.on() ? "sol.fx.picks.on" : "sol.fx.picks.off"));
+            });
+            if (ui.focused(fi)) {
+                Pix.focus(g, tx, ty, bw, tabH);
+            }
+            tx += bw + 6f;
+        }
+        float sw = Math.min(280f, x + w - (tx + 12f + g.width(cf, count) + 12f));
+        float sx = x + w - sw;
+        if (sw >= 140f) {
+            search.draw(g, ui, tk, sx, ty - 1f, sw, 42f, "search", SolMenu.tr("sol.menu.modules.search"), menu.dt());
+            g.textRight(cf, count, sx - 12f, ty + tabH / 2f, PixelTokens.INK3);
+        } else {
+            g.textRight(cf, count, x + w, ty + tabH / 2f, PixelTokens.INK3);
         }
 
-        // The grid.
-        float gy = y + 42f, gh = h - 42f;
-        int cols = menu.drawer() != null ? 3 : 4;
-        float gap = 10f, cw = (w - gap * (cols - 1) - 8f) / cols, ch = 64f;
-        List<Module> list = list();
-        int rows = (list.size() + cols - 1) / cols;
-        scroll.setMax(rows * (ch + gap) - gap - gh + 12f);
+        // The cards in a recess, four to a row (three with a module's settings open beside it).
+        float gy = y + tabH + 16f, gh = h - tabH - 16f;
+        Pix.recess(g, p, x, gy, w, gh);
+        int cols = 4;
+        float inX = x + Pix.E + PAD, inY = gy + Pix.E + PAD, inW = w - 2f * (Pix.E + PAD) - 10f, inH = gh - 2f * Pix.E - PAD;
+        float cw = (inW - GAP * (cols - 1)) / cols;
+        int rows = (shown.size() + cols - 1) / cols;
+        float content = rows * (CARD_H + GAP) - GAP + PAD;
+        scroll.setMax(content - inH);
         scroll.step(menu.dt());
-        g.clip(x - 4f, gy - 4f, x + w + 4f, gy + gh);
-        if (list.isEmpty()) {
-            g.text(g.font(SolFont.Family.MEDIUM, 13f), SolMenu.tr("sol.menu.modules.empty"), x, gy + 18f, 0x99FFFFFF);
+        g.clip(x + Pix.E, gy + Pix.E, x + w - Pix.E, gy + gh - Pix.E);
+        if (shown.isEmpty()) {
+            g.text(g.font(SolFont.Family.MEDIUM, 13f), SolMenu.tr("sol.menu.modules.empty"), inX, inY + 18f, PixelTokens.INK2);
         }
-        for (int i = 0; i < list.size(); i++) {
-            Module m = list.get(i);
-            float cx = x + (i % cols) * (cw + gap), cy = gy + 2f + (i / cols) * (ch + gap) - scroll.value();
-            if (cy + ch < gy - 8f || cy > gy + gh + 8f) {
+        for (int i = 0; i < shown.size(); i++) {
+            Module m = shown.get(i);
+            float cx = inX + (i % cols) * (cw + GAP), cy = inY + (i / cols) * (CARD_H + GAP) - scroll.value();
+            if (cy + CARD_H < gy || cy > gy + gh) {
                 continue;
             }
-            card(menu, g, ui, tk, m, cx, cy, cw, ch);
+            card(menu, g, ui, p, m, cx, cy, cw, CARD_H);
         }
         g.endClip();
-        scroll.bar(g, x + w + 4f, gy, gh);
+        if (content > inH) {
+            float from = scroll.value() / content, to = (scroll.value() + inH) / content;
+            Pix.scrollbar(g, p, x + w - Pix.E - 10f, gy + Pix.E + 4f, gh - 2f * Pix.E - 8f, from, Math.min(1f, to));
+        }
     }
 
-    private void card(SolMenu menu, Gfx g, Ui ui, Tokens tk, Module m, float x, float y, float w, float h) {
+    private void card(SolMenu menu, Gfx g, Ui ui, PixelTokens p, Module m, float x, float y, float w, float h) {
         boolean on = m.enabled();
-        boolean starred = SolProfiles.pinned().contains(m.id);
-        boolean selected = menu.drawer() != null && menu.drawer().module() == m;
-        boolean hover = ui.over(x, y, w, h);
-        float lt = lift.getOrDefault(m.id, 0f);
-        lt += ((hover ? 1f : 0f) - lt) * Math.min(1f, menu.dt() * 12f);
-        lift.put(m.id, lt);
-        float ky = knobs.getOrDefault(m.id, on ? 1f : 0f);
-        ky += ((on ? 1f : 0f) - ky) * Math.min(1f, menu.dt() * 16f);
-        knobs.put(m.id, ky);
-        y -= 2f * lt;
-        int fi = ui.click(x, y, w, h, () -> toggle(menu, m));
+        boolean pinned = SolProfiles.pinned().contains(m.id);
         if (on) {
-            g.glow(x, y, w, h, 14f, 22f, Colors.withAlpha(tk.glow, 0.16f));
+            Pix.cardOn(g, p, x, y, w, h);
+        } else {
+            Pix.card(g, p, x, y, w, h);
         }
-        if (selected) {
-            g.glow(x, y, w, h, 14f, 26f, Colors.withAlpha(tk.glow, 0.32f));
+        // The name and the pin.
+        SolFont nf = g.font(SolFont.Family.PIXEL_BOLD, 14f);
+        float pinX = x + w - 12f - 30f, top = y + 12f;
+        g.textMid(nf, g.fitLabel(nf, m.name(), pinX - x - 20f), x + 12f, top + 15f, on ? 0xFFF4F0EA : 0xFF8D8892);
+        boolean overPin = ui.over(pinX, top, 30f, 30f);
+        Icons.draw(g, "star", pinX + 3f, top + 3f, 24f, pinned ? p.acc : overPin ? 0xFFBDB7C2 : 0xFF57535C, 0f, 0);
+        int fp = ui.click(pinX, top, 30f, 30f, () -> {
+            boolean now = !SolProfiles.pinned().contains(m.id);
+            SolProfiles.setPinned(m.id, now);
+            menu.toast(SolMenu.tr(now ? "sol.notify.starred" : "sol.notify.unstarred"));
+        });
+        if (ui.focused(fp)) {
+            Pix.focus(g, pinX, top, 30f, 30f);
         }
-        g.round(x, y, w, h, 14f, tk.panel);
-        int rim = selected ? tk.accent : on ? tk.rim : hover ? 0x38FFFFFF : 0x17FFFFFF;
-        g.stroke(x, y, w, h, 14f, Math.max(1f, g.d.u), rim);
-        g.highlight(x, y, w, h, 14f, on ? 0x38FFFFFF : 0x24FFFFFF);
-        // Icon tile.
-        float ix = x + 12f, iy = y + (h - 40f) / 2f;
-        g.round(ix, iy, 40f, 40f, 11f, on ? 0x1AFFFFFF : 0x0FFFFFFF);
-        Icons.draw(g, ModuleIcons.module(m.id), ix + 10f, iy + 10f, 20f, on ? tk.accent : 0x80FFFFFF,
-                on ? Icons.FILL_ON : Icons.FILL, on ? Colors.withAlpha(tk.glow, 0.5f) : 0);
-        // Name, star, description.
-        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 14f), df = g.font(SolFont.Family.MEDIUM, 11.5f);
-        float textX = ix + 52f, room = w - 52f - 12f - 36f - 12f - 12f;
-        String name = g.fit(nf, m.name(), room - (starred ? 13f : 0f));
-        g.text(nf, name, textX, y + 27f, 0xFFFFFFFF);
-        if (starred) {
-            Icons.draw(g, "star", textX + g.width(nf, name) + 5f, y + 17f, 9f, tk.accent, Icons.FILL_ON, 0);
+        // The big icon and what it does.
+        Icons.draw(g, ModuleIcons.module(m.id), x + w / 2f - 24f, y + 54f, 48f, on ? 0xFFEFEAE4 : 0xFF9A95A0, 0f, 0);
+        SolFont df = g.font(SolFont.Family.MEDIUM, 12f);
+        g.textCentre(df, g.fit(df, description(m), w - 24f), x + w / 2f, y + 122f, PixelTokens.INK3);
+        // ENABLED / DISABLED, and the gear.
+        float by = y + h - 14f - 42f, gearX = x + w - 12f - 42f, bw = gearX - 8f - (x + 12f);
+        stateButton(menu, g, ui, p, m, x + 12f, by, bw, 42f);
+        boolean overGear = ui.over(gearX, by, 42f, 42f);
+        Pix.slab(g, p, gearX, by, 42f, 42f, ui.pressed(gearX, by, 42f, 42f) ? Pix.PRESSED : overGear ? Pix.HOVER : Pix.NORMAL);
+        Icons.draw(g, "gear", gearX + 9f, by + 9f, 24f, Pix.text(p, overGear ? Pix.HOVER : Pix.NORMAL), 0f, 0);
+        int fg = ui.click(gearX, by, 42f, 42f, () -> menu.openDrawer(m));
+        if (ui.focused(fg)) {
+            Pix.focus(g, gearX, by, 42f, 42f);
         }
-        g.text(df, g.fit(df, ModulesSection.description(m), room), textX, y + 44f, 0x8FFFFFFF);
-        // Switch.
-        ui.bigSwitch(tk, x + w - 12f - 36f, y + (h - 22f) / 2f, on, ky, () -> toggle(menu, m));
-        // Star and gear, on hover or focus.
-        if (hover || ui.focused(fi) || selected) {
-            float bx = x + w - 58f - 58f, by = y + (h - 30f) / 2f;
-            g.round(bx, by, 58f, 30f, 9f, 0xE60A0A0E);
-            ui.tool(tk, bx + 2f, by + 2f, "star", starred, () -> {
-                boolean now = !SolProfiles.pinned().contains(m.id);
-                SolProfiles.setPinned(m.id, now);
-                menu.toast(SolMenu.tr(now ? "sol.notify.starred" : "sol.notify.unstarred"));
-            });
-            ui.tool(tk, bx + 30f, by + 2f, "gear", false, () -> menu.openDrawer(m));
+    }
+
+    /** Dawn's state button: ENABLED in the on glow with the sparkle, or DISABLED in the off look. */
+    private static void stateButton(SolMenu menu, Gfx g, Ui ui, PixelTokens p, Module m, float x, float y, float w, float h) {
+        boolean on = m.enabled(), over = ui.over(x, y, w, h);
+        SolFont f = g.font(SolFont.Family.PIXEL_BOLD, 12f);
+        String label = SolMenu.tr(on ? "sol.menu.modules.enabled" : "sol.menu.modules.disabled");
+        float dy = ui.pressed(x, y, w, h) ? Pix.E : 0f;
+        if (on) {
+            Pix.onGlow(g, p, x, y + dy, w, h, over);
+            Pix.onText(g, p, f, label, x + w / 2f - g.width(f, label) / 2f, y + dy + h / 2f);
+            Pix.sparkle(g, p, x + w - 7f, y + dy + 7f, menu.time(), SolMenu.calm());
+        } else {
+            Pix.slab(g, p, x, y + dy, w, h, over ? Pix.HOVER : Pix.NORMAL);
+            g.textCentre(f, label, x + w / 2f, y + dy + h / 2f, Pix.offText(over));
         }
+        int fi = ui.click(x, y, w, h, () -> toggle(menu, m));
         if (ui.focused(fi)) {
-            g.stroke(x - 2f, y - 2f, w + 4f, h + 4f, 16f, 2f * g.d.u, tk.accent);
+            Pix.focus(g, x, y, w, h);
         }
     }
 
@@ -194,6 +245,16 @@ final class ModulesSection implements Section {
     @Override
     public boolean scroll(float amount) {
         return scroll.wheel(amount);
+    }
+
+    @Override
+    public boolean typed(String text) {
+        return search.typed(text);
+    }
+
+    @Override
+    public boolean key(int key, boolean ctrl) {
+        return search.key(key, ctrl);
     }
 
     @Override

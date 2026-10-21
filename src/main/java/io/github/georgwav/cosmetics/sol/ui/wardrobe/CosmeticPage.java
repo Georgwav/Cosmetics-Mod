@@ -56,7 +56,9 @@ final class CosmeticPage {
             o.color = (v & 0xFFFFFF) == (def & 0xFFFFFF) ? null : v & 0xFFFFFF;
             o.themeColor = null;
         });
-        this.palette = RecoloredTextures.palette(Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture).distinct().toList());
+        // A knife has no layers: its colours are its texture's.
+        this.palette = RecoloredTextures.palette(cosmetic.slot() == CosmeticSlot.MELEE ? List.of(cosmetic.definition().texture())
+                : Arrays.stream(cosmetic.layers()).map(BakedCosmetic.Layer::texture).distinct().toList());
     }
 
     private boolean shows(CosmeticControls.Gate gate) {
@@ -75,6 +77,12 @@ final class CosmeticPage {
             case "styles" -> cosmetic.styles().length > 1;
             case "pet" -> cosmetic.slot() == CosmeticSlot.PET;
             case "cape" -> cosmetic.slot() == CosmeticSlot.CAPE;
+            case "shield" -> cosmetic.slot() == CosmeticSlot.SHIELD;
+            case "knife" -> cosmetic.slot() == CosmeticSlot.MELEE;
+            case "knife_angel" -> {
+                io.github.georgwav.cosmetics.melee.Knife k = io.github.georgwav.cosmetics.melee.KnifeRegistry.get(id);
+                yield k != null && k.rig.angelSet;
+            }
             case "rainbow_on" -> config.options(id).rainbow;
             case "tint_or_rainbow" -> config.allows(cosmetic, CosmeticOption.TINT) || config.allows(cosmetic, CosmeticOption.RAINBOW);
             case "palette" -> palette.length > 0;
@@ -102,16 +110,15 @@ final class CosmeticPage {
         Ui ui = screen.ui;
         CosmeticsConfig config = CosmeticsConfig.get();
         // The header: back to the list, the name, wear it.
-        ui.button(tk, x + g.width(g.font(SolFont.Family.MEDIUM, 12f), WardrobeScreen.t("detail.back")) + 20f, top + 13f,
-                WardrobeScreen.t("detail.back"), false, () -> screen.openCosmetic(null));
-        SolFont b = g.font(SolFont.Family.SEMIBOLD, 20f);
-        g.textMid(b, g.fit(b, cosmetic.name(), w - 200f), x, top + 50f, 0xFFFFFFFF);
+        ui.bigButton(x, top, "left", WardrobeScreen.t("detail.back"), false, true, () -> screen.openCosmetic(null));
+        SolFont b = g.font(SolFont.Family.PIXEL_BOLD, 15f);
+        g.textMid(b, g.fit(b, cosmetic.name(), w - 200f), x, top + 62f, 0xFFFFFFFF);
         boolean worn = config.localEquipped().contains(id);
         SolFont s = g.font(SolFont.Family.MEDIUM, 13f);
         String wear = WardrobeScreen.t("detail.wear");
-        g.textRight(s, wear, x + w - 42f, top + 50f, 0xD9FFFFFF);
-        ui.smallSwitch(tk, x + w - 30f, top + 41f, worn, () -> WardrobeScreen.setEquipped(id, !worn));
-        float bodyTop = top + 74f;
+        g.textRight(s, wear, x + w - 30f + 30f - Ui.SWITCH_W - 10f, top + 62f, 0xD9FFFFFF);
+        ui.smallSwitch(tk, x + w - 30f, top + 53f, worn, () -> WardrobeScreen.setEquipped(id, !worn));
+        float bodyTop = top + 86f;
         g.rect(x, bodyTop - 6f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         g.clip(x - 4f, bodyTop, x + w + 6f, top + h);
         PageRows rows = new PageRows(g, ui, tk, x, bodyTop - scroll.value(), w, null);
@@ -200,6 +207,13 @@ final class CosmeticPage {
             }
             case "preview_elytra" -> rows.toggle(label, null, WardrobeScreen.previewElytra,
                     () -> WardrobeScreen.previewElytra = !WardrobeScreen.previewElytra);
+            case "shield_item_icon" -> {
+                rows.toggle(label, null, config.shieldItemIcons, () -> {
+                    config.shieldItemIcons = !config.shieldItemIcons;
+                    CosmeticsConfig.save();
+                });
+                rows.text(WardrobeScreen.t("shield_item_icon.hint"), 0x8CFFFFFF);
+            }
             case "color" -> {
                 float top = rows.block(label, ColorPicker.HEIGHT + 30f);
                 if (!Float.isNaN(top)) {
@@ -214,12 +228,14 @@ final class CosmeticPage {
                 }
             }
             case "follow_theme" -> {
+                // Default does as every cosmetic does (Settings › Theme colour on every cosmetic); Off keeps its own
+                // colours even then.
                 String cur = config.options(id).themeColor;
-                String[] names = {WardrobeScreen.tr("sol.wardrobe.follow.off"), WardrobeScreen.tr("sol.wardrobe.follow.accent"),
-                        WardrobeScreen.tr("sol.wardrobe.follow.glow")};
-                int sel = cur == null ? 0 : cur.equals("glow") ? 2 : 1;
+                String[] names = {WardrobeScreen.tr("sol.wardrobe.follow.default"), WardrobeScreen.tr("sol.wardrobe.follow.off"),
+                        WardrobeScreen.tr("sol.wardrobe.follow.accent"), WardrobeScreen.tr("sol.wardrobe.follow.glow")};
+                int sel = cur == null ? 0 : cur.equals("own") ? 1 : cur.equals("glow") ? 3 : 2;
                 rows.choice(WardrobeScreen.tr("sol.wardrobe.follow"), null, names, sel,
-                        i -> config.editOptions(id).themeColor = i == 0 ? null : i == 1 ? "accent" : "glow");
+                        i -> config.editOptions(id).themeColor = i == 0 ? null : i == 1 ? "own" : i == 2 ? "accent" : "glow");
             }
             case "swaps" -> swaps(g, ui, tk, rows, label, config);
             default -> {
@@ -252,7 +268,7 @@ final class CosmeticPage {
                     () -> swap(config, from, from), screen.dt());
         }
         CosmeticsConfig.CosmeticOptions o = config.options(id);
-        rows.text(WardrobeScreen.t(o.color != null || o.rainbow || o.themeColor != null ? "swaps.hint_painted" : "swaps.hint"),
+        rows.text(WardrobeScreen.t(o.color != null || o.rainbow || io.github.georgwav.cosmetics.render.Tint.follows(o) != null ? "swaps.hint_painted" : "swaps.hint"),
                 0x8CFFFFFF);
     }
 

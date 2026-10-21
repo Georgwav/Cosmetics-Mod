@@ -39,6 +39,11 @@ public interface Section {
     default void game(SolMenu menu, io.github.georgwav.cosmetics.ui.Canvas canvas, int mouseX, int mouseY, float dt) {
     }
 
+    /** Esc: closes what the section has open over itself (a list, a card, a search); true if it did. */
+    default boolean back() {
+        return false;
+    }
+
     /** The menu closed: free textures. */
     default void closed() {
     }

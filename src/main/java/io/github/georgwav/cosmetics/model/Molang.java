@@ -46,7 +46,9 @@ public final class Molang {
         /** Horizontal speed, blocks per second. */
         GROUND_SPEED("ground_speed"),
         /** Distance walked, in blocks (for walk cycles). */
-        MODIFIED_DISTANCE_MOVED("modified_distance_moved");
+        MODIFIED_DISTANCE_MOVED("modified_distance_moved"),
+        /** A pet that follows you, sitting (or hovering low) while you stand still; else the wearer riding. */
+        IS_SITTING("is_sitting");
 
         private final String id;
 

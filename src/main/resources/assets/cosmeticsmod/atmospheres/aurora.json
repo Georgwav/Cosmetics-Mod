@@ -135,14 +135,14 @@
     },
     "morning": {
       "sky": {
-        "top": "#456d89",
-        "middle": "#7a9caf",
-        "horizon": "#c5d7d5",
-        "glow": "#e1eee1",
+        "top": "#193b60",
+        "middle": "#447298",
+        "horizon": "#a6c9cb",
+        "glow": "#d4eadb",
         "sunWarmth": 0.235
       },
       "fog": {
-        "color": "#92afb5",
+        "color": "#7198a4",
         "density": 0.4675,
         "near": 13,
         "far": 168,
@@ -165,14 +165,14 @@
     },
     "noon": {
       "sky": {
-        "top": "#5a8ca8",
-        "middle": "#86b4c4",
-        "horizon": "#cfe6e8",
-        "glow": "#e6f6f2",
+        "top": "#173f68",
+        "middle": "#3373a0",
+        "horizon": "#9fd0d8",
+        "glow": "#d2f0e8",
         "sunWarmth": 0.2
       },
       "fog": {
-        "color": "#b8d4d8",
+        "color": "#86b0be",
         "density": 0.45,
         "near": 16,
         "far": 200
@@ -189,14 +189,14 @@
     },
     "afternoon": {
       "sky": {
-        "top": "#456c86",
-        "middle": "#6a94a6",
-        "horizon": "#b1cfd2",
-        "glow": "#d3ede5",
+        "top": "#16365a",
+        "middle": "#30678d",
+        "horizon": "#8fc0c7",
+        "glow": "#c5e9de",
         "sunWarmth": 0.23
       },
       "fog": {
-        "color": "#92afb5",
+        "color": "#6f96a3",
         "density": 0.465,
         "near": 14,
         "far": 173,

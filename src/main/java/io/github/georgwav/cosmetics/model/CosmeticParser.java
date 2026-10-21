@@ -90,6 +90,16 @@ public final class CosmeticParser {
         ModelSource models = context.models();
         String namespace = id.substring(0, id.indexOf(':'));
         CosmeticSlot slot = CosmeticSlot.byId(requireString(json, "slot"));
+        // A knife is drawn from its melee block by the knife renderer: no parts of its own.
+        CosmeticDefinition.Melee melee = null;
+        if (slot == CosmeticSlot.MELEE) {
+            if (!json.has("melee") || !json.get("melee").isJsonObject()) {
+                throw new JsonParseException("A melee cosmetic needs a \"melee\" object");
+            }
+            melee = parseMelee(json.getAsJsonObject("melee"), namespace);
+        } else if (json.has("melee")) {
+            throw new JsonParseException("\"melee\" is only for the melee slot");
+        }
         // Particles alone (an aura) need no parts and no texture of their own.
         boolean particlesOnly = json.has("particles") && !json.has("parts") && !json.has("model");
         String texture = particlesOnly && !json.has("texture") ? "" : qualify(namespace, requireString(json, "texture"));
@@ -125,7 +135,7 @@ public final class CosmeticParser {
                 textureSize = new int[]{model.textureWidth(), model.textureHeight()};
             }
         }
-        JsonArray partsJson = (json.has("model") || particlesOnly) && !json.has("parts") ? new JsonArray()
+        JsonArray partsJson = (json.has("model") || particlesOnly || melee != null) && !json.has("parts") ? new JsonArray()
                 : requireArray(json, "parts");
         for (int i = 0; i < partsJson.size(); i++) {
             JsonObject partJson = partsJson.get(i).getAsJsonObject();
@@ -182,7 +192,7 @@ public final class CosmeticParser {
         }
         List<CosmeticDefinition.ParticleEmitter> particles = json.has("particles")
                 ? parseParticles(json.get("particles"), namespace) : List.of();
-        if (parts.isEmpty() && particles.isEmpty()) {
+        if (parts.isEmpty() && particles.isEmpty() && melee == null) {
             throw new JsonParseException("Cosmetic " + id + " has no parts");
         }
         int triangles = 0;
@@ -196,7 +206,11 @@ public final class CosmeticParser {
                     + context.maxMeshTriangles() + " (maxMeshTriangles in config/cosmeticsmod.json)");
         }
         String name = json.has("name") ? json.get("name").getAsString() : prettify(id);
-        int options = json.has("options") ? parseOptions(json.get("options")) : CosmeticOption.ALL;
+        // A knife has none of the model options (colour, size, place): its pack draws it as it is.
+        // A knife takes colour (its texture recoloured), not size or place (its pack's animation places it).
+        int options = json.has("options") ? parseOptions(json.get("options"))
+                : melee != null ? CosmeticOption.TINT.bit() | CosmeticOption.RAINBOW.bit() | CosmeticOption.SATURATION.bit()
+                : CosmeticOption.ALL;
         int defaultColor = json.has("default_color") ? color(json.get("default_color"), "default_color")
                 : CosmeticDefinition.WHITE;
         String defaultStyle = null;
@@ -223,7 +237,7 @@ public final class CosmeticParser {
         if (json.has("pet_position")) {
             petPosition = PetPosition.byName(json.get("pet_position").getAsString());
             if (petPosition == null) {
-                throw new JsonParseException("pet_position must be left_shoulder, right_shoulder, head or floating");
+                throw new JsonParseException("pet_position must be left_shoulder, right_shoulder, head, floating, follow or follow_flying");
             }
         }
         // What it counts as when you wear one at a time ("hat", "ears", ...); by default its slot, or "wings".
@@ -237,9 +251,63 @@ public final class CosmeticParser {
         // A held cosmetic (a shield) made to face the other way round in first person than in third.
         boolean firstPersonTurned = json.has("first_person_turned")
                 && bool(json.get("first_person_turned"), "first_person_turned");
+        String icon = json.has("icon") ? qualify(namespace, json.get("icon").getAsString()) : null;
+        String group = json.has("group") ? json.get("group").getAsString().strip() : null;
+        if (group != null && group.isEmpty()) {
+            group = null;
+        }
         return new CosmeticDefinition(id, name, slot, texture, textureSize[0], textureSize[1], List.copyOf(parts),
                 options, defaultColor, defaultStyle, wings, particles, sides, prop, petPosition, kind, boneRig,
-                firstPersonTurned);
+                firstPersonTurned, icon, group, melee);
+    }
+
+    /** A knife's {@code melee} block. */
+    private static CosmeticDefinition.Melee parseMelee(JsonObject json, String namespace) {
+        String model = qualifyFile(namespace, requireString(json, "model"), "melee.model");
+        String animations = qualifyFile(namespace, requireString(json, "animations"), "melee.animations");
+        String sounds = json.has("sounds") ? json.get("sounds").getAsString() : namespace;
+        if (!sounds.matches("[a-z0-9_.-]+")) {
+            throw new JsonParseException("melee.sounds must be a namespace");
+        }
+        String pack = json.has("pack") ? json.get("pack").getAsString() : "";
+        float handScale = json.has("hand_scale") ? json.get("hand_scale").getAsFloat() : 1f;
+        if (!(handScale >= 0.25f && handScale <= 4f)) {
+            throw new JsonParseException("melee.hand_scale must be between 0.25 and 4");
+        }
+        float[] camera = json.has("camera") ? floats(json.get("camera"), 3, "melee.camera") : null;
+        String angel = json.has("angel") ? json.get("angel").getAsString() : CosmeticDefinition.Melee.RANDOM;
+        if (!angel.equals(CosmeticDefinition.Melee.RANDOM) && !angel.equals(CosmeticDefinition.Melee.DEVIL)
+                && !angel.equals(CosmeticDefinition.Melee.ANGEL)) {
+            throw new JsonParseException("melee.angel must be random, devil or angel");
+        }
+        float[] grip = json.has("grip") ? floats(json.get("grip"), 2, "melee.grip") : null;
+        float[] right = null, left = null;
+        if (json.has("transforms")) {
+            if (!json.get("transforms").isJsonObject()) {
+                throw new JsonParseException("melee.transforms must be an object");
+            }
+            JsonObject transforms = json.getAsJsonObject("transforms");
+            right = transform(transforms, "thirdperson_righthand");
+            left = transform(transforms, "thirdperson_lefthand");
+        }
+        return new CosmeticDefinition.Melee(model, animations, sounds, pack, handScale, camera, angel, grip, right, left);
+    }
+
+    /** A display transform as rotation, translation and scale (nine floats), or null when the file has none. */
+    private static float[] transform(JsonObject transforms, String key) {
+        if (!transforms.has(key) || !transforms.get(key).isJsonObject()) {
+            return null;
+        }
+        JsonObject t = transforms.getAsJsonObject(key);
+        String where = "melee.transforms." + key;
+        float[] out = {0, 0, 0, 0, 0, 0, 1, 1, 1};
+        String[] parts = {"rotation", "translation", "scale"};
+        for (int i = 0; i < 3; i++) {
+            if (t.has(parts[i])) {
+                System.arraycopy(floats(t.get(parts[i]), 3, where + "." + parts[i]), 0, out, i * 3, 3);
+            }
+        }
+        return out;
     }
 
     /** Most particles one emitter may give off per second, so a typo can't flood the particle engine. */

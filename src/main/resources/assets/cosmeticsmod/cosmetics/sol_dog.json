@@ -1,0 +1,24 @@
+{
+  "name": "Sol Dog",
+  "slot": "pet",
+  "pet_position": "follow",
+  "texture": "cosmeticsmod:textures/cosmetic/sol_dog.png",
+  "model": "cosmeticsmod:sol_dog",
+  "model_animations": "cosmeticsmod:sol_dog.animation",
+  "model_states": [
+    {
+      "animation": "sit",
+      "when": "q.is_sitting",
+      "blend": 0.3
+    },
+    {
+      "animation": "walk",
+      "when": "q.is_moving",
+      "blend": 0.15
+    },
+    {
+      "animation": "idle",
+      "blend": 0.3
+    }
+  ]
+}

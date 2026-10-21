@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.Notifications;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
@@ -139,7 +140,7 @@ public final class ModBrowser extends SolScreen {
             scroll.reset();
         }
         g.rect(g.d.left(), g.d.top(), g.d.right() - g.d.left(), g.d.bottom() - g.d.top(), 0xA6050508);
-        SolFont h1 = g.font(SolFont.Family.SEMIBOLD, 26f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h1 = g.font(SolFont.Family.PIXEL_BOLD, 16f), mono = g.font(SolFont.Family.PIXEL, 12f);
         SolFont b = g.font(SolFont.Family.SEMIBOLD, 14f), s = g.font(SolFont.Family.MEDIUM, 12f);
         float x0 = 160f, w = 960f, top = 44f;
         String title = Component.translatable(kind == Modrinth.Kind.MOD ? "sol.mods.browser.title" : "sol.mods.browser.title_packs").getString();
@@ -169,13 +170,13 @@ public final class ModBrowser extends SolScreen {
         for (Modrinth.Hit hit : list) {
             if (y > ly - 80f && y < bottom + 10f) {
                 float rh = 68f;
-                g.round(x0, y, w, rh, 12f, 0x0DFFFFFF);
-                g.stroke(x0, y, w, rh, 12f, Math.max(1f, g.d.u), 0x14FFFFFF);
+                Pix.fill(g, x0, y, w, rh, 0x0DFFFFFF);
+                Pix.frame(g, x0, y, w, rh, 0x14FFFFFF);
                 SolTexture icon = io.github.georgwav.cosmetics.sol.music.Covers.thumb(hit.icon());
                 if (icon != null) {
                     g.image(icon, x0 + 12f, y + 12f, 44f, 44f, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
                 } else {
-                    g.round(x0 + 12f, y + 12f, 44f, 44f, 10f, 0x14FFFFFF);
+                    Pix.fill(g, x0 + 12f, y + 12f, 44f, 44f, 0x14FFFFFF);
                     Icons.draw(g, "puzzle", x0 + 23f, y + 23f, 22f, 0x99FFFFFF, Icons.FILL, 0);
                 }
                 String st = state.getOrDefault(hit.id(), downloaded.contains(hit.id())

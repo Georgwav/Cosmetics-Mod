@@ -106,7 +106,7 @@ public final class Extras {
      */
     static void renderNight(ThemeSpec theme, float t, float rain) {
         if (!theme.nebula().isEmpty()) {
-            Nebula.render(rain);
+            Nebula.render(theme.nebula(), rain);
         }
         if (theme.aurora() != null && theme.aurora().length > 0) {
             Aurora.render(theme.aurora(), theme.show().azimuth(), t, rain);

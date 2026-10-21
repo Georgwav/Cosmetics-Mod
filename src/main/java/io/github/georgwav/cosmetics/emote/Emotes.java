@@ -31,7 +31,8 @@ public final class Emotes {
     private Emotes() {
     }
 
-    public static void reload(ResourceManager manager) {
+    /** Reads every emote, in wheel order; touches nothing the game is using (runs off its thread on a reload). */
+    public static Map<String, Emote> prepare(ResourceManager manager) {
         Map<String, Emote> loaded = new LinkedHashMap<>();
         // `var`: the key type is ResourceLocation before 1.21.11 and Identifier after.
         for (var entry : manager.listResources(DIRECTORY, location -> location.getPath().endsWith(SUFFIX)).entrySet()) {
@@ -56,8 +57,19 @@ public final class Emotes {
         }).thenComparing(Emote::id));
         Map<String, Emote> ordered = new LinkedHashMap<>();
         sorted.forEach(e -> ordered.put(e.id(), e));
-        emotes = Collections.unmodifiableMap(ordered);
-        CosmeticsMod.LOGGER.info("Loaded {} emote(s)", ordered.size());
+        return Collections.unmodifiableMap(ordered);
+    }
+
+    /** Puts what {@link #prepare} read in place. */
+    public static void apply(Map<String, Emote> loaded) {
+        int before = emotes == null ? -1 : emotes.size();
+        emotes = loaded;
+        // Said once; a reload with the same emotes (Sol Styles applying a mix) isn't news.
+        if (loaded.size() != before) {
+            CosmeticsMod.LOGGER.info("Loaded {} emote(s)", loaded.size());
+        } else {
+            CosmeticsMod.LOGGER.debug("Loaded {} emote(s) again", loaded.size());
+        }
     }
 
     public static Collection<Emote> all() {

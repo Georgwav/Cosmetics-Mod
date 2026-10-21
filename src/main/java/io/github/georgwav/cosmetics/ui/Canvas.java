@@ -277,15 +277,19 @@ public final class Canvas {
     }
 
     /**
-     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub). From 1.21.4 the clip
-     * goes through the transform; before, it is in GUI units.
+     * Clips to a rectangle in screen pixels while the transform is scaled to them (the hub, a HUD module). From 1.21.4
+     * the clip goes through the transform; before, it is in GUI units, so the rectangle is put through the transform
+     * here (a HUD module's place and size included, not only the scale).
      */
     public void clipScreen(float x0, float y0, float x1, float y1, float guiScale) {
         //? if >=1.21.4 {
         raw.enableScissor((int) Math.floor(x0), (int) Math.floor(y0), (int) Math.ceil(x1), (int) Math.ceil(y1));
         //?} else {
-        /*raw.enableScissor((int) Math.floor(x0 / guiScale), (int) Math.floor(y0 / guiScale),
-                (int) Math.ceil(x1 / guiScale), (int) Math.ceil(y1 / guiScale));
+        /*org.joml.Matrix4f m = raw.pose().last().pose();
+        org.joml.Vector3f a = m.transformPosition(x0, y0, 0f, new org.joml.Vector3f());
+        org.joml.Vector3f b = m.transformPosition(x1, y1, 0f, new org.joml.Vector3f());
+        raw.enableScissor((int) Math.floor(Math.min(a.x, b.x)), (int) Math.floor(Math.min(a.y, b.y)),
+                (int) Math.ceil(Math.max(a.x, b.x)), (int) Math.ceil(Math.max(a.y, b.y)));
         *///?}
     }
 

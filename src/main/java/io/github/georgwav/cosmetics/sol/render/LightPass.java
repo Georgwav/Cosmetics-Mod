@@ -44,7 +44,7 @@ import java.util.Map;
  *   the ground, and light shafts (a quarter-resolution radial blur of the bright sky toward the sun);</li>
  *   <li>after the hand ({@link #grade()}): bloom (the bright parts at half resolution, blurred through a five-level
  *   dual-filter mip chain and added back in the theme's bloom tint), the theme's colour grade (a 32x32x32 LUT built
- *   from its colours, or one it ships) and a subtle vignette.</li>
+ *   from its colours, or one it ships), a subtle vignette, then the Punchy module's rim round the hands.</li>
  * </ul>
  *
  * <p>Presets follow Atmosphere's quality: Low has no pass, Medium the bloom, grade and scattering (at most
@@ -55,6 +55,9 @@ import java.util.Map;
 public final class LightPass {
     public static final int OFF = 0, MEDIUM = 1, HIGH = 2;
     private static final int PARAMS = 128;
+    private static final float SEA_LEVEL = 63f;
+    /** Distant Horizons is installed: its land never reaches the depth buffer (see the skyline rim). */
+    private static final boolean DISTANT_HORIZONS = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("distanthorizons");
     private static final int LUT_W = 1024, LUT_H = 32;
 
     private static final float[] values = new float[PARAMS];
@@ -66,6 +69,8 @@ public final class LightPass {
     private static String lutKey = "";
     private static int preset;
     private static long lastWorldFrame = -1;
+    /** The frame the parameter texture was last filled for. */
+    private static long lastUpdate = -1;
     /** For the benchmark: nanoseconds spent in the passes this frame. */
     public static long nanos;
     /**
@@ -124,18 +129,150 @@ public final class LightPass {
         nanos = System.nanoTime() - t0;
     }
 
-    /** After the hand: bloom, grade, vignette; then motion blur over the finished frame. */
+    /**
+     * After the hand: bloom, grade, vignette, then the glow round the hands (after them, so the bloom doesn't spread
+     * the rim into a haze and the grade doesn't shift its colour); then motion blur over the finished frame.
+     */
     public static void grade() {
         if (preset != OFF && lastWorldFrame == FrameInfo.frame) {
             long t0 = System.nanoTime();
+            //? if <1.21.5 {
+            /*boolean keep = glowWanted();
+            if (keep) {
+                keepDepth(true);
+            }
+            *///?}
             Guard.run(Feature.LIGHT_PASS, () -> run("sol_grade"));
+            //? if <1.21.5 {
+            /*if (keep) {
+                keepDepth(false);
+            }
+            *///?}
             nanos += System.nanoTime() - t0;
         }
+        handGlow();
         motionBlur();
+        pixelWorld();
         //? if >=1.21.2 {
         pool.endFrame();
         //?}
     }
+
+    // ------------------------------------------------------------------ the world in pixels
+
+    private static SolTexture pixelTexture;
+    private static int pixelUploaded = -1;
+    private static int pixelCell, pixelOx, pixelOy;
+    private static long pixelAsked = -10;
+    /** For the in-game test: frames the world was drawn in pixels. */
+    public static int pixelFrames;
+
+    /**
+     * The quick menu asks for the world under it in its own pixels (each frame it's open): cells {@code cell} screen
+     * pixels wide, lined up with its wheel ({@code left}, {@code top}: a corner of the grid in screen pixels).
+     */
+    public static void pixelate(int cell, int left, int top) {
+        int h = Mc.mainTarget().height;
+        pixelCell = Math.max(1, Math.min(255, cell));
+        pixelOx = Math.floorMod(left, pixelCell);
+        pixelOy = Math.floorMod(h - top, pixelCell);
+        pixelAsked = FrameInfo.frame;
+    }
+
+    /** The world in the pixel UI's pixels while the quick menu is open (it asked on the frame before). */
+    private static void pixelWorld() {
+        if (FrameInfo.frame - pixelAsked > 1 || pixelCell < 2 || !FrameInfo.inWorld || Compat.isShaderPackActive()
+                || !Guard.on(Feature.QUICK_MENU)) {
+            return;
+        }
+        long t0 = System.nanoTime();
+        ensureTextures();
+        if (pixelTexture == null || pixelTexture.released()) {
+            //? if >=1.21.2 {
+            String ns = CosmeticsMod.MOD_ID;
+            //?} else {
+            /*String ns = "minecraft";
+            *///?}
+            pixelTexture = new SolTexture(ns, "textures/effect/sol_pixel.png", 1, 1, false);
+            pixelUploaded = -1;
+        }
+        int v = 0xFF000000 | pixelCell << 16 | pixelOx << 8 | pixelOy;
+        if (v != pixelUploaded) {
+            pixelTexture.upload(new int[]{v});
+            pixelUploaded = v;
+        }
+        if (Guard.run(Feature.QUICK_MENU, () -> run("sol_pixel"))) {
+            pixelFrames++;
+        }
+        nanos += System.nanoTime() - t0;
+    }
+
+    // ------------------------------------------------------------------ hand glow
+
+    /** For the in-game test: frames the hand glow ran on. */
+    public static int handGlowFrames;
+    /** The last frame the hand glow ran on (its motion trail carries on only from the frame before). */
+    private static long lastGlowFrame = -10;
+
+    /**
+     * The Punchy module's glow round the first-person hands and held item: everything drawn after the game cleared
+     * the depth for the hands is the mask, and a thin rim is laid round it from each pixel's distance to its edge.
+     * Runs whether Atmosphere is on or not; it stands aside for a shader pack (which draws the hands its own way).
+     */
+    private static void handGlow() {
+        if (!glowWanted()) {
+            return;
+        }
+        long t0 = System.nanoTime();
+        if (Guard.run(Feature.HAND_GLOW, () -> {
+            if (lastUpdate != FrameInfo.frame) {
+                update();
+            }
+            // How the hands moved, now that they're drawn (the trail fills their path).
+            HandMotion.params(values, 92);
+            pack();
+            run("sol_hand_glow");
+        })) {
+            handGlowFrames++;
+        }
+        lastGlowFrame = FrameInfo.frame;
+        nanos += System.nanoTime() - t0;
+    }
+
+    private static boolean glowWanted() {
+        return FrameInfo.inWorld && !Compat.isShaderPackActive() && Guard.on(Feature.HAND_GLOW)
+                && io.github.georgwav.cosmetics.client.modules.PunchyModule.glowNow() > 0f;
+    }
+
+    //? if <1.21.5 {
+    /*/^* The main target's depth while the grade runs (null until the glow first needs it). ^/
+    private static com.mojang.blaze3d.pipeline.RenderTarget depthKept;
+
+    /^*
+     * Keeps the main target's depth over the grade ({@code save}) and puts it back after: 1.21.1 to 1.21.4's post passes
+     * clear the depth of the target they draw to, and the glow after the grade finds the hands by it.
+     ^/
+    private static void keepDepth(boolean save) {
+        var main = Mc.mainTarget();
+        if (save) {
+            if (depthKept != null && (depthKept.width != main.width || depthKept.height != main.height)) {
+                depthKept.destroyBuffers();
+                depthKept = null;
+            }
+            if (depthKept == null) {
+                //? if <1.21.2 {
+                depthKept = new com.mojang.blaze3d.pipeline.TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
+                //?} else {
+                /^depthKept = new com.mojang.blaze3d.pipeline.TextureTarget(main.width, main.height, true);
+                ^///?}
+            }
+            depthKept.copyDepthFrom(main);
+        } else {
+            main.copyDepthFrom(depthKept);
+        }
+        main.bindWrite(false);
+    }
+    *///?}
 
     // ------------------------------------------------------------------ motion blur
 
@@ -283,6 +420,7 @@ public final class LightPass {
 
     /** Fills and uploads the parameter texture, and rebuilds the grade when the theme changes it. */
     private static void update() {
+        lastUpdate = FrameInfo.frame;
         ensureTextures();
         Tokens tk = ThemeState.tokens();
         Matrix4f proj = FrameInfo.projection;
@@ -333,6 +471,15 @@ public final class LightPass {
         v[13] = Math.min(1f, tk.lightStrength * 1.2f * tune("sun")) * in * open;
         v[14] = FogControl.start(100000f);
         v[15] = FogControl.end(100000f);
+        // Where the game's own land ends (the skyline rim is drawn only there).
+        v[30] = FrameInfo.renderDistance;
+        // The eye's height above sea level (the low haze is measured from there).
+        v[31] = (float) FrameInfo.camY - SEA_LEVEL;
+        // Where the depth buffer's land ends while far land goes on (the world's light fades out before it): the
+        // last chunks with Distant Horizons (its land never reaches the depth buffer), else the game's far plane,
+        // along the view axis (Voxy's land past it reads as sky; the game's own land ends well short of it).
+        v[59] = DISTANT_HORIZONS ? FrameInfo.renderDistance : 1f / Math.max(1e-6f, v[10] * v[8] + v[9]);
+        v[60] = DISTANT_HORIZONS ? 0f : 1f;
         float rain = FrameInfo.rain;
         v[16] = tk.scatter * (1f - 0.7f * rain) * tune("scatter") * in * open;
         v[17] = tk.haze * tune("haze") * (0.4f + 0.6f * in) * open;
@@ -349,7 +496,9 @@ public final class LightPass {
         v[21] = (Atmosphere.INSTANCE != null && Atmosphere.INSTANCE.rays.get() ? KeyLight.shafts : 0f)
                 * (1f - 0.85f * Ease.smoothstep(0.3f, 0.65f, sceneKey)) * tune("shafts") * in * open;
         v[22] = FrameInfo.time;
-        v[23] = 0.3f * KeyLight.rim * tune("rim") * in * open;
+        // The skyline rim at the end of the world; none with Distant Horizons, whose land the depth buffer never
+        // holds (the game's last chunks would get a line drawn across its land).
+        v[23] = DISTANT_HORIZONS ? 0f : 0.3f * KeyLight.rim * tune("rim") * in * open;
         v[24] = view.m10();
         v[25] = view.m11();
         v[26] = view.m12();
@@ -369,7 +518,7 @@ public final class LightPass {
         // stays dim: its light shows in the rims and the colour, not in a lift.
         float dark = Math.max(tk.night, 1f - SkyTime.worldLight);
         v[49] = 1.3f * KeyLight.strength * dark * in * tune("exposure") * open;
-        v[50] = KeyLight.rimAll * in * open;
+        v[50] = DISTANT_HORIZONS ? 0f : KeyLight.rimAll * in * open;
         // The second light colour sweeping over the ground in bands, and the world's east in view space (the
         // bands' reference).
         rgb(v, 51, KeyLight.color2);
@@ -394,12 +543,9 @@ public final class LightPass {
         v[71] = night * in * open;
         rgb(v, 72, io.github.georgwav.cosmetics.sol.atmosphere.NightSky.floorColor);
         v[75] = night * in;
-        for (int i = 0; i < PARAMS; i++) {
-            int bits = Float.floatToRawIntBits(v[i]);
-            int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
-            params[i] = (b3 << 24) | (b0 << 16) | (b1 << 8) | b2;
-        }
-        paramsTexture.upload(params);
+        // The glow round the hands (the Punchy module).
+        io.github.georgwav.cosmetics.client.modules.PunchyModule.glowParams(v, 76, tk, lastGlowFrame == FrameInfo.frame - 1);
+        pack();
 
         String key = tk.lut + "|" + tk.gradeHighlights + "|" + tk.gradeShadows + "|" + tk.saturation + "|" + tk.contrast
                 + "|" + tune("grade") * Atmosphere.intensity();
@@ -410,14 +556,28 @@ public final class LightPass {
         }
     }
 
+    /** The values into the parameter texture (each float's bytes in a texel) and up to the GPU. */
+    private static void pack() {
+        for (int i = 0; i < PARAMS; i++) {
+            int bits = Float.floatToRawIntBits(values[i]);
+            int b0 = bits & 0xFF, b1 = (bits >>> 8) & 0xFF, b2 = (bits >>> 16) & 0xFF, b3 = (bits >>> 24) & 0xFF;
+            params[i] = (b3 << 24) | (b0 << 16) | (b1 << 8) | b2;
+        }
+        paramsTexture.upload(params);
+    }
+
     private static void rgb(float[] v, int at, int c) {
         v[at] = Colors.r(c) / 255f;
         v[at + 1] = Colors.g(c) / 255f;
         v[at + 2] = Colors.b(c) / 255f;
     }
 
+    /**
+     * Whether the depth buffer runs 0 to 1 (clip control): from 26.2 the game turns it on wherever the GPU can, which
+     * read as -1 to 1 put every block a million blocks away (a hard haze line at the horizon, no sunlight on blocks).
+     */
     private static boolean zeroToOne() {
-        //? if >=26.3 {
+        //? if >=26.2 {
         /*return com.mojang.blaze3d.systems.RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         *///?} else {
         return false;

@@ -31,6 +31,8 @@ public final class SolConfig {
     /** "full" or "calm" (reduced motion). */
     public String motion = "full";
     public boolean menuBlur = true;
+    /** What glows on things that are on (switches, worn tiles, the ENABLED buttons): "theme" (the accent) or "green". */
+    public String onGlows = "theme";
     public boolean searchNeedsCtrl = true;
     public Music music = new Music();
     /** Who does a job a kept mod also does: mod id → "sol" or "mod". */

@@ -20,15 +20,22 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// The client's crosshair in place of the game's while it's on.
+// The client's crosshair in place of the game's while it's on, and Hit Effects' hitmarker over either.
 @Mixin(Gui.class)
 abstract class GuiMixin {
     @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
     private void cosmeticsmod$crosshair(GuiGraphics graphics, DeltaTracker delta, CallbackInfo ci) {
         if (Modules.CROSSHAIR.enabled()) {
             Modules.CROSSHAIR.drawOnHud(new Canvas(graphics), Minecraft.getInstance());
+            io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
             ci.cancel();
         }
+    }
+
+    // Hit Effects' hitmarker over the game's crosshair.
+    @Inject(method = "renderCrosshair", at = @At("TAIL"))
+    private void cosmeticsmod$hitmarker(GuiGraphics graphics, DeltaTracker delta, CallbackInfo ci) {
+        io.github.georgwav.cosmetics.client.modules.Crosshair.drawHitmarker(new Canvas(graphics), Minecraft.getInstance());
     }
 
     private static void enter(GuiGraphics graphics, VanillaHud.Part part) {

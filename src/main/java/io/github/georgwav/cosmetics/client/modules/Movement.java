@@ -22,7 +22,7 @@ public final class Movement extends Module {
     private final Setting.Toggle status = add(new Setting.Toggle("status", false).group("status"));
     private final Setting.Choice place = add(new Setting.Choice("status_place", "top_left", List.of("top_left", "top_right",
             "above_hotbar")).group("status"));
-    private final Setting.Color statusColor = add(new Setting.Color("status_color", 0xFFFFFFFF).themed().group("status"));
+    private final Setting.Color statusColor = add(new Setting.Color("status_color", Setting.Color.THEME).was(0xFFFFFFFF).themed().group("status"));
     private final Setting.Toggle statusShadow = add(new Setting.Toggle("status_shadow", true).group("status"));
     /** What Controls had before the module changed it; null while it hasn't. */
     private Boolean ownSprint;

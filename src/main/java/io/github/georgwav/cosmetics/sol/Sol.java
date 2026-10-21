@@ -39,10 +39,14 @@ public final class Sol {
         io.github.georgwav.cosmetics.sol.render.SolShaders.register();
         // Cosmetics set to follow the theme take its accent or glow.
         io.github.georgwav.cosmetics.render.Tint.theme = which -> which == 1 ? ThemeState.tokens().glow : ThemeState.tokens().accent;
+        io.github.georgwav.cosmetics.render.Tint.every = () -> io.github.georgwav.cosmetics.config.CosmeticsConfig.get().themeColorAll;
         io.github.georgwav.cosmetics.sol.compat.AppleSkinBridge.init();
         io.github.georgwav.cosmetics.sol.client.Updates.registerSwap();
         io.github.georgwav.cosmetics.sol.compat.KeptModsPack.register();
         SolScenario.init();
+        io.github.georgwav.cosmetics.sol.styles.Styles.start();
+        io.github.georgwav.cosmetics.sol.fx.FxEvents.init();
+        io.github.georgwav.cosmetics.sol.fx.FxWorld.LAYERS.add(io.github.georgwav.cosmetics.sol.fx.FollowPets.INSTANCE);
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }
 
@@ -59,6 +63,7 @@ public final class Sol {
     }
 
     private static void tick(Minecraft mc) {
+        io.github.georgwav.cosmetics.melee.KnifeInput.tick(mc);
         if (!started && mc.options != null) {
             started = true;
             SolConfig cfg = SolConfig.get();
@@ -76,8 +81,17 @@ public final class Sol {
         }
         if (mc.level == null) {
             FrameInfo.inWorld = false;
+            // No world, no level render to bring the theme's colours up to date: here, at the theme's own time of
+            // day, or every Sol screen before the first world (the title's pills) drew with all-zero colours.
+            ThemeState.update(Float.NaN);
         }
         io.github.georgwav.cosmetics.sol.config.SolProfiles.tick();
         io.github.georgwav.cosmetics.sol.hud.SolHud.tick(mc);
+        io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.STYLES,
+                () -> io.github.georgwav.cosmetics.sol.styles.Styles.tick(mc));
+        io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.FX,
+                () -> io.github.georgwav.cosmetics.sol.fx.FxEvents.tick(mc));
+        io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.FX,
+                () -> io.github.georgwav.cosmetics.sol.fx.FollowPets.INSTANCE.tick(mc));
     }
 }

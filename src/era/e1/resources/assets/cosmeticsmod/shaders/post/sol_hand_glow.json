@@ -1,0 +1,299 @@
+{
+  "targets": [
+    "swap",
+    {
+      "name": "hmask",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "name": "hu0",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "name": "hg1",
+      "width": 240,
+      "height": 135
+    },
+    {
+      "name": "hu1",
+      "width": 240,
+      "height": 135
+    },
+    {
+      "name": "hg2",
+      "width": 120,
+      "height": 68
+    },
+    {
+      "name": "hu2",
+      "width": 120,
+      "height": 68
+    },
+    {
+      "name": "hg3",
+      "width": 60,
+      "height": 34
+    },
+    {
+      "name": "hu3",
+      "width": 60,
+      "height": 34
+    },
+    {
+      "name": "hg4",
+      "width": 30,
+      "height": 17
+    },
+    {
+      "name": "hdx",
+      "width": 960,
+      "height": 540
+    },
+    {
+      "name": "hdist",
+      "width": 960,
+      "height": 540
+    },
+    "hedge",
+    "htrail",
+    "htrailn"
+  ],
+  "passes": [
+    {
+      "name": "sol_hand_mask",
+      "intarget": "minecraft:main",
+      "outtarget": "hmask",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_glow_down",
+      "intarget": "hmask",
+      "outtarget": "hg1",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_glow_down",
+      "intarget": "hg1",
+      "outtarget": "hg2",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_glow_down",
+      "intarget": "hg2",
+      "outtarget": "hg3",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_glow_down",
+      "intarget": "hg3",
+      "outtarget": "hg4",
+      "use_linear_filter": true
+    },
+    {
+      "name": "sol_glow_up",
+      "intarget": "hg4",
+      "outtarget": "hu3",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "hg3"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_glow_up",
+      "intarget": "hu3",
+      "outtarget": "hu2",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "hg2"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_glow_up",
+      "intarget": "hu2",
+      "outtarget": "hu1",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "hg1"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_glow_up",
+      "intarget": "hu1",
+      "outtarget": "hu0",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "CurSampler",
+          "id": "hmask"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_dx",
+      "intarget": "minecraft:main",
+      "outtarget": "hdx",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_dist",
+      "intarget": "hdx",
+      "outtarget": "hdist",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_edge",
+      "intarget": "minecraft:main",
+      "outtarget": "hedge",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "DepthSampler",
+          "id": "minecraft:main:depth"
+        },
+        {
+          "name": "DistSampler",
+          "id": "hdist"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_hand_trail",
+      "intarget": "hedge",
+      "outtarget": "htrailn",
+      "use_linear_filter": false,
+      "auxtargets": [
+        {
+          "name": "PrevSampler",
+          "id": "htrail"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "htrailn",
+      "outtarget": "htrail",
+      "use_linear_filter": false
+    },
+    {
+      "name": "sol_hand_glow",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "use_linear_filter": true,
+      "auxtargets": [
+        {
+          "name": "GlowSampler",
+          "id": "hu0"
+        },
+        {
+          "name": "EdgeSampler",
+          "id": "hedge"
+        },
+        {
+          "name": "TrailSampler",
+          "id": "htrailn"
+        },
+        {
+          "name": "ParamsSampler",
+          "id": "sol_params",
+          "width": 128,
+          "height": 1,
+          "bilinear": false
+        }
+      ]
+    },
+    {
+      "name": "sol_copy",
+      "intarget": "swap",
+      "outtarget": "minecraft:main",
+      "use_linear_filter": false
+    }
+  ]
+}

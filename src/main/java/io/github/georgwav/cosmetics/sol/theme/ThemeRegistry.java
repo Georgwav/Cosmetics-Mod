@@ -31,7 +31,7 @@ public final class ThemeRegistry {
     /** The prototypes' short ids, so profiles and commands may use them. */
     private static final Map<String, String> ALIASES = Map.of("sakura", "sakura_dusk", "frost", "frost_morning",
             "ember", "ember_solstice", "firefly", "firefly_meadow", "maple", "maple_afternoon", "mono", "deep_field",
-            "silver", "silver_night");
+            "silver", "silver_night", "nebula", "sakura_dusk");
 
     /**
      * The eight times of day a theme describes, in the order the day runs: pre-dawn, sunrise, morning, noon,

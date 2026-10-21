@@ -1,0 +1,245 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.cosmeticsmod.sol_ghost",
+        "texture_width": 64,
+        "texture_height": 32,
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [
+          0,
+          1,
+          0
+        ]
+      },
+      "bones": [
+        {
+          "name": "ghost",
+          "pivot": [
+            0,
+            24,
+            0
+          ]
+        },
+        {
+          "name": "body",
+          "parent": "ghost",
+          "pivot": [
+            0,
+            30,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -4,
+                28,
+                -4
+              ],
+              "size": [
+                8,
+                8,
+                8
+              ],
+              "uv": [
+                0,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "top",
+          "parent": "body",
+          "pivot": [
+            0,
+            36,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -3,
+                36,
+                -3
+              ],
+              "size": [
+                6,
+                1,
+                6
+              ],
+              "uv": [
+                32,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "hem_0",
+          "parent": "body",
+          "pivot": [
+            -3,
+            28,
+            -3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -4,
+                26,
+                -4
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                56,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "hem_1",
+          "parent": "body",
+          "pivot": [
+            3,
+            28,
+            -3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                2,
+                26,
+                -4
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                0,
+                16
+              ]
+            }
+          ]
+        },
+        {
+          "name": "hem_2",
+          "parent": "body",
+          "pivot": [
+            -3,
+            28,
+            3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -4,
+                26,
+                2
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                8,
+                16
+              ]
+            }
+          ]
+        },
+        {
+          "name": "hem_3",
+          "parent": "body",
+          "pivot": [
+            3,
+            28,
+            3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                2,
+                26,
+                2
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                16,
+                16
+              ]
+            }
+          ]
+        },
+        {
+          "name": "arm_left",
+          "parent": "body",
+          "pivot": [
+            4,
+            32,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                4,
+                30,
+                -1
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                24,
+                16
+              ]
+            }
+          ]
+        },
+        {
+          "name": "arm_right",
+          "parent": "body",
+          "pivot": [
+            -4,
+            32,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -6,
+                30,
+                -1
+              ],
+              "size": [
+                2,
+                2,
+                2
+              ],
+              "uv": [
+                32,
+                16
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

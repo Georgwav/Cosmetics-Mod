@@ -8,14 +8,17 @@ import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Design;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.Minecraft;
 
 /**
- * Sol UI's look on the game's own screens: glass buttons, glass tooltips, the pause screen's veil and the death
- * screen's dusk, and the loading screen's square sun rising as the progress bar. Each is drawn in the game's GUI
- * pixels, guarded; with Sol UI off (or after an error) the game draws its own.
+ * Sol UI's look on the game's own screens, in the pixel UI's style at GUI scale: buttons as Dawn's slabs (a one-pixel
+ * edge, a lit top and a dark bottom; the accent's outline while pointed at), tooltips as recesses, the chosen row of a
+ * list in the accent's tint, the pause screen's flat dim and the death screen's dusk, and the loading screen's square
+ * sun rising as the progress bar. Each is drawn in the game's GUI pixels, guarded; with Sol UI off (or after an
+ * error) the game draws its own.
  */
 public final class VanillaLook {
     private static final Design D = new Design();
@@ -56,19 +59,34 @@ public final class VanillaLook {
         });
     }
 
-    /** A glass button where the game draws its button sprite. */
+    /** A slab where the game draws its button sprite: c1 (c2 pointed at), recessed when it can't be pressed. */
     public static boolean button(Canvas c, int x, int y, int w, int h, boolean hover, boolean active) {
         buttons++;
         return draw(c, g -> {
-            Tokens tk = ThemeState.tokens();
-            float r = Math.min(h / 2f, 6f);
-            if (hover && active) {
-                g.glow(x, y, w, h, r, 4f, Colors.withAlpha(tk.accent, 0.32f));
+            PixelTokens p = PixelTokens.get();
+            if (!active) {
+                box(g, x, y, w, h, p.rec, 0x73000000, 0, p.edge);
+            } else {
+                box(g, x, y, w, h, hover ? p.c2 : p.c1, p.hi, p.lo, hover ? p.acc : p.edge);
             }
-            g.round(x, y, w, h, r, active ? Colors.withAlpha(tk.panel, Math.max(0.68f, tk.glass)) : 0x8C0A0A0E);
-            g.stroke(x, y, w, h, r, 1f / g.d.u, hover && active ? tk.accent : active ? 0x38FFFFFF : 0x1AFFFFFF);
-            g.highlight(x, y, w, h, r, active ? 0x30FFFFFF : 0x10FFFFFF);
         });
+    }
+
+    /**
+     * A box on whole screen pixels: {@code fill}, a lit top row and a dark bottom row (0 for none) inside a one-GUI-pixel
+     * outline.
+     */
+    private static void box(Gfx g, float x, float y, float w, float h, int fill, int top, int bottom, int edge) {
+        int e = Math.max(1, Math.round(g.d.u));
+        float x0 = Math.round(g.d.sx(x)), y0 = Math.round(g.d.sy(y)), x1 = Math.round(g.d.sx(x + w)), y1 = Math.round(g.d.sy(y + h));
+        g.rectPx(x0, y0, x1, y1, fill);
+        if (top != 0) {
+            g.rectPx(x0 + e, y0 + e, x1 - e, Math.min(y1 - e, y0 + 2 * e), top);
+        }
+        if (bottom != 0) {
+            g.rectPx(x0 + e, Math.max(y0 + e, y1 - 2 * e), x1 - e, y1 - e, bottom);
+        }
+        g.framePx(x0, y0, x1, y1, e, edge);
     }
 
     /** A glass tooltip around a tooltip's text box (x, y, w, h), at depth {@code z} where the game lifts it. */
@@ -79,12 +97,8 @@ public final class VanillaLook {
             c.lift(z);
         }
         boolean ok = draw(c, g -> {
-            Tokens tk = ThemeState.tokens();
-            float bx = x - 4f, by = y - 4f, bw = w + 8f, bh = h + 8f, r = 5f;
-            g.glow(bx, by, bw, bh, r, 6f, Colors.withAlpha(tk.glow, 0.18f));
-            g.round(bx, by, bw, bh, r, Colors.withAlpha(Colors.mix(tk.panel, 0xFF000000, 0.35f), 0.94f));
-            g.stroke(bx, by, bw, bh, r, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.55f));
-            g.highlight(bx, by, bw, bh, r, 0x26FFFFFF);
+            PixelTokens p = PixelTokens.get();
+            box(g, x - 4f, y - 4f, w + 8f, h + 8f, Colors.withAlpha(p.rec, 0.96f), 0x73000000, 0, p.edge);
         });
         if (z != 0) {
             c.pop();
@@ -92,23 +106,18 @@ public final class VanillaLook {
         return ok;
     }
 
-    /** A list's chosen row: a soft glass of the accent with its rim. */
+    /** A list's chosen row: the accent's tint with its outline. */
     public static boolean selection(Canvas c, int x, int y, int w, int h) {
         return draw(c, g -> {
-            Tokens tk = ThemeState.tokens();
-            g.round(x, y, w, h, 6f, Colors.withAlpha(tk.accent, 0.16f));
-            g.stroke(x, y, w, h, 6f, 1f / g.d.u, Colors.withAlpha(tk.accent, 0.7f));
+            PixelTokens p = PixelTokens.get();
+            box(g, x, y, w, h, Colors.withAlpha(p.accTint, 0.85f), 0, 0, p.acc);
         });
     }
 
-    /** The pause screen's veil over the game: the theme's band at the top fading into a dark floor. */
+    /** The pause screen's veil over the game: the pixel UI's flat dim (black at 24%). */
     public static boolean pauseVeil(Canvas c, int w, int h) {
         veils++;
-        return draw(c, g -> {
-            Tokens tk = ThemeState.tokens();
-            g.vgradient(0f, 0f, w, h * 0.45f, Colors.withAlpha(tk.glow, 0.16f), 0x00000000);
-            g.vgradient(0f, h * 0.45f, w, h * 0.55f, 0x00000000, 0x8C050508);
-        });
+        return draw(c, g -> g.rect(0f, 0f, w, h, 0x3D000000));
     }
 
     /** The death screen's dusk (in place of the game's red wash): the theme's dark sky with an ember glow below. */
@@ -116,9 +125,12 @@ public final class VanillaLook {
         veils++;
         return draw(c, g -> {
             Tokens tk = ThemeState.tokens();
+            // The theme's dark sky over the top two thirds, an ember band under it, in hard steps.
             int top = Colors.withAlpha(Colors.mix(tk.skyTop, 0xFF000000, 0.55f), 0.78f);
             int bottom = Colors.withAlpha(Colors.mix(Tokens.RED, tk.skyGlow, 0.35f), 0.5f);
-            g.vgradient(0f, 0f, w, h, top, bottom);
+            for (int i = 0; i < 4; i++) {
+                g.rect(0f, h * i / 4f, w, h / 4f + 1f, Colors.mix(top, bottom, i / 3f));
+            }
         });
     }
 

@@ -12,6 +12,12 @@ Chains:
                                       toward the sun and ground haze, light shafts (high).
   sol_grade                           after the hand: bloom (half-resolution threshold, five-level dual-filter mip
                                       chain), the theme's colour grade (a 32x32x32 LUT), vignette, dither.
+  sol_pixel                           last, under the quick menu only: the world in the pixel UI's pixels (whole
+                                      screen pixels per 2 design px, lined up with the wheel's own grid).
+  sol_hand_glow                       after the hand, before the grade: a thin bright rim round the first-person
+                                      hands and held item, fading out within about 10 px at 1080p (a distance field
+                                      on a 960 x 540 grid), coloured from a blurred quarter-resolution mask, with a
+                                      motion trail of the rim (kept frame to frame); or a soft glow.
 """
 import json
 import os
@@ -56,7 +62,9 @@ bool isSky(float depth) {
 
 // Distance along the view axis from a depth-buffer value (the projection's own mapping, reversed or not).
 float linearDepth(float depth) {
-    return 1.0 / max(1e-6, depth * P(8) + P(9));
+    // A depth the projection can't give (a range mismatch) reads as the end of the world, not a million blocks away.
+    float d = depth * P(8) + P(9);
+    return d > 1e-6 ? 1.0 / d : max(16.0, P(30));
 }
 
 vec3 viewAt(vec2 uv, float depth) {
@@ -116,10 +124,17 @@ void main() {
         fragColor = vec4(col + shafts + sunCol * P(48) * 0.22, 1.0);
         return;
     }
+    vec3 base = col;
     // A theme that dims its own day dims the world (the sky and the light it adds stay bright).
     col *= P(58);
     vec3 pos = viewAt(texCoord, depth);
     float dist = length(pos);
+    // Where the depth buffer's land ends while far land goes on (P(59) blocks; along the view axis to the game's far
+    // plane with Voxy, whose land past it reads as sky, or out from the eye to the last chunks with Distant Horizons,
+    // whose land never reaches it): Sol's light on the land fades out before it, so that land and the far land after
+    // it meet without a line. Without either, the game's land ends well short of it.
+    float reach = (P(60) > 0.5 ? -pos.z : dist) / max(16.0, P(59));
+    float landFade = 1.0 - smoothstep(0.55, 0.97, reach);
     vec3 dir = pos / max(dist, 1e-4);
     vec3 sunV = normalize(P3(3));
     float cosS = dot(dir, sunV);
@@ -180,6 +195,12 @@ void main() {
         edge = max(edge, isSky(dD) ? 1.0 : 0.0);
         // Only the land's skyline: clouds (far above the eye) keep plain edges.
         edge *= 1.0 - smoothstep(24.0, 48.0, dot(pos, P3(24)));
+        // And only at the end of the game's own land (its chunks reach out to their corners, 1.42 render distances): a
+        // hill, a player or a tree in front of farther land or of the sky keeps a plain edge. Voxy's land past the
+        // game's far plane reads as sky in the depth buffer: where its land crosses that plane (a few render
+        // distances out) and round its hills in front of it, no line is drawn on the land.
+        float atEnd = dist / max(16.0, P(30));
+        edge *= smoothstep(0.82, 0.94, atEnd) * (1.0 - smoothstep(1.45, 1.6, atEnd));
         col += mix(P3(41), sunCol, 0.35) * edge * P(23) * smoothstep(0.7, 0.99, cosS) * P(2) * (1.0 - fogged * 0.5);
         // At night the light's glow lines every skyline (the prototypes' lit horizon edges).
         col += mix(P3(41), sunCol, 0.5) * edge * P(50) * 0.55;
@@ -215,10 +236,12 @@ void main() {
     vec3 scat = mix(P3(38), P3(41), clamp(phase * 1.4, 0.0, 1.0));
     // Night thins the scattering, unless the theme's own light (the rune, the moon) is lighting the fog.
     float amount = (1.0 - exp(-dist / fogFar * 2.0)) * P(16) * (0.12 + phase) * 0.6 * (1.0 - 0.5 * P(29) * (1.0 - P(12)));
-    float h = dot(pos, P3(24));
-    float haze = P(17) * exp(-max(0.0, h + 1.62) / 2.5) * (1.0 - exp(-dist / 18.0));
+    float h = clamp(dot(pos, P3(24)), -256.0, 256.0);
+    // Haze lies low over the land: thickest near sea level, thinning over some 20 blocks of height in the world,
+    // so it has no edge of its own (measured from your feet it drew a hard line across the land at your height).
+    float haze = P(17) * exp(-max(0.0, h + P(31) - 2.0) / 20.0) * (1.0 - exp(-dist / 18.0));
     col = mix(col, scat, clamp(amount + haze * 0.4, 0.0, 0.85));
-    fragColor = vec4(col + shafts, 1.0);
+    fragColor = vec4(mix(base, col, landFade) + shafts, 1.0);
 }
 """),
     # What blooms: the bright parts at half resolution, with a soft knee, four taps against flicker.
@@ -286,6 +309,422 @@ void main() {
     fragColor = vec4(c, 1.0);
 }
 """),
+    # The hand glow's source: the hands and the held item (all that was drawn after the game cleared the depth for
+    # them) in the glow's colour, at a quarter of the screen.
+    "sol_hand_mask": (["In", "Depth", "Params"], PARAMS + DEPTH + r"""
+vec3 rainbow(float h) {
+    return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+}
+
+void main() {
+    // Four taps over this texel's part of the screen: soft edges, no shimmer as the hand sways.
+    vec2 h = vec2(0.25 / 480.0, 0.25 / 270.0);
+    float cover = 0.0;
+    vec3 item = vec3(0.0);
+    for (int i = 0; i < 4; i++) {
+        vec2 uv = texCoord + vec2((i == 0 || i == 2) ? -h.x : h.x, i < 2 ? -h.y : h.y);
+        float on = isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
+        cover += on * 0.25;
+        item += texture(InSampler, uv).rgb * on * 0.25;
+    }
+    if (cover <= 0.0) {
+        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+    float t = P(22);
+    int mode = int(P(83) + 0.5);
+    vec3 col;
+    if (mode == 1) {
+        // The item's own colours, brightened so a dark sword glows too.
+        vec3 c = item / cover;
+        col = mix(c / max(max(max(c.r, c.g), c.b), 0.08), P3(76), 0.2);
+    } else if (mode == 2) {
+        col = rainbow(fract(texCoord.x * 0.7 - texCoord.y * 0.4 + t * 0.12));
+    } else {
+        // The two colours flowing through each other.
+        float f = 0.5 + 0.5 * sin(texCoord.x * 7.0 + texCoord.y * 4.0 - t * 1.7 + sin(texCoord.y * 5.0 + t * 0.9) * 1.6);
+        col = mix(P3(76), P3(79), f);
+    }
+    fragColor = vec4(col * cover, 1.0);
+}
+"""),
+    # The hand glow's downsample: thirteen taps over two texels of the level above (a wider reach than the bloom's),
+    # so the glow spreads far from the hands.
+    "sol_glow_down": (["In"], r"""
+void main() {
+    vec2 t = 1.0 / vec2(textureSize(InSampler, 0));
+    vec3 inner = texture(InSampler, texCoord + t * vec2(-1.0, -1.0)).rgb + texture(InSampler, texCoord + t * vec2(1.0, -1.0)).rgb
+            + texture(InSampler, texCoord + t * vec2(-1.0, 1.0)).rgb + texture(InSampler, texCoord + t * vec2(1.0, 1.0)).rgb;
+    vec3 axis = texture(InSampler, texCoord + t * vec2(0.0, -2.0)).rgb + texture(InSampler, texCoord + t * vec2(-2.0, 0.0)).rgb
+            + texture(InSampler, texCoord + t * vec2(2.0, 0.0)).rgb + texture(InSampler, texCoord + t * vec2(0.0, 2.0)).rgb;
+    vec3 corner = texture(InSampler, texCoord + t * vec2(-2.0, -2.0)).rgb + texture(InSampler, texCoord + t * vec2(2.0, -2.0)).rgb
+            + texture(InSampler, texCoord + t * vec2(-2.0, 2.0)).rgb + texture(InSampler, texCoord + t * vec2(2.0, 2.0)).rgb;
+    vec3 c = texture(InSampler, texCoord).rgb;
+    fragColor = vec4(inner * 0.125 + axis * 0.0625 + corner * 0.03125 + c * 0.125, 1.0);
+}
+"""),
+    # The hand glow's upsample: the wider level added onto this one (not blended), so every level counts: the colours
+    # round the hands spread out, for the rim to take the colour of what it's round.
+    "sol_glow_up": (["Up", "Cur", "Params"], PARAMS + r"""
+void main() {
+    vec2 h = 0.5 / vec2(textureSize(UpSampler, 0));
+    vec3 s = texture(UpSampler, texCoord + vec2(-2.0 * h.x, 0.0)).rgb + texture(UpSampler, texCoord + vec2(2.0 * h.x, 0.0)).rgb
+            + texture(UpSampler, texCoord + vec2(0.0, -2.0 * h.y)).rgb + texture(UpSampler, texCoord + vec2(0.0, 2.0 * h.y)).rgb
+            + (texture(UpSampler, texCoord + vec2(-h.x, h.y)).rgb + texture(UpSampler, texCoord + vec2(h.x, h.y)).rgb
+            + texture(UpSampler, texCoord + vec2(h.x, -h.y)).rgb + texture(UpSampler, texCoord + vec2(-h.x, -h.y)).rgb) * 2.0;
+    fragColor = vec4(s / 12.0 + texture(CurSampler, texCoord).rgb * 0.45, 1.0);
+}
+"""),
+    # How far each texel of a 960 x 540 grid is from the hands (the hand glow's fade, Georg's picture). First along its
+    # row: the nearest hand within 16 rows' worth, in rows (so it's the same on any window shape), over 16.
+    "sol_hand_dx": (["In", "Depth", "Params"], PARAMS + DEPTH + r"""
+float handAt(vec2 uv) {
+    return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
+}
+
+void main() {
+    float unit = P(28) * 540.0 / 960.0;
+    float best = 16.0;
+    if (handAt(texCoord) > 0.5) {
+        best = 0.0;
+    } else {
+        for (int i = 1; i <= 32; i++) {
+            float d = float(i) * unit;
+            if (d >= 16.0) {
+                break;
+            }
+            vec2 o = vec2(float(i) / 960.0, 0.0);
+            if (handAt(texCoord + o) > 0.5 || handAt(texCoord - o) > 0.5) {
+                best = d;
+                break;
+            }
+        }
+    }
+    // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
+    fragColor = vec4(best / 16.0, 0.0, 0.0, max(texture(InSampler, texCoord).a, 1.0));
+}
+"""),
+    # Then down its column: red, the true distance to the nearest hand (rows, over 16), from each row's nearest along
+    # it. Green, the rising glow's distance (Clarity's look): only to hands below (every second row, up to 72), a row up
+    # counting a third and a row across four, so it reaches about twelve times as far up as to the side (rows, over 24).
+    "sol_hand_dist": (["Dx", "Params"], PARAMS + r"""
+void main() {
+    float here = texture(DxSampler, texCoord).r * 16.0;
+    float best = here;
+    for (int i = 1; i <= 16; i++) {
+        float dy = float(i);
+        if (dy >= best) {
+            break;
+        }
+        vec2 o = vec2(0.0, dy / 540.0);
+        float d = min(texture(DxSampler, texCoord + o).r, texture(DxSampler, texCoord - o).r) * 16.0;
+        best = min(best, sqrt(d * d + dy * dy));
+    }
+    float rise = min(24.0, here * 4.0);
+    for (int i = 1; i <= 36; i++) {
+        float dy = float(i) * 2.0 / 3.0;
+        if (dy >= rise) {
+            break;
+        }
+        float d = texture(DxSampler, texCoord - vec2(0.0, float(i) * 2.0 / 540.0)).r * 16.0 * 4.0;
+        rise = min(rise, sqrt(d * d + dy * dy));
+    }
+    fragColor = vec4(best / 16.0, rise / 24.0, 0.0, 1.0);
+}
+"""),
+    # The hand glow (Clarity's look, from Georg's picture), at full resolution. Red: the outline round the hands, full
+    # from their edge to 2 px out (at 1080p; scaled by the window's height), fading to nothing by 10 px (times the
+    # size setting, up to 3x), from the distance field (the golden style only has it when asked for); or, for the soft
+    # style, a softer fade with no bright core, capped at 24 px. Green: inside the hands, a 1 px edge just inside them
+    # at half strength (with the outline); outside, for the golden style, its light, all round them and reaching further
+    # up, fading smoothly (times the size). Blue: the hands themselves (never filled).
+    "sol_hand_edge": (["In", "Depth", "Dist", "Params"], PARAMS + DEPTH + r"""
+float handAt(vec2 uv) {
+    return isSky(texture(DepthSampler, uv).r) ? 0.0 : 1.0;
+}
+
+// The distance field (both distances) read with bilinear filtering by hand (1.21.1 filters every input of a pass
+// alike, and the depth must stay unfiltered): in 1080p pixels.
+vec2 distAt(vec2 uv) {
+    vec2 size = vec2(textureSize(DistSampler, 0));
+    vec2 p = uv * size - 0.5;
+    vec2 f = fract(p);
+    vec2 b = (floor(p) + 0.5) / size;
+    vec2 t = 1.0 / size;
+    vec2 d = mix(mix(texture(DistSampler, b).rg, texture(DistSampler, b + vec2(t.x, 0.0)).rg, f.x),
+            mix(texture(DistSampler, b + vec2(0.0, t.y)).rg, texture(DistSampler, b + t).rg, f.x), f.y);
+    // Rows of 540 are 2 px at 1080p (the first over 16 rows, the rising one over 24); measured from texel centres, so
+    // half a texel nearer the edge.
+    return max(vec2(0.0), d * vec2(32.0, 48.0) - 1.0);
+}
+
+
+void main() {
+    float hand = handAt(texCoord);
+    vec2 px = 1.0 / vec2(textureSize(DepthSampler, 0));
+    float s = float(textureSize(DepthSampler, 0).y) / 1080.0;
+    float near = 0.0, edge = 0.0, out1 = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982 + 0.39;
+        vec2 d = vec2(cos(a), sin(a)) * px;
+        near += handAt(texCoord + d * max(1.0, 2.0 * s));
+        edge += handAt(texCoord + d * max(1.5, 2.8 * s));
+        out1 += 1.0 - handAt(texCoord + d * max(1.0, s));
+    }
+    float size = clamp(P(86), 1.0, 3.0);
+    vec2 dists = distAt(texCoord);
+    float dist = dists.x;
+    float rim, green;
+    if (P(88) > 0.5) {
+        // The outline: the core, then a glow a good deal dimmer than it, falling off fast and gone by 10 px (times
+        // the size).
+        float core = near > 0.0 ? 1.0 : min(1.0, edge * 0.5);
+        float fade = 0.55 * exp(-max(dist - 2.0, 0.0) / (2.5 * size)) * (1.0 - smoothstep(6.0 * size, 10.0 * size, dist));
+        // On its own, or in the golden light only when asked for (P(117)).
+        rim = hand > 0.5 ? 0.0 : max(core, fade) * P(117);
+        green = hand > 0.5 && out1 > 0.0 ? 0.5 * P(117) : 0.0;
+        if (P(88) > 1.5 && P(88) < 2.5 && hand < 0.5) {
+            // The golden glow: soft light all round the hands, reaching further up as warm light rises (P(114)),
+            // fading smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising.
+            float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
+            float up = exp(-dists.y / (12.0 * size * max(P(114), 0.05))) * (1.0 - smoothstep(36.0, 46.0, dists.y));
+            green = max(halo, up * 0.85 * min(P(114), 1.0));
+        }
+        if (P(88) > 3.5) {
+            // Bands: the ramp's four tones in stepped rings round the hands, 4.5 px each at 1080p (times the size, the
+            // four within the field's 30 px), as 1, 0.75, 0.5 and 0.25; no inner edge.
+            float w = min(4.5 * size, 7.5);
+            float b = floor(dist / w);
+            rim = hand > 0.5 || b > 3.0 ? 0.0 : 1.0 - b * 0.25;
+            green = 0.0;
+        }
+    } else {
+        float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);
+        rim = hand > 0.5 ? 0.0 : f * f * 0.8;
+        green = 0.0;
+    }
+    // The frame itself is only its first input (1.21.1 binds a pass's first input as its colour).
+    fragColor = vec4(rim, green, hand, max(texture(InSampler, texCoord).a, 1.0));
+}
+"""),
+    # The motion trail (Clarity's look): last frame's trail fading (by the frame's time, so it lasts as long at any frame
+    # rate), and the whole path each hand took since then filled in. For each hand that moved (HandMotion: a turn, a
+    # stretch and a shift from where things are now to where they were), the pixel is followed back along that path,
+    # turning as the hand turned, in steps of a few pixels; at each step, what the hand leaves there (its glow, and
+    # faintly its own shape) counts, faded more the further back it is, as long as that point really was part of this
+    # hand the frame before (so a still hand isn't dragged along by the other one). So a swing leaves one smooth
+    # golden smear, not a copy per frame. Red: what the hands leave this frame (checked against next frame); green: the
+    # trail.
+    "sol_hand_trail": (["Edge", "Prev", "Params"], PARAMS + r"""
+// What the hands leave behind at a point of this frame: their glow or outline, and faintly their own shape.
+float leaves(vec2 uv) {
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+        return 0.0;
+    }
+    vec3 e = texture(EdgeSampler, uv).rgb;
+    return e.b > 0.5 ? 0.1 : max(e.g, e.r);
+}
+
+// The trail so far round a point, a little blurred: each frame softens what's older, so a swing fades out as one
+// blurred streak of light instead of keeping each frame's edges.
+float trailBefore(vec2 uv) {
+    vec2 t = 1.25 / vec2(textureSize(PrevSampler, 0));
+    float c = texture(PrevSampler, uv).g * 0.36;
+    c += (texture(PrevSampler, uv + vec2(t.x, 0.0)).g + texture(PrevSampler, uv - vec2(t.x, 0.0)).g
+            + texture(PrevSampler, uv + vec2(0.0, t.y)).g + texture(PrevSampler, uv - vec2(0.0, t.y)).g) * 0.11;
+    c += (texture(PrevSampler, uv + t).g + texture(PrevSampler, uv - t).g
+            + texture(PrevSampler, uv + vec2(t.x, -t.y)).g + texture(PrevSampler, uv - vec2(t.x, -t.y)).g) * 0.05;
+    return c;
+}
+
+// What they left at a point the frame before.
+float left(vec2 uv) {
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+        return 0.0;
+    }
+    return texture(PrevSampler, uv).r;
+}
+
+mat2 turn(float a) {
+    return mat2(cos(a), sin(a), -sin(a), cos(a));
+}
+
+void main() {
+    float own = leaves(texCoord);
+    // Less a half step, so an 8-bit target fades all the way out.
+    float trail = max(trailBefore(texCoord) * P(89) - 0.5 / 255.0, 0.0);
+    // Where along the path each step samples, shifted a little per pixel: the gaps between steps on a fast swing turn
+    // into a fine grain the next frame's blur smooths away, not copies of the hand. Interleaved gradient noise: its
+    // grain is even, so a small blur takes it out (a hash's clumps showed as specks).
+    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    vec2 asp = vec2(P(28), 1.0);
+    vec2 q = texCoord * asp;
+    for (int h = 0; h < 2; h++) {
+        int o = 92 + h * 11;
+        if (P(o) < 0.5) {
+            continue;
+        }
+        float a = P(o + 1);
+        mat2 stretch = mat2(P(o + 2), P(o + 3), P(o + 4), P(o + 5));
+        vec2 was = vec2(P(o + 6), P(o + 7));
+        vec2 mid = vec2(P(o + 8), P(o + 9));
+        mat2 back = turn(a) * stretch;
+        float steps = P(o + 10);
+        for (int k = 1; k < 32; k++) {
+            if (float(k) >= steps) {
+                break;
+            }
+            // s of the way from where it was (0) to now (1): the point of this frame that was here then.
+            float s = (float(k) - jitter + 0.5) / steps;
+            mat2 m = turn(a * (1.0 - s)) * (stretch * (1.0 - s) + mat2(s));
+            float det = m[0][0] * m[1][1] - m[1][0] * m[0][1];
+            if (abs(det) < 1e-5) {
+                continue;
+            }
+            vec2 r = q - mix(was, mid, s);
+            vec2 x = mid + vec2(m[1][1] * r.x - m[1][0] * r.y, m[0][0] * r.y - m[0][1] * r.x) / det;
+            // That point, where it was the frame before: it must have been this hand's then too.
+            if (left((was + back * (x - mid)) / asp) < 0.12) {
+                continue;
+            }
+            trail = max(trail, leaves(x / asp) * mix(P(89), 1.0, s));
+        }
+    }
+    fragColor = vec4(own, max(trail, own), 0.0, 1.0);
+}
+"""),
+    # The hand glow (Clarity's look, from Georg's picture): golden light round the hands and what they hold, deep gold
+    # where it fades out and pale bright gold at the hands, then a thin pale line round them; brightest at
+    # the fist and dimmer where the arm leaves the screen; the hands themselves flat, with their 1 px inner edge; the
+    # motion trail (the path they took, filled with their glow). Each is laid over what's behind (so the hue holds on
+    # any sky), then added with a soft clamp that keeps the hue, so no channel clips unless the colour itself is white.
+    # The soft style can have lines of light rising through its fade.
+    "sol_hand_glow": (["In", "Glow", "Edge", "Trail", "Params"], PARAMS + r"""
+float hash(float n) {
+    return fract(sin(n * 91.345) * 47453.21);
+}
+
+// Thin lines of light moving up the screen in lanes, waving as they go; most lanes have one.
+float lines(vec2 w, float t) {
+    float lx = w.x * 30.0;
+    float lane = floor(lx);
+    float r = hash(lane), r2 = hash(lane + 17.0);
+    float x = fract(lx) - 0.5 + sin(w.y * 8.0 + t * 1.8 + r * 6.28) * 0.2;
+    float y = 1.0 - fract(w.y * (0.9 + r2 * 0.8) - t * (0.3 + r * 0.4) + r * 5.0);
+    float body = smoothstep(0.35, 0.82, y) * (1.0 - smoothstep(0.82, 0.86, y));
+    float thin = 1.0 - smoothstep(0.02, 0.08, abs(x));
+    return body * thin * step(0.3, r2);
+}
+
+// Unchanged up to 0.8; past it the whole colour is scaled so its brightest channel eases towards 1 without reaching
+// it, which keeps the hue (gold stays gold rather than going yellow, then white).
+vec3 soft(vec3 x) {
+    float m = max(max(x.r, x.g), x.b);
+    return m > 0.8 ? x * ((0.8 + 0.2 * (1.0 - exp((0.8 - m) / 0.2))) / m) : x;
+}
+
+// The Sol FX ramp's tones of a colour (as Ramp does it): 0 core (60% toward white), 1 main, 2 shade (35% toward
+// black), 3 deep (60% toward black).
+vec3 tone(vec3 col, int i) {
+    return i == 0 ? mix(col, vec3(1.0), 0.6) : i == 1 ? col : i == 2 ? col * 0.65 : col * 0.4;
+}
+
+float hash2(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// The stars look (the End portal's idea, in the theme's tones): the hands and what they hold as a window onto a deep
+// sky with a faint nebula in two stepped shades, and four layers of stars drifting each its own way, the nearer ones
+// bigger (2 x 2 for the brightest), faster and brighter, twinkling in steps. A texel is 2 px at 1080p; at most one star
+// per 6 x 6 texels per layer.
+vec3 stars(vec3 c, vec3 col, float t) {
+    vec2 size = vec2(textureSize(InSampler, 0));
+    float texel = max(1.0, floor(size.y / 540.0 + 0.5));
+    vec2 q = floor(texCoord * size / texel);
+    // The deep sky, lighter where the hand's own shading is, so its shape still reads.
+    float neb = sin(q.x * 0.045 + t * 0.15) + sin(q.y * 0.06 - t * 0.11 + q.x * 0.02);
+    vec3 sky = mix(tone(col, 3) * 0.55, tone(col, 2) * 0.7, step(0.9, neb)) * (0.65 + 0.6 * luma(c));
+    for (int i = 0; i < 4; i++) {
+        float fi = float(i);
+        float a = hash(fi + 3.0) * 6.2832;
+        vec2 dir = vec2(cos(a), sin(a));
+        float zoom = 1.0 + (3.0 - fi) * 0.5;
+        vec2 p = floor(q / zoom + dir * t * (1.2 + fi * 1.1) + fi * 37.0);
+        vec2 cell = floor(p / 6.0);
+        float r = hash2(cell + fi * 11.0);
+        if (r < 0.35) {
+            continue;
+        }
+        vec2 at = cell * 6.0 + floor(vec2(hash2(cell + 1.7), hash2(cell + 4.3)) * 5.0);
+        vec2 d = p - at;
+        float big = i >= 2 && r > 0.85 ? 1.0 : 0.0;
+        if (d.x < 0.0 || d.y < 0.0 || d.x > big || d.y > big) {
+            continue;
+        }
+        float tw = ceil((0.6 + 0.4 * sin(t * (1.5 + r * 2.0) + r * 40.0)) * 3.0) / 3.0;
+        int k = r > 0.85 ? 0 : r > 0.6 ? 1 : 2;
+        sky = mix(sky, tone(col, k), tw * (0.7 + 0.1 * fi));
+    }
+    return sky;
+}
+
+void main() {
+    vec3 c = texture(InSampler, texCoord).rgb;
+    vec3 e = texture(EdgeSampler, texCoord).rgb;
+    vec3 g = texture(GlowSampler, texCoord).rgb;
+    float m = max(max(g.r, g.g), max(g.b, 1e-4));
+    vec3 col = m > 0.02 ? g / m : P3(76);
+    float t = P(22);
+    float s = min(P(82), 2.0) * (1.0 + P(84) * 0.12 * sin(t * 2.3));
+    // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
+    float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
+    float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
+    if (P(88) > 3.5) {
+        // Bands: each ring its tone, laid on flat (no light, no smooth fade); the trail steps down the same tones as
+        // it fades.
+        float k = e.r;
+        if (P(90) > 0.0) {
+            k = max(k, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90) * 0.9);
+        }
+        if (k > 0.1) {
+            int b = int(clamp(floor((1.0 - k) * 4.0 + 0.001), 0.0, 3.0));
+            float a = clamp(s, 0.0, 1.0) * grade * (1.0 - float(b) * 0.1);
+            c = mix(c, tone(col, b), a);
+        }
+        fragColor = vec4(c, 1.0);
+        return;
+    }
+    if (P(88) > 2.5 && e.b > 0.5) {
+        c = mix(c, stars(c, col, t), clamp(s, 0.0, 1.0));
+    }
+    // Green is the inner edge inside the hands and the rising glow outside them; with the trail, what the hands left
+    // behind on their way here.
+    float inner = e.b > 0.5 ? e.g : 0.0;
+    float glow = e.b > 0.5 ? 0.0 : e.g;
+    if (P(90) > 0.0) {
+        glow = max(glow, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90));
+    }
+    float lit = clamp(glow * grade * s, 0.0, 1.5);
+    // Light, not paint: added onto what's behind (dimmed a little where it's strong, so it reads on a bright sky too),
+    // a deeper shade of the colour where it fades out (deep amber for gold), the colour itself, then a pale bright
+    // shade of it where it's strongest, at the hands (cream for gold). Both come from the colour, so white stays white.
+    vec3 outer = col * mix(vec3(1.0), col, P(116));
+    vec3 hot = mix(col, vec3(1.0), 0.75 * P(115));
+    vec3 light = mix(mix(outer, col, smoothstep(0.0, 0.45, lit)), hot, smoothstep(0.55, 1.0, lit));
+    c = soft(c * (1.0 - 0.45 * min(lit, 1.0)) + light * lit * 1.15);
+    // The outline: pale in the golden light (cream for gold), nearly the colour itself on its own.
+    float k = clamp((e.r + inner) * grade * s, 0.0, 1.5);
+    vec3 pale = mix(col, vec3(1.0), P(118));
+    c = mix(c, pale, clamp(k * 0.6, 0.0, 0.8));
+    c = soft(c + pale * k * 0.3);
+    // The lines show in the soft style's fade, not over the hand.
+    if (P(87) > 0.0 && P(88) < 0.5) {
+        float band = smoothstep(0.05, 0.3, e.r) * (1.0 - smoothstep(0.6, 0.9, e.r)) * (1.0 - e.b);
+        c = soft(c + col * lines(texCoord * vec2(P(28), 1.0), t) * band * s * 0.6 * P(87));
+    }
+    fragColor = vec4(c, 1.0);
+}
+"""),
     "sol_copy": (["In"], r"""
 void main() {
     fragColor = vec4(texture(InSampler, texCoord).rgb, 1.0);
@@ -301,6 +740,18 @@ void main() {
     fragColor = vec4(mix(cur, prev, k), 1.0);
 }
 """),
+    # The world under the quick menu in the pixel UI's pixels: each cell (its size in screen pixels in the cell
+    # texture's red, the grid's offset in its green and blue) takes the colour at its middle.
+    "sol_pixel": (["In", "Cell"], r"""
+void main() {
+    vec4 s = texelFetch(CellSampler, ivec2(0, 0), 0);
+    float cell = max(1.0, floor(s.r * 255.0 + 0.5));
+    vec2 off = floor(s.gb * 255.0 + 0.5);
+    vec2 size = vec2(textureSize(InSampler, 0));
+    vec2 at = (floor((texCoord * size - off) / cell) + 0.5) * cell + off;
+    fragColor = vec4(texture(InSampler, clamp(at, vec2(0.5), size - 0.5) / size).rgb, 1.0);
+}
+"""),
 }
 
 # ---------------------------------------------------------------------------------------------------- the chains
@@ -310,14 +761,19 @@ PARAMS_TEX = ("sol_params", 128, 1, False)
 LUT_TEX = ("sol_lut", 1024, 32, True)
 BLACK_TEX = ("sol_black", 1, 1, False)
 BLUR_TEX = ("sol_blur", 1, 1, False)
+PIXEL_TEX = ("sol_pixel", 1, 1, False)
 
 # Fixed bloom levels (a 1080p screen's half, then each half of that): post chains only size targets to the screen
 # or to fixed sizes, and a blur this wide looks the same at any resolution.
 LEVELS = [(960, 540), (480, 270), (240, 135), (120, 68), (60, 34), (30, 17)]
 SHAFT_SIZE = (480, 270)
+# The hand glow's levels: its mask at a quarter of a 1080p screen, then each half of that.
+HAND_SIZES = [(480, 270), (240, 135), (120, 68), (60, 34), (30, 17)]
+# The hand glow's distance field: 540 rows, so a row is 2 px at 1080p and the fade scales with the window's height.
+DIST_SIZE = (960, 540)
 
 
-def chain(name):
+def chain(name, era=None):
     """A chain as a list of passes: (program, output, inputs) where an input is (sampler, source, kind, bilinear)
     and kind is 'target', 'depth' or 'texture' (then source is a texture tuple); and its internal targets."""
     T, D, X = "target", "depth", "texture"
@@ -336,12 +792,52 @@ def chain(name):
         passes.append(("sol_world", "swap", [("In", "main", T, False), ("Depth", "main", D, False), ("Params", PARAMS_TEX, X, False), shafts]))
         passes.append(("sol_copy", "main", [("In", "swap", T, False)]))
         return passes, targets
+    if name == "sol_hand_glow":
+        # The mask at a quarter of the screen, blurred down four levels and added back up: a wide, soft falloff.
+        targets = {"swap": None, "hmask": HAND_SIZES[0], "hu0": HAND_SIZES[0]}
+        for i in range(1, len(HAND_SIZES)):
+            targets["hg%d" % i] = HAND_SIZES[i]
+            if i < len(HAND_SIZES) - 1:
+                targets["hu%d" % i] = HAND_SIZES[i]
+        level = lambda i: "hmask" if i == 0 else "hg%d" % i
+        passes = [("sol_hand_mask", "hmask", [("In", "main", T, False), ("Depth", "main", D, False), ("Params", PARAMS_TEX, X, False)])]
+        for i in range(1, len(HAND_SIZES)):
+            passes.append(("sol_glow_down", level(i), [("In", level(i - 1), T, True)]))
+        for i in range(len(HAND_SIZES) - 2, -1, -1):
+            up = level(i + 1) if i == len(HAND_SIZES) - 2 else "hu%d" % (i + 1)
+            passes.append(("sol_glow_up", "hu%d" % i, [("Up", up, T, True), ("Cur", level(i), T, False), ("Params", PARAMS_TEX, X, False)]))
+        # The distance to the hands on a 960 x 540 grid (along the rows, then down the columns), for the rim's fade.
+        targets["hdx"] = DIST_SIZE
+        targets["hdist"] = DIST_SIZE
+        passes.append(("sol_hand_dx", "hdx", [("In", "main", T, False), ("Depth", "main", D, False), ("Params", PARAMS_TEX, X, False)]))
+        passes.append(("sol_hand_dist", "hdist", [("Dx", "hdx", T, False), ("Params", PARAMS_TEX, X, False)]))
+        targets["hedge"] = None
+        passes.append(("sol_hand_edge", "hedge", [("In", "main", T, False), ("Depth", "main", D, False), ("Dist", "hdist", T, False),
+                                                  ("Params", PARAMS_TEX, X, False)]))
+        if era is None or era in PERSISTENT:
+            # The trail lives in a target kept from frame to frame (not on 1.21.2 to 1.21.5, which can't).
+            targets["htrail"] = "persistent"
+            targets["htrailn"] = None
+            passes.append(("sol_hand_trail", "htrailn", [("Edge", "hedge", T, False), ("Prev", "htrail", T, False),
+                                                         ("Params", PARAMS_TEX, X, False)]))
+            passes.append(("sol_copy", "htrail", [("In", "htrailn", T, False)]))
+            trail = "htrailn"
+        else:
+            trail = "hedge"
+        passes.append(("sol_hand_glow", "swap", [("In", "main", T, False), ("Glow", "hu0", T, True), ("Edge", "hedge", T, False),
+                                                  ("Trail", trail, T, False), ("Params", PARAMS_TEX, X, False)]))
+        passes.append(("sol_copy", "main", [("In", "swap", T, False)]))
+        return passes, targets
     if name == "sol_motion_blur":
         # "prev" keeps the last frame: persistent from 1.21.6; 1.21.1's chain owns its targets anyway.
         passes = [("sol_blur_mix", "swap", [("In", "main", T, False), ("Prev", "prev", T, False), ("Amount", BLUR_TEX, X, False)]),
                   ("sol_copy", "prev", [("In", "swap", T, False)]),
                   ("sol_copy", "main", [("In", "swap", T, False)])]
         return passes, {"swap": None, "prev": "persistent"}
+    if name == "sol_pixel":
+        passes = [("sol_pixel", "swap", [("In", "main", T, False), ("Cell", PIXEL_TEX, X, False)]),
+                  ("sol_copy", "main", [("In", "swap", T, False)])]
+        return passes, {"swap": None}
     # sol_grade
     targets = {"swap": None}
     for i, size in enumerate(LEVELS):
@@ -360,7 +856,7 @@ def chain(name):
     return passes, targets
 
 
-CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade", "sol_motion_blur"]
+CHAINS = ["sol_world_medium", "sol_world_high", "sol_grade", "sol_motion_blur", "sol_hand_glow", "sol_pixel"]
 # Eras whose post chains can keep a target from one frame to the next (1.21.2 to 1.21.5 can't: no motion blur).
 PERSISTENT = ("e1", "e4", "e5", "e6")
 
@@ -419,21 +915,21 @@ def era_files(era):
             samplers = [{"name": "DiffuseSampler" if i == 0 else s + "Sampler"} for i, s in enumerate(inputs)]
             write(os.path.join(mc, "shaders", "program", prog + ".json"), json.dumps({
                 "blend": {"func": "add", "srcrgb": "one", "dstrgb": "zero"},
-                "vertex": "screenquad", "fragment": prog,
+                "vertex": "sol_quad", "fragment": prog,
                 "attributes": ["Position"], "samplers": samplers,
                 "uniforms": [{"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]},
                              {"name": "OutSize", "type": "float", "count": 2, "values": [1.0, 1.0]}]}, indent=2) + "\n")
         elif era == "e2":
             write(os.path.join(ns, "shaders", "post", prog + ".fsh"), text)
             write(os.path.join(ns, "shaders", "post", prog + ".json"), json.dumps({
-                "vertex": "minecraft:post/screenquad", "fragment": "cosmeticsmod:post/" + prog,
+                "vertex": "cosmeticsmod:post/sol_quad", "fragment": "cosmeticsmod:post/" + prog,
                 "samplers": [{"name": s + "Sampler"} for s in inputs],
                 "uniforms": [{"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]},
                              {"name": "OutSize", "type": "float", "count": 2, "values": [1.0, 1.0]}]}, indent=2) + "\n")
         else:
             write(os.path.join(ns, "shaders", "post", prog + ".fsh"), text)
     for name in CHAINS:
-        passes, targets = chain(name)
+        passes, targets = chain(name, era)
         if "persistent" in targets.values() and era not in PERSISTENT:
             continue
         if era == "e1":
@@ -481,15 +977,56 @@ def era_files(era):
                 if era == "e2":
                     p["program"] = "cosmeticsmod:post/" + prog
                 else:
-                    p["vertex_shader"] = "minecraft:post/screenquad" if era in ("e3", "e4") else "minecraft:core/screenquad"
+                    p["vertex_shader"] = "cosmeticsmod:post/sol_quad" if era in ("e3", "e4") else "minecraft:core/screenquad"
                     p["fragment_shader"] = "cosmeticsmod:post/" + prog
                 p["inputs"] = ins
                 p["output"] = "minecraft:main" if out == "main" else out
                 plist.append(p)
             write(os.path.join(ns, "post_effect", name + ".json"), json.dumps({"targets": tmap, "passes": plist}, indent=2) + "\n")
+    if era in ("e1", "e2"):
+        # 1.21.1 to 1.21.4: the game draws each pass's quad in its target's pixels under a projection for the whole
+        # screen, so a pass into a smaller fixed-size target (the bloom levels, the light shafts, the hand glow) filled
+        # only its corner. This quad fills its own target at any size; it keeps the game's uniforms in use so the game
+        # finds them.
+        quad = """#version 150
+
+in vec4 Position;
+
+uniform mat4 ProjMat;
+uniform vec2 OutSize;
+
+out vec2 texCoord;
+
+void main() {
+    vec2 uv = Position.xy / OutSize;
+    gl_Position = vec4(uv * 2.0 - 1.0, 0.2, 1.0);
+    texCoord = uv + (OutSize.x < 0.0 ? ProjMat[0][0] : 0.0);
+}
+"""
+        if era == "e1":
+            write(os.path.join(base, "minecraft", "shaders", "program", "sol_quad.vsh"), quad)
+        else:
+            write(os.path.join(ns, "shaders", "post", "sol_quad.vsh"), quad)
+    if era in ("e3", "e4"):
+        # 1.21.5 to 1.21.8: the game's screen quad is sized by a projection for the whole screen, so a pass into a
+        # smaller fixed-size target (the bloom levels, the light shafts, the hand glow) filled only its corner. This
+        # quad fills its own target at any size; it keeps the game's uniforms in use so the game finds them.
+        if era == "e3":
+            head = "#version 150\n\nin vec4 Position;\n\nuniform mat4 ProjMat;\nuniform vec2 OutSize;\n"
+        else:
+            head = ("#version 150\n\n#moj_import <minecraft:projection.glsl>\n\nin vec4 Position;\n\n"
+                    "layout(std140) uniform SamplerInfo {\n    vec2 OutSize;\n    vec2 InSize;\n};\n")
+        write(os.path.join(ns, "shaders", "post", "sol_quad.vsh"), head + """
+out vec2 texCoord;
+
+void main() {
+    gl_Position = vec4(Position.xy * 2.0 - 1.0, 0.2, 1.0);
+    texCoord = Position.xy + (OutSize.x < 0.0 ? ProjMat[0][0] : 0.0);
+}
+""")
     if era == "e1":
         # 1.21.1 asks the resources for a chain's textures before using the one Sol registered under that name.
-        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX):
+        for tex, w, h, _ in (PARAMS_TEX, LUT_TEX, BLACK_TEX, BLUR_TEX, PIXEL_TEX):
             png(os.path.join(base, "minecraft", "textures", "effect", tex + ".png"), w, h, [0, 0, 0, 255] * (w * h))
         # 1.21.1's position_tex_color drops anything under 10% alpha, which cuts the faint edge of every glow into
         # a hard disc: Sol draws its sprites with this copy of it that keeps them (registered by SolShaders).

@@ -79,11 +79,12 @@ public final class QuickWheel extends SolScreen {
         if (all.isEmpty()) {
             String none = Component.translatable("sol.quickwheel.empty").getString();
             float w = g.width(small, none) + 32f;
-            g.round(CX - w / 2f, CY + 40f, w, 32f, 16f, tk.panel);
+            io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), CX - w / 2f, CY + 40f, w, 32f);
             g.textCentre(small, none, CX, CY + 56f, 0xCCFFFFFF);
             return;
         }
-        g.ring(CX, CY, RING, Math.max(1f, g.d.u) * 1.5f, Colors.withAlpha(tk.rim, 0.3f));
+        io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens p = io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get();
+        g.ring(CX, CY, RING, 2f * g.d.u, Colors.withAlpha(p.edge, 0.8f));
         for (int i = 0; i < all.size(); i++) {
             Module m = all.get(i);
             double a = -Math.PI / 2 + i * 2 * Math.PI / all.size();
@@ -94,20 +95,17 @@ public final class QuickWheel extends SolScreen {
             }
             ui.click(x - R, y - R, R * 2f, R * 2f, () -> toggle(m));
             boolean on = m.enabled();
-            if (on || hover) {
-                g.glow(x - R, y - R, R * 2f, R * 2f, R, 22f, Colors.withAlpha(tk.glow, hover ? 0.4f : 0.25f));
-            }
-            g.circle(x, y, R, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.08f) : tk.panel);
-            g.ring(x, y, R, Math.max(1f, g.d.u), on ? tk.accent : 0x33FFFFFF);
+            // A pixel disc: the slab colour (lighter pointed at) in an edge ring, the accent's when on.
+            g.circle(x, y, R, hover ? p.c2 : on ? p.accTint : p.c1);
+            g.ring(x, y, R, 3f * g.d.u, on ? p.acc : p.edge);
             String icon = ModuleIcons.module(m.id);
-            Icons.draw(g, icon, x - 11f, y - 11f, 22f, on ? tk.accent : 0x99FFFFFF, on ? Icons.FILL_ON : Icons.FILL, 0);
+            Icons.draw(g, icon, x - 12f, y - 12f, 24f, on ? p.acc : 0xFF8D8892, 0f, 0);
         }
         // The name of the one pointed at, and whether it's on, under the ring.
         if (pointed != null) {
             String text = pointed.name() + " · " + Component.translatable(pointed.enabled() ? "sol.quickwheel.on" : "sol.quickwheel.off").getString();
             float w = g.width(small, text) + 28f;
-            g.round(CX - w / 2f, CY + RING + R + 14f, w, 30f, 15f, tk.panel);
-            g.stroke(CX - w / 2f, CY + RING + R + 14f, w, 30f, 15f, Math.max(1f, g.d.u), tk.rim);
+            io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, p, CX - w / 2f, CY + RING + R + 14f, w, 30f);
             g.textCentre(small, text, CX, CY + RING + R + 29f, 0xFFFFFFFF);
         }
     }
