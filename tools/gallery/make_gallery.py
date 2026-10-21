@@ -89,11 +89,15 @@ def main():
 
     by_module = {}
     for c in fx.get("cases", []):
+        if c["name"].startswith("hitboxes_"):
+            # Hitboxes isn't an effects module: its case is staged on Target's turn, with its own settings.
+            c = dict(c, module="hitboxes", settings="Corners only, on an end crystal")
         by_module.setdefault(c["module"], []).append(c)
     parts.append('<section id="effects"><h2>The effects</h2>'
                  f'<p class="lead">Every effect in every style on 1.21.11, played on a copy of you with its clock frozen at six '
                  f'moments of its life, on {html.escape(fx.get("preset_a", "").replace("_", " ").title())}. Each passed CI\'s checks: it shows, it\'s gone a '
-                 'second after it ends, its colour is the preset\'s accent within ΔE 12 on two presets where it takes the '
+                 'second after it ends, its colour is the preset\'s accent (or the accent lightened or darkened, as light over the '
+                 'world shows it) within ΔE 12 on two presets where it takes the '
                  'preset\'s colour, and a grey one never shows through a wall.</p>')
     for module, cases in by_module.items():
         name = tr.get(f"cosmeticsmod.module.{module}", module.replace("_", " ").title())
