@@ -38,13 +38,13 @@ public final class ModulesSelfTest {
         Modules.WORLD_OVERLAYS.setEnabled(true);
         scansBefore = io.github.georgwav.cosmetics.client.modules.WorldOverlays.structureScans;
         plantPyramid(mc, true);
-        // Hitboxes in red at twice the game's width, on a pig in front of you.
+        // Hitboxes in red at twice the game's width, corners only, on a pig in front of you.
         hitboxesWereOn = Modules.HITBOXES.enabled();
         ModulesSelfTest.<Integer>setting(Modules.HITBOXES, "color").set(0xFFFF4D4D);
         setting(Modules.HITBOXES, "width").set(2.0);
+        ModulesSelfTest.<String>setting(Modules.HITBOXES, "style").set("corners");
         Modules.HITBOXES.setEnabled(true);
-        hitboxLines = io.github.georgwav.cosmetics.render.HitboxLines.drawn;
-        hitboxAsks = io.github.georgwav.cosmetics.client.modules.Hitboxes.asked;
+        hitboxesDrawn = io.github.georgwav.cosmetics.client.modules.Hitboxes.drawn;
         command(mc, "execute as @s at @s run summon pig ^ ^ ^3 {Tags:[\"sol_hitbox\"],NoAI:1b}");
         // Crystal PvP's optimizer, on a crystal floating out of the way (cleared with /kill, which doesn't blow it up).
         crystalWasOn = Modules.CRYSTAL_PVP.enabled();
@@ -71,8 +71,7 @@ public final class ModulesSelfTest {
     private static boolean hitboxesWereOn;
     private static boolean crystalWasOn;
     private static int crystalSize, crystalSpin;
-    private static int hitboxLines;
-    private static int hitboxAsks;
+    private static int hitboxesDrawn;
 
     private static boolean overlaysWereOn;
     private static boolean structuresWereOn;
@@ -195,11 +194,8 @@ public final class ModulesSelfTest {
             problems.add("World Overlays didn't find the desert pyramid at " + pyramidX + ", " + pyramidZ + " (found "
                     + java.util.Arrays.toString(boxes) + ")");
         }
-        if (io.github.georgwav.cosmetics.client.modules.Hitboxes.asked == hitboxAsks) {
-            problems.add("Hitboxes' players-only filter was never asked about an entity");
-        }
-        if (io.github.georgwav.cosmetics.render.HitboxLines.drawn == hitboxLines) {
-            problems.add("Hitboxes' line width never reached the hitbox lines");
+        if (io.github.georgwav.cosmetics.client.modules.Hitboxes.drawn == hitboxesDrawn) {
+            problems.add("Hitboxes drew no boxes (the pig in front of you has none)");
         }
         if (io.github.georgwav.cosmetics.sol.hud.HudTweaks.bossesHidden == hidden[0]) {
             problems.add("Sol UI didn't leave out the boss bar");
@@ -221,6 +217,7 @@ public final class ModulesSelfTest {
         command(mc, "tp @e[tag=sol_hitbox] 0 -400 0");
         Modules.HITBOXES.setEnabled(hitboxesWereOn);
         setting(Modules.HITBOXES, "width").reset();
+        setting(Modules.HITBOXES, "style").reset();
         setting(Modules.HITBOXES, "color").reset();
         plantPyramid(mc, false);
         ModulesSelfTest.<Boolean>setting(Modules.WORLD_OVERLAYS, "structures").set(structuresWereOn);

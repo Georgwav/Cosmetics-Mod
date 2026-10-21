@@ -67,9 +67,6 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("NametagHealthMixin");
         all.add("NametagShadowMixin");
         all.add("BeaconLevelsAccess");
-        all.add("HitboxColorMixin");
-        all.add("HitboxWidthMixin");
-        all.add("HitboxFilterMixin");
         all.add("FoodDataMixin");
         all.add("SolBossBarMixin");
         all.add("SolTabListMixin");

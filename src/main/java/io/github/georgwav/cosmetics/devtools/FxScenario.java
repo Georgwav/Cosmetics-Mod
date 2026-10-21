@@ -205,6 +205,21 @@ final class FxScenario {
                 summonCrystal();
             }, 4f, 0f, true, true, LAYER, () -> target.chams.set(true), () -> target.chams.set(false)));
         }
+        // Hitboxes (a plain module, staged on Target's turn): corners only, on the chams cases' crystal four blocks ahead
+        // (Chams on you takes it away after).
+        cases.add(new Case("hitboxes_corners", target, () -> {
+            target.mark.on.set(false);
+            target.chams.set(false);
+            target.friend.on.set(false);
+            summonCrystal();
+        }, 4f, 0f, false, false, LAYER, () -> {
+            hitboxSetting("style", "corners");
+            hitboxSetting("show_on", "everyone");
+            Modules.HITBOXES.setEnabled(true);
+        }, () -> {
+            Modules.HITBOXES.setEnabled(false);
+            hitboxSetting("style", "full");
+        }));
         cases.add(new Case("chams_you", target, () -> {
             removeCrystal();
             target.mark.on.set(false);
@@ -335,6 +350,16 @@ final class FxScenario {
         }
         for (var e : enabledWere.entrySet()) {
             e.getKey().setEnabled(e.getValue());
+        }
+    }
+
+    /** Sets one of Hitboxes' choices (its settings are its own). */
+    @SuppressWarnings("unchecked")
+    private static void hitboxSetting(String id, String value) {
+        for (io.github.georgwav.cosmetics.client.Setting<?> s : Modules.HITBOXES.settings()) {
+            if (s.id.equals(id)) {
+                ((io.github.georgwav.cosmetics.client.Setting<String>) s).set(value);
+            }
         }
     }
 
