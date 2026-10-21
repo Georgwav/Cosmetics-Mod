@@ -141,6 +141,78 @@ public final class Pixels {
         return new Image(in.w(), in.h(), out);
     }
 
+    /** Whether a pixel glows: bright and coloured (the anchor's charge, a portal's swirl). */
+    private static boolean glows(float[] hsv) {
+        return hsv[2] > 0.55f && hsv[1] > 0.25f;
+    }
+
+    /**
+     * Sol's pixel glow: the glowing pixels in four hard tones of their mean hue (a near-white core, the main tone, a
+     * shade and a deep one, by brightness); the rest as it is.
+     */
+    public static Image pixelGlow(Image in) {
+        int[] out = in.argb().clone();
+        float[] hsv = new float[3];
+        double sx = 0, sy = 0, sat = 0;
+        int n = 0;
+        for (int p : out) {
+            if (p >>> 24 < 8) {
+                continue;
+            }
+            java.awt.Color.RGBtoHSB(p >> 16 & 255, p >> 8 & 255, p & 255, hsv);
+            if (glows(hsv)) {
+                sx += Math.cos(hsv[0] * Math.PI * 2);
+                sy += Math.sin(hsv[0] * Math.PI * 2);
+                sat += hsv[1];
+                n++;
+            }
+        }
+        if (n == 0) {
+            return in;
+        }
+        float hue = (float) (Math.atan2(sy, sx) / (Math.PI * 2));
+        float s = (float) Math.max(0.35, Math.min(1.0, sat / n * 1.1));
+        int[] tones = {
+                java.awt.Color.HSBtoRGB(hue, s * 0.3f, 1f), java.awt.Color.HSBtoRGB(hue, s, 0.95f),
+                java.awt.Color.HSBtoRGB(hue, s, 0.78f), java.awt.Color.HSBtoRGB(hue, Math.min(1f, s * 1.1f), 0.6f)};
+        for (int i = 0; i < out.length; i++) {
+            int p = out[i];
+            if (p >>> 24 < 8) {
+                continue;
+            }
+            java.awt.Color.RGBtoHSB(p >> 16 & 255, p >> 8 & 255, p & 255, hsv);
+            if (glows(hsv)) {
+                int tone = hsv[2] >= 0.92f ? 0 : hsv[2] >= 0.8f ? 1 : hsv[2] >= 0.68f ? 2 : 3;
+                out[i] = p & 0xFF000000 | tones[tone] & 0xFFFFFF;
+            }
+        }
+        return new Image(in.w(), in.h(), out);
+    }
+
+    /**
+     * A frame round each square frame of the texture (one texel at 16 px, as thick at higher resolutions) in
+     * {@code tint}, its corners a tone deeper: the mark on a fully charged anchor's sides.
+     */
+    public static Image mark(Image in, int tint) {
+        int w = in.w(), h = in.h();
+        int[] out = in.argb().clone();
+        int edge = Math.max(1, w / 16);
+        int light = 0xFF000000 | tint & 0xFFFFFF;
+        int deep = 0xFF000000 | Math.round((tint >> 16 & 255) * 0.7f) << 16 | Math.round((tint >> 8 & 255) * 0.7f) << 8
+                | Math.round((tint & 255) * 0.7f);
+        int frame = h > w && h % w == 0 ? w : h;
+        for (int y = 0; y < h; y++) {
+            int fy = y % frame;
+            for (int x = 0; x < w; x++) {
+                boolean nearX = x < edge || x >= w - edge, nearY = fy < edge || fy >= frame - edge;
+                if (nearX || nearY) {
+                    out[y * w + x] = nearX && nearY ? deep : light;
+                }
+            }
+        }
+        return new Image(w, h, out);
+    }
+
     /** More saturated by {@code k} (0..1): each channel pushed away from the pixel's grey. */
     static void vivid(int[] argb, float k) {
         for (int i = 0; i < argb.length; i++) {

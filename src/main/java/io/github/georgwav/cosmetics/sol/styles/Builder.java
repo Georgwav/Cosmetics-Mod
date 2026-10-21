@@ -128,6 +128,8 @@ public final class Builder implements AutoCloseable {
                 yield Pixels.recolour(img, hue, sat, bright, tint);
             }
             case "glow" -> Pixels.glow(img, Integer.parseInt(p.getOrDefault("tint", "ffffff"), 16));
+            case "pixel_glow" -> Pixels.pixelGlow(img);
+            case "mark" -> Pixels.mark(img, Integer.parseInt(p.getOrDefault("tint", "ffffff"), 16));
             case "see_through" -> Pixels.seeThrough(img, Float.parseFloat(p.getOrDefault("share", "0.35")));
             case "off" -> Pixels.off(img);
             case "low_fire" -> Pixels.lowFire(img);

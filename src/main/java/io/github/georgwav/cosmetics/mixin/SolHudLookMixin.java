@@ -2,6 +2,7 @@ package io.github.georgwav.cosmetics.mixin;
 
 import io.github.georgwav.cosmetics.sol.hud.SolHud;
 import io.github.georgwav.cosmetics.sol.hud.SolHudCards;
+import io.github.georgwav.cosmetics.sol.hud.Sidebar;
 import io.github.georgwav.cosmetics.ui.Canvas;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
@@ -42,10 +43,9 @@ abstract class SolHudLookMixin {
     /*@Redirect(method = SIDEBAR, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V", ordinal = 0), require = 0)
     private void cosmeticsmod$sidebarTitle(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int color) {
-        if (SolHud.draws(SolHud.Part.SIDEBAR)) {
-            cosmeticsmod$titleTop = y1;
-            cosmeticsmod$titleBottom = y2;
-        } else {
+        cosmeticsmod$titleTop = y1;
+        cosmeticsmod$titleBottom = y2;
+        if (!SolHud.draws(SolHud.Part.SIDEBAR)) {
             graphics.fill(x1, y1, x2, y2, color);
         }
     }
@@ -53,6 +53,7 @@ abstract class SolHudLookMixin {
     @Redirect(method = SIDEBAR, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V", ordinal = 1), require = 0)
     private void cosmeticsmod$sidebarBody(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2, int color) {
+        Sidebar.drawn(x1, cosmeticsmod$titleTop, x2, y2, graphics.guiWidth(), graphics.guiHeight());
         if (SolHud.draws(SolHud.Part.SIDEBAR)) {
             SolHudCards.sidebar(new Canvas(graphics), x1, cosmeticsmod$titleTop, x2, y2, cosmeticsmod$titleBottom);
         } else {
@@ -75,10 +76,9 @@ abstract class SolHudLookMixin {
     @Redirect(method = SIDEBAR, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V", ordinal = 0), require = 0)
     private void cosmeticsmod$sidebarTitle(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
-        if (SolHud.draws(SolHud.Part.SIDEBAR)) {
-            cosmeticsmod$titleTop = y1;
-            cosmeticsmod$titleBottom = y2;
-        } else {
+        cosmeticsmod$titleTop = y1;
+        cosmeticsmod$titleBottom = y2;
+        if (!SolHud.draws(SolHud.Part.SIDEBAR)) {
             graphics.fill(x1, y1, x2, y2, color);
         }
     }
@@ -86,6 +86,7 @@ abstract class SolHudLookMixin {
     @Redirect(method = SIDEBAR, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V", ordinal = 1), require = 0)
     private void cosmeticsmod$sidebarBody(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
+        Sidebar.drawn(x1, cosmeticsmod$titleTop, x2, y2, graphics.guiWidth(), graphics.guiHeight());
         if (SolHud.draws(SolHud.Part.SIDEBAR)) {
             SolHudCards.sidebar(new Canvas(graphics), x1, cosmeticsmod$titleTop, x2, y2, cosmeticsmod$titleBottom);
         } else {

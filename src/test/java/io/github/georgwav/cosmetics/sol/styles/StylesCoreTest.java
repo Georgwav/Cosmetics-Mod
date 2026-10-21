@@ -262,6 +262,52 @@ class StylesCoreTest {
     }
 
     @Test
+    void anchorPixelGlowAndFullChargeMark() throws IOException {
+        PartTable table = new PartTable("test", List.of("anchor"), List.of("combat"), List.of(
+                new PartTable.Part("anchor", "combat", "anchor", PartTable.Kind.BLOCK, false, true, false, false,
+                        "textures/block/respawn_anchor_top.png", List.of("textures/block/respawn_anchor_top.png",
+                        "textures/block/respawn_anchor_side4.png", "textures/block/respawn_anchor_side3.png"))));
+        // A glow fading from bright to dim purple over a dark body.
+        java.awt.image.BufferedImage an = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                int v = 150 + x * 7;
+                an.setRGB(x, y, y >= 4 && y < 12 ? 0xFF000000 | v / 2 << 16 | 0x10 << 8 | v : 0xFF201028);
+            }
+        }
+        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(an, "png", bo);
+        Map<String, byte[]> game = new LinkedHashMap<>();
+        game.put("textures/block/respawn_anchor_top.png", bo.toByteArray());
+        game.put("textures/block/respawn_anchor_side4.png", bo.toByteArray());
+        game.put("textures/block/respawn_anchor_side3.png", bo.toByteArray());
+        VanillaIndex vanilla = StylesTestPacks.vanilla(game);
+        Path jar = StylesTestPacks.zip(tmp, "game", game);
+        StyleSetup setup = StyleSetup.EMPTY.with("anchor", StyleSetup.Choice.DEFAULT.withExtra("pixel_glow", "true")
+                .withExtra("mark", "true").withExtra("glow", "00ff00"));
+        Mixer.Plan plan = Mixer.plan(setup, table, k -> null, vanilla, (p, path) -> null, 0);
+        try (Builder b = new Builder(tmp.resolve("cache"), jar)) {
+            Pixels.Image top = Builder.decode(b.read(plan.files().get("textures/block/respawn_anchor_top.png")));
+            java.util.Set<Integer> glow = new java.util.HashSet<>();
+            for (int y = 4; y < 12; y++) {
+                for (int x = 0; x < 16; x++) {
+                    glow.add(top.argb()[y * 16 + x]);
+                }
+            }
+            assertTrue(glow.size() <= 4, "the glow is in at most four tones: " + glow.size());
+            assertTrue(glow.size() >= 2, "and still steps from bright to dim");
+            assertEquals(0xFF201028, top.argb()[0], "the dark body stays as it is");
+            assertTrue(top.opaque(), "the anchor stays opaque");
+            Pixels.Image full = Builder.decode(b.read(plan.files().get("textures/block/respawn_anchor_side4.png")));
+            Pixels.Image three = Builder.decode(b.read(plan.files().get("textures/block/respawn_anchor_side3.png")));
+            int edge = full.argb()[0 * 16 + 7];
+            assertTrue((edge >> 8 & 255) > 200 && (edge >> 16 & 255) < 60, "the full side's frame is in the glow's colour");
+            assertEquals(0xFF201028, three.argb()[0 * 16 + 7], "a side that isn't full has no frame");
+            assertTrue(full.opaque(), "the marked side stays opaque");
+        }
+    }
+
+    @Test
     void crystalFrameAndCoreAndAnchorGlowAreRecolouredApart() throws IOException {
         PartTable table = new PartTable("test", List.of("crystal", "anchor"), List.of("combat"), List.of(
                 new PartTable.Part("crystal", "combat", "crystal", PartTable.Kind.ENTITY, true, true, false, false,

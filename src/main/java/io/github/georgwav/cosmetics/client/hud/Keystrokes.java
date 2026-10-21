@@ -23,6 +23,24 @@ public final class Keystrokes extends HudModule {
         super("keystrokes", "keys", 1f, 0.5f, -4f, 0f);
     }
 
+    /**
+     * Left of the scoreboard while one shows over its own place at the right edge's middle (where it starts), so
+     * neither covers the other; back as the scoreboard goes. Not while being placed in the editor.
+     */
+    @Override
+    public float x(int screenW, Minecraft mc) {
+        float x = super.x(screenW, mc);
+        if (preview() || anchorX != 1f || anchorY != 0.5f) {
+            return x;
+        }
+        float w = width(mc) * scale();
+        float y = super.y(mc.getWindow().getGuiScaledHeight(), mc);
+        if (!io.github.georgwav.cosmetics.sol.hud.Sidebar.covers(x, y, x + w, y + height(mc) * scale())) {
+            return x;
+        }
+        return Math.min(x, io.github.georgwav.cosmetics.sol.hud.Sidebar.left() - 4f - w);
+    }
+
     @Override
     protected boolean wholeBacking() {
         return false;

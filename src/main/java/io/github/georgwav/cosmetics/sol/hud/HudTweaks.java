@@ -23,6 +23,12 @@ public final class HudTweaks {
         return (float) (percent / 100.0);
     }
 
+    /** The scoreboard's size (1: the game's). */
+    public static float scoreboardScale() {
+        SolUiModule m = SolUiModule.tweaks();
+        return m == null ? 1f : scale(m.scoreboardScale.get());
+    }
+
     /** The tab list's size (1: the game's). */
     public static float tabScale() {
         SolUiModule m = SolUiModule.tweaks();

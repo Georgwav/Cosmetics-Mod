@@ -216,6 +216,25 @@ public final class Mixer {
                         }
                     }
                 }
+                // Pixel glow: the charge glow in four hard tones of one hue.
+                if ("true".equals(c.extra("pixel_glow", null))) {
+                    for (String tex : part.textures()) {
+                        Source in = current(files, tex, base, vanilla);
+                        if (in != null) {
+                            files.put(tex, made("pixel_glow", in, Map.of(), part.kind().name()));
+                        }
+                    }
+                }
+                // The full-charge mark: a frame round the fully charged sides, in the glow's colour (or the theme's).
+                if ("true".equals(c.extra("mark", null))) {
+                    int mark = rgb >= 0 ? rgb : themeTint & 0xFFFFFF;
+                    for (String tex : part.textures()) {
+                        Source in = tex.endsWith("respawn_anchor_side4.png") ? current(files, tex, base, vanilla) : null;
+                        if (in != null) {
+                            files.put(tex, made("mark", in, Map.of("tint", Integer.toHexString(mark)), part.kind().name()));
+                        }
+                    }
+                }
             }
             // 4. Blocks stay opaque, whatever the pack did (rule B.0.4).
             if (part.opaque()) {

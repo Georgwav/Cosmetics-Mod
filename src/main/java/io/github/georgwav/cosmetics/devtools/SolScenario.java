@@ -1165,6 +1165,17 @@ public final class SolScenario {
         if (name.equals("ui_tab") && io.github.georgwav.cosmetics.sol.hud.HudTweaks.pingsWritten == 0) {
             problems.add(name + ": the tab list's ping wasn't written in milliseconds");
         }
+        if (name.equals("ui_hud_sol")) {
+            var keys = io.github.georgwav.cosmetics.client.Modules.KEYSTROKES;
+            Minecraft mc = Minecraft.getInstance();
+            float kx = keys.x(mc.getWindow().getGuiScaledWidth(), mc), ky = keys.y(mc.getWindow().getGuiScaledHeight(), mc);
+            if (!io.github.georgwav.cosmetics.sol.hud.Sidebar.shown()) {
+                problems.add(name + ": the scoreboard's place wasn't seen");
+            } else if (keys.enabled() && io.github.georgwav.cosmetics.sol.hud.Sidebar.covers(kx, ky,
+                    kx + keys.width(mc) * keys.scale(), ky + keys.height(mc) * keys.scale())) {
+                problems.add(name + ": Keystrokes covers the scoreboard");
+            }
+        }
         if (name.equals("ui_hud_sol") && io.github.georgwav.cosmetics.sol.glint.GlintColors.uploads == 0) {
             problems.add(name + ": Glint didn't recolour any glint texture");
         }
