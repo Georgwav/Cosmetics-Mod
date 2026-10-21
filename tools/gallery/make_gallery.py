@@ -69,6 +69,8 @@ def main():
         parts.append(card(ui_src(NODES[0], s), label(s)))
     parts.append("</div></section>")
 
+    # The mix's size while the shots were taken (the run puts the mix back as it ends).
+    mix_files = max((int(a.get("mixFiles", 0)) for a in styles.get("applies", [])), default=styles.get("mixFiles", "?"))
     rows = []
     for a in styles.get("applies", []):
         rows.append(f"<tr><td>{html.escape(label(a['shot']))}</td><td>{html.escape(a['path'])}</td>"
@@ -78,7 +80,7 @@ def main():
                  'change took to apply: a live write swaps the textures in place; a reload rebuilds the base pack.</p>'
                  f'<dl class="facts"><div><dt>Packs scanned</dt><dd>{styles.get("packs", "?")} in {styles.get("scanMs", "?")} ms</dd></div>'
                  f'<div><dt>Styles tab opening</dt><dd>{int(styles.get("menuOpenMicros", 0)) / 1000:.1f} ms</dd></div>'
-                 f'<div><dt>Files in the mix</dt><dd>{styles.get("mixFiles", "?")}</dd></div></dl>'
+                 f'<div><dt>Files in the mix</dt><dd>{mix_files}</dd></div></dl>'
                  '<table><thead><tr><th>Change</th><th>Path</th><th>Time</th><th>Mix files</th></tr></thead><tbody>'
                  + "".join(rows) + '</tbody></table><div class="grid" data-shots>')
     for s in style_shots:
