@@ -1,0 +1,93 @@
+{
+  "lastApply": "reload",
+  "mixFiles": "0",
+  "lastApplyMs": "2085",
+  "liveWrites": "11",
+  "packs": "6",
+  "scanMs": "121",
+  "menuOpenMicros": "17756",
+  "reloads": "2",
+  "applies": [
+    {
+      "shot": "styles_world",
+      "path": "reload",
+      "ms": 3014,
+      "liveWrites": 0,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "styles_live",
+      "path": "live",
+      "ms": 3,
+      "liveWrites": 3,
+      "reloads": 1,
+      "mixFiles": 59
+    },
+    {
+      "shot": "menu_styles_tools",
+      "path": "live",
+      "ms": 1,
+      "liveWrites": 6,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "menu_styles_tools_full",
+      "path": "live",
+      "ms": 1,
+      "liveWrites": 6,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "menu_styles_crystal",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 7,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "menu_styles_look",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 8,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "menu_styles_tree",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 9,
+      "reloads": 1,
+      "mixFiles": 59
+    },
+    {
+      "shot": "menu_styles_editor",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 10,
+      "reloads": 1,
+      "mixFiles": 58
+    },
+    {
+      "shot": "styles_sky",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 11,
+      "reloads": 1,
+      "mixFiles": 59
+    },
+    {
+      "shot": "styles_packsky",
+      "path": "live",
+      "ms": 0,
+      "liveWrites": 11,
+      "reloads": 1,
+      "mixFiles": 59
+    }
+  ],
+  "problems": []
+}
