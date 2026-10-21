@@ -2,6 +2,9 @@ package io.github.georgwav.cosmetics.sol.fx.effects;
 
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.sol.fx.Fx;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
 import io.github.georgwav.cosmetics.sol.fx.FxColour;
 import io.github.georgwav.cosmetics.sol.fx.FxDraw;
 import io.github.georgwav.cosmetics.sol.fx.FxEvents;
@@ -412,7 +415,7 @@ public final class You extends FxModule {
     static final FxKind BUBBLE = new FxKind("you_bubble", 16) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass() || fx.text == null) {
+            if (fx.text == null) {
                 return;
             }
             Minecraft mc = Minecraft.getInstance();
@@ -462,6 +465,15 @@ public final class You extends FxModule {
             float w = (widest + pad * 2) * px, h = (lines * lineH - 2 + pad * 2) * px;
             // Its bottom (the tail's tip) half a block over the head, above a name tag.
             float bottom = 0.62f, cy = bottom + 3 * px + h / 2f;
+            if (out.glowPass()) {
+                // A soft light of the rim's colour round it.
+                float gk = FxBits.glowK(fx);
+                if (gk > 0f) {
+                    Vfx.billboard(out, FxSoft.GLOW, U[0] * cy, U[1] * cy, U[2] * cy, w * 0.85f, h * 1.1f, 0f,
+                            Vfx.with(fx.tone(Ramp.MAIN, 0, now), 0.35f * a * gk));
+                }
+                return;
+            }
             out.use(FxSprites.atlas());
             float[] uv = FxSprites.SQUARE.uv[FxSprites.ALL];
             int rim = Colors.withAlpha(fx.tone(Ramp.MAIN, 0, now), a);
@@ -504,43 +516,52 @@ public final class You extends FxModule {
     }
 
     /**
-     * A burst at the mouth: crumbs (style 0) thrown forward and falling to the ground in the food's colours, or drips
-     * (style 1) of the potion falling; fading out in steps.
+     * A burst at the mouth: crumbs (style 0), little cubes of the food's colours tumbling forward and bouncing to rest on
+     * the ground, or drips (style 1) of the potion, glossy drops falling and glowing faintly, a sparkle as it goes down.
      */
     static final FxKind EAT = new FxKind("you_eat", 24) {
+        private final int[] ramp = new int[Ramp.TONES];
+
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass()) {
-                return;
-            }
             float t = fx.time(age);
-            float a = Ramp.steps(Math.min(1f, (0.8f - t) / 0.3f), 3, fx.snap) * fx.early(now);
+            float a = (float) Math.pow(Math.min(1f, (0.95f - t) / 0.35f), 1.2f) * fx.early(now);
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
+            boolean glow = out.glowPass();
             boolean drip = fx.style == 1;
-            int n = Math.max(2, Math.round((drip ? 5 : 7) * fx.amount));
-            float side = T * Math.max(1, Math.round(fx.size));
+            float gk = FxBits.glowK(fx), s = fx.size;
+            int n = Math.max(3, Math.round((drip ? 7 : 10) * fx.amount));
             float lx = (float) fx.tx, lz = (float) fx.tz;
             for (int i = 0; i < n; i++) {
-                float h1 = FxDraw.hash(fx.seed, i), h2 = FxDraw.signed(fx.seed, i + 20), h3 = FxDraw.hash(fx.seed, i + 40);
-                float forward = drip ? 0.15f + 0.2f * h1 : 0.6f + 0.9f * h1;
-                float sideways = h2 * (drip ? 0.25f : 0.7f);
-                float up = drip ? -0.2f : 0.4f + 0.8f * h3;
+                float h1 = Vfx.h(fx.seed, i), h2 = Vfx.s(fx.seed, i + 20), h3 = Vfx.h(fx.seed, i + 40);
+                float forward = drip ? 0.2f + 0.3f * h1 : 0.9f + 1.3f * h1;
+                float sideways = h2 * (drip ? 0.35f : 1f);
+                float up = drip ? -0.1f : 0.8f + 1.4f * h3;
                 float vx = lx * forward - lz * sideways, vz = lz * forward + lx * sideways;
-                float y = up * t - 4.5f * t * t;
-                // Resting on the ground once there.
-                y = Math.max(fx.c + T / 2f, y);
-                float x = Ramp.snap(vx * Math.min(t, 0.5f), fx.snap), z = Ramp.snap(vz * Math.min(t, 0.5f), fx.snap);
-                y = Ramp.snap(y, fx.snap);
+                float x = Vfx.fly(vx, 2.5f, 0f, t), z = Vfx.fly(vz, 2.5f, 0f, t);
+                float y = Math.max(fx.c + 0.03f, Vfx.fly(up, 1f, -11f, t));
                 int c = fx.palette[i % 3];
                 if (drip) {
-                    // A drip: a texel and the one above it, the top one lighter.
-                    FxDraw.square(out, x, y, z, side, Colors.withAlpha(c, a));
-                    FxDraw.square(out, x, y + side, z, side, Colors.withAlpha(fx.palette[1], a * 0.8f));
-                } else {
-                    FxDraw.square(out, x, y, z, side * (i % 4 == 0 ? 2 : 1), Colors.withAlpha(c, a));
+                    float vy = Vfx.speed(up, 1f, -11f, t);
+                    float r = (0.03f + 0.02f * h3) * s;
+                    if (glow) {
+                        Vfx.glow(out, x, y, z, r * 4f, Vfx.with(c, 0.35f * a * gk));
+                    } else if (y > fx.c + 0.04f) {
+                        // Stretched along its fall.
+                        Vfx.billboard(out, FxSoft.ORB, x, y, z, r, r * (1f + Math.min(1.5f, -vy * 0.25f)), 0f, Vfx.with(Vfx.white(c, 0.15f), 0.9f * a));
+                    } else {
+                        Vfx.decal(out, FxSoft.DOT_SOFT, x, fx.c + 0.01f, z, r * 2.5f, 0f, Vfx.with(c, 0.6f * a));
+                    }
+                    if (glow && i == 0 && t < 0.3f) {
+                        Vfx.glint(out, 0f, 0f, 0f, 0.25f * s, t * 3f, Vfx.with(Vfx.white(c, 0.5f), (1f - t / 0.3f) * a * gk));
+                    }
+                } else if (!glow) {
+                    float side = (0.035f + 0.035f * h3) * s;
+                    Ramp.of(c, ramp);
+                    FxDraw.cube(out, x, y + side / 2f, z, side, ramp, a);
                 }
             }
         }

@@ -66,7 +66,7 @@ public final class WorldOut implements FxOut {
             if (t != null) {
                 t.release();
             }
-            t = SolTexture.of("fx/" + tex.name, tex.width, tex.height, false, tex.argb);
+            t = SolTexture.of("fx/" + tex.name, tex.width, tex.height, tex.linear, tex.argb);
             tex.gpu = t;
             tex.gpuVersion = tex.version;
         } else if (tex.gpuVersion != tex.version) {

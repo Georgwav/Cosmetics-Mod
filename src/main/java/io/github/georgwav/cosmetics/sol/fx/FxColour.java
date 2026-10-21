@@ -28,6 +28,17 @@ public final class FxColour {
         return RAINBOW[i];
     }
 
+    /** Tone {@code tone} of a smooth rainbow hue (0..1): the colour at full strength, its ramp made as it's asked. */
+    static int rainbow(float hue, int tone) {
+        int c = Colors.fromHsv(hue - (float) Math.floor(hue), 0.8f, 1f);
+        return switch (tone) {
+            case Ramp.CORE -> Colors.mixRgb(c, 0xFFFFFFFF, 0.6f) | 0xFF000000;
+            case Ramp.SHADE -> Colors.mixRgb(c, 0xFF000000, 0.35f) | 0xFF000000;
+            case Ramp.DEEP -> Colors.mixRgb(c, 0xFF000000, 0.6f) | 0xFF000000;
+            default -> c | 0xFF000000;
+        };
+    }
+
     /** The preset's accent, opaque. */
     public static int accent() {
         Tokens tk = ThemeState.tokens();
@@ -47,13 +58,26 @@ public final class FxColour {
     public static void apply(Fx fx, String mode, int custom, int second) {
         int main = switch (mode) {
             case "custom", "two" -> custom;
-            default -> accent();
+            default -> vivid(accent());
         };
         Ramp.of(main, fx.ramp);
         Ramp.of(second, fx.ramp2);
         fx.two = mode.equals("two");
         fx.rainbow = mode.equals("rainbow");
-        fx.glowColour = fx.rainbow ? 0xFFFFFFFF : mode.equals("theme") ? glow() : Colors.mixRgb(main, 0xFFFFFFFF, 0.3f);
+        fx.glowColour = fx.rainbow ? 0xFFFFFFFF : mode.equals("theme") ? vivid(glow()) : Colors.mixRgb(main, 0xFFFFFFFF, 0.3f);
+    }
+
+    /**
+     * The preset's colour as an effect wears it: the same hue, but saturated and bright enough to read as light against
+     * any sky (a pale accent such as Frost Morning's would otherwise wash out). Greys stay grey.
+     */
+    public static int vivid(int argb) {
+        float[] hsv = java.awt.Color.RGBtoHSB(argb >> 16 & 255, argb >> 8 & 255, argb & 255, null);
+        if (hsv[1] < 0.06f) {
+            return argb | 0xFF000000;
+        }
+        float s = Math.max(hsv[1], 0.7f), v = Math.max(hsv[2], 0.95f);
+        return 0xFF000000 | java.awt.Color.HSBtoRGB(hsv[0], s, v) & 0xFFFFFF;
     }
 
     /** Sets an effect's colours to one fixed colour (a style's own, like Burst's red). */

@@ -149,7 +149,7 @@ public final class FxSettings {
         if (spec.glow) {
             f.glow = put(add, std, "glow", new Setting.Choice(p + "glow", "soft", List.of("soft", "off", "strong")).group(group));
         }
-        f.snap = put(add, std, "snap", new Setting.Toggle(p + "snap", true).group(group));
+        f.snap = put(add, std, "snap", new Setting.Toggle(p + "snap", false).was(true).group(group));
         if (spec.sound) {
             List<String> choices = SolSounds.choices();
             f.sound = put(add, std, "sound", new Setting.Choice(p + "sound", spec.defaultSound, choices).group(group));
@@ -193,7 +193,10 @@ public final class FxSettings {
         return on == null || on.get();
     }
 
-    /** The style to play: the picked one, or one of the ticked ones at random. */
+    /** The style random picked last (-1: none yet). */
+    private int lastPicked = -1;
+
+    /** The style to play: the picked one, or one of the ticked ones at random (never the last one twice running). */
     public int pick(int seed) {
         if (style == null) {
             return 0;
@@ -206,9 +209,12 @@ public final class FxSettings {
                 }
             }
             if (n > 0) {
-                int k = (int) (FxDraw.hash(seed, 99) * n);
+                // Never the same one twice running, when there's another to pick.
+                boolean skipLast = n > 1 && lastPicked >= 0 && lastPicked < ticked.size() && ticked.get(lastPicked).get();
+                int k = (int) (FxDraw.hash(seed, 99) * (skipLast ? n - 1 : n));
                 for (int i = 0; i < ticked.size(); i++) {
-                    if (ticked.get(i).get() && k-- == 0) {
+                    if (ticked.get(i).get() && !(skipLast && i == lastPicked) && k-- == 0) {
+                        lastPicked = i;
                         return i;
                     }
                 }

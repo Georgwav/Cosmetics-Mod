@@ -2,6 +2,9 @@ package io.github.georgwav.cosmetics.sol.fx.effects;
 
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.sol.fx.Fx;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
 import io.github.georgwav.cosmetics.sol.fx.FxColour;
 import io.github.georgwav.cosmetics.sol.fx.FxDraw;
 import io.github.georgwav.cosmetics.sol.fx.FxKind;
@@ -226,28 +229,24 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
             if (out.glowPass()) {
                 return;
             }
-            float a = Ramp.steps(Math.min(1f, (1f - fx.progress(now)) / 0.2f), 4, fx.snap) * fx.early(now) * 0.8f;
+            float a = (float) Math.pow(Math.min(1f, (1f - fx.progress(now)) / 0.3f), 1.3f) * fx.early(now) * 0.6f;
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
-            FxSprites.Sprite s = FxSprites.FOOTPRINT;
+            Vfx.origin(out, fx);
             float f0 = (float) fx.tx, f2 = (float) fx.tz;
             float rx = -f2, rz = f0;
-            float cell = T * Math.max(1, Math.round(fx.size));
+            float len = 0.2f * fx.size, wid = 0.1f * fx.size;
+            FxSoft.Region r = FxSoft.FOOT;
             boolean mirror = fx.i0 == 1;
-            for (int py = 0; py < s.h; py++) {
-                for (int px = 0; px < s.w; px++) {
-                    int tone = s.tone(mirror ? s.w - 1 - px : px, py);
-                    if (tone < 0) {
-                        continue;
-                    }
-                    float across = (px - (s.w - 1) / 2f) * cell, ahead = ((s.h - 1) / 2f - py) * cell;
-                    // The print is the snow pressed down: its deeper tones where the foot pressed hardest.
-                    FxDraw.cell(out, rx * across + f0 * ahead, 0.001f, rz * across + f2 * ahead, cell,
-                            Colors.withAlpha(fx.tone(Math.min(Ramp.DEEP, tone + 1), 0, now), a));
-                }
-            }
+            float u0 = mirror ? r.u1 : r.u0, u1 = mirror ? r.u0 : r.u1;
+            // The snow pressed down: a cold shadow of the effect's deep tone.
+            int argb = Vfx.with(Vfx.mix(fx.ramp[Ramp.DEEP], 0xFF6C7A99, 0.5f), a);
+            out.use(FxSoft.atlas());
+            out.vertex(-rx * wid + f0 * len, 0.003f, -rz * wid + f2 * len, u0, r.v0, argb);
+            out.vertex(rx * wid + f0 * len, 0.003f, rz * wid + f2 * len, u1, r.v0, argb);
+            out.vertex(rx * wid - f0 * len, 0.003f, rz * wid - f2 * len, u1, r.v1, argb);
+            out.vertex(-rx * wid - f0 * len, 0.003f, -rz * wid - f2 * len, u0, r.v1, argb);
         }
     };
 
@@ -306,51 +305,69 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
         out[3] = (float) Math.cos(e);
     }
 
-    /** The spectrum's seven stepped bands, outside in. */
+    /** The spectrum, outside in: red to violet. */
     private static final int[] SPECTRUM = {0xFFFF4A3D, 0xFFFF9A2E, 0xFFFFE14A, 0xFF5FD45A, 0xFF46B4FF, 0xFF5A6CFF, 0xFFB46CFF};
 
+    /** The spectrum's colour {@code k} (0 outside, 1 inside), blended smoothly between its seven colours. */
+    private static int spectrum(float k) {
+        float f = Math.max(0f, Math.min(1f, k)) * (SPECTRUM.length - 1);
+        int i = Math.min(SPECTRUM.length - 2, (int) f);
+        return Vfx.mix(SPECTRUM[i], SPECTRUM[i + 1], f - i);
+    }
+
     /**
-     * A rainbow opposite the sun: seven bands of whole colour, 42 degrees out from the point straight opposite it, far
-     * off (hills in front hide its feet). It comes out over three seconds and goes over the last six, in steps.
+     * A rainbow opposite the sun: the spectrum blended smoothly, 42 degrees out from the point straight opposite it, its
+     * edges soft, with a fainter second bow outside it in the reverse order; far off (hills in front hide its feet). It
+     * comes out over three seconds and goes over the last six.
      */
     static final FxKind RAINBOW = new FxKind("world_rainbow", 1) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass()) {
-                return;
-            }
-            float in = Ramp.steps(Math.min(1f, age / 3f), 4, true);
-            float left = Ramp.steps(Math.min(1f, (fx.start + fx.life - now) / 6f), 4, true) * fx.early(now);
+            float in = Vfx.inOut(Math.min(1f, age / 3f));
+            float left = Vfx.inOut(Math.min(1f, (fx.start + fx.life - now) / 6f)) * fx.early(now);
             float a = 0.42f * Math.min(in, left) * Math.min(1.5f, fx.size);
+            if (out.glowPass()) {
+                a *= 0.35f;
+            }
             if (a <= 0f) {
                 return;
             }
             antiSun(FrameInfo.sunAngle, BASIS);
             float ax = BASIS[0], ay = BASIS[1], ux = BASIS[2], uy = BASIS[3];
-            float cx = 0f, cy = 0f, cz = 1f;
             float dist = Math.min(160f, FrameInfo.renderDistance * 0.85f);
             out.origin(FrameInfo.camX, FrameInfo.camY, FrameInfo.camZ);
-            out.use(FxSprites.atlas());
-            float[] uv = FxSprites.SQUARE.uv[FxSprites.ALL];
-            float u = (uv[0] + uv[2]) / 2f, v = (uv[1] + uv[3]) / 2f;
-            int segs = 64;
-            float band = (float) Math.toRadians(1.5);
-            float outer = (float) Math.toRadians(42);
-            for (int b = 0; b < SPECTRUM.length; b++) {
-                int c = Colors.withAlpha(SPECTRUM[b], a);
-                float r0 = outer - b * band, r1 = r0 - band;
+            out.use(FxSoft.atlas());
+            FxSoft.Region sq = FxSoft.SQUARE;
+            float u = (sq.u0 + sq.u1) / 2f, v = (sq.v0 + sq.v1) / 2f;
+            bow(out, ax, ay, ux, uy, dist, (float) Math.toRadians(42.5), (float) Math.toRadians(11), a, false, u, v);
+            bow(out, ax, ay, ux, uy, dist, (float) Math.toRadians(54), (float) Math.toRadians(13), a * 0.32f, true, u, v);
+        }
+
+        /** One bow, {@code outer} radians out at its red edge and {@code width} radians across, soft at both edges. */
+        private void bow(FxOut out, float ax, float ay, float ux, float uy, float dist, float outer, float width, float a, boolean reversed,
+                         float u, float v) {
+            int segs = 72, rows = 14;
+            for (int b = 0; b < rows; b++) {
+                float k0 = b / (float) rows, k1 = (b + 1f) / rows;
+                float r0 = outer - k0 * width, r1 = outer - k1 * width;
+                int c0 = Vfx.with(spectrum(reversed ? 1f - k0 : k0), a * edge(k0)), c1 = Vfx.with(spectrum(reversed ? 1f - k1 : k1), a * edge(k1));
                 for (int s = 0; s < segs; s++) {
                     float p0 = (float) (-Math.PI / 2 + Math.PI * s / segs), p1 = (float) (-Math.PI / 2 + Math.PI * (s + 1) / segs);
-                    // Skip what's well under the horizon (the ground hides it anyway).
                     if (dirY(ay, uy, r0, p0) < -0.08f && dirY(ay, uy, r0, p1) < -0.08f) {
                         continue;
                     }
-                    vert(out, ax, ay, ux, uy, cx, cy, cz, r0, p0, dist, u, v, c);
-                    vert(out, ax, ay, ux, uy, cx, cy, cz, r1, p0, dist, u, v, c);
-                    vert(out, ax, ay, ux, uy, cx, cy, cz, r1, p1, dist, u, v, c);
-                    vert(out, ax, ay, ux, uy, cx, cy, cz, r0, p1, dist, u, v, c);
+                    vert(out, ax, ay, ux, uy, r0, p0, dist, u, v, c0);
+                    vert(out, ax, ay, ux, uy, r1, p0, dist, u, v, c1);
+                    vert(out, ax, ay, ux, uy, r1, p1, dist, u, v, c1);
+                    vert(out, ax, ay, ux, uy, r0, p1, dist, u, v, c0);
                 }
             }
+        }
+
+        /** Soft at both edges of the bow, full across its middle. */
+        private float edge(float k) {
+            float e = Math.min(k, 1f - k) / 0.22f;
+            return e >= 1f ? 1f : e * e * (3f - 2f * e);
         }
 
         private float dirY(float ay, float uy, float r, float p) {
@@ -358,12 +375,11 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
         }
 
         /** A point {@code r} radians out from the anti-sun, at angle {@code p} round it (0 straight up), {@code dist} off. */
-        private void vert(FxOut out, float ax, float ay, float ux, float uy, float cx, float cy, float cz, float r, float p,
-                          float dist, float u, float v, int c) {
+        private void vert(FxOut out, float ax, float ay, float ux, float uy, float r, float p, float dist, float u, float v, int c) {
             float cr = (float) Math.cos(r), sr = (float) Math.sin(r), cp = (float) Math.cos(p), sp = (float) Math.sin(p);
-            float x = ax * cr + (ux * cp + cx * sp) * sr;
-            float y = ay * cr + (uy * cp + cy * sp) * sr;
-            float z = (cz * sp) * sr;
+            float x = ax * cr + ux * cp * sr;
+            float y = ay * cr + uy * cp * sr;
+            float z = sp * sr;
             out.vertex(x * dist, y * dist, z * dist, u, v, c);
         }
     };
@@ -442,24 +458,33 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
     }
 
     /**
-     * A pixel leaf blown along by the wind, swaying and turning over as it falls (its width steps through three sizes),
-     * resting on the ground at the end and fading there in steps.
+     * A leaf blown along by the wind, swaying, tumbling and turning over as it falls (it narrows as it turns edge-on),
+     * resting on the ground at the end and fading there.
      */
     static final FxKind LEAF = new FxKind("world_leaf", 64) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
+            if (out.glowPass()) {
+                return;
+            }
             float t = fx.time(age);
             float fall = Math.max(fx.c, -fx.a * t);
             boolean landed = fall <= fx.c;
-            // Blown while it falls; still once down.
             float flyT = landed ? (fx.a > 0f ? -fx.c / fx.a : t) : t;
             float sway = (float) Math.sin(flyT * 2.1f + (fx.seed & 63)) * 0.35f;
             float x = (float) fx.tx * flyT + sway, z = (float) fx.tz * flyT + sway * 0.5f;
-            float alpha = Ramp.steps(Math.min(1f, (1f - fx.progress(now)) / 0.25f), 3, fx.snap) * fx.early(now);
-            float turn = landed ? 1f : (float) Math.cos(flyT * 3.3f + (fx.seed & 31));
-            float w = Math.round(Math.abs(turn) * 2f + 1f) / 3f * (turn < 0f ? -1f : 1f);
-            FxDraw.origin(out, fx);
-            FxDraw.spriteScaled(out, fx, FxSprites.LEAF, x, fall + T * 2f, z, T * Math.max(1f, fx.size), w, 1f, fx.seed, alpha, now);
+            float alpha = (float) Math.pow(Math.min(1f, (1f - fx.progress(now)) / 0.25f), 1.2f) * fx.early(now);
+            Vfx.origin(out, fx);
+            int c = fx.tone(Ramp.MAIN, fx.seed, now);
+            float size = 0.13f * Math.max(0.6f, fx.size);
+            if (landed) {
+                Vfx.decal(out, FxSoft.LEAF, x, fall + 0.004f, z, size, (fx.seed & 255) * 0.1f, Vfx.with(c, alpha));
+                return;
+            }
+            float turn = (float) Math.cos(flyT * 3.3f + (fx.seed & 31));
+            float spin = flyT * 1.7f * ((fx.seed & 1) == 0 ? 1f : -1f) + sway;
+            int shade = Vfx.mix(c, turn < 0f ? 0xFF000000 : 0xFFFFFFFF, turn < 0f ? 0.25f : 0.1f);
+            Vfx.billboard(out, FxSoft.LEAF, x, fall + 0.05f, z, size * Math.max(0.12f, Math.abs(turn)), size, spin, Vfx.with(shade, alpha));
         }
     };
 
@@ -507,18 +532,32 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float p = fx.progress(now);
-            float alpha = Ramp.steps(1f - p, 3, fx.snap) * fx.early(now) * 0.9f;
-            FxDraw.origin(out, fx);
-            float r = T * (1.5f + 4.5f * p) * fx.size;
-            // The drop's bright splash, then its ring spreading.
-            if (p < 0.2f) {
-                FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, 0.003f, 0f, T * 0.5f * fx.size, 1, Ramp.CORE, alpha, false, now);
+            float alpha = (float) Math.pow(1f - p, 1.4f) * fx.early(now);
+            Vfx.origin(out, fx);
+            boolean glow = out.glowPass();
+            float gk = FxBits.glowK(fx), s = fx.size;
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            float r = (0.06f + 0.5f * Vfx.outCubic(p)) * s;
+            // The drop's splash: a few droplets jumping up and falling back.
+            if (p < 0.35f && !glow) {
+                float k = p / 0.35f;
+                for (int i = 0; i < 4; i++) {
+                    double ang = i * Math.PI / 2 + Vfx.h(fx.seed, i) * 0.8;
+                    float d = 0.08f * s * k;
+                    float y = 0.003f + 0.12f * s * 4f * k * (1f - k);
+                    Vfx.sprite(out, FxSoft.DOT, (float) Math.cos(ang) * d, y, (float) Math.sin(ang) * d, 0.018f * s, 0f,
+                            Vfx.with(Vfx.white(c, 0.6f), 0.8f * (1f - k)));
+                }
             }
-            FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, 0.003f, 0f, r, 1, Ramp.MAIN, alpha, false, now);
-            if (fx.i0 == 1 && p > 0.3f) {
-                float q = (p - 0.3f) / 0.7f;
-                FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, 0.003f, 0f, T * (1f + 3f * q) * fx.size, 1, Ramp.MAIN,
-                        Ramp.steps(1f - q, 3, fx.snap) * 0.6f, false, now);
+            if (glow) {
+                Vfx.ring(out, FxSoft.TUBE, 0f, 0.004f, 0f, r, 0.08f * s, Vfx.with(c, 0.5f * alpha * gk), false);
+            } else {
+                Vfx.ring(out, FxSoft.TUBE, 0f, 0.003f, 0f, r, 0.035f * s, Vfx.with(Vfx.white(c, 0.55f), 0.9f * alpha), false);
+                if (fx.i0 == 1 && p > 0.25f) {
+                    float q = (p - 0.25f) / 0.75f;
+                    Vfx.ring(out, FxSoft.TUBE, 0f, 0.003f, 0f, (0.05f + 0.32f * Vfx.outCubic(q)) * s, 0.026f * s,
+                            Vfx.with(Vfx.white(c, 0.55f), 0.55f * (1f - q)), false);
+                }
             }
         }
     };
@@ -560,20 +599,35 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
         burstsMade++;
     }
 
-    /** Stars bursting out of where the block was, slowing, twinkling in steps and going out. */
+    /** Where the block was: a flash, then stars bursting out of it, slowing, twinkling and going out, with motes of light. */
     static final FxKind BURST = new FxKind("world_star_burst", 6) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age), p = Math.min(1f, t / 0.9f);
-            float alpha = Ramp.steps(1f - p, 4, fx.snap) * fx.early(now);
-            FxDraw.origin(out, fx);
-            float out1 = 1f - (1f - p) * (1f - p);
-            for (int i = 0; i < 14; i++) {
-                float a1 = FxDraw.hash(fx.seed, i) * 6.2832f, a2 = FxDraw.signed(fx.seed, i + 40) * 1.2f;
-                float r = (0.35f + 0.5f * FxDraw.hash(fx.seed, i + 80)) * out1 * fx.size;
-                float x = (float) (Math.cos(a1) * Math.cos(a2)) * r, y = (float) Math.sin(a2) * r, z = (float) (Math.sin(a1) * Math.cos(a2)) * r;
-                FxDraw.sprite(out, fx, FxSprites.PLUS, x, y, z, T, i, alpha, now);
+            float alpha = (float) Math.pow(1f - p, 1.2f) * fx.early(now);
+            Vfx.origin(out, fx);
+            boolean glow = out.glowPass();
+            float gk = FxBits.glowK(fx), s = fx.size;
+            int c = fx.tone(Ramp.MAIN, 0, now), core = fx.tone(Ramp.CORE, 0, now);
+            if (glow && t < 0.25f) {
+                float k = t / 0.25f;
+                Vfx.hot(out, 0f, 0f, 0f, 0.9f * s, Vfx.with(Vfx.white(c, 0.6f), (1f - k) * (1f - k) * fx.early(now) * gk));
+                Vfx.glint(out, 0f, 0f, 0f, 1.1f * s, 0.3f, Vfx.with(0xFFFFFFFF, (1f - k) * fx.early(now) * gk));
             }
+            float out1 = Vfx.outCubic(p);
+            for (int i = 0; i < 18; i++) {
+                float a1 = Vfx.h(fx.seed, i) * 6.2832f, a2 = Vfx.s(fx.seed, i + 40) * 1.2f;
+                float r = (0.4f + 0.7f * Vfx.h(fx.seed, i + 80)) * out1 * s;
+                float x = (float) (Math.cos(a1) * Math.cos(a2)) * r, y = (float) Math.sin(a2) * r - 0.2f * p * p, z = (float) (Math.sin(a1) * Math.cos(a2)) * r;
+                float tw = 0.55f + 0.45f * (float) Math.sin(t * 20f + i * 1.9f);
+                int col = (i & 1) == 0 ? c : core;
+                if (glow) {
+                    Vfx.glint(out, x, y, z, 0.18f * s * tw, t * 2f + i, Vfx.with(Vfx.white(col, 0.4f), alpha * gk));
+                } else {
+                    Vfx.sprite(out, FxSoft.STAR, x, y, z, 0.05f * s * tw, t * 2f + i, Vfx.with(Vfx.white(col, 0.4f), alpha));
+                }
+            }
+            FxBits.embers(out, fx, t, 0f, -0.2f, 0f, 10, 0.4f * s, 0.6f, 0.2f, 0.8f, c, s, 7);
         }
     };
 

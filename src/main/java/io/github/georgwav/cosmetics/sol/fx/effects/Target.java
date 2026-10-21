@@ -2,7 +2,10 @@ package io.github.georgwav.cosmetics.sol.fx.effects;
 
 import io.github.georgwav.cosmetics.client.Modules;
 import io.github.georgwav.cosmetics.client.Setting;
+import io.github.georgwav.cosmetics.sol.fx.Bolts;
 import io.github.georgwav.cosmetics.sol.fx.Fx;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
 import io.github.georgwav.cosmetics.sol.fx.FxDraw;
 import io.github.georgwav.cosmetics.sol.fx.FxEvents;
 import io.github.georgwav.cosmetics.sol.fx.FxKind;
@@ -17,6 +20,7 @@ import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.PoseSnapshot;
 import io.github.georgwav.cosmetics.sol.fx.Ramp;
 import io.github.georgwav.cosmetics.sol.fx.SolPicks;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
 import io.github.georgwav.cosmetics.sol.fx.WorldOut;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.util.Colors;
@@ -378,180 +382,272 @@ public final class Target extends FxModule implements FxWorld.Layer {
 
     // ------------------------------------------------------------------ the kinds
 
-    private static final float T = FxDraw.TEXEL;
-    private static final float[] RR = new float[3];
-
-    /** A ring of texel cells round the middle at height {@code y}: dashes turning, banded core to shade, brighter on a hit. */
-    private static void ring(FxOut out, Fx fx, float y, float radius, float turn, boolean flash, float alpha, float now) {
-        boolean glow = out.glowPass();
-        if (glow && fx.glow == 0) {
-            return;
+    /** How hard a hit flashes {@code since} seconds after it: 1 at once, gone in a third of a second. */
+    private static float hitFlash(float since) {
+        if (since < 0f || since >= 0.35f) {
+            return 0f;
         }
-        out.use(FxSprites.atlas());
-        float[] uv = FxSprites.SQUARE.uv[FxSprites.ALL];
-        int steps = Math.max(16, (int) Math.ceil(2.0 * Math.PI * radius / T));
-        int lastX = Integer.MIN_VALUE, lastZ = Integer.MIN_VALUE;
-        int shift = (int) Math.floor(turn * steps / (2.0 * Math.PI));
-        for (int s = 0; s < steps; s++) {
-            int dash = Math.floorMod(s + shift, 8);
-            if (dash >= 6) {
-                continue;
-            }
-            double ang = s * 2.0 * Math.PI / steps;
-            int gx = Math.round((float) Math.cos(ang) * radius / T), gz = Math.round((float) Math.sin(ang) * radius / T);
-            if (gx == lastX && gz == lastZ) {
-                continue;
-            }
-            lastX = gx;
-            lastZ = gz;
-            float x = gx * T, z = gz * T;
-            int tone = flash ? Ramp.CORE : dash < 2 ? Ramp.CORE : dash < 4 ? Ramp.MAIN : Ramp.SHADE;
-            if (glow) {
-                float k = fx.glow == 2 || flash ? 1.7f : 1f;
-                FxDraw.flat(out, x, y + 0.01f, z, T, T, uv, Colors.withAlpha(fx.glowColour, Math.min(1f, 0.22f * k * alpha)));
-            } else {
-                FxDraw.flat(out, x, y + 0.006f, z, T / 2f, T / 2f, uv, Colors.withAlpha(fx.tone(tone, s, now), alpha));
-            }
-        }
+        float k = 1f - since / 0.35f;
+        return k * k;
     }
 
-    /** A small bolt of texels from {@code top} down to {@code bottom} over the middle, facing the camera. */
-    private static void bolt(FxOut out, Fx fx, float top, float bottom, int seed, float alpha, float now) {
-        out.right(RR);
-        float x = 0f, y = top;
-        int steps = 8;
-        for (int k = 0; k < steps; k++) {
-            float ny = top + (bottom - top) * (k + 1) / steps;
-            float nx = k == steps - 1 ? 0f : FxDraw.signed(seed, k) * 0.12f;
-            for (int j = 0; j < 3; j++) {
-                float px = x + (nx - x) * j / 3f, py = y + (ny - y) * j / 3f;
-                float wx = Ramp.snap(RR[0] * px, fx.snap), wz = Ramp.snap(RR[2] * px, fx.snap);
-                FxDraw.square(out, wx, Ramp.snap(py, fx.snap), wz, T * fx.size, Colors.withAlpha(fx.tone(Ramp.CORE, k, now), alpha));
-                FxDraw.squareGlow(out, fx, wx, py, wz, T * fx.size * 2f, alpha);
-            }
-            x = nx;
-            y = ny;
-        }
-    }
-
-    /** The target mark, every style; fx.a and fx.b are the target's height and width, fx.d when it was last hit. */
+    /**
+     * The target mark, every style; fx.a and fx.b are the target's height and width, fx.d when it was last hit. Each
+     * hit flashes it white-hot and throws a ring of light out round the body.
+     */
     static final FxKind MARK = new FxKind("target_mark", 2) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.calm ? 0.3f : age * fx.speed;
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             float h = fx.a <= 0f ? 1.8f : fx.a, w = fx.b <= 0f ? 0.6f : fx.b;
-            float in = Ramp.steps(Math.min(1f, age / 0.2f), 3, fx.snap);
-            float a = in * fx.early(now);
-            boolean flash = now - fx.d >= 0f && now - fx.d < 0.2f;
-            float size = fx.size;
+            float a = Vfx.outCubic(Math.min(1f, age / 0.25f)) * fx.early(now);
+            float gk = FxBits.glowK(fx), s = fx.size;
+            boolean glow = out.glowPass();
+            float hit = hitFlash(now - fx.d);
+            int c = Vfx.mix(fx.tone(Ramp.MAIN, 0, now), 0xFFFFFFFF, 0.6f * hit), c2 = Vfx.mix(fx.tone(Ramp.MAIN, 1, now), 0xFFFFFFFF, 0.6f * hit);
+            float lift = 1f + 0.8f * hit;
+            if (hit > 0f && glow) {
+                float k = 1f - (float) Math.sqrt(hit);
+                Vfx.ring(out, FxSoft.FRONT, 0f, h * 0.5f, 0f, (w * 0.6f + 0.2f + 1.4f * k) * s, 0.5f * s, Vfx.with(Vfx.white(c, 0.4f), hit * a * gk), false);
+                Vfx.glow(out, 0f, h * 0.55f, 0f, h * 0.9f, Vfx.with(c, 0.35f * hit * a * gk));
+            }
             switch (fx.style) {
-                case 0 -> ring(out, fx, 0.02f, (w * 0.9f + 0.25f) * size, t * 1.6f, flash, a, now);
-                case 1 -> {
-                    float y = h * (0.5f + 0.45f * (float) Math.sin(t * Math.PI * 2.0 / 1.2));
-                    ring(out, fx, Ramp.snap(y, fx.snap), (w * 0.8f + 0.2f) * size, t * 1.2f, flash, a, now);
-                }
+                case 0 -> runeRing(out, fx, t, a, gk, s, w, c, c2, lift);
+                case 1 -> jello(out, t, a, gk, s, h, w, c, lift);
                 case 2 -> {
-                    float y = Ramp.snap(h + 0.45f + 0.06f * (float) Math.sin(t * 3.0), fx.snap);
-                    float spin = (float) Math.cos(t * 2.5);
-                    FxDraw.spriteScaled(out, fx, FxSprites.PLUMBOB, 0f, y, 0f, 0.8f * T * size, Ramp.steps(Math.abs(spin), 3, fx.snap)
-                            * Math.signum(spin == 0f ? 1f : spin), 1f, flash ? 1 : 0, a, now);
-                }
-                case 3 -> {
-                    int n = Math.max(3, Math.min(6, Math.round(4 * fx.amount)));
-                    boolean spiral = fx.i1 == 1;
-                    float r = (w * 0.8f + 0.35f) * size;
-                    for (int i = 0; i < n; i++) {
-                        for (int k = 3; k >= 0; k--) {
-                            float tt = t - k * 0.06f;
-                            double ang = tt * 2.2 + i * Math.PI * 2 / n;
-                            float y = spiral ? h * (0.5f + 0.42f * (float) Math.sin(tt * 1.4 + i * Math.PI * 2 / n)) : h * 0.6f
-                                    + 0.08f * (float) Math.sin(tt * 3 + i);
-                            float x = Ramp.snap((float) Math.cos(ang) * r, fx.snap), z = Ramp.snap((float) Math.sin(ang) * r, fx.snap);
-                            float yy = Ramp.snap(y, fx.snap);
-                            if (k == 0) {
-                                FxDraw.sprite(out, fx, FxSprites.ORB, x, yy, z, 0.6f * T * size, i, a, now);
-                            } else {
-                                int tone = k == 1 ? Ramp.MAIN : Ramp.SHADE;
-                                FxDraw.square(out, x, yy, z, T * size, Colors.withAlpha(fx.tone(flash ? Ramp.CORE : tone, i, now),
-                                        a * (1f - k * 0.22f)));
-                            }
-                        }
+                    float y = h + 0.6f * s + 0.06f * s * (float) Math.sin(t * 3.0);
+                    float spin = t * 2.2f;
+                    if (glow) {
+                        Vfx.glow(out, 0f, y, 0f, 0.7f * s * lift, Vfx.with(c, 0.5f * a * gk));
+                        Vfx.glint(out, 0.05f * s, y + 0.1f * s, 0f, 0.26f * s * (0.6f + 0.4f * (float) Math.sin(t * 5f)), t, Vfx.with(0xFFFFFFFF, 0.8f * a * gk));
                     }
+                    Vfx.gem(out, 0f, y, 0f, 0.16f * s, 0.22f * s, 0.38f * s, 4, spin, Vfx.with(c, a));
                 }
-                case 4 -> {
-                    float r = (w * 0.8f + 0.3f) * size;
-                    for (int ring = 0; ring < 2; ring++) {
-                        float y = Ramp.snap(h * (ring == 0 ? 0.35f : 0.7f), fx.snap);
-                        float turn = (ring == 0 ? 1f : -1f) * t * 1.2f;
-                        int links = 10;
-                        for (int i = 0; i < links; i++) {
-                            double ang = turn + i * Math.PI * 2 / links;
-                            float x = Ramp.snap((float) Math.cos(ang) * r, fx.snap), z = Ramp.snap((float) Math.sin(ang) * r, fx.snap);
-                            FxDraw.sprite(out, fx, FxSprites.CHAIN, x, y, z, 0.7f * T * size, i + ring, a, now);
-                        }
-                    }
-                }
-                case 5 -> {
-                    float r = (w * 0.9f + 0.45f) * size;
-                    for (int i = 0; i < 3; i++) {
-                        double tilt = (i - 1) * 0.6, phase = i * 2.1;
-                        for (int k = 5; k >= 0; k--) {
-                            double ang = (t - k * 0.05f) * (2.0 + i * 0.3) + phase;
-                            float ox = (float) Math.cos(ang) * r, oz = (float) Math.sin(ang) * r;
-                            // Tilted orbit: lift by the angle round its own axis.
-                            float oy = (float) (oz * Math.sin(tilt));
-                            oz = (float) (oz * Math.cos(tilt));
-                            float x = Ramp.snap(ox, fx.snap), y = Ramp.snap(h * 0.6f + oy, fx.snap), z = Ramp.snap(oz, fx.snap);
-                            if (k == 0) {
-                                FxDraw.sprite(out, fx, FxSprites.ORB, x, y, z, 0.55f * T * size, i, a, now);
-                            } else {
-                                FxDraw.square(out, x, y, z, T * size, Colors.withAlpha(fx.tone(k < 3 ? Ramp.MAIN : Ramp.SHADE, i, now),
-                                        a * (1f - k * 0.15f)));
-                            }
-                        }
-                    }
-                }
-                case 6 -> {
-                    // Crackling at the head; bolts strike it for a quarter second after each hit.
-                    float since = now - fx.d;
-                    if (since >= 0f && since < 0.25f) {
-                        float ba = Ramp.steps(1f - since / 0.25f, 3, fx.snap) * a;
-                        bolt(out, fx, h + 1.3f * size, h + 0.05f, (int) (fx.d * 100f), ba, now);
-                        bolt(out, fx, h + 1.0f * size, h + 0.1f, (int) (fx.d * 100f) + 7, ba * 0.8f, now);
-                    }
-                    for (int i = 0; i < 4; i++) {
-                        double ang = t * 3.0 + i * Math.PI / 2;
-                        float flick = FxDraw.hash((int) (t * 12f), i) > 0.4f ? 1f : 0f;
-                        float x = Ramp.snap((float) Math.cos(ang) * 0.3f * size, fx.snap), z = Ramp.snap((float) Math.sin(ang) * 0.3f * size, fx.snap);
-                        FxDraw.sprite(out, fx, FxSprites.PLUS, x, Ramp.snap(h + 0.15f, fx.snap), z, 0.4f * T * size, i, a * flick, now);
-                    }
-                }
-                default -> {
-                    float y = Ramp.snap(h + 0.28f, fx.snap);
-                    float r = 0.3f * size;
-                    for (int i = 0; i < 6; i++) {
-                        double ang = t * 1.1 + i * Math.PI / 3;
-                        float x = Ramp.snap((float) Math.cos(ang) * r, fx.snap), z = Ramp.snap((float) Math.sin(ang) * r, fx.snap);
-                        FxDraw.sprite(out, fx, FxSprites.CRYSTAL, x, y, z, 0.45f * T * size, flash ? 0 : i, a, now);
-                    }
-                    ring(out, fx, y - 0.12f, r, t * 1.1f, flash, a * 0.7f, now);
-                }
+                case 3 -> wisps(out, fx, t, a, gk, s, h, w, c, c2, lift);
+                case 4 -> chains(out, t, a, gk, s, h, w, c, lift);
+                case 5 -> comets(out, fx, t, a, gk, s, h, w, c, c2, lift);
+                case 6 -> lightning(out, fx, t, now, a, gk, s, h, c, lift);
+                default -> halo(out, t, a, gk, s, h, c, c2, lift);
             }
         }
     };
 
-    /** The friend marker: a green crystal turning over the head, bobbing a little. */
+    /** A ring of light at the feet with a rune circle turning inside it and a pulse running out every second or so. */
+    private static void runeRing(FxOut out, Fx fx, float t, float a, float gk, float s, float w, int c, int c2, float lift) {
+        float r = (w * 0.9f + 0.3f) * s;
+        if (out.glowPass()) {
+            Vfx.ring(out, FxSoft.TUBE, 0f, 0.04f, 0f, r, 0.24f * s * lift, Vfx.with(c, 0.85f * a * gk), true);
+            Vfx.pool(out, 0f, 0f, 0f, r * 1.5f, Vfx.with(c, 0.4f * a * gk * lift));
+            Vfx.decalGround(out, FxSoft.RUNES, 0f, 0f, 0f, r * 0.98f, t * 0.7f, Vfx.with(c2, 0.55f * a * gk));
+            float p = (t % 1.3f) / 1.3f;
+            Vfx.ring(out, FxSoft.FRONT, 0f, 0.05f, 0f, r * (1f + 0.7f * Vfx.outCubic(p)), 0.3f * s, Vfx.with(c, 0.6f * (1f - p) * (1f - p) * a * gk), true);
+        } else {
+            Vfx.ring(out, FxSoft.TUBE, 0f, 0.03f, 0f, r, 0.06f * s, Vfx.with(Vfx.white(c, 0.45f), 0.85f * a), true);
+            Vfx.decalGround(out, FxSoft.RUNES, 0f, 0f, 0f, r * 0.98f, t * 0.7f, Vfx.with(c2, 0.45f * a));
+        }
+    }
+
+    /** A hoop of light sliding up and down the body, squashing as it turns, with fainter copies trailing it. */
+    private static void jello(FxOut out, float t, float a, float gk, float s, float h, float w, int c, float lift) {
+        float r0 = (w * 0.8f + 0.22f) * s;
+        for (int k = out.glowPass() ? 4 : 0; k >= 0; k--) {
+            float tt = t - k * 0.045f;
+            double ph = tt * Math.PI * 2.0 / 1.3;
+            float y = h * (0.5f + 0.44f * (float) Math.sin(ph));
+            // Wider where it turns, as if it had weight.
+            float r = r0 * (1f + 0.12f * (float) Math.abs(Math.sin(ph)) - 0.05f);
+            float ka = (1f - k * 0.2f) * a;
+            if (out.glowPass()) {
+                Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, (k == 0 ? 0.2f : 0.12f) * s * lift, Vfx.with(c, (k == 0 ? 0.9f : 0.35f) * ka * gk), false);
+            } else {
+                Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, 0.055f * s, Vfx.with(Vfx.white(c, 0.45f), 0.9f * ka), false);
+            }
+        }
+    }
+
+    /** Glowing wisps circling the body, each with a long soft tail (a circle, or a spiral up and down). */
+    private static void wisps(FxOut out, Fx fx, float t, float a, float gk, float s, float h, float w, int c, int c2, float lift) {
+        int n = Math.max(3, Math.min(6, Math.round(4 * fx.amount)));
+        boolean spiral = fx.i1 == 1;
+        float r = (w * 0.8f + 0.38f) * s;
+        boolean glow = out.glowPass();
+        for (int i = 0; i < n; i++) {
+            int col = (i & 1) == 0 ? c : c2;
+            float px = 0f, py = 0f, pz = 0f;
+            for (int k = 0; k <= 10; k++) {
+                float tt = t - k * 0.035f;
+                double ang = tt * 2.3 + i * Math.PI * 2 / n;
+                float y = spiral ? h * (0.5f + 0.42f * (float) Math.sin(tt * 1.4 + i * Math.PI * 2 / n))
+                        : h * 0.6f + 0.1f * s * (float) Math.sin(tt * 3 + i);
+                float x = (float) Math.cos(ang) * r, z = (float) Math.sin(ang) * r;
+                if (k == 0) {
+                    if (glow) {
+                        Vfx.hot(out, x, y, z, 0.22f * s * lift, Vfx.with(Vfx.white(col, 0.5f), a * gk));
+                        Vfx.glow(out, x, y, z, 0.55f * s, Vfx.with(col, 0.4f * a * gk));
+                    } else {
+                        Vfx.sprite(out, FxSoft.DOT, x, y, z, 0.05f * s, 0f, Vfx.with(Vfx.white(col, 0.6f), a));
+                    }
+                } else {
+                    float f = 1f - k / 11f;
+                    if (glow) {
+                        Vfx.line(out, FxSoft.LINE, px, py, pz, x, y, z, 0.16f * s * f, Vfx.with(col, 0.55f * f * a * gk), Vfx.with(col, 0.5f * f * a * gk));
+                    } else if (k < 6) {
+                        Vfx.line(out, FxSoft.TUBE, px, py, pz, x, y, z, 0.035f * s * f, Vfx.with(col, 0.5f * f * a), Vfx.with(col, 0.45f * f * a));
+                    }
+                }
+                px = x;
+                py = y;
+                pz = z;
+            }
+        }
+    }
+
+    /** Two rings of real chain, links interlocking, turning opposite ways round the body. */
+    private static void chains(FxOut out, float t, float a, float gk, float s, float h, float w, int c, float lift) {
+        float r = (w * 0.8f + 0.32f) * s;
+        float link = 0.07f * s;
+        int links = Math.max(12, Math.round((float) (2 * Math.PI * r / (link * 1.55f))));
+        boolean glow = out.glowPass();
+        int metal = Vfx.mix(c, 0xFFE4E8EE, 0.45f);
+        for (int ring = 0; ring < 2; ring++) {
+            float y = h * (ring == 0 ? 0.36f : 0.7f) + 0.03f * s * (float) Math.sin(t * 2f + ring * 2f);
+            float turn = (ring == 0 ? 1f : -1f) * t * 0.9f;
+            if (glow) {
+                Vfx.ring(out, FxSoft.LINE, 0f, y, 0f, r, 0.32f * s * lift, Vfx.with(c, 0.22f * a * gk), false);
+            }
+            for (int i = 0; i < links; i++) {
+                double ang = turn + i * Math.PI * 2 / links;
+                float cx = (float) Math.cos(ang), cz = (float) Math.sin(ang);
+                // Every other link turned a quarter round, so they hook into each other.
+                float nx = (i & 1) == 0 ? cx : 0f, ny = (i & 1) == 0 ? 0f : 1f, nz = (i & 1) == 0 ? cz : 0f;
+                if (glow) {
+                    Vfx.hoop(out, FxSoft.TUBE, cx * r, y, cz * r, nx, ny, nz, link, 0.05f * s * lift, Vfx.with(c, 0.55f * a * gk));
+                } else {
+                    Vfx.hoop(out, FxSoft.TUBE, cx * r, y, cz * r, nx, ny, nz, link, 0.03f * s, Vfx.with(metal, 0.95f * a));
+                }
+            }
+        }
+    }
+
+    /** Three comets on tilted orbits round the body, long tails of light behind them, shedding sparks. */
+    private static void comets(FxOut out, Fx fx, float t, float a, float gk, float s, float h, float w, int c, int c2, float lift) {
+        float r = (w * 0.9f + 0.5f) * s;
+        boolean glow = out.glowPass();
+        for (int i = 0; i < 3; i++) {
+            double tilt = (i - 1) * 0.65, phase = i * 2.1;
+            int col = i == 1 ? c2 : c;
+            float px = 0f, py = 0f, pz = 0f;
+            for (int k = 0; k <= 14; k++) {
+                double ang = (t - k * 0.03f) * (2.1 + i * 0.3) + phase;
+                float ox = (float) Math.cos(ang) * r, oz = (float) Math.sin(ang) * r;
+                float y = h * 0.58f + (float) (oz * Math.sin(tilt));
+                float z = (float) (oz * Math.cos(tilt));
+                if (k == 0) {
+                    if (glow) {
+                        Vfx.hot(out, ox, y, z, 0.26f * s * lift, Vfx.with(Vfx.white(col, 0.6f), a * gk));
+                        Vfx.glow(out, ox, y, z, 0.6f * s, Vfx.with(col, 0.35f * a * gk));
+                    } else {
+                        Vfx.sprite(out, FxSoft.DOT, ox, y, z, 0.055f * s, 0f, Vfx.with(Vfx.white(col, 0.7f), a));
+                    }
+                } else {
+                    float f = 1f - k / 15f;
+                    if (glow) {
+                        Vfx.line(out, FxSoft.LINE, px, py, pz, ox, y, z, 0.2f * s * f, Vfx.with(col, 0.6f * f * a * gk), Vfx.with(col, 0.55f * f * a * gk));
+                    } else if (k < 8) {
+                        Vfx.line(out, FxSoft.TUBE, px, py, pz, ox, y, z, 0.04f * s * f, Vfx.with(Vfx.white(col, 0.3f), 0.6f * f * a),
+                                Vfx.with(Vfx.white(col, 0.3f), 0.55f * f * a));
+                    }
+                    // Sparks shed along the tail, drifting.
+                    if (glow && k % 4 == 2) {
+                        float j = Vfx.s(fx.seed, i * 20 + k + (int) (t * 8f)) * 0.08f * s;
+                        Vfx.hot(out, ox + j, y - 0.04f * k * s, z - j, 0.06f * s, Vfx.with(Vfx.white(col, 0.5f), 0.7f * f * a * gk));
+                    }
+                }
+                px = ox;
+                py = y;
+                pz = z;
+            }
+        }
+    }
+
+    private static final float[] END = new float[3];
+
+    /** Arcs of lightning crackling round the head; each hit, a bolt strikes it from above. */
+    private static void lightning(FxOut out, Fx fx, float t, float now, float a, float gk, float s, float h, int c, float lift) {
+        boolean glow = out.glowPass();
+        float head = h - 0.2f * s;
+        if (glow) {
+            Vfx.glow(out, 0f, head, 0f, 0.8f * s * lift, Vfx.with(c, (0.2f + 0.08f * (float) Math.sin(t * 13f)) * a * gk));
+        }
+        int frame = (int) (t * 14f);
+        for (int i = 0; i < 4; i++) {
+            int seed = frame * 7 + i * 131 + fx.seed;
+            if (Vfx.h(seed, 0) < 0.25f) {
+                continue;
+            }
+            double a0 = Vfx.h(seed, 1) * Math.PI * 2, a1 = a0 + 1.2 + Vfx.h(seed, 2) * 2.0;
+            float r = (0.45f + 0.15f * Vfx.h(seed, 5)) * s;
+            float y0 = head + Vfx.s(seed, 3) * 0.45f * s, y1 = head - 0.2f * s + Vfx.s(seed, 4) * 0.6f * s;
+            Bolts.build(seed, (float) Math.cos(a0) * r, y0, (float) Math.sin(a0) * r, (float) Math.cos(a1) * r, y1, (float) Math.sin(a1) * r,
+                    0.22f, 0);
+            Bolts.draw(out, 0.028f * s, 0.2f * s, Vfx.with(Vfx.white(c, 0.7f), a * gk), Vfx.with(c, 0.55f * a * gk), 1f);
+        }
+        float since = now - fx.d;
+        if (since >= 0f && since < 0.3f) {
+            float k = since / 0.3f, f = (1f - k) * (1f - k) * a;
+            int seed = (int) (fx.d * 1000f) + fx.seed;
+            Bolts.build(seed, Vfx.s(seed, 9) * 0.8f * s, h + 3.2f * s, Vfx.s(seed, 10) * 0.8f * s, 0f, head, 0f, 0.16f, 2);
+            Bolts.draw(out, 0.045f * s, 0.4f * s, Vfx.with(0xFFFFFFFF, f * Math.max(0.6f, gk)), Vfx.with(c, 0.75f * f * gk),
+                    Math.min(1f, since / 0.05f));
+            if (glow) {
+                Vfx.hot(out, 0f, head, 0f, 0.9f * s, Vfx.with(Vfx.white(c, 0.7f), f * gk));
+                Vfx.flare(out, 0f, head, 0f, 1.4f * s, 0.2f, Vfx.with(Vfx.white(c, 0.5f), 0.8f * f * gk));
+            }
+        }
+    }
+
+    /** A halo of light over the head with six small crystals turning round it, glinting. */
+    private static void halo(FxOut out, float t, float a, float gk, float s, float h, int c, int c2, float lift) {
+        float y = h + 0.3f * s + 0.03f * s * (float) Math.sin(t * 2f);
+        float r = 0.38f * s;
+        boolean glow = out.glowPass();
+        int gold = Vfx.white(c, 0.25f);
+        if (glow) {
+            Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, 0.16f * s * lift, Vfx.with(gold, 0.95f * a * gk), false);
+            Vfx.glow(out, 0f, y, 0f, 0.75f * s, Vfx.with(c, 0.35f * a * gk));
+        } else {
+            Vfx.ring(out, FxSoft.TUBE, 0f, y, 0f, r, 0.05f * s, Vfx.with(Vfx.white(c, 0.55f), a), false);
+        }
+        for (int i = 0; i < 6; i++) {
+            double ang = t * 1.1 + i * Math.PI / 3;
+            float x = (float) Math.cos(ang) * (r + 0.12f * s), z = (float) Math.sin(ang) * (r + 0.12f * s);
+            float gy = y + 0.04f * s * (float) Math.sin(t * 3f + i);
+            int col = (i & 1) == 0 ? c : c2;
+            if (glow) {
+                float tw = 0.5f + 0.5f * (float) Math.sin(t * 4f + i * 1.7f);
+                Vfx.glint(out, x, gy, z, 0.12f * s * tw, t + i, Vfx.with(0xFFFFFFFF, 0.8f * tw * a * gk));
+            }
+            Vfx.gem(out, x, gy, z, 0.05f * s, 0.07f * s, 0.1f * s, 4, t * 2f + i, Vfx.with(col, a));
+        }
+    }
+
+    /** The friend marker: a green gem turning over the head, bobbing, glowing, with a ring of light under it. */
     static final FxKind FRIEND = new FxKind("target_friend", 1) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            FxDraw.origin(out, fx);
-            float h = fx.a <= 0f ? 1.8f : fx.a;
+            Vfx.origin(out, fx);
+            float h = fx.a <= 0f ? 1.8f : fx.a, s = fx.size;
             float t = fx.calm ? 0f : now;
-            float y = Ramp.snap(h + 0.55f + 0.05f * (float) Math.sin(t * 2.4), fx.snap);
-            float spin = (float) Math.cos(t * 1.8);
-            FxDraw.spriteScaled(out, fx, FxSprites.CRYSTAL, 0f, y, 0f, 0.7f * T * fx.size, Ramp.steps(Math.abs(spin), 3, fx.snap)
-                    * (spin < 0f ? -1f : 1f), 1f, 0, 1f, now);
+            float y = h + 0.55f * s + 0.05f * s * (float) Math.sin(t * 2.4);
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            float gk = FxBits.glowK(fx);
+            if (out.glowPass()) {
+                Vfx.glow(out, 0f, y, 0f, 0.5f * s, Vfx.with(c, 0.45f * gk));
+                Vfx.ring(out, FxSoft.TUBE, 0f, y - 0.3f * s, 0f, 0.13f * s, 0.06f * s, Vfx.with(c, 0.5f * gk), false);
+                Vfx.glint(out, 0.03f * s, y + 0.07f * s, 0f, 0.16f * s * (0.6f + 0.4f * (float) Math.sin(t * 4.3f)), t, Vfx.with(0xFFFFFFFF, 0.7f * gk));
+            }
+            Vfx.gem(out, 0f, y, 0f, 0.1f * s, 0.14f * s, 0.22f * s, 6, t * 1.6f, c);
         }
     };
 }

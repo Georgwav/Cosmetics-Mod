@@ -23,7 +23,7 @@ public final class Fx {
     /** The standard settings as it started: size, amount and speed (1 = 100%), glow (0 off, 1 soft, 2 strong). */
     public float size = 1f, amount = 1f, speed = 1f;
     public int glow = 1;
-    public boolean snap = true, rainbow, two;
+    public boolean snap, rainbow, two;
     /** Calm motion: it holds its key moment for its short life instead of playing through. */
     public boolean calm;
     /** The style picked (the kind's own numbering), and free numbers a kind may use. */
@@ -43,7 +43,7 @@ public final class Fx {
         text = null;
         size = amount = speed = 1f;
         glow = 1;
-        snap = true;
+        snap = false;
         rainbow = two = calm = false;
         style = 0;
         a = b = c = d = 0f;
@@ -83,10 +83,11 @@ public final class Fx {
     public int tone(int tone, int i, float now) {
         if (rainbow) {
             float hue = ((seed & 0xFF) / 256f + i * 0.07f + now * 0.25f) % 1f;
-            // Twelve hues, so the rainbow stays in steps.
-            hue = Math.round(hue * 12f) / 12f;
-            int[] r = FxColour.rainbowRamp(hue);
-            return r[tone];
+            if (snap) {
+                // Twelve hues, so the rainbow stays in steps.
+                return FxColour.rainbowRamp(Math.round(hue * 12f) / 12f)[tone];
+            }
+            return FxColour.rainbow(hue, tone);
         }
         return two && (i & 1) == 1 ? ramp2[tone] : ramp[tone];
     }

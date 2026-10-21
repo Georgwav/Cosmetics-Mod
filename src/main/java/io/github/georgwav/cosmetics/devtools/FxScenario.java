@@ -35,7 +35,17 @@ import java.util.List;
  */
 final class FxScenario {
     /** The two presets of the colour check. */
-    static final String PRESET_A = "frost_morning", PRESET_B = "ember_solstice";
+    static final String PRESET_A = System.getProperty("cosmeticsmod.fxPreset", "frost_morning"), PRESET_B = "ember_solstice";
+    /**
+     * Review runs (local only, never CI): {@code -Dcosmeticsmod.fxReview=<frames>} grabs that many moments of each
+     * effect's life (fx-<case>-r<k>.png, for a moving picture) and skips the checks after its six frames;
+     * {@code fxTime} locks the time of day, {@code fxQuality} sets Atmosphere's quality (the light pass), and
+     * {@code fxNear} moves the camera closer (a share of each case's distance).
+     */
+    static final int REVIEW = Integer.getInteger("cosmeticsmod.fxReview", 0);
+    static final long REVIEW_TIME = Long.getLong("cosmeticsmod.fxTime", -1L);
+    static final String REVIEW_QUALITY = System.getProperty("cosmeticsmod.fxQuality", "low");
+    static final float NEAR = Float.parseFloat(System.getProperty("cosmeticsmod.fxNear", "1"));
 
     /**
      * One staged effect: its name, module, how to set it up, where the camera stands, what CI checks. {@code kinds} is
@@ -113,6 +123,14 @@ final class FxScenario {
         for (String style : KillEffects.STYLES) {
             float distance = 4f, p = 4f;
             switch (style) {
+                case "soul_rise" -> {
+                    distance = 5f;
+                    p = -10f;
+                }
+                case "lightning", "black_hole", "gravestone" -> {
+                    distance = 5f;
+                    p = 0f;
+                }
                 case "firework" -> {
                     distance = 9f;
                     p = -25f;
@@ -487,6 +505,12 @@ final class FxScenario {
                 step++;
                 if (step <= 8) {
                     frame(step - 3, c);
+                } else if (REVIEW > 0) {
+                    // A review run: the moving picture's frames, then the next case.
+                    bFrame = 0;
+                    FxWorld.hold = t0 + life * 0.5f / REVIEW;
+                    wait = 3;
+                    step = 20;
                 } else {
                     // The second preset, for the colour check.
                     ThemeState.setTheme(PRESET_B, false);
@@ -591,6 +615,17 @@ final class FxScenario {
                 step = 17;
             }
             case 17 -> record(c);
+            case 20 -> {
+                FrameGrab.grab(mc, "fx-" + c.name() + "-r" + bFrame);
+                if (++bFrame < REVIEW) {
+                    FxWorld.hold = t0 + life * (bFrame + 0.5f) / REVIEW;
+                    wait = 2;
+                    return;
+                }
+                stop(c);
+                FxWorld.hold = Float.NaN;
+                record(c);
+            }
             default -> {
             }
         }
@@ -692,7 +727,8 @@ final class FxScenario {
     private FxPreview.Dummy place(Minecraft mc, Case c) {
         float yaw = mc.player.getYRot();
         double a = Math.toRadians(yaw);
-        double x = mc.player.getX() - Math.sin(a) * c.distance(), z = mc.player.getZ() + Math.cos(a) * c.distance();
+        double d = c.distance() * NEAR;
+        double x = mc.player.getX() - Math.sin(a) * d, z = mc.player.getZ() + Math.cos(a) * d;
         double y = WorldOut.INSTANCE.ground(x, z, mc.player.getY() + 1.0);
         return FxPreview.stage(c.module(), x, y, z, yaw + 180f, 30f);
     }
@@ -724,10 +760,13 @@ final class FxScenario {
             qualityWas = at.quality.get();
             particlesWas = at.particles.get();
             // The colours as drawn: no grade over the frame, no theme particles in the comparison.
-            at.quality.set("low");
+            at.quality.set(REVIEW_QUALITY);
             at.particles.set(false);
         }
         ThemeState.setTheme(PRESET_A, false);
+        if (REVIEW_TIME >= 0L) {
+            SolScenario.lockedTime = REVIEW_TIME;
+        }
         CosmeticsMod.LOGGER.info("[Sol] Effects phase: {} cases", cases.size());
     }
 

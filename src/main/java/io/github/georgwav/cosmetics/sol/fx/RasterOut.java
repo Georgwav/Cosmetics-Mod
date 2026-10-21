@@ -122,8 +122,8 @@ public final class RasterOut implements FxOut {
                     continue;
                 }
                 float u = w0 * vu[a] + w1 * vu[b] + w2 * vu[c], v = w0 * vv[a] + w1 * vv[b] + w2 * vv[c];
-                int tx = Math.min(tw - 1, Math.max(0, (int) (u * tw))), ty = Math.min(th - 1, Math.max(0, (int) (v * th)));
-                int texel = t[ty * tw + tx];
+                int texel = tex.linear ? bilinear(t, tw, th, u, v)
+                        : t[Math.min(th - 1, Math.max(0, (int) (v * th))) * tw + Math.min(tw - 1, Math.max(0, (int) (u * tw)))];
                 float al = (texel >>> 24) / 255f * ca;
                 if (al <= 0.004f) {
                     continue;
@@ -146,6 +146,24 @@ public final class RasterOut implements FxOut {
                 }
             }
         }
+    }
+
+    /** A smooth picture's colour between its four nearest pixels. */
+    private static int bilinear(int[] t, int tw, int th, float u, float v) {
+        float fx = u * tw - 0.5f, fy = v * th - 0.5f;
+        int x0 = (int) Math.floor(fx), y0 = (int) Math.floor(fy);
+        float ax = fx - x0, ay = fy - y0;
+        int x1 = Math.min(tw - 1, x0 + 1), y1 = Math.min(th - 1, y0 + 1);
+        x0 = Math.max(0, Math.min(tw - 1, x0));
+        y0 = Math.max(0, Math.min(th - 1, y0));
+        int c00 = t[y0 * tw + x0], c10 = t[y0 * tw + x1], c01 = t[y1 * tw + x0], c11 = t[y1 * tw + x1];
+        int out = 0;
+        for (int shift = 0; shift <= 24; shift += 8) {
+            float top = (c00 >>> shift & 255) * (1f - ax) + (c10 >>> shift & 255) * ax;
+            float bottom = (c01 >>> shift & 255) * (1f - ax) + (c11 >>> shift & 255) * ax;
+            out |= Math.round(top * (1f - ay) + bottom * ay) << shift;
+        }
+        return out;
     }
 
     private static int over(int r, int g, int b, float a, int under) {

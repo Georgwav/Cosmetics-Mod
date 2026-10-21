@@ -2,6 +2,8 @@ package io.github.georgwav.cosmetics.sol.fx.effects;
 
 import io.github.georgwav.cosmetics.client.Setting;
 import io.github.georgwav.cosmetics.sol.fx.Fx;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
 import io.github.georgwav.cosmetics.sol.fx.FxDraw;
 import io.github.georgwav.cosmetics.sol.fx.FxEvents;
 import io.github.georgwav.cosmetics.sol.fx.FxKind;
@@ -14,6 +16,7 @@ import io.github.georgwav.cosmetics.sol.fx.FxSprites;
 import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.PoseSnapshot;
 import io.github.georgwav.cosmetics.sol.fx.Ramp;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.ui.SkinPixels;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -29,8 +32,8 @@ import java.util.List;
 /**
  * Trails (C.4): what follows things through the air, only on your screen.
  * <ul>
- * <li>Projectile trails: arrows, ender pearls, tridents and thrown potions leave trails of texels (dots, sparkles,
- * hearts or Sol's glyph) that fade in 0.6 s, yours only by default.</li>
+ * <li>Projectile trails: arrows, ender pearls, tridents and thrown potions leave a soft comet tail of light, shedding
+ * dots, sparkles, hearts or rune circles, that fades in 0.9 s, yours only by default.</li>
  * <li>Behind you, hidden in first person unless asked: a Ribbon of whole-texel colour bands from your waist or feet
  * (the preset's ramp, a rainbow, or blue, pink and white), stepping up and down a texel like the Nyan Cat's; a Firefly
  * tail of blinking texel dots left drifting where you went; a Ghost trail of 3 to 6 copies of you, a fifth of a second
@@ -195,7 +198,7 @@ public final class Trails extends FxModule {
     /** One tick of a trail: from (fx0, fy0, fz0) to (x, y, z). */
     private void segment(FxPool pool, double fx0, double fy0, double fz0, double x, double y, double z, int id, float delay) {
         int style = projectiles.pick(id);
-        Fx f = start(pool, projectiles, TRAIL, x, y, z, 0.6f);
+        Fx f = start(pool, projectiles, TRAIL, x, y, z, 0.9f);
         projectiles.apply(f, style);
         f.tx = fx0 - x;
         f.ty = fy0 - y;
@@ -624,34 +627,105 @@ public final class Trails extends FxModule {
     // ------------------------------------------------------------------ the kinds
 
     private static final float T = FxDraw.TEXEL;
-    private static final FxSprites.Sprite[] SPRITES = {FxSprites.SQUARE, FxSprites.PLUS, FxSprites.HEART, FxSprites.SUN};
-    private static final float[] PIXEL = {1f, 0.5f, 0.45f, 0.5f};
-
-    /** A tick of a projectile's trail: texels along the way it went, fading out in steps over 0.6 s. */
+    /**
+     * A tick of a projectile's trail, from where it was to where it is: a soft comet tail of light along the way,
+     * thinning and fading over 0.9 s, a hot head where the projectile is now, and the style's bits shed along it (soft
+     * dots spreading, sparkles twinkling and falling, hearts floating up, little spinning rune circles).
+     */
     static final FxKind TRAIL = new FxKind("trail_projectile", 64) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
-            float a = Ramp.steps(1f - t / 0.6f, 4, fx.snap) * fx.early(now);
-            if (a <= 0f) {
+            float p = t / 0.9f;
+            if (p >= 1f) {
                 return;
             }
-            float len = (float) Math.sqrt(fx.tx * fx.tx + fx.ty * fx.ty + fx.tz * fx.tz);
-            float gap = fx.style == 0 ? 0.2f : 0.45f;
-            int n = Math.max(1, Math.min(16, Math.round(len / gap * fx.amount)));
-            float px = PIXEL[fx.style] * T * fx.size;
+            Vfx.origin(out, fx);
+            boolean glow = out.glowPass();
+            float e = fx.early(now), gk = FxBits.glowK(fx), s = fx.size;
+            if (glow && gk == 0f) {
+                return;
+            }
+            float fade = (1f - p) * (1f - p) * e;
+            int c = fx.tone(Ramp.MAIN, fx.i0, now), core = fx.tone(Ramp.CORE, fx.i0, now);
+            float tx = (float) fx.tx, ty = (float) fx.ty, tz = (float) fx.tz;
+            float len = (float) Math.sqrt(tx * tx + ty * ty + tz * tz);
+            // The tail along this tick's way.
+            float w = 0.26f * s * (1f - 0.65f * p);
+            if (glow) {
+                Vfx.line(out, FxSoft.LINE, 0f, 0f, 0f, tx, ty, tz, w * 1.8f, Vfx.with(c, 0.6f * fade * gk), Vfx.with(c, 0.6f * fade * gk));
+            } else {
+                int body = Vfx.with(Vfx.white(core, 0.35f), 0.75f * fade);
+                Vfx.line(out, FxSoft.TUBE, 0f, 0f, 0f, tx, ty, tz, w * 0.4f, body, body);
+            }
+            // The head, while this is the newest piece.
+            if (t < 0.06f && glow) {
+                Vfx.hot(out, 0f, 0f, 0f, 0.45f * s, Vfx.with(Vfx.white(c, 0.6f), 0.9f * e * gk));
+                Vfx.glow(out, 0f, 0f, 0f, 0.9f * s, Vfx.with(c, 0.35f * e * gk));
+            }
+            int n = Math.max(1, Math.min(6, Math.round(len / 0.35f * fx.amount)));
             for (int i = 0; i < n; i++) {
-                float k = i / (float) n;
-                float x = Ramp.snap((float) fx.tx * k, fx.snap), y = Ramp.snap((float) fx.ty * k, fx.snap), z = Ramp.snap((float) fx.tz * k, fx.snap);
-                int part = fx.i0 + i;
-                if (fx.style == 0) {
-                    int tone = (part & 3) == 0 ? Ramp.CORE : Ramp.MAIN;
-                    FxDraw.square(out, x, y, z, px, Colors.withAlpha(fx.tone(tone, part, now), a));
-                    FxDraw.squareGlow(out, fx, x, y, z, px, a);
-                } else {
-                    // Their glows at half: close together, full ones would run into one band.
-                    FxDraw.sprite(out, fx, SPRITES[fx.style], x, y, z, px, part, out.glowPass() ? a * 0.5f : a, now);
+                int k = fx.i0 * 31 + i * 7;
+                float along = (i + Vfx.h(fx.seed, k)) / n;
+                float x = tx * along, y = ty * along, z = tz * along;
+                float dx = Vfx.s(fx.seed, k + 1), dy = Vfx.s(fx.seed, k + 2), dz = Vfx.s(fx.seed, k + 3);
+                float spread = Vfx.outCubic(p);
+                int col = (i & 1) == 0 ? c : core;
+                switch (fx.style) {
+                    case 0 -> {
+                        // Dots: soft, spreading a little, shrinking.
+                        x += dx * 0.22f * s * spread;
+                        y += dy * 0.22f * s * spread;
+                        z += dz * 0.22f * s * spread;
+                        float r = (0.07f + 0.04f * Vfx.h(fx.seed, k + 4)) * s * (1f - 0.6f * p);
+                        if (glow) {
+                            Vfx.hot(out, x, y, z, r * 4f, Vfx.with(Vfx.white(col, 0.3f), 0.7f * fade * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.DOT, x, y, z, r, 0f, Vfx.with(Vfx.white(col, 0.2f), 0.9f * fade));
+                        }
+                    }
+                    case 1 -> {
+                        // Sparkles: twinkling stars that drift and fall.
+                        x += dx * 0.18f * s * spread;
+                        y += Vfx.fly(0.4f * dy, 1f, -1.6f, t);
+                        z += dz * 0.18f * s * spread;
+                        float tw = 0.55f + 0.45f * (float) Math.sin(t * 22f + k);
+                        float r = (0.1f + 0.06f * Vfx.h(fx.seed, k + 4)) * s * (1f - 0.5f * p);
+                        float ang = t * 3f * dx + k;
+                        if (glow) {
+                            Vfx.glint(out, x, y, z, r * 3.2f * tw, ang, Vfx.with(Vfx.white(col, 0.5f), 0.9f * fade * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.STAR, x, y, z, r * tw, ang, Vfx.with(Vfx.white(col, 0.35f), fade));
+                        }
+                    }
+                    case 2 -> {
+                        // Hearts: popping in and floating up, swaying.
+                        x += dx * 0.12f * s * spread + 0.06f * s * (float) Math.sin(t * 7f + k);
+                        y += 0.45f * s * t;
+                        z += dz * 0.12f * s * spread;
+                        float pop = Vfx.outBack(Math.min(1f, t / 0.18f));
+                        float r = (0.11f + 0.05f * Vfx.h(fx.seed, k + 4)) * s * pop;
+                        float ang = 0.35f * (float) Math.sin(t * 5f + k);
+                        if (glow) {
+                            Vfx.glow(out, x, y, z, r * 3f, Vfx.with(col, 0.45f * fade * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.HEART, x, y, z, r, ang, Vfx.with(Vfx.white(col, 0.15f), fade));
+                        }
+                    }
+                    default -> {
+                        // Glyphs: small rune circles turning where they were shed, swelling a little as they fade.
+                        if ((i & 1) == 1 && n > 1) {
+                            continue;
+                        }
+                        float r = 0.17f * s * (0.8f + 0.5f * spread);
+                        float ang = t * 2.5f * (dx < 0f ? -1f : 1f) + k;
+                        if (glow) {
+                            Vfx.sprite(out, FxSoft.MAGIC, x, y, z, r * 1.1f, ang, Vfx.with(Vfx.white(col, 0.3f), 0.8f * fade * gk));
+                            Vfx.glow(out, x, y, z, r * 2f, Vfx.with(col, 0.25f * fade * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.MAGIC, x, y, z, r, ang, Vfx.with(col, 0.7f * fade));
+                        }
+                    }
                 }
             }
         }
@@ -743,49 +817,71 @@ public final class Trails extends FxModule {
         out.vertex(x0 + sx * lo, y0 + sy * lo, z0 + sz * lo, uv[0], uv[3], argb);
     }
 
-    /** A piece of the ribbon: its bands from where you were a tick before to where you were. */
+    /**
+     * A piece of the ribbon: its bands from where you were a tick before to where you were, in a soft glow of their own
+     * colours. Snapped to texels it steps up and down a texel like the Nyan Cat's; smooth, it flows.
+     */
     static final FxKind RIBBON = new FxKind("trail_ribbon", 96) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            float a = tail(fx, now, 0.4f);
+            float a = fx.snap ? tail(fx, now, 0.4f) : (float) Math.pow(Math.min(1f, (1f - fx.progress(now)) / 0.5f), 1.4f) * fx.early(now);
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             int[] bands = BANDS[Math.max(0, Math.min(BANDS.length - 1, fx.style))];
             int n = bands.length;
             for (int b = 0; b < n; b++) {
                 COLOURS[b] = fx.style == 0 ? fx.tone(b, fx.i0, now) : bands[b];
             }
             int px = Math.max(1, (int) fx.d);
-            // The Nyan step: every other piece a texel up, the steps swapping four times a second.
             int wave = fx.calm ? 0 : (int) (now * 4f);
-            int lift = ((fx.i0 + wave) & 1) == 0 ? 0 : Math.max(1, px / 2);
+            int lift = fx.snap && ((fx.i0 + wave) & 1) != 0 ? Math.max(1, px / 2) : 0;
             float g = 1f - grown(age);
             float x0 = Ramp.snap((float) fx.tx, fx.snap), y0 = Ramp.snap((float) fx.ty, fx.snap), z0 = Ramp.snap((float) fx.tz, fx.snap);
+            if (out.glowPass()) {
+                if (fx.glow > 0) {
+                    // Its colours as light: the top half's and the bottom half's, side by side.
+                    float half = n * px * T / 2f;
+                    float gk = FxBits.glowK(fx);
+                    Vfx.line(out, FxSoft.LINE, x0, y0 + half * 0.5f, z0, x0 * g, y0 * g + half * 0.5f, z0 * g, half * 3.2f,
+                            Vfx.with(COLOURS[0], 0.35f * a * gk), Vfx.with(COLOURS[0], 0.35f * a * gk));
+                    Vfx.line(out, FxSoft.LINE, x0, y0 - half * 0.5f, z0, x0 * g, y0 * g - half * 0.5f, z0 * g, half * 3.2f,
+                            Vfx.with(COLOURS[n - 1], 0.35f * a * gk), Vfx.with(COLOURS[n - 1], 0.35f * a * gk));
+                }
+                return;
+            }
             bands(out, fx, x0, y0, z0, x0 * g, y0 * g, z0 * g, COLOURS, n, px, lift, a, fx.style == 0 ? fx.glowColour : 0);
         }
     };
 
-    /** A piece of a contrail: a thin stream of three bands, its middle the core tone. */
+    /** A piece of a contrail: a soft stream of vapour lit in the colour, a bright core down it, thinning as it fades. */
     static final FxKind CONTRAIL = new FxKind("trail_contrail", 96) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            float a = tail(fx, now, 0.6f);
+            float p = fx.progress(now);
+            float a = (float) Math.pow(1f - p, 1.3f) * fx.early(now);
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
-            COLOURS[0] = fx.tone(Ramp.MAIN, fx.i0, now);
-            COLOURS[1] = fx.tone(Ramp.CORE, fx.i0, now);
-            COLOURS[2] = COLOURS[0];
+            Vfx.origin(out, fx);
             float g = 1f - grown(age);
-            float x0 = Ramp.snap((float) fx.tx, fx.snap), y0 = Ramp.snap((float) fx.ty, fx.snap), z0 = Ramp.snap((float) fx.tz, fx.snap);
-            bands(out, fx, x0, y0, z0, x0 * g, y0 * g, z0 * g, COLOURS, 3, Math.max(1, (int) fx.d), 0, a, fx.glowColour);
+            float x0 = (float) fx.tx, y0 = (float) fx.ty, z0 = (float) fx.tz;
+            float w = (0.12f + 0.35f * p) * fx.d * fx.size / Math.max(1f, fx.d);
+            int c = fx.tone(Ramp.MAIN, fx.i0, now), core = fx.tone(Ramp.CORE, fx.i0, now);
+            if (out.glowPass()) {
+                float gk = FxBits.glowK(fx);
+                Vfx.line(out, FxSoft.LINE, x0, y0, z0, x0 * g, y0 * g, z0 * g, w * 2.4f, Vfx.with(c, 0.45f * a * gk), Vfx.with(c, 0.45f * a * gk));
+                Vfx.line(out, FxSoft.TUBE, x0, y0, z0, x0 * g, y0 * g, z0 * g, 0.08f * fx.size, Vfx.with(Vfx.white(core, 0.5f), a * (1f - p) * gk),
+                        Vfx.with(Vfx.white(core, 0.5f), a * (1f - p) * gk));
+            } else {
+                int vapour = Vfx.with(Vfx.mix(0xFFFFFFFF, c, 0.35f), 0.4f * a);
+                Vfx.line(out, FxSoft.LINE, x0, y0, z0, x0 * g, y0 * g, z0 * g, w * 1.4f, vapour, vapour);
+            }
         }
     };
 
-    /** A firefly: a dot of 2 x 2 texels drifting slowly up, blinking, fading out in steps. */
+    /** A firefly: a soft light drifting slowly up, blinking, a glint when it's at its brightest. */
     static final FxKind FIREFLY = new FxKind("trail_firefly", 64) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
@@ -793,25 +889,24 @@ public final class Trails extends FxModule {
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             float t = fx.time(age);
             float blink = 0.5f + 0.5f * (float) Math.sin(t * fx.b + fx.a);
-            blink = Ramp.steps(blink * blink, 3, fx.snap);
-            float x = Ramp.snap((float) fx.tx * t + 0.05f * (float) Math.sin(t * 2.3f + fx.a), fx.snap);
-            float y = Ramp.snap((float) fx.ty * t, fx.snap);
-            float z = Ramp.snap((float) fx.tz * t + 0.05f * (float) Math.cos(t * 1.9f + fx.a), fx.snap);
-            float side = T * Math.max(1, Math.round(2f * fx.size));
-            // Lit, it's solid; between blinks a faint shade.
-            float lit = blink > 0.4f ? a : a * 0.35f;
-            int tone = blink >= 1f ? Ramp.CORE : blink > 0.4f ? Ramp.MAIN : Ramp.SHADE;
-            FxDraw.square(out, x, y, z, side, Colors.withAlpha(fx.tone(tone, fx.seed, now), lit));
-            if (out.glowPass() && fx.glow > 0 && blink > 0.4f) {
-                // One faint ring, a texel out: the dot stays the brightest part even against a pale sky.
-                float k = fx.glow == 2 ? 1.7f : 1f;
-                out.use(FxSprites.atlas());
-                float h = side / 2f + T;
-                FxDraw.billboard(out, x, y, z, h, h, FxSprites.SQUARE.uv[FxSprites.ALL],
-                        Colors.withAlpha(fx.glowColour, Math.min(1f, 0.2f * k * a * blink)));
+            blink = blink * blink;
+            float x = (float) fx.tx * t + 0.05f * (float) Math.sin(t * 2.3f + fx.a);
+            float y = (float) fx.ty * t;
+            float z = (float) fx.tz * t + 0.05f * (float) Math.cos(t * 1.9f + fx.a);
+            float s = fx.size;
+            int c = fx.tone(Ramp.MAIN, fx.seed, now), core = fx.tone(Ramp.CORE, fx.seed, now);
+            if (out.glowPass()) {
+                float gk = FxBits.glowK(fx);
+                Vfx.hot(out, x, y, z, 0.24f * s * (0.5f + 0.5f * blink), Vfx.with(Vfx.white(core, 0.4f), (0.25f + 0.75f * blink) * a * gk));
+                Vfx.glow(out, x, y, z, 0.6f * s, Vfx.with(c, 0.35f * blink * a * gk));
+                if (blink > 0.85f) {
+                    Vfx.glint(out, x, y, z, 0.18f * s, fx.a, Vfx.with(0xFFFFFFFF, (blink - 0.85f) / 0.15f * a * gk));
+                }
+            } else {
+                Vfx.sprite(out, FxSoft.DOT, x, y, z, 0.025f * s, 0f, Vfx.with(Vfx.white(core, 0.5f), (0.4f + 0.6f * blink) * a));
             }
         }
     };
@@ -820,7 +915,7 @@ public final class Trails extends FxModule {
     static final FxKind GHOST = new FxKind("trail_ghost", 12) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (fx.copy == null || out.glowPass()) {
+            if (fx.copy == null) {
                 return;
             }
             float p = fx.progress(now);
@@ -831,44 +926,53 @@ public final class Trails extends FxModule {
             FxDraw.origin(out, fx);
             int step = p < 0.34f ? 0 : p < 0.67f ? 1 : 2;
             int colour = fx.rainbow ? fx.tone(step == 2 ? Ramp.SHADE : Ramp.MAIN, fx.i0 * 2 + step, now) : fx.palette[step];
+            if (out.glowPass()) {
+                // A soft light of its colour from within.
+                fx.copy.drawFaces(out, 0f, 0f, 0f, fx.size, fx.copy.tinted(0xFFFFFFFF, 1f), Colors.withAlpha(colour, 0.3f * a), false);
+                return;
+            }
             fx.copy.draw(out, 0f, 0f, 0f, fx.size, 0f, fx.copy.tinted(colour, 1f), Colors.withAlpha(colour, a), PoseSnapshot.WHOLE, 0f);
         }
     };
 
-    /** A pixel footprint lying on the ground along the way you went, held, then fading out in steps. */
+    /** A footprint lying on the ground along the way you went, in your colour, glowing faintly, held, then fading. */
     static final FxKind FOOTPRINT = new FxKind("trail_footprint", 48) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass()) {
-                return;
-            }
-            float a = tail(fx, now, 0.3f) * 0.9f;
+            float a = (float) Math.pow(Math.min(1f, (1f - fx.progress(now)) / 0.35f), 1.2f) * fx.early(now) * Math.min(1f, age / 0.12f);
             if (a <= 0f) {
                 return;
             }
-            FxDraw.origin(out, fx);
-            FxSprites.Sprite s = FxSprites.FOOTPRINT;
+            Vfx.origin(out, fx);
             float fx0 = (float) fx.tx, fz0 = (float) fx.tz;
-            // The print's right, on the ground.
+            // The print's right, on the ground; a left foot is the right one mirrored.
             float rx = -fz0, rz = fx0;
-            float cell = T * Math.max(1, Math.round(fx.size));
+            float len = 0.2f * fx.size, wid = 0.1f * fx.size;
             boolean mirror = fx.i0 == 1;
-            for (int py = 0; py < s.h; py++) {
-                for (int px = 0; px < s.w; px++) {
-                    int tone = s.tone(mirror ? s.w - 1 - px : px, py);
-                    if (tone < 0) {
-                        continue;
-                    }
-                    // Its top row is the toes, ahead.
-                    float across = (px - (s.w - 1) / 2f) * cell, ahead = ((s.h - 1) / 2f - py) * cell;
-                    FxDraw.cell(out, rx * across + fx0 * ahead, 0.002f, rz * across + fz0 * ahead, cell,
-                            Colors.withAlpha(fx.tone(tone, 0, now), a));
+            FxSoft.Region r = FxSoft.FOOT;
+            float u0 = mirror ? r.u1 : r.u0, u1 = mirror ? r.u0 : r.u1;
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            int argb;
+            if (out.glowPass()) {
+                float gk = FxBits.glowK(fx);
+                if (gk == 0f) {
+                    return;
                 }
+                argb = Vfx.with(c, 0.35f * a * gk);
+            } else {
+                argb = Vfx.with(Vfx.mix(c, 0xFF000000, 0.15f), 0.85f * a);
             }
+            out.use(FxSoft.atlas());
+            float y = 0.006f;
+            // Toes ahead (the picture's top).
+            out.vertex(-rx * wid + fx0 * len, y, -rz * wid + fz0 * len, u0, r.v0, argb);
+            out.vertex(rx * wid + fx0 * len, y, rz * wid + fz0 * len, u1, r.v0, argb);
+            out.vertex(rx * wid - fx0 * len, y, rz * wid - fz0 * len, u1, r.v1, argb);
+            out.vertex(-rx * wid - fx0 * len, y, -rz * wid - fz0 * len, u0, r.v1, argb);
         }
     };
 
-    /** A rocket's afterburner: a big bright flash for a tenth of a second, then a smaller one, then gone. */
+    /** A rocket's afterburner: a white-hot flash and flare for a fifth of a second. */
     static final FxKind FLARE = new FxKind("trail_flare", 4) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
@@ -876,45 +980,27 @@ public final class Trails extends FxModule {
             if (t >= 0.2f) {
                 return;
             }
-            FxDraw.origin(out, fx);
-            boolean first = t < 0.1f;
-            float side = T * (first ? 6f : 3f) * fx.size;
-            float a = fx.early(now);
-            FxDraw.square(out, 0f, 0f, 0f, side, Colors.withAlpha(fx.tone(first ? Ramp.CORE : Ramp.MAIN, 0, now), a));
-            if (out.glowPass() && fx.glow > 0) {
-                // Brighter than a normal glow: it's a flame.
-                FxDraw.squareGlow(out, fx, 0f, 0f, 0f, side * 1.4f, a);
+            Vfx.origin(out, fx);
+            float k = t / 0.2f, f = (1f - k) * (1f - k) * fx.early(now), s = fx.size;
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            if (out.glowPass()) {
+                float gk = Math.max(0.6f, FxBits.glowK(fx));
+                Vfx.hot(out, 0f, 0f, 0f, 0.9f * s, Vfx.with(Vfx.white(c, 0.6f), f * gk));
+                Vfx.flare(out, 0f, 0f, 0f, 1.6f * s, 0.3f, Vfx.with(Vfx.white(c, 0.4f), f * gk));
+            } else {
+                Vfx.sprite(out, FxSoft.DOT, 0f, 0f, 0f, 0.12f * s * (1f - k), 0f, Vfx.with(0xFFFFFFFF, f));
             }
         }
     };
 
-    private static final int[] SMOKE_GREYS = {0xFFD6D6D6, 0xFFA8A8A8, 0xFF7E7E7E};
-
-    /** The rocket's puff: grey texel squares spreading out and drifting up, fading in steps. */
+    /** The rocket's puff: soft smoke rolling out and drifting up. */
     static final FxKind SMOKE = new FxKind("trail_smoke", 4) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass()) {
-                return;
-            }
             float t = fx.time(age);
-            float a = Ramp.steps(1f - t / 0.9f, 4, fx.snap) * 0.85f * fx.early(now);
-            if (a <= 0f) {
-                return;
-            }
-            FxDraw.origin(out, fx);
-            float spread = 0.15f + 0.45f * (1f - (1f - t / 0.9f) * (1f - t / 0.9f));
-            for (int i = 0; i < 10; i++) {
-                double u = FxDraw.hash(fx.seed, i) * Math.PI * 2, v = FxDraw.signed(fx.seed, i + 20) * 1.2;
-                float r = spread * (0.5f + 0.5f * FxDraw.hash(fx.seed, i + 40));
-                float x = Ramp.snap((float) (Math.cos(u) * Math.cos(v)) * r, fx.snap);
-                float y = Ramp.snap((float) Math.sin(v) * r * 0.7f + t * 0.35f, fx.snap);
-                float z = Ramp.snap((float) (Math.sin(u) * Math.cos(v)) * r, fx.snap);
-                float side = T * (2 + (i % 3 == 0 ? 1 : 0)) * fx.size;
-                // Grey, a touch of the effect's shade in it.
-                int grey = Colors.mixRgb(SMOKE_GREYS[i % 3], fx.ramp[Ramp.SHADE], 0.18f);
-                FxDraw.square(out, x, y, z, side, Colors.withAlpha(grey, a));
-            }
+            Vfx.origin(out, fx);
+            FxBits.smoke(out, fx, t, 0f, 0f, 0f, 9, 0.18f * fx.size, 0.35f, 0.05f, 0.9f, 0.2f * fx.size,
+                    Vfx.mix(0xFFC8C8C8, fx.ramp[Ramp.SHADE], 0.18f), 0.5f * fx.early(now), 4);
         }
     };
 }

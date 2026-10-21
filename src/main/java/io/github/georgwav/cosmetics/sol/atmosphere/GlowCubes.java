@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.sol.fx.FxDraw;
 import io.github.georgwav.cosmetics.sol.fx.FxSprites;
 import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.Ramp;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
 import io.github.georgwav.cosmetics.sol.fx.WorldOut;
 import io.github.georgwav.cosmetics.sol.render.FrameInfo;
 import io.github.georgwav.cosmetics.sol.util.Colors;
@@ -18,7 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Glowing cubes (Atmosphere › More ambience): up to 40 spinning pixel cubes of 3 to 5 texels drift in the air around
  * you, fall slowly and bounce off blocks, in the preset's colours (the core tone on top, main and shade on the sides)
- * with a soft stepped glow. A layer of the world's effects: moved twenty times a second, drawn between ticks.
+ * with a soft glow round them. A layer of the world's effects: moved twenty times a second, drawn between ticks.
  */
 public final class GlowCubes implements FxWorld.Layer {
     public static final GlowCubes INSTANCE = new GlowCubes();
@@ -160,26 +161,27 @@ public final class GlowCubes implements FxWorld.Layer {
         int glow = FxColour.glow();
         float pt = FrameInfo.partialTick;
         boolean glowPass = out.glowPass();
-        out.use(FxSprites.atlas());
         float[] uv = FxSprites.SQUARE.uv[FxSprites.ALL];
         for (int i = 0; i < MAX; i++) {
             if (!live[i]) {
                 continue;
             }
-            // In over half a second and out over a second, in steps.
-            float in = Math.min(1f, (age[i] + pt) / 10f), left = Math.min(1f, (life[i] - age[i]) / 20f);
-            float a = Ramp.steps(Math.min(in, left), 4, true);
+            // In over half a second and out over a second.
+            float in = Math.min(1f, (age[i] + pt) / 10f), left = Math.min(1f, (life[i] - age[i] - pt) / 20f);
+            float a = Vfx.inOut(Math.max(0f, Math.min(in, left)));
             if (a <= 0f) {
                 continue;
             }
-            out.origin(Ramp.snap(ox[i] + (x[i] - ox[i]) * pt, true), Ramp.snap(oy[i] + (y[i] - oy[i]) * pt, true),
-                    Ramp.snap(oz[i] + (z[i] - oz[i]) * pt, true));
+            Vfx.origin(out, ox[i] + (x[i] - ox[i]) * pt, oy[i] + (y[i] - oy[i]) * pt, oz[i] + (z[i] - oz[i]) * pt);
             float h = size[i] / 2f;
             if (glowPass) {
-                FxDraw.billboard(out, 0f, 0f, 0f, h * 1.6f, h * 1.6f, uv, Colors.withAlpha(glow, 0.3f * a));
-                FxDraw.billboard(out, 0f, 0f, 0f, h * 2.4f, h * 2.4f, uv, Colors.withAlpha(glow, 0.12f * a));
+                // A soft light round it, pulsing gently, and a hot heart.
+                float pulse = 0.85f + 0.15f * (float) Math.sin(now * 2.3f + i * 1.7f);
+                Vfx.glow(out, 0f, 0f, 0f, h * 6f * pulse, Vfx.with(glow, 0.4f * a));
+                Vfx.hot(out, 0f, 0f, 0f, h * 2.6f, Vfx.with(Vfx.white(RAMP[Ramp.CORE], 0.3f), 0.45f * a));
                 continue;
             }
+            out.use(FxSprites.atlas());
             cube(out, h, spinWas[i] + (spin[i] - spinWas[i]) * pt, tilt[i], uv, a);
         }
     }
@@ -202,10 +204,9 @@ public final class GlowCubes implements FxWorld.Layer {
             if (mx * (EYE[0] - mx) + my * (EYE[1] - my) + mz * (EYE[2] - mz) <= 0f) {
                 continue;
             }
-            // Lit from above: the faces turned up the core tone, down the shade, the sides main or shade.
-            float ny = my / h;
-            int tone = ny > 0.5f ? Ramp.CORE : ny < -0.5f ? Ramp.SHADE : mx * 0.6f + mz * 0.8f > 0f ? Ramp.MAIN : Ramp.SHADE;
-            int argb = Colors.withAlpha(RAMP[tone], a);
+            // Lit from above and a side, and glowing from within: brightest facing up, never dark.
+            float light = 0.5f + 0.5f * Math.max(-1f, Math.min(1f, (my * 0.82f + mx * 0.38f + mz * 0.43f) / h));
+            int argb = Colors.withAlpha(Vfx.mix(RAMP[Ramp.MAIN], Vfx.white(RAMP[Ramp.CORE], 0.35f), light), a);
             for (int k = 0; k < 4; k++) {
                 out.vertex(CX[f[k]], CY[f[k]], CZ[f[k]], u, v, argb);
             }

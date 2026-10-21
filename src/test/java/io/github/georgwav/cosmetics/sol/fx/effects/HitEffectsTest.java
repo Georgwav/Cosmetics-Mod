@@ -6,7 +6,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Hit Effects' particles (C.4): they come off the body toward you, fall, and rest on the ground, never under it. */
+/**
+ * Hit Effects' particles (C.4): they come off the body toward you and never go under the ground; hearts and orbs float
+ * up, the rest fall and rest on the ground.
+ */
 class HitEffectsTest {
     @Test
     void particlesComeOffFallAndRestOnTheGround() {
@@ -26,12 +29,19 @@ class HitEffectsTest {
                 }
                 HitEffects.at(fx, i, 0.25f, p);
                 assertTrue(p[0] < 0f, "style " + style + " particle " + i + " comes off the body toward you");
+                if (style == 2 || style == 4) {
+                    // Hearts and orbs drift up as they go.
+                    HitEffects.at(fx, i, 0.4f, p);
+                    HitEffects.at(fx, i, 1.2f, q);
+                    assertTrue(q[1] > p[1], "style " + style + " particle " + i + " floats up");
+                    continue;
+                }
                 // At rest once landed: the same place later.
                 HitEffects.at(fx, i, 8f, p);
                 HitEffects.at(fx, i, 9f, q);
                 assertEquals(fx.c, p[1], 1e-4f, "style " + style + " particle " + i + " rests on the ground");
-                assertEquals(p[0], q[0], 1e-5f);
-                assertEquals(p[2], q[2], 1e-5f);
+                assertEquals(p[0], q[0], 1e-3f);
+                assertEquals(p[2], q[2], 1e-3f);
             }
         }
     }

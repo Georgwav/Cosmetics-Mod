@@ -258,9 +258,10 @@ public final class Modules {
 
     /**
      * The version of the defaults settings are saved with: 2 made the theme's colour every colour's default (and
-     * turned on the modules that show it). Saved settings still at an older default take the new one, once.
+     * turned on the modules that show it); 3 made the effects smooth (pixel snap off). Saved settings still at an older
+     * default take the new one, once.
      */
-    public static final int DEFAULTS = 2;
+    public static final int DEFAULTS = 3;
 
     /** The defaults' version a module's saved settings were written with (1 before it was recorded). */
     private static int defaultsSeen(JsonObject saved) {

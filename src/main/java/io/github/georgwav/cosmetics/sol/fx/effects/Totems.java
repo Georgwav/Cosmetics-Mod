@@ -17,6 +17,9 @@ import io.github.georgwav.cosmetics.sol.fx.FxSprites;
 import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.PoseSnapshot;
 import io.github.georgwav.cosmetics.sol.fx.Ramp;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
 import io.github.georgwav.cosmetics.sol.fx.SolPicks;
 import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
@@ -364,21 +367,47 @@ public final class Totems extends FxModule {
     private static final float T = FxDraw.TEXEL;
     private static final float[] RR = new float[3], UU = new float[3];
 
-    /** Pop ghost: the copy, tinted gold, rises a block, shrinks to 60% in steps and fades out in a second. */
+    /**
+     * Pop ghost: a ring of gold light bursts from the feet, and the body's golden spirit lifts out, shrinking and
+     * fading as sparkles drift up round it.
+     */
     static final FxKind GHOST = new FxKind("totem_ghost", 6) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass() || fx.copy == null) {
-                return;
-            }
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
+            float e = fx.early(now), gk = FxBits.glowK(fx), sz = fx.size;
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            float h = fx.copy != null ? fx.copy.height : 1.8f;
             float k = Math.min(1f, t / 1f);
-            float rise = Ramp.snap(1f * KillEffects.easeOut(k), fx.snap);
-            float shrink = 1f - 0.4f * Ramp.steps(k, 4, fx.snap);
-            float a = Ramp.steps(1f - Math.max(0f, (k - 0.3f) / 0.7f), 4, fx.snap) * 0.85f * fx.early(now);
-            fx.copy.draw(out, 0f, rise, 0f, fx.size * shrink, 0f, fx.copy.tinted(fx.tone(Ramp.MAIN, 0, now), 0.6f),
-                    Colors.withAlpha(0xFFFFFFFF, a), PoseSnapshot.WHOLE, 0f);
+            if (t < 0.5f) {
+                float rk = t / 0.5f;
+                if (out.glowPass()) {
+                    Vfx.ring(out, FxSoft.FRONT, 0f, 0.05f, 0f, (0.3f + 1.8f * Vfx.outCubic(rk)) * sz, 0.5f * sz,
+                            Vfx.with(Vfx.white(c, 0.3f), (1f - rk) * e * gk), true);
+                    Vfx.hot(out, 0f, h * 0.55f, 0f, 1.1f * sz, Vfx.with(Vfx.white(c, 0.6f), (1f - rk) * (1f - rk) * e * gk));
+                }
+            }
+            float rise = 1.1f * Vfx.outCubic(k) * sz;
+            float shrink = 1f - 0.4f * Vfx.inOut(k);
+            float a = Vfx.life(t, 1f, 0.05f, 0.65f) * e;
+            // A column of light carrying it up, and streaks racing up through it.
+            if (out.glowPass()) {
+                float col = Vfx.life(t, 1f, 0.06f, 0.6f) * e * gk;
+                Vfx.line(out, FxSoft.LINE, 0f, 0f, 0f, 0f, h * 1.9f * sz, 0f, 1.3f * sz, Vfx.with(Vfx.white(c, 0.4f), 0.45f * col),
+                        Vfx.with(c, 0f));
+                Vfx.pool(out, 0f, 0f, 0f, 1.5f * sz, Vfx.with(c, 0.55f * col));
+                for (int i = 0; i < 10; i++) {
+                    float p = (t * (1.4f + 0.8f * Vfx.h(fx.seed, i + 70)) + Vfx.h(fx.seed, i + 80)) % 1f;
+                    double ang = Vfx.h(fx.seed, i + 90) * Math.PI * 2;
+                    float r = (0.25f + 0.3f * Vfx.h(fx.seed, i + 95)) * sz;
+                    float y = p * h * 1.8f * sz;
+                    Vfx.streak(out, (float) Math.cos(ang) * r, y, (float) Math.sin(ang) * r, 0f, 1f, 0f, 0.5f * sz, 0.06f * sz,
+                            Vfx.with(Vfx.white(c, 0.5f), (float) Math.sin(p * Math.PI) * col));
+                }
+            }
+            FxBits.spirit(out, fx, 0f, rise + h * (1f - shrink) * 0.5f * sz, 0f, sz * shrink, c, a);
+            FxBits.embers(out, fx, t, 0f, 0.3f, 0f, Math.round(26 * fx.amount), 0.5f * sz, 1.6f, 0.4f, 0.9f, c, sz, 2);
         }
     };
 
@@ -397,81 +426,187 @@ public final class Totems extends FxModule {
         p[2] = vz * tt;
     }
 
-    /** Shatter: the totem pops in, then breaks into gold texel shards that tumble to the ground and fade. */
+    /**
+     * Shatter: the totem pops in glowing, cracks of light run through it, and it bursts in a flash into gold shards that
+     * tumble down, catching the light, with sparks and a ring of light.
+     */
     static final FxKind SHATTER = new FxKind("totem_shatter", 6) {
         private final float[] p = new float[3];
 
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             float px = 0.75f * T * fx.size;
-            float early = fx.early(now);
-            if (t < 0.35f) {
-                float pop = Ramp.pop(t, 0.15f, fx.snap);
-                // Its glow at half, so the gold shows.
-                FxDraw.sprite(out, fx, FxSprites.TOTEM, 0f, 0f, 0f, px * pop, 0, out.glowPass() ? early * 0.5f : early, now);
+            float e = fx.early(now), gk = FxBits.glowK(fx);
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            float hold = 0.35f;
+            if (t < hold) {
+                float pop = Ramp.pop(t, 0.15f, false);
+                float bob = 0.04f * (float) Math.sin(t * 18f);
+                if (out.glowPass()) {
+                    Vfx.glow(out, 0f, bob, 0f, 0.55f * fx.size * pop, Vfx.with(c, 0.6f * e * gk));
+                    float crack = Math.max(0f, (t - 0.18f) / (hold - 0.18f));
+                    if (crack > 0f) {
+                        Vfx.sprite(out, FxSoft.CRACKS, 0f, bob, 0f, 0.4f * fx.size * crack, fx.seed, Vfx.with(0xFFFFF1C2, crack * e * gk));
+                    }
+                } else {
+                    FxDraw.sprite(out, fx, FxSprites.TOTEM, 0f, bob, 0f, px * pop, 0, e, now);
+                }
                 return;
             }
-            float dt = t - 0.35f;
-            if (dt < 0.08f) {
-                // The break: a bright plus where it was.
-                FxDraw.sprite(out, fx, FxSprites.PLUS, 0f, 0f, 0f, px * 1.5f, 0, early, now);
-            }
-            float a = Ramp.steps(Math.min(1f, (1.6f - t) / 0.45f), 4, fx.snap) * early;
+            float dt = t - hold;
+            FxBits.impact(out, fx, dt, 0f, 0f, 0f, fx.c, 0.4f * fx.size, c);
+            FxBits.sparks(out, fx, dt, 0f, 0f, 0f, Math.round(24 * fx.amount), 4.5f * fx.size, 0.4f, -9f, 2f, 0.7f, c, fx.size, fx.c, 1);
+            float life = 1.6f - hold;
+            float a = Math.min(1f, (life - dt) / 0.45f) * e;
             if (a <= 0f) {
                 return;
             }
             out.right(RR);
-            for (int i = 0; i < fx.i0; i++) {
+            float rx = RR[0], rz = RR[2];
+            float l = (float) Math.sqrt(rx * rx + rz * rz);
+            rx /= Math.max(1e-4f, l);
+            rz /= Math.max(1e-4f, l);
+            int n = fx.i0 * 2;
+            for (int i = 0; i < n; i++) {
                 shard(fx, i, dt, px, p);
-                // Across the view (the camera's right, flattened) and toward or away from it.
-                float rx = RR[0], rz = RR[2];
-                float l = (float) Math.sqrt(rx * rx + rz * rz);
-                rx /= Math.max(1e-4f, l);
-                rz /= Math.max(1e-4f, l);
-                float x = p[0] * rx - p[2] * rz, z = p[0] * rz + p[2] * rx;
-                x = Ramp.snap(x, fx.snap);
-                float y = Ramp.snap(p[1], fx.snap);
-                z = Ramp.snap(z, fx.snap);
-                // Tumbling: each shard turns between its two sizes and its tones as it falls, until it rests.
-                int flip = (int) (dt * 12f + i) & 1;
+                float x = p[0] * rx - p[2] * rz, z = p[0] * rz + p[2] * rx, y = p[1];
                 boolean resting = p[1] <= fx.c + 1e-4f;
-                float side = T * fx.size * (resting || flip == 0 ? 1f : 2f);
-                int tone = resting ? Ramp.SHADE : flip == 0 ? Ramp.CORE : Ramp.MAIN;
-                FxDraw.square(out, x, y, z, side, Colors.withAlpha(fx.tone(tone, i, now), a));
-                if (tone == Ramp.CORE) {
-                    FxDraw.squareGlow(out, fx, x, y, z, side, a * 0.7f);
+                float spin = (resting ? 0.6f : dt) * (6f + 8f * FxDraw.hash(fx.seed, i + 50)) + i;
+                float size = (0.035f + 0.04f * FxDraw.hash(fx.seed, i + 60)) * fx.size;
+                if (out.glowPass()) {
+                    float shine = (float) Math.pow(Math.max(0f, Math.sin(spin * 1.6f)), 10f);
+                    if (!resting && shine > 0.05f) {
+                        Vfx.glint(out, x, y, z, size * 4.5f, spin, Vfx.with(0xFFFFF4C8, shine * a * gk));
+                    }
+                    Vfx.glow(out, x, y, z, size * 2.5f, Vfx.with(c, 0.3f * a * gk));
+                } else {
+                    float flip = 0.3f + 0.7f * Math.abs((float) Math.cos(spin));
+                    int col = Vfx.mix(Vfx.white(c, 0.35f), Vfx.mix(c, 0xFF000000, 0.35f), FxDraw.hash(fx.seed, i + 70));
+                    Vfx.billboard(out, FxSoft.SHARD[i % 3], x, y, z, size * flip, size * 1.3f, spin * 0.3f, Vfx.with(col, a));
                 }
             }
         }
     };
 
-    /** Angel: a winged totem with a halo rises out of whoever popped, flaps twice and fades. */
+    /**
+     * Angel: holy light bursts out behind whoever popped and a totem rises out of them on feathered wings that beat
+     * twice, a glowing halo over it, gold dust drifting down from it.
+     */
     static final FxKind ANGEL = new FxKind("totem_angel", 4) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             float px = 0.6f * T * fx.size;
-            float rise = Ramp.snap(1.6f * KillEffects.easeOut(t / 1.4f), fx.snap);
-            float a = Ramp.steps(Math.min(1f, (1.4f - t) / 0.45f), 4, fx.snap) * Ramp.steps(Math.min(1f, t / 0.15f), 3, fx.snap)
-                    * fx.early(now);
+            float sz = fx.size, e = fx.early(now), gk = FxBits.glowK(fx);
+            boolean glow = out.glowPass();
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            float rise = 1.5f * Vfx.outCubic(t / 1.4f) * sz;
+            float a = Vfx.life(t, 1.4f, 0.12f, 0.45f) * e;
             if (a <= 0f) {
                 return;
             }
             out.right(RR);
-            // Two flaps in the first second: the wings fold in and open out in three steps.
-            float flap = (float) Math.abs(Math.cos(Math.min(t, 1f) * Math.PI * 2.0));
-            float open = 0.35f + 0.65f * Ramp.steps(flap, 3, fx.snap);
-            float off = (4.5f + 3f * open) * px;
-            // Its glow at half, so the gold and the white show.
-            float g = out.glowPass() ? a * 0.5f : a;
-            FxDraw.sprite(out, fx, FxSprites.TOTEM, 0f, rise, 0f, px, 0, g, now);
-            FxDraw.spriteScaled(out, fx, FxSprites.WING, -RR[0] * off, rise + 2f * px, -RR[2] * off, px, open, 1f, 1, g, now);
-            FxDraw.spriteScaled(out, fx, FxSprites.WING, RR[0] * off, rise + 2f * px, RR[2] * off, px, -open, 1f, 1, g, now);
-            // The halo: a flat ring of texels over its head.
-            FxDraw.ring(out, fx, fx.x, fx.y, fx.z, 0f, rise + 7.5f * px, 0f, 3.2f * px, 1, Ramp.CORE, a, false, now);
+            out.up(UU);
+            // A beam of holy light down onto you, and the light it throws on the ground.
+            if (glow) {
+                float beam = Vfx.life(t, 1.4f, 0.08f, 0.7f) * e;
+                Vfx.line(out, FxSoft.LINE, 0f, rise + 4f * sz, 0f, 0f, -1f, 0f, 1.5f * sz, Vfx.with(Vfx.white(c, 0.6f), 0f),
+                        Vfx.with(Vfx.white(c, 0.5f), 0.35f * beam * gk));
+                Vfx.line(out, FxSoft.TUBE, 0f, rise + 4f * sz, 0f, 0f, -1f, 0f, 0.35f * sz, Vfx.with(0xFFFFFFFF, 0f),
+                        Vfx.with(0xFFFFFFFF, 0.45f * beam * gk));
+                Vfx.pool(out, 0f, -1f, 0f, 1.6f * sz, Vfx.with(c, 0.5f * beam * gk));
+                Vfx.glow(out, 0f, rise, 0f, 1.8f * sz, Vfx.with(Vfx.white(c, 0.4f), 0.45f * a * gk));
+                Vfx.glint(out, 0f, rise, 0f, 2.4f * sz * (0.9f + 0.1f * (float) Math.sin(t * 6f)), t * 0.4f,
+                        Vfx.with(Vfx.white(c, 0.6f), 0.6f * a * gk));
+                if (t < 0.4f) {
+                    float k = t / 0.4f;
+                    Vfx.hot(out, 0f, rise, 0f, 1.6f * sz, Vfx.with(0xFFFFFFFF, (1f - k) * (1f - k) * e * gk));
+                }
+            }
+            // Wings: two strong beats in the first second, then held open, breathing.
+            float beat = t < 1f ? 0.5f + 0.5f * (float) Math.cos(t * Math.PI * 4) : 0.85f + 0.15f * (float) Math.sin(t * 3f);
+            float spread = Vfx.outBack(Math.min(1f, t / 0.25f));
+            int white = Vfx.white(fx.ramp2[Ramp.MAIN], 0.7f), shade = Vfx.white(fx.ramp2[Ramp.MAIN], 0.45f);
+            for (int side = -1; side <= 1; side += 2) {
+                float elev = (float) Math.toRadians(-20 + 55 * beat);
+                // Shoulder, elbow and wrist, in the picture's plane (x across, y up).
+                float sx = side * 0.12f * sz, sy = rise + 0.08f * sz;
+                float ex = sx + side * (float) Math.cos(elev) * 0.42f * sz * spread, ey = sy + (float) Math.sin(elev) * 0.42f * sz * spread;
+                float elev2 = elev + (float) Math.toRadians(18 - 30 * beat);
+                float wx = ex + side * (float) Math.cos(elev2) * 0.4f * sz * spread, wy = ey + (float) Math.sin(elev2) * 0.4f * sz * spread;
+                // Secondaries along the arm, hanging down and back; primaries fanning from the wrist; coverts over them.
+                for (int layer = 0; layer < 3; layer++) {
+                    int n = layer == 1 ? 7 : layer == 0 ? 11 : 9;
+                    for (int f = 0; f < n; f++) {
+                        float k = f / (n - 1f);
+                        float bx, by, dirA, len;
+                        if (layer == 0) {
+                            bx = sx + (wx - sx) * (0.1f + 0.85f * k);
+                            by = sy + (wy - sy) * (0.1f + 0.85f * k);
+                            dirA = (float) Math.toRadians(-90 + 25 * k);
+                            len = (0.42f + 0.12f * k) * sz;
+                        } else if (layer == 1) {
+                            bx = wx - side * 0.04f * sz * k;
+                            by = wy - 0.03f * sz * k;
+                            dirA = elev2 + (float) Math.toRadians(5 - 85 * k);
+                            len = (0.75f - 0.25f * k) * sz;
+                        } else {
+                            bx = sx + (wx - sx) * (0.05f + 0.9f * k);
+                            by = sy + (wy - sy) * (0.05f + 0.9f * k) + 0.02f * sz;
+                            dirA = (float) Math.toRadians(-80 + 30 * k);
+                            len = (0.24f + 0.06f * k) * sz;
+                        }
+                        len *= spread;
+                        float dx = side * (float) Math.cos(dirA), dy = (float) Math.sin(dirA);
+                        float cx = bx + dx * len * 0.5f, cy = by + dy * len * 0.5f;
+                        float x = RR[0] * cx, z = RR[2] * cx;
+                        float rot = (float) Math.atan2(-dx, dy);
+                        float w = len * (layer == 2 ? 0.36f : layer == 0 ? 0.3f : 0.22f);
+                        if (glow) {
+                            if (f % 2 == 0) {
+                                Vfx.glow(out, x, cy, z, len * 0.8f, Vfx.with(c, 0.16f * a * gk));
+                            }
+                        } else {
+                            Vfx.billboard(out, FxSoft.FEATHER, x, cy, z, w, len * 0.5f, rot, Vfx.with(layer == 2 ? white : shade, a));
+                        }
+                    }
+                }
+            }
+            if (!glow) {
+                FxDraw.sprite(out, fx, FxSprites.TOTEM, 0f, rise, 0f, px, 0, a, now);
+            }
+            // The halo.
+            float hy = rise + 7.5f * px;
+            if (glow) {
+                Vfx.ring(out, FxSoft.TUBE, 0f, hy, 0f, 0.18f * sz, 0.08f * sz, Vfx.with(Vfx.white(c, 0.5f), a * gk), false);
+                Vfx.glow(out, 0f, hy, 0f, 0.4f * sz, Vfx.with(c, 0.4f * a * gk));
+            } else {
+                Vfx.ring(out, FxSoft.TUBE, 0f, hy, 0f, 0.18f * sz, 0.04f * sz, Vfx.with(Vfx.white(c, 0.4f), 0.9f * a), false);
+            }
+            // Gold dust and loose feathers drifting down.
+            for (int i = 0; i < 30; i++) {
+                float born = FxDraw.hash(fx.seed, i) * 1.1f;
+                float tt = t - born;
+                if (tt < 0f || tt > 1f) {
+                    continue;
+                }
+                float bx = FxDraw.signed(fx.seed, i + 10) * 1.1f * sz, bz = FxDraw.signed(fx.seed, i + 20) * 0.3f * sz;
+                float by = 1.5f * Vfx.outCubic(born / 1.4f) * sz + 0.3f * sz - tt * 0.7f;
+                bx += 0.08f * sz * (float) Math.sin(tt * 5f + i);
+                float da = (1f - tt) * a;
+                float x = RR[0] * bx + bz * RR[2], z = RR[2] * bx - bz * RR[0];
+                if (i % 5 == 0) {
+                    if (!glow) {
+                        Vfx.billboard(out, FxSoft.FEATHER, x, by, z, 0.03f * sz, 0.08f * sz, (float) Math.sin(tt * 4f + i) * 0.8f,
+                                Vfx.with(white, da));
+                    }
+                } else if (glow) {
+                    Vfx.hot(out, x, by, z, 0.09f * sz, Vfx.with(Vfx.white(c, 0.5f), da * gk));
+                }
+            }
         }
     };
 }

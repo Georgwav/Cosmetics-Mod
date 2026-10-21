@@ -16,6 +16,9 @@ import io.github.georgwav.cosmetics.sol.fx.FxText;
 import io.github.georgwav.cosmetics.sol.fx.FxWorld;
 import io.github.georgwav.cosmetics.sol.fx.PoseSnapshot;
 import io.github.georgwav.cosmetics.sol.fx.Ramp;
+import io.github.georgwav.cosmetics.sol.fx.Vfx;
+import io.github.georgwav.cosmetics.sol.fx.FxBits;
+import io.github.georgwav.cosmetics.sol.fx.FxSoft;
 import io.github.georgwav.cosmetics.sol.fx.SolPicks;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.ui.Canvas;
@@ -144,7 +147,7 @@ public final class HitEffects extends FxModule {
             int style = particles.pick((int) (System.nanoTime() >>> 10));
             Fx f = start(pool, particles, PARTICLES, x, y, z, style == 5 ? 0.6f : style == 4 ? 1.1f : 0.85f);
             particles.apply(f, style);
-            f.i0 = Math.max(6, Math.min(20, Math.round(10 * f.amount))) * (crit ? 2 : 1);
+            f.i0 = Math.max(8, Math.min(28, Math.round(16 * f.amount))) * (crit ? 2 : 1);
             f.i1 = crit ? 1 : 0;
             f.tx = dx;
             f.tz = dz;
@@ -152,7 +155,7 @@ public final class HitEffects extends FxModule {
             FxPool.delay(f, delay);
         }
         if (bubbles.on() && (target == null || bubbles.allows(target))) {
-            Fx f = start(pool, bubbles, BUBBLE, x, y, z, 0.6f);
+            Fx f = start(pool, bubbles, BUBBLE, x, y, z, 0.9f);
             bubbles.apply(f, 0);
             f.c = Math.min(-0.05f, ground(pool, x, z, y) - (float) y);
             FxPool.delay(f, delay);
@@ -322,117 +325,222 @@ public final class HitEffects extends FxModule {
             FxSprites.ORB, FxSprites.SQUARE};
     /** Each style's sprite pixel (in texels), gravity (blocks/s²) and speed. */
     private static final float[] PIXEL = {1f, 0.5f, 0.45f, 0.5f, 0.55f, 1f};
-    private static final float[] GRAVITY = {7f, 6f, 4.5f, 7f, 1.6f, 8f};
-    private static final float[] SPEED = {1f, 0.9f, 0.75f, 1f, 0.55f, 1.7f};
+    private static final float[] GRAVITY = {9f, 7f, -1.2f, 9f, -0.6f, 11f};
+    private static final float[] SPEED = {1f, 0.95f, 0.85f, 1f, 0.8f, 1.7f};
 
     /** Where particle {@code i} is at {@code t} (into {@code p}), resting where it lands. */
     static void at(Fx fx, int i, float t, float[] p) {
         int s = fx.style;
         float h1 = FxDraw.hash(fx.seed, i * 4), h2 = FxDraw.signed(fx.seed, i * 4 + 1), h3 = FxDraw.hash(fx.seed, i * 4 + 2);
-        float k = SPEED[s] * (fx.i1 == 1 ? 1.2f : 1f);
-        // Off the body's surface: back toward you a little, out to the sides and up.
-        float along = -(0.2f + 0.7f * h1) * k, side = h2 * 1.3f * k, up = (s == 4 ? 0.35f + 0.6f * h3 : 1.0f + 1.4f * h3) * k;
+        float k = SPEED[s] * (fx.i1 == 1 ? 1.3f : 1f);
+        // Off the body's surface: back toward you, out to the sides and up, fast at first and slowed by the air.
+        float along = -(0.5f + 1.5f * h1) * k, side = h2 * 4.4f * k, up = (s == 4 || s == 2 ? 0.3f + 1.6f * h3 : 1.4f + 3.2f * h3) * k;
         float tx = (float) fx.tx, tz = (float) fx.tz;
         float vx = tx * along - tz * side, vz = tz * along + tx * side;
-        float g = GRAVITY[s];
-        float c = fx.c;
-        float land = (up + (float) Math.sqrt(up * up - 2f * g * c)) / g;
-        float tt = Math.min(t, land);
-        p[0] = vx * tt;
-        p[1] = Math.max(c, up * tt - 0.5f * g * tt * tt);
-        p[2] = vz * tt;
+        float drag = s == 5 ? 1.3f : 2.1f;
+        p[0] = Vfx.fly(vx, drag, 0f, t);
+        p[1] = Math.max(fx.c, Vfx.fly(up, drag, -GRAVITY[s], t));
+        p[2] = Vfx.fly(vz, drag, 0f, t);
     }
 
-    /** Hit particles: a spray off the hit point, falling and coming to rest, fading out in steps. */
+    /**
+     * Hit particles: a flash and a cross of light at the point you hit (bigger and gold-white on a crit, with a ring
+     * bursting out), then a spray off it in the picked style: glowing pixels, spinning stars, hearts drifting up,
+     * crystals catching the light, orbs of light, or sparks streaking out and falling.
+     */
     static final FxKind PARTICLES = new FxKind("hit_particles", 24) {
         private final float[] p = new float[3], q = new float[3];
 
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
+            Vfx.origin(out, fx);
             int s = fx.style;
-            float base = fx.base;
+            float base = fx.base, e = fx.early(now), gk = FxBits.glowK(fx), sz = fx.size;
+            boolean crit = fx.i1 == 1;
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            int flash = crit ? 0xFFFFE7A8 : Vfx.white(c, 0.6f);
+            // The flash where it struck, a ring of light bursting out and rays of light shot out round it.
+            float fk = t / (crit ? 0.28f : 0.2f);
+            if (fk < 1f) {
+                float f = (1f - fk) * (1f - fk);
+                if (out.glowPass()) {
+                    Vfx.hot(out, 0f, 0f, 0f, (crit ? 1f : 0.65f) * sz, Vfx.with(flash, f * e * Math.max(0.6f, gk)));
+                    Vfx.glow(out, 0f, 0f, 0f, (crit ? 1.8f : 1.2f) * sz, Vfx.with(c, 0.5f * f * e * gk));
+                    Vfx.flare(out, 0f, 0f, 0f, (crit ? 2.3f : 1.5f) * sz, fx.seed * 0.7f, Vfx.with(flash, 0.9f * f * e * gk));
+                }
+                float rk = Vfx.outCubic(fk);
+                int rays = crit ? 12 : 8;
+                for (int i = 0; i < rays; i++) {
+                    float dx = Vfx.s(fx.seed, i + 500), dy = Vfx.s(fx.seed, i + 510), dz = Vfx.s(fx.seed, i + 520);
+                    float dl = (float) Math.sqrt(dx * dx + dy * dy + dz * dz) + 1e-4f;
+                    dx /= dl;
+                    dy /= dl;
+                    dz /= dl;
+                    float r = (0.12f + (crit ? 1.1f : 0.75f) * rk) * sz;
+                    float len = (crit ? 0.45f : 0.32f) * sz * (1f - fk);
+                    if (out.glowPass()) {
+                        Vfx.streak(out, dx * r, dy * r, dz * r, dx, dy, dz, len, 0.09f * sz, Vfx.with(flash, f * e * gk));
+                    } else {
+                        Vfx.streak(out, dx * r, dy * r, dz * r, dx, dy, dz, len, 0.035f * sz, Vfx.with(0xFFFFFFFF, 0.7f * f * e));
+                    }
+                }
+            }
+            float ringLife = crit ? 0.32f : 0.24f;
+            if (t < ringLife && out.glowPass()) {
+                float k = t / ringLife;
+                Vfx.sprite(out, FxSoft.RING, 0f, 0f, 0f, (0.15f + (crit ? 0.9f : 0.55f) * Vfx.outCubic(k)) * sz, 0f,
+                        Vfx.with(crit ? 0xFFFFD27A : Vfx.white(c, 0.3f), (1f - k) * e * gk));
+            }
             for (int i = 0; i < fx.i0; i++) {
                 float h4 = FxDraw.hash(fx.seed, i * 4 + 3);
                 float endAt = base * (0.55f + 0.45f * h4);
-                float a = Ramp.steps(Math.min(1f, (endAt - t) / (base * 0.25f)), 4, fx.snap) * fx.early(now);
+                float a = Math.min(1f, (endAt - t) / (base * 0.3f)) * e;
                 if (a <= 0f) {
                     continue;
                 }
                 at(fx, i, t, p);
-                float x = Ramp.snap(p[0], fx.snap), y = Ramp.snap(p[1], fx.snap), z = Ramp.snap(p[2], fx.snap);
-                float px = PIXEL[s] * T * fx.size;
-                if (s == 0) {
-                    // Pixels: one or two texels, in the ramp's tones.
-                    float side = px * (h4 < 0.3f ? 2f : 1f);
-                    int tone = h4 < 0.35f ? Ramp.CORE : h4 < 0.8f ? Ramp.MAIN : Ramp.SHADE;
-                    FxDraw.square(out, x, y, z, side, Colors.withAlpha(fx.tone(tone, i, now), a));
-                    if (tone != Ramp.SHADE) {
-                        FxDraw.squareGlow(out, fx, x, y, z, side, a);
-                    }
-                } else if (s == 5) {
-                    // Sparks: a texel and two fading behind it along its path.
-                    for (int k = 0; k < 3; k++) {
-                        at(fx, i, Math.max(0f, t - k * 0.022f), q);
-                        float sx = Ramp.snap(q[0], fx.snap), sy = Ramp.snap(q[1], fx.snap), sz = Ramp.snap(q[2], fx.snap);
-                        int tone = k == 0 ? Ramp.CORE : k == 1 ? Ramp.MAIN : Ramp.SHADE;
-                        FxDraw.square(out, sx, sy, sz, px, Colors.withAlpha(fx.tone(tone, i, now), a * (k == 2 ? 0.6f : 1f)));
-                        if (k == 0) {
-                            FxDraw.squareGlow(out, fx, sx, sy, sz, px, a);
+                at(fx, i, Math.max(0f, t - 0.03f), q);
+                float x = p[0], y = p[1], z = p[2];
+                float vx = (p[0] - q[0]) / 0.03f, vy = (p[1] - q[1]) / 0.03f, vz = (p[2] - q[2]) / 0.03f;
+                float sp = (float) Math.sqrt(vx * vx + vy * vy + vz * vz);
+                int col = fx.tone(Ramp.MAIN, i, now);
+                int hot = Vfx.white(col, 0.55f);
+                float spin = t * (6f + 8f * h4) * (i % 2 == 0 ? 1f : -1f) + h4 * 6f;
+                switch (s) {
+                    case 0 -> {
+                        // Pixels: little squares of light streaking as they fly.
+                        float side = (h4 < 0.3f ? 0.13f : 0.09f) * sz;
+                        if (out.glowPass()) {
+                            Vfx.glow(out, x, y, z, side * 3.2f, Vfx.with(col, 0.55f * a * gk));
+                            if (sp > 0.5f) {
+                                Vfx.streak(out, x, y, z, vx, vy, vz, Math.min(0.35f, sp * 0.04f) * sz, side * 1.2f, Vfx.with(hot, 0.6f * a * gk));
+                            }
+                        } else {
+                            Vfx.sprite(out, FxSoft.SQUARE, x, y, z, side * 0.5f, spin * 0.3f, Vfx.with(h4 < 0.4f ? hot : col, a));
                         }
                     }
-                } else {
-                    FxDraw.sprite(out, fx, SPRITES[s], x, y, z, px * (0.85f + 0.3f * h4), i, a, now);
+                    case 1 -> {
+                        // Stars: turning as they tumble, glinting.
+                        float r = (0.1f + 0.06f * h4) * sz;
+                        if (out.glowPass()) {
+                            Vfx.glow(out, x, y, z, r * 2.8f, Vfx.with(col, 0.45f * a * gk));
+                            Vfx.glint(out, x, y, z, r * 2.2f * (0.6f + 0.4f * (float) Math.sin(t * 25f + i)), spin, Vfx.with(0xFFFFFFFF, 0.6f * a * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.STAR, x, y, z, r, spin, Vfx.with(Vfx.white(col, 0.2f), a));
+                        }
+                    }
+                    case 2 -> {
+                        // Hearts: drifting up instead of falling, swaying, beating.
+                        float r = (0.1f + 0.05f * h4) * sz * (1f + 0.12f * (float) Math.sin(t * 14f + i));
+                        float hy = y, hx = x + (float) Math.sin(t * 5f + i) * 0.06f;
+                        if (out.glowPass()) {
+                            Vfx.glow(out, hx, hy, z, r * 3f, Vfx.with(col, 0.5f * a * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.HEART, hx, hy, z, r, (float) Math.sin(t * 4f + i) * 0.3f, Vfx.with(Vfx.white(col, 0.35f), a));
+                        }
+                    }
+                    case 3 -> {
+                        // Crystals: shards turning, flashing as a face catches the light.
+                        float r = (0.09f + 0.06f * h4) * sz;
+                        if (out.glowPass()) {
+                            float shine = (float) Math.pow(Math.max(0f, Math.sin(spin * 1.5f)), 10f);
+                            Vfx.glow(out, x, y, z, r * 2.5f, Vfx.with(col, 0.4f * a * gk));
+                            if (shine > 0.05f) {
+                                Vfx.glint(out, x, y, z, r * 4f, spin, Vfx.with(0xFFFFFFFF, shine * a * gk));
+                            }
+                        } else {
+                            float flip = 0.35f + 0.65f * Math.abs((float) Math.cos(spin));
+                            Vfx.billboard(out, i % 2 == 0 ? FxSoft.DIAMOND : FxSoft.SHARD[i % 3], x, y, z, r * flip, r * 1.3f, spin * 0.25f,
+                                    Vfx.with(Vfx.white(col, 0.25f), a));
+                        }
+                    }
+                    case 4 -> {
+                        // Orbs: soft balls of light floating up.
+                        float r = (0.08f + 0.06f * h4) * sz;
+                        float oy = y;
+                        if (out.glowPass()) {
+                            Vfx.hot(out, x, oy, z, r * 4f, Vfx.with(Vfx.white(col, 0.3f), 0.8f * a * gk));
+                        } else {
+                            Vfx.sprite(out, FxSoft.ORB, x, oy, z, r, 0f, Vfx.with(Vfx.white(col, 0.5f), 0.65f * a));
+                        }
+                    }
+                    default -> {
+                        // Sparks: fast, white-hot, cooling to the colour.
+                        int sc = Vfx.mix(0xFFFFFFFF, col, Math.min(1f, t / (base * 0.6f)));
+                        float len = Math.max(0.06f, Math.min(0.5f, sp * 0.05f)) * sz;
+                        if (out.glowPass()) {
+                            Vfx.streak(out, x, y, z, vx, vy, vz, len, 0.1f * sz, Vfx.with(sc, a * gk));
+                        } else {
+                            Vfx.streak(out, x, y, z, vx, vy, vz, len, 0.045f * sz, Vfx.with(col, 0.75f * a));
+                        }
+                    }
                 }
             }
         }
     };
 
-    /** A bubble: swells over 0.2 s at the hit point, pops (a flash and a broken ring), and falls as six droplets. */
+    /** A bubble: swells at the hit point, wobbling, and pops: a flash, a ring of spray and droplets falling. */
     static final FxKind BUBBLE = new FxKind("hit_bubble", 8) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
             float t = fx.time(age);
-            FxDraw.origin(out, fx);
-            float px = 0.8f * T * fx.size;
-            float early = fx.early(now);
-            if (t < 0.2f) {
-                float k = Ramp.steps(t / 0.2f, 3, fx.snap);
-                FxDraw.sprite(out, fx, FxSprites.BUBBLE, 0f, 0f, 0f, px * (0.45f + 0.55f * k), 0, 0.9f * early, now);
+            Vfx.origin(out, fx);
+            float e = fx.early(now), gk = FxBits.glowK(fx), sz = fx.size;
+            boolean glow = out.glowPass();
+            int c = fx.tone(Ramp.MAIN, 0, now);
+            // The film's sheen: the colour, and a hue a little round from it.
+            int sheen = Vfx.hue(c, 70f);
+            float pop = 0.3f;
+            float r = 0.36f * sz;
+            if (t < pop) {
+                // Swelling fast, then wobbling as it hangs there.
+                float k = Vfx.outBack(Math.min(1f, t / 0.13f));
+                float wob = 1f + 0.09f * (float) Math.sin(t * 55f) * (1f - t / pop);
+                float hw = r * k * wob, hh = r * k / wob;
+                float spin = t * 1.5f;
+                if (glow) {
+                    Vfx.glow(out, 0f, 0f, 0f, r * 2.2f * k, Vfx.with(c, 0.3f * e * gk));
+                    Vfx.billboard(out, FxSoft.RING, 0f, 0f, 0f, hw * 1.08f, hh * 1.08f, spin, Vfx.with(c, 0.45f * e * gk));
+                    Vfx.billboard(out, FxSoft.BUBBLE, 0f, 0f, 0f, hw, hh, spin, Vfx.with(0xFFFFFFFF, 0.6f * e * gk));
+                } else {
+                    Vfx.billboard(out, FxSoft.GLOW, 0f, 0f, 0f, hw * 1.05f, hh * 1.05f, 0f, Vfx.with(Vfx.mix(c, sheen, 0.5f), 0.22f * e));
+                    Vfx.billboard(out, FxSoft.RING, 0f, 0f, 0f, hw * 1.05f, hh * 1.05f, spin, Vfx.with(Vfx.white(sheen, 0.3f), 0.6f * e));
+                    Vfx.billboard(out, FxSoft.BUBBLE, 0f, 0f, 0f, hw, hh, spin, Vfx.with(0xFFFFFFFF, 0.95f * e));
+                }
                 return;
             }
-            out.right(RR);
-            out.up(UU);
-            float r = 3.5f * px;
-            if (t < 0.28f) {
-                // The pop: a bright plus and the ring breaking outward.
-                FxDraw.sprite(out, fx, FxSprites.PLUS, 0f, 0f, 0f, px, 0, early, now);
-                float rr = r * (1f + (t - 0.2f) * 6f);
-                for (int k = 0; k < 8; k++) {
-                    double ang = k * Math.PI / 4.0;
-                    float cx = (float) Math.cos(ang) * rr, cy = (float) Math.sin(ang) * rr;
-                    float x = Ramp.snap(RR[0] * cx + UU[0] * cy, fx.snap), y = Ramp.snap(RR[1] * cx + UU[1] * cy, fx.snap);
-                    float z = Ramp.snap(RR[2] * cx + UU[2] * cy, fx.snap);
-                    FxDraw.square(out, x, y, z, T * fx.size, Colors.withAlpha(fx.tone(Ramp.MAIN, k, now), 0.8f * early));
+            float dt = t - pop;
+            if (dt < 0.22f) {
+                // The pop: a flash and the film's ring torn outward.
+                float k = dt / 0.22f, f = (1f - k) * (1f - k);
+                if (glow) {
+                    Vfx.hot(out, 0f, 0f, 0f, r * 1.8f, Vfx.with(Vfx.white(c, 0.7f), f * e * gk));
+                    Vfx.glint(out, 0f, 0f, 0f, r * 2.4f, 0.4f, Vfx.with(0xFFFFFFFF, f * e * gk));
+                    Vfx.sprite(out, FxSoft.RING, 0f, 0f, 0f, r * (1f + 1.8f * Vfx.outCubic(k)), 0f, Vfx.with(Vfx.white(c, 0.4f), f * e * gk));
+                } else {
+                    Vfx.sprite(out, FxSoft.RING, 0f, 0f, 0f, r * (1f + 1.8f * Vfx.outCubic(k)), 0f, Vfx.with(Vfx.white(sheen, 0.4f), 0.8f * f * e));
                 }
             }
-            // Six droplets, out and down.
-            float dt = t - 0.2f;
-            float a = Ramp.steps(1f - dt / 0.4f, 3, fx.snap) * early;
-            if (a <= 0f) {
-                return;
-            }
-            for (int k = 0; k < 6; k++) {
-                double ang = k * Math.PI / 3.0 + FxDraw.hash(fx.seed, k) * 0.5;
+            // Droplets flung out round the ring as it bursts, then falling.
+            out.right(RR);
+            out.up(UU);
+            for (int k = 0; k < 16; k++) {
+                double ang = k * Math.PI / 8 + FxDraw.hash(fx.seed, k) * 0.35;
                 float ox = (float) Math.cos(ang), oy = (float) Math.sin(ang);
-                float sx = RR[0] * ox + UU[0] * oy, sy = RR[1] * ox + UU[1] * oy, sz = RR[2] * ox + UU[2] * oy;
-                float v = 1.1f * fx.size;
-                float x = sx * (r + v * dt), z = sz * (r + v * dt);
-                float y = Math.max(fx.c, sy * (r + v * dt) + 0.5f * dt - 3f * dt * dt);
-                FxDraw.square(out, Ramp.snap(x, fx.snap), Ramp.snap(y, fx.snap), Ramp.snap(z, fx.snap), T * fx.size,
-                        Colors.withAlpha(fx.tone(k == 0 ? Ramp.CORE : Ramp.MAIN, k, now), a));
-                FxDraw.squareGlow(out, fx, x, y, z, T * fx.size, a * 0.6f);
+                float sx = RR[0] * ox + UU[0] * oy, sy = RR[1] * ox + UU[1] * oy, sz2 = RR[2] * ox + UU[2] * oy;
+                float v = (2.2f + 1.6f * FxDraw.hash(fx.seed, k + 20)) * sz;
+                float d = r + Vfx.fly(v, 3.2f, 0f, dt);
+                float x = sx * d, z = sz2 * d;
+                float y = Math.max(fx.c, sy * d + Vfx.fly(0.6f * sz, 1.2f, -9f, dt) - 0.6f * sz * dt);
+                float a = Vfx.life(dt, 0.6f, 0f, 0.3f) * e;
+                float size = (0.035f + 0.03f * FxDraw.hash(fx.seed, k + 40)) * sz;
+                int col = (k & 1) == 0 ? c : sheen;
+                if (glow) {
+                    Vfx.hot(out, x, y, z, size * 4.5f, Vfx.with(Vfx.white(col, 0.4f), 0.7f * a * gk));
+                } else {
+                    Vfx.sprite(out, FxSoft.ORB, x, y, z, size, 0f, Vfx.with(Vfx.white(col, 0.3f), a));
+                }
             }
         }
     };
@@ -449,12 +557,24 @@ public final class HitEffects extends FxModule {
             if (a <= 0f || fx.text == null) {
                 return;
             }
-            float px = 0.7f * T * fx.size * pop * (fx.i1 == 2 ? 1.3f : 1f);
+            float px = 0.85f * T * fx.size * pop * (fx.i1 == 2 ? 1.35f : 1f);
             out.right(RR);
             float x = RR[0] * fx.a, z = RR[2] * fx.a;
-            int tone = fx.i1 == 1 ? Ramp.CORE : Ramp.MAIN;
-            FxText.draw(out, fx.text, x, rise, z, px, Colors.withAlpha(fx.tone(tone, 0, now), a),
-                    Colors.withAlpha(fx.tone(Ramp.DEEP, 0, now), a));
+            int col = fx.i1 == 2 ? KILL_RED : fx.i1 == 1 ? 0xFFFFD86B : fx.tone(Ramp.MAIN, 0, now);
+            if (out.glowPass()) {
+                Vfx.origin(out, fx);
+                float w = FxText.width(fx.text) * px;
+                float gk = FxBits.glowK(fx);
+                for (int k = -1; k <= 1; k++) {
+                    Vfx.glow(out, x + RR[0] * k * w * 0.3f, rise, z + RR[2] * k * w * 0.3f, w * 0.45f, Vfx.with(col, 0.32f * a * gk));
+                }
+                if (fx.i1 != 0 && t < 0.35f) {
+                    Vfx.glint(out, x + RR[0] * w * 0.55f, rise + 3f * px, z + RR[2] * w * 0.55f, 0.35f * fx.size, t * 6f,
+                            Vfx.with(0xFFFFFFFF, (1f - t / 0.35f) * a * gk));
+                }
+                return;
+            }
+            FxText.draw(out, fx.text, x, rise, z, px, Colors.withAlpha(Vfx.white(col, 0.15f), a), Colors.withAlpha(Vfx.mix(col, 0xFF000000, 0.7f), a));
         }
     };
 
@@ -462,12 +582,25 @@ public final class HitEffects extends FxModule {
     static final FxKind DAMAGE = new FxKind("hit_damage", 16) {
         @Override
         public void draw(Fx fx, float age, float now, FxOut out) {
-            if (out.glowPass() || fx.text == null) {
+            if (fx.text == null) {
                 return;
             }
             float t = fx.time(age);
             FxDraw.origin(out, fx);
             float pop = Ramp.pop(t, 0.15f, fx.snap);
+            if (out.glowPass()) {
+                // A soft light behind the number (a crit's twinkles too).
+                float rise = 0.6f * KillEffects.easeOut(t);
+                float a = (t < 0.65f ? 1f : 1f - (t - 0.65f) / 0.35f) * fx.early(now);
+                Vfx.origin(out, fx);
+                float w = FxText.width(fx.text) * 0.75f * T * fx.size * pop;
+                int col = fx.tone(Ramp.MAIN, 0, now);
+                Vfx.glow(out, fx.a, rise, fx.b, Math.max(0.25f, w * 0.7f), Vfx.with(col, 0.35f * a));
+                if (col == CRIT_GOLD && t < 0.4f) {
+                    Vfx.glint(out, fx.a + w * 0.4f, rise + 0.12f, fx.b, 0.3f * fx.size, t * 5f, Vfx.with(0xFFFFFFFF, (1f - t / 0.4f) * a));
+                }
+                return;
+            }
             float rise = Ramp.snap(0.6f * KillEffects.easeOut(t), fx.snap);
             float a = (t < 0.65f ? 1f : Ramp.steps(1f - (t - 0.65f) / 0.35f, 4, fx.snap)) * fx.early(now);
             if (a <= 0f) {

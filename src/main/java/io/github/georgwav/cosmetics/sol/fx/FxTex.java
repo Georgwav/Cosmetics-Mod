@@ -3,7 +3,7 @@ package io.github.georgwav.cosmetics.sol.fx;
 /**
  * A picture the effects draw from: its ARGB pixels, kept on the CPU (the menus' live preview draws them there), and
  * the GPU copy the world draw makes of them on first use ({@link WorldOut}). Changing the pixels bumps the version,
- * so the copy is uploaded again. Nearest filtering: every texel stays a sharp square.
+ * so the copy is uploaded again. Nearest filtering (every texel a sharp square) unless it's {@link #linear}.
  */
 public final class FxTex {
     public final String name;
@@ -11,6 +11,8 @@ public final class FxTex {
     public final int[] argb;
     /** Bumped when the pixels change. */
     public int version;
+    /** Filtered smoothly (soft pictures) rather than nearest (pixel sprites). */
+    public boolean linear;
     /** The GPU copy and the version it holds (owned by {@link WorldOut}). */
     Object gpu;
     int gpuVersion = -1;

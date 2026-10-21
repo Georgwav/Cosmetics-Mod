@@ -976,9 +976,22 @@ def _changed(a, b, w, h, step=1):
     return out
 
 
+def _vivid(rgb):
+    """The accent as the effects wear it (FxColour.vivid): the same hue, saturation at least 0.7 and value at least
+    0.95; a grey stays grey."""
+    import colorsys
+    h, s, v = colorsys.rgb_to_hsv(*(c / 255.0 for c in rgb))
+    if s < 0.06:
+        return rgb
+    r, g, b = colorsys.hsv_to_rgb(h, max(s, 0.7), max(v, 0.95))
+    return (round(r * 255), round(g * 255), round(b * 255))
+
+
 def _accent_near(pixels, accent):
     """Whether the effect's saturated colours include the accent: of its colours (in 16-step bins) that cover at least
-    half a percent of what it changed, any within delta E 12 of it. Returns (ok, best delta E, the colour)."""
+    half a percent of what it changed, any within delta E 12 of it, or of the vivid form of it the effects draw in
+    (FxColour.vivid). Returns (ok, best delta E, the colour)."""
+    vivid = _vivid(accent)
     bins = {}
     for _, _, c in pixels:
         mx, mn = max(c), min(c)
@@ -996,7 +1009,7 @@ def _accent_near(pixels, accent):
         if n < floor:
             break
         col = (r // n, g // n, b // n)
-        d = delta_e(col, accent)
+        d = min(delta_e(col, accent), delta_e(col, vivid))
         if d < best[0]:
             best = (d, col)
     return best[0] <= 12, best[0], best[1]
