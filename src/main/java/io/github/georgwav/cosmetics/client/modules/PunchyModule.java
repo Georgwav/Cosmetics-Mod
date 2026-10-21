@@ -50,9 +50,11 @@ public final class PunchyModule extends Module {
     private final Setting.Toggle glow = add(new Setting.Toggle("glow", true).group("glow"));
     /**
      * Golden light round the hands that their movement leaves behind (no outline unless asked for), a thin bright
-     * outline on its own, or a soft glow all round. A new id: "glow_style" meant something else before.
+     * outline on its own, a soft glow all round, the hands as a window onto a drifting starfield (with the outline), or
+     * the ramp's four tones in stepped rings round them. A new id: "glow_style" meant something else before.
      */
-    private final Setting.Choice glowStyle = add(new Setting.Choice("glow_look", "golden", List.of("golden", "outline", "soft")).group("glow"));
+    private final Setting.Choice glowStyle = add(new Setting.Choice("glow_look", "golden",
+            List.of("golden", "outline", "soft", "stars", "bands")).group("glow"));
     /**
      * The theme's colour by default, as every colour in the client (it was your own, gold, as in Georg's picture of
      * Clarity's glow: a glow still at that default follows the theme now).
@@ -97,6 +99,26 @@ public final class PunchyModule extends Module {
     /** The knife in third person too; off, so third person shows the sword (a new id, so it's off for everyone). */
     private final Setting.Toggle knifeThirdPerson = add(new Setting.Toggle("knife_third", false).group("knives"));
     private final Setting.Choice knifeUseOn = add(new Setting.Choice("knife_use_on", "swords", List.of("swords", "swords_axes")).group("knives"));
+    // The view model: each hand moved, turned and sized (written for a hand on the right; the left one mirrors them).
+    /** No sway as you turn and no bob as you walk (your view still bobs, as set in the game). */
+    private final Setting.Toggle keepStill = add(new Setting.Toggle("keep_still", false).group("view_model"));
+    private final Setting.Slider[] mainHand = hand("main");
+    private final Setting.Slider[] offHand = hand("off");
+    /**
+     * How the arm swings what it holds: the game's swing, 1.7's (no dip after each hit), or a style of its own, each
+     * played in the sword's swing length. Off while Punchy's own animations draw the hands.
+     */
+    private final Setting.Choice swingStyle = add(new Setting.Choice("swing_style", "vanilla",
+            io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES).group("swing"));
+    // What you hold.
+    /** Little pixel flames lick up from what you hold, in three frames. */
+    private final Setting.Toggle flaming = add(new Setting.Toggle("flaming_item", false).group("held"));
+    private final Setting.Color flameColour = add(new Setting.Color("flame_colour", Setting.Color.THEME).group("held"));
+    private final Setting.Slider flameSize = add(new Setting.Slider("flame_size", 100, 50, 200, 10, v -> Math.round(v) + "%").group("held"));
+    /** Your shield tinted by its cooldown: as it is when ready, amber while it cools, red right after it's disabled. */
+    private final Setting.Toggle shieldStatus = add(new Setting.Toggle("shield_status", true).group("held"));
+    /** Your arm stays on screen holding what you carry (the game shows it only with an empty hand). */
+    private final Setting.Toggle armWithItems = add(new Setting.Toggle("arm_with_items", false).group("held"));
     /** Punchy's own values of what PvP mode changes, put back when it goes off. */
     private final Map<String, Object> own = new LinkedHashMap<>();
 
@@ -107,6 +129,8 @@ public final class PunchyModule extends Module {
 
     public PunchyModule() {
         super("punchy", Category.VIEW, "flame");
+        flameColour.shownWhen(flaming::get);
+        flameSize.shownWhen(flaming::get);
         // The knives' inspect key; with Punchy installed its own inspect key inspects the knife (see KnifeInput), so
         // this one starts unbound (one key can only reach one key bind).
         if (Compat.PUNCHY) {
@@ -114,6 +138,21 @@ public final class PunchyModule extends Module {
         } else {
             addKey("inspect", com.mojang.blaze3d.platform.InputConstants.KEY_V);
         }
+    }
+
+    /** One hand's view model: across, up, forward (pixels), turned round x, y and z (degrees), and its size. */
+    private Setting.Slider[] hand(String which) {
+        String g = which + "_hand";
+        java.util.function.DoubleFunction<String> px = v -> (v > 0 ? "+" : "") + (v == Math.rint(v) ? String.valueOf((int) v) : String.valueOf(v)) + " px";
+        java.util.function.DoubleFunction<String> deg = v -> (v > 0 ? "+" : "") + Math.round(v) + "\u00b0";
+        return new Setting.Slider[]{
+                add(new Setting.Slider(which + "_x", 0, -8, 8, 0.5, px).group(g)),
+                add(new Setting.Slider(which + "_y", 0, -8, 8, 0.5, px).group(g)),
+                add(new Setting.Slider(which + "_z", 0, -8, 8, 0.5, px).group(g)),
+                add(new Setting.Slider(which + "_turn_x", 0, -180, 180, 5, deg).group(g)),
+                add(new Setting.Slider(which + "_turn_y", 0, -180, 180, 5, deg).group(g)),
+                add(new Setting.Slider(which + "_turn_z", 0, -180, 180, 5, deg).group(g)),
+                add(new Setting.Slider(which + "_size", 100, 25, 200, 5, v -> Math.round(v) + "%").group(g))};
     }
 
     /** On in a fresh install: the arms, the glow and the knives live here (the Punchy mod itself stays optional). */
@@ -128,6 +167,18 @@ public final class PunchyModule extends Module {
         boolean once = !onByDefaultSeen;
         onByDefaultSeen = true;
         return once;
+    }
+
+    /** While Punchy's own animations draw the hands, the settings they leave out say so. */
+    @Override
+    public String settingHint(Setting<?> setting) {
+        String hint = super.settingHint(setting);
+        if (punchyAnimates() && setting.group != null && (setting.group.equals("swing") || setting.group.endsWith("_hand")
+                || setting.id.equals("flaming_item") || setting.id.equals("arm_with_items"))) {
+            String off = net.minecraft.network.chat.Component.translatable("cosmeticsmod.module.punchy.off_with_punchy").getString();
+            return hint.isEmpty() ? off : off + ". " + hint;
+        }
+        return hint;
     }
 
     @Override
@@ -162,6 +213,7 @@ public final class PunchyModule extends Module {
      */
     @Override
     protected void tick(Minecraft mc) {
+        io.github.georgwav.cosmetics.render.FirstPersonHands.tick(mc);
         if (!tuningGiven && Compat.PUNCHY && mc.player != null) {
             tuningGiven = true;
             PunchyCompat.applyTuning(io.github.georgwav.cosmetics.client.MainFolder.clientFolder());
@@ -321,6 +373,68 @@ public final class PunchyModule extends Module {
         return Modules.PUNCHY.knifeUseOn.get().equals("swords_axes");
     }
 
+    // ------------------------------------------------------------------ view model, swing, what you hold
+
+    /** Whether Punchy's own animations draw the hands (its own way: the game's hand methods are left out). */
+    public static boolean punchyAnimates() {
+        return Compat.PUNCHY && Modules.PUNCHY.enabled();
+    }
+
+    /** No turn sway and no walking bob on the hands. */
+    public static boolean keepStill() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() && m.keepStill.get();
+    }
+
+    /**
+     * A hand's view model into {@code out}: across, up, forward (blocks), turns round x, y and z (degrees) and its size;
+     * false when it's as the game has it (or the module is off).
+     */
+    public static boolean viewModel(boolean main, float[] out) {
+        PunchyModule m = Modules.PUNCHY;
+        if (!m.enabled()) {
+            return false;
+        }
+        Setting.Slider[] h = main ? m.mainHand : m.offHand;
+        boolean moved = false;
+        for (int i = 0; i < 7; i++) {
+            double v = h[i].get();
+            out[i] = i < 3 ? (float) (v / 16.0) : i < 6 ? (float) v : (float) (v / 100.0);
+            moved |= i < 6 ? v != 0.0 : v != 100.0;
+        }
+        return moved;
+    }
+
+    /** The swing style (an index into {@code FirstPersonHands.SWING_STYLES}; 0 the game's). */
+    public static int swingStyle() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() ? Math.max(0, io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES.indexOf(m.swingStyle.get())) : 0;
+    }
+
+    public static boolean flamingItem() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() && m.flaming.get();
+    }
+
+    /** The flames' colour (the theme's unless you picked one). */
+    public static int flameColour() {
+        return Modules.PUNCHY.flameColour.argb();
+    }
+
+    public static float flameSize() {
+        return (float) (Modules.PUNCHY.flameSize.get() / 100.0);
+    }
+
+    public static boolean shieldStatus() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() && m.shieldStatus.get();
+    }
+
+    public static boolean armWithItems() {
+        PunchyModule m = Modules.PUNCHY;
+        return m.enabled() && m.armWithItems.get();
+    }
+
     // ------------------------------------------------------------------ dark arms
 
     /** Whether the game is drawing the first-person hands now with the arms dark. */
@@ -398,7 +512,7 @@ public final class PunchyModule extends Module {
     /**
      * The glow's values for the light pass, from {@code at}: two colours (rgb), strength, colour mode (0 two colours,
      * 1 the item's own, 2 rainbow), pulse, the sheen on the hand itself, how wide it spreads, the lines of light
-     * moving through it, the style (2 golden, 1 outline, 0 soft), how much of the trail is left after this frame, and
+     * moving through it, the style (4 bands, 3 stars, 2 golden, 1 outline, 0 soft), how much of the trail is left after this frame, and
      * whether the trail shows; then, 38 on, the golden glow's own look.
      */
     public static void glowParams(float[] v, int at, Tokens tk, boolean continuous) {
@@ -443,6 +557,8 @@ public final class PunchyModule extends Module {
         v[at + 10] = (float) (m.glowSize.get() / 100.0);
         v[at + 11] = m.glowLines.get() ? 1f : 0f;
         v[at + 12] = switch (m.glowStyle.get()) {
+            case "bands" -> 4f;
+            case "stars" -> 3f;
             case "golden" -> 2f;
             case "outline" -> 1f;
             default -> 0f;

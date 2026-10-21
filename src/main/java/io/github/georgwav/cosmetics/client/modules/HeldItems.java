@@ -43,6 +43,18 @@ public final class HeldItems extends Module {
         }
     }
 
+    /** How much {@link #apply} sizes what that arm holds (1 when it doesn't). */
+    public static float size(HumanoidArm arm) {
+        HeldItems h = Modules.HELD_ITEMS;
+        if (!h.enabled()) {
+            return 1f;
+        }
+        if (holds(arm, net.minecraft.world.item.Items.SHIELD)) {
+            return (float) (h.shieldSize.get() / 100.0);
+        }
+        return holds(arm, net.minecraft.world.item.Items.TOTEM_OF_UNDYING) ? (float) (h.totemHand.get() / 100.0) : 1f;
+    }
+
     /** Whether the item in that arm is {@code item}. */
     private static boolean holds(HumanoidArm arm, net.minecraft.world.item.Item item) {
         var player = net.minecraft.client.Minecraft.getInstance().player;

@@ -51,6 +51,8 @@ abstract class KnifePunchyMixin {
         pose.mulPose(Axis.XP.rotationDegrees((player.getViewXRot(partialTick) - xBob) * 0.1F));
         pose.mulPose(Axis.YP.rotationDegrees((player.getViewYRot(partialTick) - yBob) * 0.1F));
         io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND.hit();
+        // The view model's main hand (Punchy › Main hand), then the knife's own pose on top.
+        io.github.georgwav.cosmetics.render.FirstPersonHands.viewModel(pose, player.getMainArm() != net.minecraft.world.entity.HumanoidArm.LEFT, true);
         boolean drawn = KnifeRenderer.mainHand(mainHandItem, 0f, partialTick, pose, buffers, light);
         pose.popPose();
         if (!drawn) {

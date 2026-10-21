@@ -52,7 +52,13 @@ abstract class KnifeHandMixin {
             return;
         }
         io.github.georgwav.cosmetics.sol.Hooks.KNIFE_HAND.hit();
-        if (KnifeRenderer.mainHand(stack, equip, partialTick, poseStack, buffers, light)) {
+        // The view model's main hand (Punchy › Main hand), then the knife's own pose on top.
+        poseStack.pushPose();
+        io.github.georgwav.cosmetics.render.FirstPersonHands.viewModel(poseStack,
+                net.minecraft.client.Minecraft.getInstance().options.mainHand().get() == net.minecraft.world.entity.HumanoidArm.RIGHT, true);
+        boolean drawn = KnifeRenderer.mainHand(stack, equip, partialTick, poseStack, buffers, light);
+        poseStack.popPose();
+        if (drawn) {
             ci.cancel();
         }
     }

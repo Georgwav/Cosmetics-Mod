@@ -57,6 +57,51 @@ vec3 soft(vec3 x) {
     return m > 0.8 ? x * ((0.8 + 0.2 * (1.0 - exp((0.8 - m) / 0.2))) / m) : x;
 }
 
+// The Sol FX ramp's tones of a colour (as Ramp does it): 0 core (60% toward white), 1 main, 2 shade (35% toward
+// black), 3 deep (60% toward black).
+vec3 tone(vec3 col, int i) {
+    return i == 0 ? mix(col, vec3(1.0), 0.6) : i == 1 ? col : i == 2 ? col * 0.65 : col * 0.4;
+}
+
+float hash2(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// The stars look (the End portal's idea, in the theme's tones): the hands and what they hold as a window onto a deep
+// sky with a faint nebula in two stepped shades, and four layers of stars drifting each its own way, the nearer ones
+// bigger (2 x 2 for the brightest), faster and brighter, twinkling in steps. A texel is 2 px at 1080p; at most one star
+// per 6 x 6 texels per layer.
+vec3 stars(vec3 c, vec3 col, float t) {
+    vec2 size = vec2(textureSize(InSampler, 0));
+    float texel = max(1.0, floor(size.y / 540.0 + 0.5));
+    vec2 q = floor(texCoord * size / texel);
+    // The deep sky, lighter where the hand's own shading is, so its shape still reads.
+    float neb = sin(q.x * 0.045 + t * 0.15) + sin(q.y * 0.06 - t * 0.11 + q.x * 0.02);
+    vec3 sky = mix(tone(col, 3) * 0.55, tone(col, 2) * 0.7, step(0.9, neb)) * (0.65 + 0.6 * luma(c));
+    for (int i = 0; i < 4; i++) {
+        float fi = float(i);
+        float a = hash(fi + 3.0) * 6.2832;
+        vec2 dir = vec2(cos(a), sin(a));
+        float zoom = 1.0 + (3.0 - fi) * 0.5;
+        vec2 p = floor(q / zoom + dir * t * (1.2 + fi * 1.1) + fi * 37.0);
+        vec2 cell = floor(p / 6.0);
+        float r = hash2(cell + fi * 11.0);
+        if (r < 0.35) {
+            continue;
+        }
+        vec2 at = cell * 6.0 + floor(vec2(hash2(cell + 1.7), hash2(cell + 4.3)) * 5.0);
+        vec2 d = p - at;
+        float big = i >= 2 && r > 0.85 ? 1.0 : 0.0;
+        if (d.x < 0.0 || d.y < 0.0 || d.x > big || d.y > big) {
+            continue;
+        }
+        float tw = ceil((0.6 + 0.4 * sin(t * (1.5 + r * 2.0) + r * 40.0)) * 3.0) / 3.0;
+        int k = r > 0.85 ? 0 : r > 0.6 ? 1 : 2;
+        sky = mix(sky, tone(col, k), tw * (0.7 + 0.1 * fi));
+    }
+    return sky;
+}
+
 void main() {
     vec3 c = texture(InSampler, texCoord).rgb;
     vec3 e = texture(EdgeSampler, texCoord).rgb;
@@ -68,6 +113,24 @@ void main() {
     // The arms come in from the bottom and the sides: full at the fist, 60% where they leave the screen.
     float fromEdge = min(texCoord.y, min(texCoord.x, 1.0 - texCoord.x) * P(28));
     float grade = mix(0.6, 1.0, smoothstep(0.02, 0.35, fromEdge));
+    if (P(88) > 3.5) {
+        // Bands: each ring its tone, laid on flat (no light, no smooth fade); the trail steps down the same tones as
+        // it fades.
+        float k = e.r;
+        if (P(90) > 0.0) {
+            k = max(k, texture(TrailSampler, texCoord).g * (1.0 - e.b) * P(90) * 0.9);
+        }
+        if (k > 0.1) {
+            int b = int(clamp(floor((1.0 - k) * 4.0 + 0.001), 0.0, 3.0));
+            float a = clamp(s, 0.0, 1.0) * grade * (1.0 - float(b) * 0.1);
+            c = mix(c, tone(col, b), a);
+        }
+        fragColor = vec4(c, 1.0);
+        return;
+    }
+    if (P(88) > 2.5 && e.b > 0.5) {
+        c = mix(c, stars(c, col, t), clamp(s, 0.0, 1.0));
+    }
     // Green is the inner edge inside the hands and the rising glow outside them; with the trail, what the hands left
     // behind on their way here.
     float inner = e.b > 0.5 ? e.g : 0.0;

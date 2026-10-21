@@ -24,6 +24,7 @@ public final class FrameInfo {
     public static float fovY = 70f;
     /** Framebuffer size in pixels. */
     public static int width = 854, height = 480;
+    /** How far into the game tick this frame is (0..1), set as the level starts drawing. */
     public static float partialTick;
     /** Vanilla's time of day fraction (0 = noon, 0.25 = sunset) and the day number (the moon's phase). */
     public static float timeOfDay;

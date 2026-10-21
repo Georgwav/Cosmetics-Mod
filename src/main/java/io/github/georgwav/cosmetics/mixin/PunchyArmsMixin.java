@@ -30,12 +30,15 @@ abstract class PunchyArmsMixin {
             target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;Lnet/minecraft/client/player/LocalPlayer;I)V"))
     *///?}
     private PoseStack cosmeticsmod$arms(PoseStack pose) {
-        return PunchyModule.arms(pose);
+        PoseStack arms = PunchyModule.arms(pose);
+        io.github.georgwav.cosmetics.render.FirstPersonHands.start(arms);
+        return arms;
     }
 
     /** The hands are drawn: your skin is your skin again. */
     @Inject(method = "renderItemInHand", at = @At("RETURN"))
     private void cosmeticsmod$handsDrawn(CallbackInfo ci) {
         PunchyModule.handsDrawn();
+        io.github.georgwav.cosmetics.render.FirstPersonHands.done();
     }
 }

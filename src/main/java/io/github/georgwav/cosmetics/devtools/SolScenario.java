@@ -43,7 +43,7 @@ public final class SolScenario {
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
-            "hud_sol", "hud_colour", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
+            "hud_sol", "hud_colour", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "hands_stars", "hands_bands", "hands_held", "hands_view", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
             "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs",
             "styles_world", "styles_live", "menu_styles_tools", "menu_styles_tools_full", "menu_styles_crystal", "menu_styles_look", "menu_styles_tree", "menu_styles_editor",
             "styles_sky", "styles_packsky"};
@@ -290,7 +290,15 @@ public final class SolScenario {
             if (only.get(0).isBlank() || only.contains("fx")) {
                 shots.add(fxShot());
             }
-            for (String ui : UI_SHOTS) {
+            java.util.List<String> uiShots = new java.util.ArrayList<>(java.util.Arrays.asList(UI_SHOTS));
+            if (!"reduced".equals(MODE)) {
+                // Each swing style mid-swing, on the full runs only (seven more shots).
+                for (String style : io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES.subList(2,
+                        io.github.georgwav.cosmetics.render.FirstPersonHands.SWING_STYLES.size())) {
+                    uiShots.add(uiShots.indexOf("hands_view") + 1, "hands_style_" + style);
+                }
+            }
+            for (String ui : uiShots) {
                 if (!only.get(0).isBlank() && !only.contains(ui)) {
                     continue;
                 }
@@ -466,8 +474,10 @@ public final class SolScenario {
         if (tick < 60) {
             return;
         }
-        // The swing shot swings the sword over and over, so the outline's motion trail shows.
-        if (index >= 0 && index < shots.size() && shots.get(index).name().startsWith("ui_hands_swing") && tick % 7 == 0) {
+        // The swing shot swings the sword over and over, so the outline's motion trail shows; the swing style shots keep
+        // a swing going (from 26.3 the game draws a swing only while one is under way), held where they show it.
+        String nowShot = index >= 0 && index < shots.size() ? shots.get(index).name() : "";
+        if (nowShot.startsWith("ui_hands_swing") && tick % 7 == 0 || nowShot.startsWith("ui_hands_style_") && tick % 4 == 0) {
             //? if >=26.3 {
             /*mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
             *///?} else {
@@ -811,6 +821,7 @@ public final class SolScenario {
         wearForWardrobe(wardrobe);
         serversForShot(what.equals("servers"));
         handsForShot(what);
+        handFeaturesForShot(what);
         blockForShot(what.equals("hud_colour"));
         stylesForShot(what.equals("hud_styles"));
         StylesScenario.stage(what);
@@ -1147,6 +1158,26 @@ public final class SolScenario {
         if (name.equals("ui_hands") && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
             problems.add(name + ": the hand glow didn't run");
         }
+        if ((name.equals("ui_hands_stars") || name.equals("ui_hands_bands")) && io.github.georgwav.cosmetics.sol.render.LightPass.handGlowFrames == 0) {
+            problems.add(name + ": the hand glow didn't run");
+        }
+        if (name.equals("ui_hands_held")) {
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.flamesDrawn == 0) {
+                problems.add(name + ": no flames were drawn on the held item");
+            }
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.armsWithItems == 0) {
+                problems.add(name + ": your arm wasn't drawn holding the item");
+            }
+            if (io.github.georgwav.cosmetics.render.FirstPersonHands.shieldsTinted == 0) {
+                problems.add(name + ": the shield wasn't tinted by its cooldown");
+            }
+        }
+        if (name.equals("ui_hands_view") && io.github.georgwav.cosmetics.render.FirstPersonHands.stillFrames == 0) {
+            problems.add(name + ": the hands weren't kept still");
+        }
+        if (name.startsWith("ui_hands_style_") && io.github.georgwav.cosmetics.render.FirstPersonHands.styledSwings == 0) {
+            problems.add(name + ": the swing style never posed the arm");
+        }
         if (name.startsWith("ui_knife") && !name.equals("ui_knife_third") && io.github.georgwav.cosmetics.melee.KnifeRenderer.drawn == 0) {
             problems.add(name + ": the knife never drew");
         }
@@ -1451,6 +1482,66 @@ public final class SolScenario {
         } else if (punchyWas != null) {
             punchy.setEnabled(punchyWas);
             punchyWas = null;
+        }
+    }
+
+    /** The Punchy settings the hand features' shots changed, with their values before (put back after). */
+    private static final java.util.Map<String, Object> handSet = new java.util.HashMap<>();
+
+    /**
+     * The hand features' shots (C.9): the Stars and Bands glow looks; what you hold (flames, your arm holding the sword,
+     * the shield red from an axe's cooldown); the view model moved, turned and sized with the hands kept still; and each
+     * swing style held a third of the way into a swing.
+     */
+    @SuppressWarnings("unchecked")
+    private static void handFeaturesForShot(String what) {
+        var punchy = io.github.georgwav.cosmetics.client.Modules.PUNCHY;
+        for (var st : punchy.settings()) {
+            if (handSet.containsKey(st.id)) {
+                ((io.github.georgwav.cosmetics.client.Setting<Object>) st).set(handSet.get(st.id));
+            }
+        }
+        handSet.clear();
+        io.github.georgwav.cosmetics.render.FirstPersonHands.swingHeld = -1f;
+        java.util.Map<String, Object> want = switch (what) {
+            case "hands_stars" -> java.util.Map.of("glow_look", "stars");
+            case "hands_bands" -> java.util.Map.of("glow_look", "bands");
+            case "hands_held" -> java.util.Map.of("flaming_item", true, "arm_with_items", true, "shield_status", true);
+            case "hands_view" -> java.util.Map.of("keep_still", true, "main_x", -2.0, "main_y", 1.0, "main_turn_y", 20.0,
+                    "main_size", 80.0, "off_x", 2.0, "off_turn_z", -15.0);
+            default -> what.startsWith("hands_style_") ? java.util.Map.of("swing_style", what.substring("hands_style_".length()))
+                    : java.util.Map.of();
+        };
+        for (var st : punchy.settings()) {
+            if (want.containsKey(st.id)) {
+                handSet.put(st.id, st.get());
+                ((io.github.georgwav.cosmetics.client.Setting<Object>) st).set(want.get(st.id));
+            }
+        }
+        var player = Minecraft.getInstance().player;
+        if (what.startsWith("hands_style_") && player != null) {
+            // A swing first, so the game knows which hand swings; then held a third of the way in.
+            //? if >=26.3 {
+            /*player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+            *///?} else {
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            //?}
+            io.github.georgwav.cosmetics.render.FirstPersonHands.swingHeld = 0.3f;
+        }
+        if (what.equals("hands_held") && player != null) {
+            // An axe just disabled your shield: twenty seconds of cooldown, red for the first two thirds.
+            //? if >=1.21.2 {
+            player.getCooldowns().addCooldown(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SHIELD), 400);
+            //?} else {
+            /*player.getCooldowns().addCooldown(net.minecraft.world.item.Items.SHIELD, 400);
+            *///?}
+        }
+        if (what.startsWith("hands_")) {
+            io.github.georgwav.cosmetics.render.FirstPersonHands.styledSwings = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.armsWithItems = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.flamesDrawn = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.shieldsTinted = 0;
+            io.github.georgwav.cosmetics.render.FirstPersonHands.stillFrames = 0;
         }
     }
 

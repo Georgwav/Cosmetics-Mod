@@ -94,12 +94,20 @@ void main() {
         // On its own, or in the golden light only when asked for (P(117)).
         rim = hand > 0.5 ? 0.0 : max(core, fade) * P(117);
         green = hand > 0.5 && out1 > 0.0 ? 0.5 * P(117) : 0.0;
-        if (P(88) > 1.5 && hand < 0.5) {
+        if (P(88) > 1.5 && P(88) < 2.5 && hand < 0.5) {
             // The golden glow: soft light all round the hands, reaching further up as warm light rises (P(114)),
             // fading smoothly with no edge of its own; the fields stop at 32 px across and 48 px rising.
             float halo = exp(-dist / (9.0 * size)) * (1.0 - smoothstep(24.0, 31.0, dist));
             float up = exp(-dists.y / (12.0 * size * max(P(114), 0.05))) * (1.0 - smoothstep(36.0, 46.0, dists.y));
             green = max(halo, up * 0.85 * min(P(114), 1.0));
+        }
+        if (P(88) > 3.5) {
+            // Bands: the ramp's four tones in stepped rings round the hands, 4.5 px each at 1080p (times the size, the
+            // four within the field's 30 px), as 1, 0.75, 0.5 and 0.25; no inner edge.
+            float w = min(4.5 * size, 7.5);
+            float b = floor(dist / w);
+            rim = hand > 0.5 || b > 3.0 ? 0.0 : 1.0 - b * 0.25;
+            green = 0.0;
         }
     } else {
         float f = 1.0 - smoothstep(0.0, min(24.0, 12.0 * size), dist);

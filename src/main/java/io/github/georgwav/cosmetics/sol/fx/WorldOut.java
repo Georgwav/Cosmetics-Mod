@@ -60,7 +60,7 @@ public final class WorldOut implements FxOut {
         WorldDraw.begin(glow ? WorldDraw.WORLD_ADD : WorldDraw.WORLD_ALPHA, texture(tex));
     }
 
-    static SolTexture texture(FxTex tex) {
+    public static SolTexture texture(FxTex tex) {
         SolTexture t = tex.gpu instanceof SolTexture s && !s.released() ? s : null;
         if (t == null || t.width != tex.width || t.height != tex.height) {
             if (t != null) {

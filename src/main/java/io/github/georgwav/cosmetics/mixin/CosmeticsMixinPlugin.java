@@ -35,6 +35,9 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("SpriteContentsAccess");
         all.add("KnifeHandMixin");
         all.add("HandMotionMixin");
+        all.add("HandsMixin");
+        all.add("HandsBobMixin");
+        all.add("ShieldStatusMixin");
         all.add("KnifeInputMixin");
         //? if <26.3 {
         if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("punchy")) {
