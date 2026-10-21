@@ -224,16 +224,32 @@ public final class SolFont {
         }
     }
 
-    /** Shortened with an ellipsis to fit {@code room} screen pixels. */
+    /** A text cut to a room, kept so the same cut next frame costs nothing. */
+    private record Cut(int room, String out) {
+    }
+
+    private final Map<String, Cut> cuts = new HashMap<>();
+
+    /** Shortened with an ellipsis to fit {@code room} screen pixels (the same text and room the same string). */
     public String fit(String text, float room) {
         if (width(text) <= room) {
             return text;
+        }
+        int r = (int) room;
+        Cut cut = cuts.get(text);
+        if (cut != null && cut.room() == r) {
+            return cut.out();
         }
         int end = text.length();
         while (end > 0 && width(text.substring(0, end).stripTrailing() + "…") > room) {
             end--;
         }
-        return text.substring(0, end).stripTrailing() + "…";
+        String out = text.substring(0, end).stripTrailing() + "…";
+        if (cuts.size() > CACHE) {
+            cuts.clear();
+        }
+        cuts.put(text, new Cut(r, out));
+        return out;
     }
 
     /** The end of the text that fits (what you just typed stays in view). */

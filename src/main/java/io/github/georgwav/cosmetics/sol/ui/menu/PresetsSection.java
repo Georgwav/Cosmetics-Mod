@@ -79,7 +79,7 @@ final class PresetsSection implements Section {
             Pix.fill(g, tx, ty, tw, thumbH, 0xFF000000);
             SolTexture t = thumbs.get(e);
             if (t != null) {
-                drawPixels(g, t, thumbs.w, thumbs.h, tx, ty, tw, thumbH);
+                Pix.pixels(g, t, thumbs.w, thumbs.h, tx, ty, tw, thumbH);
             }
             Pix.fill(g, tx, ty + thumbH, tw, Pix.E, on ? p.acc : p.edge);
             float textY = ty + thumbH + Pix.E;
@@ -114,7 +114,7 @@ final class PresetsSection implements Section {
         Pix.pane(g, p, x, y, w, h);
         SolTexture sky = skies.get(e);
         if (sky != null) {
-            drawPixels(g, sky, SKY_W, SKY_H, x + Pix.E, y + Pix.E, w - 2f * Pix.E, h - 2f * Pix.E);
+            Pix.pixels(g, sky, SKY_W, SKY_H, x + Pix.E, y + Pix.E, w - 2f * Pix.E, h - 2f * Pix.E);
         }
         SolTexture t = logo.texture(e, menu.time(), menu.dt());
         int k = Math.max(1, Math.round(3f * g.d.u));
@@ -123,23 +123,6 @@ final class PresetsSection implements Section {
         g.imageScreen(t, lx, ly, lx + lw, ly + lh, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
         Pix.paneEdge(g, p, x, y, w, h);
         Pix.caption(g, p, x, y, w, h, Widgets.themeName(e), Widgets.themeLine(e));
-    }
-
-    /**
-     * A pixel picture at whole screen pixels per picture pixel (2 design px each, rounded), centred in the box and cut
-     * at its edges.
-     */
-    static void drawPixels(Gfx g, SolTexture t, int pw, int ph, float x, float y, float w, float h) {
-        int k = Math.max(1, Math.round(2f * g.d.u));
-        float bx0 = Math.round(g.d.sx(x)), by0 = Math.round(g.d.sy(y)), bx1 = Math.round(g.d.sx(x + w)), by1 = Math.round(g.d.sy(y + h));
-        float sw = pw * k, sh = ph * k;
-        float sx = Math.round((bx0 + bx1 - sw) / 2f), sy = Math.round((by0 + by1 - sh) / 2f);
-        // The part of the picture inside the box.
-        float x0 = Math.max(bx0, sx), y0 = Math.max(by0, sy), x1 = Math.min(bx1, sx + sw), y1 = Math.min(by1, sy + sh);
-        if (x1 <= x0 || y1 <= y0) {
-            return;
-        }
-        g.imageScreen(t, x0, y0, x1, y1, (x0 - sx) / sw, (y0 - sy) / sh, (x1 - sx) / sw, (y1 - sy) / sh, 0xFFFFFFFF, false);
     }
 
     private static void random(SolMenu menu, ThemeRegistry.Entry cur) {

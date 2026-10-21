@@ -67,6 +67,15 @@ public final class Mc {
         //?}
     }
 
+    /** The loading overlay showing, or null. 26.2 moved overlays into Gui. */
+    public static net.minecraft.client.gui.screens.Overlay overlay() {
+        //? if >=26.2 {
+        /*return Minecraft.getInstance().gui.overlay();
+        *///?} else {
+        return Minecraft.getInstance().getOverlay();
+        //?}
+    }
+
     /** Shows a loading overlay (null: none). 26.2 moved overlays into Gui. */
     public static void setOverlay(net.minecraft.client.gui.screens.Overlay overlay) {
         //? if >=26.2 {

@@ -16,11 +16,17 @@ import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.Notifications;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
+import io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
 import io.github.georgwav.cosmetics.sol.ui.kit.TextField;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
+import io.github.georgwav.cosmetics.sol.ui.menu.SolMenu;
+import io.github.georgwav.cosmetics.sol.ui.menu.WindowBar;
+import io.github.georgwav.cosmetics.sol.ui.quick.PresetThumbs;
+import io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu;
 import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.source.EquippedCosmetics;
 import io.github.georgwav.cosmetics.ui.Canvas;
@@ -40,9 +46,10 @@ import java.util.Locale;
 
 /**
  * The Wardrobe: every cosmetic, outfit, emote and skin, and every cosmetics setting the Cosmetics screen had, in the
- * Sol style. The views down the left (with how many each holds, and the source above them), the glass tiles in the
- * middle (click to wear, the gear for the cosmetic's page; pointing at one tries it on), and you on the right,
- * turning as you drag. A cosmetic's page, an outfit's page and the settings open in the middle; Esc steps back.
+ * Sol style, as the menu's Wardrobe tab in the pixel window (A.7.3). The views down a 200 px rail (with how many
+ * each holds, and the source above them), the tiles in a recess in the middle (click to wear, the gear for the
+ * cosmetic's page; pointing at one tries it on; worn ones glow in the on colour), and you on the right in the preview
+ * pane, turning as you drag. A cosmetic's page, an outfit's page and the settings open in the middle; Esc steps back.
  * Changes apply at once and are saved when the Wardrobe closes.
  */
 public final class WardrobeScreen extends SolScreen {
@@ -145,10 +152,15 @@ public final class WardrobeScreen extends SolScreen {
     /** Frames drawn, for the in-game test. */
     public static int framesRendered;
 
-    // The layout, in design pixels.
-    static final float RAIL_X = 40f, RAIL_W = 176f, MAIN_X = 234f, TOP = 92f, BOTTOM = 676f;
-    static final float PREVIEW_W = 330f, PREVIEW_X = 1240f - PREVIEW_W;
-    static final float MAIN_W = PREVIEW_X - 20f - MAIN_X;
+    // The layout in the window, in design pixels: the rail, the tiles' recess and you, under the head row.
+    static final float RAIL_X = SolMenu.BODY_X, RAIL_W = 200f, TOP = SolMenu.BODY_Y + 42f + 16f, BOTTOM = SolMenu.BODY_BOTTOM;
+    static final float PREVIEW_W = 300f, PREVIEW_X = SolMenu.BODY_X + SolMenu.BODY_W - PREVIEW_W;
+    /** The tiles' recess, and the column inside it every view draws in. */
+    static final float BOX_X = RAIL_X + RAIL_W + 18f, BOX_W = PREVIEW_X - 18f - BOX_X;
+    static final float MAIN_X = BOX_X + Pix.E + 14f, MAIN_W = BOX_W - 2f * (Pix.E + 14f) - 8f;
+    static final float MAIN_TOP = TOP + Pix.E + 14f, MAIN_BOTTOM = BOTTOM - Pix.E - 8f;
+    /** A rail row's height, and a tile's. */
+    private static final float ROW_H = 34f, TILE_H = 150f, TILE_MIN = 148f, TILE_GAP = 12f;
 
     View view = lastView;
     final Ui ui = new Ui();
@@ -170,12 +182,95 @@ public final class WardrobeScreen extends SolScreen {
     KeyMapping listeningFor;
     private int copiedFailures = -1;
     private String tryingOn;
+    /** The in-game test's tile being tried on (as if pointed at), or null. */
+    private String stagedTry;
     private float shownSpin = previewSpin, shownPitch = previewPitch;
     private float dragX = Float.NaN, dragY;
+    private final Scroll railScroll = new Scroll();
+    /** Opened from the quick menu (Esc goes back to your ring there). */
+    private boolean fromQuick;
+    private final WindowBar bar = new WindowBar();
+    private final PresetThumbs sky = new PresetThumbs(147, 236, false);
+    private final WindowBar.Host host = new WindowBar.Host() {
+        @Override
+        public String current() {
+            return "wardrobe";
+        }
+
+        @Override
+        public void go(String tab) {
+            if (tab.equals("wardrobe")) {
+                return;
+            }
+            leave();
+            if (parent instanceof SolMenu m) {
+                ScreenOpener.open(m);
+                m.go(tab);
+            } else {
+                SolMenu.open(parent, tab, fromQuick);
+            }
+        }
+
+        @Override
+        public void quickMenu() {
+            leave();
+            ScreenOpener.open(new QuickMenu(root()));
+        }
+
+        @Override
+        public void back() {
+            if (!WardrobeScreen.this.back()) {
+                onClose();
+            }
+        }
+
+        @Override
+        public void close() {
+            leave();
+            ScreenOpener.open(root());
+        }
+
+        @Override
+        public void profiles() {
+            leave();
+            SolMenu m = SolMenu.create(root(), "modules", fromQuick);
+            m.stage("profiles");
+            ScreenOpener.open(m);
+        }
+
+        @Override
+        public boolean profilesOpen() {
+            return false;
+        }
+
+        @Override
+        public String backTip() {
+            return tr(parent instanceof SolMenu ? "sol.menu.back" : fromQuick ? "sol.menu.back_quick" : "sol.menu.back");
+        }
+    };
 
     public WardrobeScreen(Screen parent) {
         super(Component.translatable("sol.wardrobe.title"), parent, Feature.MENU);
         search.set(lastQuery);
+    }
+
+    /** The Wardrobe as the menu's tab: from the quick menu, Esc goes back to your ring there. */
+    public static WardrobeScreen inMenu(Screen parent, String what, boolean fromQuick) {
+        WardrobeScreen s = on(parent, what);
+        s.fromQuick = fromQuick;
+        return s;
+    }
+
+    /** What the window closes to: the menu's own parent when the menu opened the Wardrobe. */
+    private Screen root() {
+        return parent instanceof SolMenu m ? m.parentScreen() : parent;
+    }
+
+    /** Before the Wardrobe gives way to another screen: what you tried on comes off, and it's saved. */
+    private void leave() {
+        EquippedCosmetics.preview(null);
+        CosmeticsConfig.save();
+        EquippedCosmetics.invalidate();
     }
 
     /** Opens on a view ("outfits", "emotes", "skins", "settings", or a cosmetic's page with "cosmetic:<id>"). */
@@ -317,13 +412,15 @@ public final class WardrobeScreen extends SolScreen {
         if (outfitPage != null && !CosmeticsConfig.get().savedOutfits.contains(outfitPage)) {
             openOutfit(null); // deleted, or the settings were reset
         }
-        // The veil: the world stays visible, darker behind the panels.
-        g.rectScreen(g.d.left(), g.d.top(), g.d.right(), g.d.bottom(), 0x9904050A, 0xD604050A);
+        PixelTokens p = PixelTokens.get();
+        Pix.window(g, p);
+        bar.draw(g, ui, tk, time, dt, host);
         header(g, tk);
         rail(g, tk);
+        Pix.recess(g, p, BOX_X, TOP, BOX_W, BOTTOM - TOP);
         String pointed = null;
         CosmeticsConfig.Outfit pointedOutfit = null;
-        float mainTop = TOP, mainH = BOTTOM - TOP;
+        float mainTop = MAIN_TOP, mainH = MAIN_BOTTOM - MAIN_TOP;
         if (cosmeticPage != null) {
             cosmeticPage.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
             pointed = detailId;
@@ -336,7 +433,12 @@ public final class WardrobeScreen extends SolScreen {
                 case EMOTES -> emotes(g, tk, mainTop, mainH);
                 case SKINS -> skinsView.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
                 case SETTINGS -> settingsView.draw(g, tk, MAIN_X, mainTop, MAIN_W, mainH);
-                default -> pointed = grid(g, tk, mainTop, mainH);
+                default -> {
+                    pointed = grid(g, tk, mainTop, mainH);
+                    if (pointed == null) {
+                        pointed = stagedTry;
+                    }
+                }
             }
         }
         // Trying on: the outfit or cosmetic pointed at (or whose page is open) shows on you, not worn.
@@ -351,24 +453,22 @@ public final class WardrobeScreen extends SolScreen {
         footer(g, tk);
     }
 
+    /** The head row: the Wardrobe and how much you wear, and the search on the right. */
     private void header(Gfx g, Tokens tk) {
-        ui.tool(tk, RAIL_X, 36f, "close", false, this::onClose);
-        SolFont h2 = g.font(SolFont.Family.SEMIBOLD, 22f), mono = g.font(SolFont.Family.MONO, 12f);
-        String title = tr("sol.wardrobe.title");
-        g.textMid(h2, title, RAIL_X + 40f, 49f, 0xFFFFFFFF);
         String count = tr("sol.wardrobe.count", CosmeticsConfig.get().localEquipped().size(), wardrobe().size());
-        g.textMid(mono, count, RAIL_X + 40f + g.width(h2, title) + 14f, 49f, 0x8CFFFFFF);
+        SolMenu.head(g, tr("sol.wardrobe.title"), count, RAIL_X, SolMenu.BODY_Y + 21f);
         if (view.lists() && cosmeticPage == null && outfitPageView == null && !wardrobe().isEmpty()) {
-            // On the right of the column, clear of the title and its count.
-            float sw = Math.min(320f, MAIN_W * 0.5f);
-            search.draw(g, ui, tk, MAIN_X + MAIN_W - sw, 32f, sw, 34f, "search", t("wardrobe.search"), dt);
+            float sw = 280f;
+            search.draw(g, ui, tk, SolMenu.BODY_X + SolMenu.BODY_W - sw, SolMenu.BODY_Y, sw, 42f, "search", t("wardrobe.search"), dt);
         }
     }
 
+    /** The window's footer: what to do, and the build. */
     private void footer(Gfx g, Tokens tk) {
-        SolFont mono = g.font(SolFont.Family.MONO, 11f);
-        g.text(mono, t("hint"), RAIL_X, 700f, 0x73FFFFFF);
-        g.textRight(mono, SettingsView.buildLabel(), 1240f, 700f, 0x59FFFFFF);
+        SolFont f = g.font(SolFont.Family.PIXEL, 10f);
+        float y = Pix.WIN_Y + Pix.WIN_H - Pix.E - 14f;
+        g.textMid(f, tr("sol.wardrobe.hint"), RAIL_X, y, 0x73FFFFFF);
+        g.textRight(f, SettingsView.buildLabel(), SolMenu.BODY_X + SolMenu.BODY_W, y, 0x59FFFFFF);
     }
 
     // ------------------------------------------------------------------ the rail
@@ -397,24 +497,42 @@ public final class WardrobeScreen extends SolScreen {
         return countCache;
     }
 
+    /**
+     * The rail (a recess 200 px wide, scrolling when it's taller than the window): the source, then a row for each
+     * view with its icon, name and count; the one open outlined in the accent; a line before the outfits and before
+     * the settings.
+     */
     private void rail(Gfx g, Tokens tk) {
-        float y = TOP;
+        PixelTokens p = PixelTokens.get();
+        Pix.recess(g, p, RAIL_X, TOP, RAIL_W, BOTTOM - TOP);
+        // Room for the scrollbar on the right, so it never covers a row.
+        float x = RAIL_X + Pix.E + 6f, w = RAIL_W - 2f * (Pix.E + 6f) - 10f, top = TOP + Pix.E + 6f, bottom = BOTTOM - Pix.E - 6f;
+        float y = top - railScroll.value();
+        g.clip(RAIL_X + Pix.E, TOP + Pix.E, RAIL_X + RAIL_W - Pix.E, BOTTOM - Pix.E);
         List<Source> sources = sources();
-        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.MONO, 11f);
+        SolFont f = g.font(SolFont.Family.SEMIBOLD, 13.5f), cf = g.font(SolFont.Family.PIXEL, 10f), sf = g.font(SolFont.Family.PIXEL_BOLD, 11f);
         if (sources.size() > 2) {
             String label = t("source." + source.name().toLowerCase(Locale.ROOT));
-            ui.chip(tk, RAIL_X, y + 12f, label, source != Source.ALL, () -> {
+            boolean over = ui.over(x, y, w, 36f);
+            int st = source != Source.ALL ? Pix.ON : over ? Pix.HOVER : Pix.NORMAL;
+            Pix.slab(g, p, x, y, w, 36f, st);
+            SolFont lf = g.fitting(label, w - 20f, 11f, 10f, 8f);
+            g.textMid(lf, g.fitLabel(lf, label, w - 20f), x + 10f, y + 18f, Pix.text(p, st));
+            int fs = ui.click(x, y, w, 36f, () -> {
                 source = sources.get((sources.indexOf(source) + 1) % sources.size());
                 scroll.reset();
             });
-            y += 34f;
+            if (ui.focused(fs)) {
+                Pix.focus(g, x, y, w, 36f);
+            }
+            y += 36f + 6f;
         }
         List<String> wearing = CosmeticsConfig.get().localEquipped();
         int[] counts = counts(wearing);
         for (View v : View.values()) {
             if (v == View.OUTFITS || v == View.SETTINGS) {
-                y += 10f;
-                g.rect(RAIL_X + 4f, y - 5f, RAIL_W - 8f, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
+                Pix.fill(g, x + 4f, y + 4f, w - 8f, Pix.E, 0xFF2A2A2E);
+                y += 4f + Pix.E + 6f;
             }
             int count = switch (v) {
                 case OUTFITS -> CosmeticsConfig.get().savedOutfits.size();
@@ -423,27 +541,27 @@ public final class WardrobeScreen extends SolScreen {
                 case WEARING -> wearing.size();
                 default -> counts[v.ordinal()];
             };
-            boolean on = v == view && cosmeticPage == null && outfitPageView == null || v == view;
-            float h = 26f;
-            boolean hover = ui.over(RAIL_X, y, RAIL_W, h);
-            int fi = ui.click(RAIL_X, y, RAIL_W, h, () -> go(v));
-            if (v == view) {
-                g.round(RAIL_X, y, RAIL_W, h, 8f, 0x1AFFFFFF);
-                g.round(RAIL_X, y + 6f, 3f, h - 12f, 1.5f, tk.accent);
-            } else if (hover) {
-                g.round(RAIL_X, y, RAIL_W, h, 8f, 0x0DFFFFFF);
+            boolean on = v == view, over = ui.over(x, y, w, ROW_H) && ui.over(RAIL_X, TOP, RAIL_W, BOTTOM - TOP);
+            int fi = ui.click(x, y, w, ROW_H, () -> go(v));
+            if (on) {
+                Pix.slab(g, p, x, y, w, ROW_H, Pix.ON);
+            } else if (over) {
+                Pix.fill(g, x, y, w, ROW_H, 0x0DFFFFFF);
             }
-            Icons.draw(g, v.icon(), RAIL_X + 10f, y + 6f, 14f, v == view ? tk.accent : 0x99FFFFFF,
-                    v == view ? Icons.FILL_ON : Icons.FILL, 0);
-            g.textMid(f, g.fit(f, v.label(), RAIL_W - 70f), RAIL_X + 32f, y + h / 2f, on ? 0xFFFFFFFF : 0xB3FFFFFF);
+            Icons.draw(g, v.icon(), x + 8f, y + ROW_H / 2f - 12f, 24f, on ? p.acc : 0xFF8D8892, 0f, 0);
+            g.textMid(f, g.fitLabel(f, v.label(), w - 76f), x + 40f, y + ROW_H / 2f, on || over ? 0xFFFFFFFF : 0xFFCFC9D3);
             if (count >= 0) {
-                g.textRight(mono, String.valueOf(count), RAIL_X + RAIL_W - 10f, y + h / 2f, 0x73FFFFFF);
+                g.textRight(cf, String.valueOf(count), x + w - 10f, y + ROW_H / 2f, PixelTokens.INK3);
             }
             if (ui.focused(fi)) {
-                g.stroke(RAIL_X - 2f, y - 2f, RAIL_W + 4f, h + 4f, 10f, 2f * g.d.u, tk.accent);
+                Pix.focus(g, x, y, w, ROW_H);
             }
-            y += h + 2f;
+            y += ROW_H + 2f;
         }
+        g.endClip();
+        railScroll.setMax(y + railScroll.value() - bottom);
+        railScroll.step(dt);
+        railScroll.bar(g, RAIL_X + RAIL_W - Pix.E - 2f, TOP + Pix.E + 4f, BOTTOM - TOP - 2f * Pix.E - 8f);
     }
 
     // ------------------------------------------------------------------ the grid
@@ -504,8 +622,8 @@ public final class WardrobeScreen extends SolScreen {
                         if (inSlot.isEmpty()) {
                             continue;
                         }
-                        SolFont head = g.font(SolFont.Family.MONO, 11f);
-                        g.textSpaced(head, t("slot." + slot.id()).toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, 0x80FFFFFF);
+                        SolFont head = g.font(SolFont.Family.PIXEL, 11f);
+                        g.textSpaced(head, t("slot." + slot.id()).toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, PixelTokens.INK3);
                         y += 22f;
                         float[] out = tiles(g, tk, inSlot, y, top, h);
                         y = out[0];
@@ -521,8 +639,8 @@ public final class WardrobeScreen extends SolScreen {
                         groups.computeIfAbsent(group, k -> new java.util.ArrayList<>()).add(c);
                     }
                     for (var e : groups.entrySet()) {
-                        SolFont head = g.font(SolFont.Family.MONO, 11f);
-                        g.textSpaced(head, e.getKey().toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, 0x80FFFFFF);
+                        SolFont head = g.font(SolFont.Family.PIXEL, 11f);
+                        g.textSpaced(head, e.getKey().toUpperCase(Locale.ROOT), MAIN_X, y + 12f, 1.1f, PixelTokens.INK3);
                         y += 22f;
                         float[] out = tiles(g, tk, e.getValue(), y, top, h);
                         y = out[0];
@@ -590,12 +708,12 @@ public final class WardrobeScreen extends SolScreen {
     }
 
     private float notice(Gfx g, Tokens tk, SolFont f, String text, float y, String button, Runnable action) {
-        float h = 34f;
-        g.round(MAIN_X, y, MAIN_W, h, 10f, Colors.withAlpha(Tokens.AMBER, 0.1f));
-        g.stroke(MAIN_X, y, MAIN_W, h, 10f, Math.max(1f, g.d.u), Colors.withAlpha(Tokens.AMBER, 0.4f));
-        Icons.draw(g, "bolt", MAIN_X + 10f, y + 10f, 14f, Tokens.AMBER, Icons.FILL, 0);
-        float room = MAIN_W - 40f - (button != null ? g.width(f, button) + 40f : 0f);
-        g.textMid(f, g.fit(f, text, room), MAIN_X + 32f, y + h / 2f, 0xFFFFFFFF);
+        float h = 40f;
+        Pix.fill(g, MAIN_X, y, MAIN_W, h, Colors.mixRgb(PixelTokens.get().c1, Tokens.AMBER, 0.12f));
+        g.stroke(MAIN_X, y, MAIN_W, h, 0f, g.px(Pix.E), Tokens.AMBER);
+        Icons.draw(g, "bolt", MAIN_X + 10f, y + h / 2f - 12f, 24f, Tokens.AMBER, 0f, 0);
+        float room = MAIN_W - 46f - (button != null ? g.width(f, button) + 40f : 0f);
+        g.textMid(f, g.fit(f, text, room), MAIN_X + 42f, y + h / 2f, 0xFFFFFFFF);
         if (button != null) {
             ui.button(tk, MAIN_X + MAIN_W - 6f, y + h / 2f, button, false, action);
         }
@@ -613,19 +731,20 @@ public final class WardrobeScreen extends SolScreen {
 
     /** Tiles as many to a row as fit; returns {the y below them, the index pointed at or -1}. */
     private float[] tiles(Gfx g, Tokens tk, List<BakedCosmetic> list, float y, float top, float h) {
-        int cols = Math.max(1, (int) ((MAIN_W + 10f) / (138f + 10f)));
-        float gap = 10f, tw = (MAIN_W - gap * (cols - 1)) / cols, th = 146f;
+        PixelTokens p = PixelTokens.get();
+        int cols = Math.max(1, (int) ((MAIN_W + TILE_GAP) / (TILE_MIN + TILE_GAP)));
+        float tw = (MAIN_W - TILE_GAP * (cols - 1)) / cols, th = TILE_H;
         List<String> wearing = CosmeticsConfig.get().localEquipped();
         int pointed = -1;
-        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 12.5f);
+        SolFont nf = g.font(SolFont.Family.SEMIBOLD, 13f), tagf = g.font(SolFont.Family.PIXEL_BOLD, 9f);
         for (int i = 0; i < list.size(); i++) {
             BakedCosmetic c = list.get(i);
-            float tx = MAIN_X + (i % cols) * (tw + gap), ty = y + (i / cols) * (th + gap);
+            float tx = MAIN_X + (i % cols) * (tw + TILE_GAP), ty = y + (i / cols) * (th + TILE_GAP);
             if (ty + th < top - 8f || ty > top + h + 8f) {
                 continue;
             }
             boolean worn = wearing.contains(c.id());
-            boolean hover = ui.over(tx, ty, tw, th);
+            boolean hover = ui.over(tx, ty, tw, th) && ui.over(BOX_X, TOP, BOX_W, BOTTOM - TOP);
             if (hover) {
                 pointed = i;
             }
@@ -637,60 +756,58 @@ public final class WardrobeScreen extends SolScreen {
                 tileY = ty;
             }
             int fi = ui.click(tx, ty, tw, th, () -> setEquipped(c.id(), !worn));
-            // The gear (shown on hover or worn) after the tile, so its hit is on top: a click on it opens the
+            // The gear (shown on hover, focus or worn) after the tile, so its hit is on top: a click on it opens the
             // cosmetic's page instead of wearing it.
-            boolean gear = hover || worn;
-            int gearFocus = gear ? ui.click(tx + tw - 32f, ty + 6f, 26f, 26f, () -> openCosmetic(c.id())) : -1;
+            boolean gear = hover || worn || ui.focused(fi);
+            int gearFocus = gear ? ui.click(tx + tw - 38f, ty + 6f, 32f, 32f, () -> openCosmetic(c.id())) : -1;
             if (gear && !gearShown) {
                 gearShown = true;
-                gearX = tx + tw - 32f;
+                gearX = tx + tw - 38f;
                 gearY = ty + 6f;
             }
             if (worn) {
-                g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
+                Pix.worn(g, p, tx, ty, tw, th);
+            } else {
+                Pix.slab(g, p, tx, ty, tw, th, hover ? Pix.HOVER : Pix.NORMAL);
             }
-            g.round(tx, ty, tw, th, 12f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
-            g.stroke(tx, ty, tw, th, 12f, Math.max(1f, g.d.u), worn ? tk.rim : hover ? 0x38FFFFFF : 0x1AFFFFFF);
-            g.highlight(tx, ty, tw, th, 12f, 0x24FFFFFF);
             float ax = tx + 10f, ay = ty + 10f, aw = tw - 20f, ah = 96f;
-            g.radialB.set(g.d.sx(ax + aw / 2f), g.d.sy(ay + ah * 0.6f), aw * 0.7f * g.d.u).stop(0f, 0x1AFFFFFF).stop(1f, 0);
-            g.round(ax, ay, aw, ah, 9f, g.radialB);
             float size = Math.min(aw, ah);
-            int s = screenSize(g, size);
-            int px = screenX(g, ax + aw / 2f) - s / 2, py = screenY(g, ay + ah / 2f) - s / 2;
-            if (!pictures.draw(g.game(), c, px, py, s, hover)) {
-                // Nothing to picture (only particles) or not made yet: a few sparkles.
+            int sz = screenSize(g, size);
+            int px = screenX(g, ax + aw / 2f) - sz / 2, py = screenY(g, ay + ah / 2f) - sz / 2;
+            if (!pictures.draw(g.game(), c, px, py, sz, hover)) {
+                // Nothing to picture (only particles) or not made yet: a few pixel sparkles.
                 for (int k = 0; k < 6; k++) {
-                    double a = k * Math.PI / 3 + time * (hover ? 1.5 : 0.0);
-                    g.rect(ax + aw / 2f + (float) Math.cos(a) * size * 0.28f - 1f, ay + ah / 2f + (float) Math.sin(a) * size * 0.28f - 1f,
-                            2f, 2f, Colors.withAlpha(tk.accent, 0.7f));
+                    double a = k * Math.PI / 3 + time * (hover && !calm() ? 1.5 : 0.0);
+                    Pix.fill(g, ax + aw / 2f + (float) Math.cos(a) * size * 0.28f - 2f, ay + ah / 2f + (float) Math.sin(a) * size * 0.28f - 2f,
+                            4f, 4f, p.acc);
                 }
             }
             g.layer();
-            g.text(nf, g.fit(nf, c.name(), tw - 20f - (worn ? 16f : 0f)), tx + 10f, ty + th - 16f, worn ? 0xFFFFFFFF : 0xD9FFFFFF);
-            if (worn) {
-                // The worn dot.
-                g.glowSprite(tx + tw - 15f, ty + th - 20f, 6f, 6f, Colors.withAlpha(tk.accent, 0.8f));
-                g.circle(tx + tw - 15f, ty + th - 20f, 3.5f, tk.accent);
+            String tag = worn ? t("wardrobe.worn_tag") : null;
+            float tagW = tag != null ? g.width(tagf, tag) + 6f : 0f;
+            g.textMid(nf, g.fitLabel(nf, c.name(), tw - 20f - tagW), tx + 10f, ty + th - 18f, worn ? 0xFFFFFFFF : 0xFFD9D4DC);
+            if (tag != null) {
+                g.textRight(tagf, tag, tx + tw - 10f, ty + th - 18f, p.enText);
             }
             if (gear) {
-                gearButton(g, tk, tx + tw - 32f, ty + 6f, gearFocus);
+                gearButton(g, tk, tx + tw - 38f, ty + 6f, gearFocus);
             }
             if (ui.focused(fi)) {
-                g.stroke(tx - 2f, ty - 2f, tw + 4f, th + 4f, 14f, 2f * g.d.u, tk.accent);
+                Pix.focus(g, tx, ty, tw, th);
             }
         }
         int rows = (list.size() + cols - 1) / cols;
-        return new float[]{y + rows * (th + gap), pointed};
+        return new float[]{y + rows * (th + TILE_GAP), pointed};
     }
 
-    /** A tile's gear, drawn over its art: lighter while pointed at, ringed while focused. */
+    /** A tile's gear: a 32 px slab over its picture. */
     private void gearButton(Gfx g, Tokens tk, float x, float y, int focus) {
-        boolean over = ui.over(x, y, 26f, 26f);
-        g.round(x, y, 26f, 26f, 7f, over ? 0xE62A2A33 : 0xB30A0A0E);
-        Icons.draw(g, "gear", x + 7f, y + 7f, 12f, over ? tk.accent : 0xFFFFFFFF, Icons.FILL, 0);
+        PixelTokens p = PixelTokens.get();
+        boolean over = ui.over(x, y, 32f, 32f);
+        Pix.slab(g, p, x, y, 32f, 32f, over ? Pix.HOVER : Pix.NORMAL);
+        Icons.draw(g, "gear", x + 4f, y + 4f, 24f, Pix.text(p, over ? Pix.HOVER : Pix.NORMAL), 0f, 0);
         if (ui.focused(focus)) {
-            g.stroke(x - 2f, y - 2f, 30f, 30f, 9f, 2f * g.d.u, tk.accent);
+            Pix.focus(g, x, y, 32f, 32f);
         }
     }
 
@@ -701,18 +818,21 @@ public final class WardrobeScreen extends SolScreen {
         CosmeticsConfig config = CosmeticsConfig.get();
         g.clip(MAIN_X - 4f, top - 4f, MAIN_X + MAIN_W + 6f, top + h);
         float y = top - scroll.value();
-        ui.button(tk, MAIN_X + MAIN_W, y + 15f, t("outfits.save"), true, () -> {
+        // What outfits are, then the button that saves one.
+        SolFont s = g.font(SolFont.Family.MEDIUM, 13f);
+        g.textMid(s, g.fit(s, config.savedOutfits.isEmpty() ? t("outfits.empty") : t("outfits.hint"), MAIN_W), MAIN_X, y + 8f,
+                PixelTokens.INK2);
+        y += 24f;
+        ui.bigButton(MAIN_X, y, "plus", t("outfits.save"), true, false, () -> {
             CosmeticsConfig.Outfit o = config.saveOutfit(t("outfits.name"));
             CosmeticsConfig.save();
             openOutfit(o);
         });
-        SolFont s = g.font(SolFont.Family.MEDIUM, 12.5f);
-        g.textMid(s, g.fit(s, config.savedOutfits.isEmpty() ? t("outfits.empty") : t("outfits.hint"), MAIN_W - 300f), MAIN_X,
-                y + 15f, 0x99FFFFFF);
-        y += 42f;
+        y += 42f + 14f;
         CosmeticsConfig.Outfit pointed = null;
-        int cols = Math.max(1, (int) ((MAIN_W + 10f) / (138f + 10f)));
-        float gap = 10f, tw = (MAIN_W - gap * (cols - 1)) / cols, th = 156f;
+        PixelTokens px = PixelTokens.get();
+        int cols = Math.max(1, (int) ((MAIN_W + TILE_GAP) / (TILE_MIN + TILE_GAP)));
+        float gap = TILE_GAP, tw = (MAIN_W - gap * (cols - 1)) / cols, th = 156f;
         SolFont nf = g.font(SolFont.Family.SEMIBOLD, 12.5f), cf = g.font(SolFont.Family.MEDIUM, 11f);
         List<CosmeticsConfig.Outfit> list = List.copyOf(config.savedOutfits);
         for (int i = 0; i < list.size(); i++) {
@@ -728,12 +848,12 @@ public final class WardrobeScreen extends SolScreen {
                 EquippedCosmetics.invalidate();
             });
             // The gear's hit after the tile's, so it's the one on top.
-            int gearFocus = hover || worn ? ui.click(tx + tw - 32f, ty + 6f, 26f, 26f, () -> openOutfit(o)) : -1;
+            int gearFocus = hover || worn ? ui.click(tx + tw - 38f, ty + 6f, 32f, 32f, () -> openOutfit(o)) : -1;
             if (worn) {
-                g.glow(tx, ty, tw, th, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
+                Pix.worn(g, px, tx, ty, tw, th);
+            } else {
+                Pix.slab(g, px, tx, ty, tw, th, hover ? Pix.HOVER : Pix.NORMAL);
             }
-            g.round(tx, ty, tw, th, 12f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
-            g.stroke(tx, ty, tw, th, 12f, Math.max(1f, g.d.u), worn ? tk.rim : hover ? 0x38FFFFFF : 0x1AFFFFFF);
             // Its first four cosmetics, two by two.
             float cell = Math.min((tw - 20f) / 2f, 48f), ax = tx + (tw - 2f * cell) / 2f, ay = ty + 10f;
             int shown = 0;
@@ -756,10 +876,14 @@ public final class WardrobeScreen extends SolScreen {
             if (shown == 4 && more > 0) {
                 g.textRight(cf, "+" + more, tx + tw - 10f, ay + 2f * cell - 6f, 0x99FFFFFF);
             }
-            g.text(nf, g.fit(nf, o.name, tw - 20f), tx + 10f, ty + th - 30f, 0xFFFFFFFF);
-            g.text(cf, g.fit(cf, t("outfits.count", o.cosmetics.size()), tw - 20f), tx + 10f, ty + th - 13f, 0x8CFFFFFF);
+            // Its name, and how many things it has as a pixel tag.
+            SolFont tagf = g.font(SolFont.Family.PIXEL_BOLD, 9f);
+            String items = t("outfits.items", o.cosmetics.size());
+            float tagW = g.width(tagf, items);
+            g.textMid(nf, g.fitLabel(nf, o.name, tw - 26f - tagW), tx + 10f, ty + th - 18f, worn ? 0xFFFFFFFF : 0xFFD9D4DC);
+            g.textRight(tagf, items, tx + tw - 10f, ty + th - 18f, worn ? px.enText : PixelTokens.INK3);
             if (hover || worn) {
-                gearButton(g, tk, tx + tw - 32f, ty + 6f, gearFocus);
+                gearButton(g, tk, tx + tw - 38f, ty + 6f, gearFocus);
             }
         }
         int rows = (list.size() + cols - 1) / cols;
@@ -811,24 +935,25 @@ public final class WardrobeScreen extends SolScreen {
 
     // ------------------------------------------------------------------ you, on the right
 
+    /** You, in the preview pane: the preset's sky in pixels behind you, the Elytra chip, and the caption. */
     private void previewPanel(Gfx g, Tokens tk) {
+        PixelTokens p = PixelTokens.get();
         float x = PREVIEW_X, y = TOP, w = PREVIEW_W, h = BOTTOM - TOP;
-        g.glow(x, y, w, h, 18f, 30f, Colors.withAlpha(tk.glow, 0.14f));
-        g.round(x, y, w, h, 18f, Colors.withAlpha(tk.panel, 0.6f));
-        g.radialB.set(g.d.sx(x + w / 2f), g.d.sy(y + h * 0.62f), w * 0.8f * g.d.u).stop(0f, Colors.withAlpha(tk.glow, 0.16f)).stop(1f, 0);
-        g.round(x, y, w, h, 18f, g.radialB);
-        g.stroke(x, y, w, h, 18f, Math.max(1f, g.d.u), tk.rim);
-        // The floor you stand on.
-        g.radial(x + w / 2f, y + h - 62f, 96f, 16f, g.radialB.set(0, 0, 1).stop(0f, 0x33000000).stop(1f, 0), 32);
+        Pix.pane(g, p, x, y, w, h);
+        io.github.georgwav.cosmetics.sol.render.SolTexture t = sky.get(ThemeState.baseEntry());
+        if (t != null) {
+            Pix.pixels(g, t, sky.w, sky.h, x + Pix.E, y + Pix.E, w - 2f * Pix.E, h - 2f * Pix.E);
+        }
+        Pix.paneEdge(g, p, x, y, w, h);
         // Drag to turn and tilt (the Elytra chip first, so a click on it isn't a drag).
         // (Not on the mannequin: it has no elytra to show.)
         if (!mannequinShown()) {
             String elytra = t("preview.elytra");
-            SolFont cf = g.font(SolFont.Family.MEDIUM, 12f);
-            float chipW = g.width(cf, elytra) + 22f;
-            ui.chip(tk, x + w - 12f - chipW, y + 24f, elytra, previewElytra, () -> previewElytra = !previewElytra);
+            SolFont cf = g.font(SolFont.Family.PIXEL_BOLD, 11f);
+            float chipW = g.width(cf, elytra) + 24f;
+            ui.chip(tk, x + w - 12f - chipW, y + 28f, elytra, previewElytra, () -> previewElytra = !previewElytra);
         }
-        ui.drag(x, y, w, h - 40f, (px, py) -> {
+        ui.drag(x, y, w, h - 80f, (px, py) -> {
             if (Float.isNaN(dragX)) {
                 dragX = px;
                 dragY = py;
@@ -840,9 +965,8 @@ public final class WardrobeScreen extends SolScreen {
             dragY = py;
         });
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
-        String caption = shown != null ? t("preview.trying", shown.name()) : t("preview.drag");
-        SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
-        g.textCentre(f, g.fit(f, caption, w - 24f), x + w / 2f, y + h - 18f, shown != null ? tk.accent : 0x80FFFFFF);
+        Pix.caption(g, p, x, y, w, h, shown != null ? t("preview.trying_title") : t("preview.you"),
+                shown != null ? shown.name() : t("preview.drag"));
     }
 
     /** You without a world (the Wardrobe opened from the title screen), with what you wear. */
@@ -859,7 +983,7 @@ public final class WardrobeScreen extends SolScreen {
     protected void game(Canvas c, int mouseX, int mouseY) {
         double gs = minecraft.getWindow().getGuiScale();
         int x1 = (int) Math.round(d.sx(PREVIEW_X) / gs), x2 = (int) Math.round(d.sx(PREVIEW_X + PREVIEW_W) / gs);
-        int y1 = (int) Math.round(d.sy(TOP + 40f) / gs), y2 = (int) Math.round(d.sy(BOTTOM - 44f) / gs);
+        int y1 = (int) Math.round(d.sy(TOP + 48f) / gs), y2 = (int) Math.round(d.sy(BOTTOM - 84f) / gs);
         boolean onMannequin = mannequinShown();
         BakedCosmetic shown = tryingOn != null ? CosmeticRegistry.get(tryingOn) : null;
         // Capes, wings and backpacks are worn on the back: turn round to show them, and the elytra when it shows.
@@ -935,7 +1059,10 @@ public final class WardrobeScreen extends SolScreen {
 
     @Override
     protected boolean scroll(float x, float y, float amount) {
-        if (x >= MAIN_X && x <= MAIN_X + MAIN_W + 8f && y >= TOP && y <= BOTTOM) {
+        if (x >= RAIL_X && x <= RAIL_X + RAIL_W && y >= TOP && y <= BOTTOM) {
+            return railScroll.wheel(amount);
+        }
+        if (x >= BOX_X && x <= BOX_X + BOX_W && y >= TOP && y <= BOTTOM) {
             if (cosmeticPage != null) {
                 return cosmeticPage.scroll(amount);
             }
@@ -1009,14 +1136,18 @@ public final class WardrobeScreen extends SolScreen {
 
     @Override
     public void onClose() {
-        EquippedCosmetics.preview(null);
-        CosmeticsConfig.save();
-        EquippedCosmetics.invalidate();
-        ScreenOpener.open(parent);
+        leave();
+        if (fromQuick && !(parent instanceof SolMenu)) {
+            ScreenOpener.open(new QuickMenu(parent, true, "wardrobe"));
+        } else {
+            ScreenOpener.open(parent);
+        }
     }
 
     @Override
     protected void closed() {
+        bar.release();
+        sky.release();
         pictures.close();
         skinsView.release();
         if (mannequin != null) {
@@ -1117,7 +1248,21 @@ public final class WardrobeScreen extends SolScreen {
     /** For the scenario: a state the reference shots show. */
     public WardrobeScreen stage(String state) {
         previewElytra = false;
+        stagedTry = null;
         switch (state) {
+            case "try_on" -> {
+                // All, with a hat you don't wear being tried on.
+                go(View.ALL);
+                java.util.Set<String> worn = new java.util.HashSet<>(CosmeticsConfig.get().localEquipped());
+                for (BakedCosmetic c : wardrobe()) {
+                    if (!worn.contains(c.id()) && (stagedTry == null || c.slot() == CosmeticSlot.HEAD)) {
+                        stagedTry = c.id();
+                        if (c.slot() == CosmeticSlot.HEAD) {
+                            break;
+                        }
+                    }
+                }
+            }
             case "drawer" -> {
                 BakedCosmetic pick = null;
                 for (BakedCosmetic c : wardrobe()) {

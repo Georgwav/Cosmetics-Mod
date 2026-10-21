@@ -67,7 +67,7 @@ final class PageRows {
 
     private void header(String title) {
         y += any ? 14f : 2f;
-        SolFont f = g.font(SolFont.Family.MONO, 11f);
+        SolFont f = g.font(SolFont.Family.PIXEL, 11f);
         g.textSpaced(f, title.toUpperCase(Locale.ROOT), x, y + 10f, 1.1f, 0x80FFFFFF);
         y += 22f;
     }
@@ -125,11 +125,7 @@ final class PageRows {
         if (Float.isNaN(cy)) {
             return;
         }
-        SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
-        float total = 6f;
-        for (String n : names) {
-            total += g.width(f, n) + 20f;
-        }
+        float total = 6f + ui.segmentedWidth(names);
         if (total <= w * 0.6f) {
             ui.segmented(tk, right(), cy, names, selected, pick);
         } else {
@@ -148,7 +144,7 @@ final class PageRows {
     void info(String label, String value, int color) {
         float cy = row(label, null);
         if (!Float.isNaN(cy)) {
-            SolFont f = g.font(SolFont.Family.MONO, 11.5f);
+            SolFont f = g.font(SolFont.Family.PIXEL, 11f);
             g.textRight(f, g.fit(f, value, w * 0.42f), right(), cy, color);
         }
     }

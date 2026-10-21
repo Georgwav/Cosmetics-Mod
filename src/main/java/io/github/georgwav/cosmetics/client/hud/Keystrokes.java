@@ -84,7 +84,7 @@ public final class Keystrokes extends HudModule {
         g.pop();
     }
 
-    // ---------------------------------------------------------------- Sol UI: glass keys
+    // ---------------------------------------------------------------- Sol UI: pixel keys
 
     private static final float S_KEY = 17f, S_GAP = 2.5f, S_SPACE = 8f, S_WIDTH = S_KEY * 3 + S_GAP * 2;
     /** How lit each key is (eased toward held, so a tap glows briefly). */
@@ -107,8 +107,8 @@ public final class Keystrokes extends HudModule {
         long now = System.nanoTime() / 1_000_000L;
         float dt = lastFrame == 0L ? 0f : Math.min(0.1f, (now - lastFrame) / 1000f);
         lastFrame = now;
-        var f = g.font(io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.MONO, 5.5f);
-        var small = g.font(io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.MEDIUM, 4.5f);
+        var f = g.font(io.github.georgwav.cosmetics.sol.ui.kit.SolFont.Family.PIXEL_BOLD, 5.5f);
+        var small = g.font(io.github.georgwav.cosmetics.sol.hud.HudKit.LABEL, 4.5f);
         solKey(g, tk, f, small, 0, mc.options.keyUp, null, S_KEY + S_GAP, 0f, S_KEY, S_KEY, null, dt);
         solKey(g, tk, f, small, 1, mc.options.keyLeft, null, 0f, S_KEY + S_GAP, S_KEY, S_KEY, null, dt);
         solKey(g, tk, f, small, 2, mc.options.keyDown, null, S_KEY + S_GAP, S_KEY + S_GAP, S_KEY, S_KEY, null, dt);
@@ -126,7 +126,7 @@ public final class Keystrokes extends HudModule {
             solBox(g, tk, 0f, y, S_WIDTH, S_SPACE, k);
             int line = io.github.georgwav.cosmetics.sol.util.Colors.mix(io.github.georgwav.cosmetics.sol.util.Colors.fade(text.argb(), 0.8f),
                     io.github.georgwav.cosmetics.sol.util.Colors.onColour(pressed.argb()), k);
-            g.round(S_WIDTH / 2f - 10f, y + S_SPACE / 2f - 0.5f, 20f, 1f, 0.5f, line);
+            io.github.georgwav.cosmetics.sol.hud.HudKit.box(g, Math.round(S_WIDTH / 2f) - 10f, (float) Math.floor(y + S_SPACE / 2f - 0.5f), 20f, 1f, line);
         }
     }
 
@@ -155,17 +155,16 @@ public final class Keystrokes extends HudModule {
         }
     }
 
-    /** A glass key, filling with the accent and glowing as it's held. */
+    /** A pixel key on the HUD's slab, filling with the accent and taking its stepped rings as it's held. */
     private void solBox(io.github.georgwav.cosmetics.sol.ui.kit.Gfx g, io.github.georgwav.cosmetics.sol.theme.Tokens tk,
                         float x, float y, float w, float h, float k) {
         int lit = pressed.argb();
-        float r = Math.min(4.5f, h / 2f);
         if (k < 1f) {
-            io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, x, y, w, h, r);
+            io.github.georgwav.cosmetics.sol.hud.HudKit.card(g, tk, x, y, w, h, 0f);
         }
         if (k > 0.01f) {
-            g.glow(x, y, w, h, r, 6f, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, 0.5f * k));
-            g.round(x, y, w, h, r, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, k));
+            io.github.georgwav.cosmetics.sol.hud.HudKit.box(g, x, y, w, h, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, k));
+            io.github.georgwav.cosmetics.sol.hud.HudKit.rings(g, x, y, w, h, io.github.georgwav.cosmetics.sol.util.Colors.withAlpha(lit, k));
         }
     }
 

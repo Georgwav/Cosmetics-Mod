@@ -110,16 +110,15 @@ final class CosmeticPage {
         Ui ui = screen.ui;
         CosmeticsConfig config = CosmeticsConfig.get();
         // The header: back to the list, the name, wear it.
-        ui.button(tk, x + g.width(g.font(SolFont.Family.MEDIUM, 12f), WardrobeScreen.t("detail.back")) + 20f, top + 13f,
-                WardrobeScreen.t("detail.back"), false, () -> screen.openCosmetic(null));
-        SolFont b = g.font(SolFont.Family.SEMIBOLD, 20f);
-        g.textMid(b, g.fit(b, cosmetic.name(), w - 200f), x, top + 50f, 0xFFFFFFFF);
+        ui.bigButton(x, top, "left", WardrobeScreen.t("detail.back"), false, true, () -> screen.openCosmetic(null));
+        SolFont b = g.font(SolFont.Family.PIXEL_BOLD, 15f);
+        g.textMid(b, g.fit(b, cosmetic.name(), w - 200f), x, top + 62f, 0xFFFFFFFF);
         boolean worn = config.localEquipped().contains(id);
         SolFont s = g.font(SolFont.Family.MEDIUM, 13f);
         String wear = WardrobeScreen.t("detail.wear");
-        g.textRight(s, wear, x + w - 42f, top + 50f, 0xD9FFFFFF);
-        ui.smallSwitch(tk, x + w - 30f, top + 41f, worn, () -> WardrobeScreen.setEquipped(id, !worn));
-        float bodyTop = top + 74f;
+        g.textRight(s, wear, x + w - 30f + 30f - Ui.SWITCH_W - 10f, top + 62f, 0xD9FFFFFF);
+        ui.smallSwitch(tk, x + w - 30f, top + 53f, worn, () -> WardrobeScreen.setEquipped(id, !worn));
+        float bodyTop = top + 86f;
         g.rect(x, bodyTop - 6f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         g.clip(x - 4f, bodyTop, x + w + 6f, top + h);
         PageRows rows = new PageRows(g, ui, tk, x, bodyTop - scroll.value(), w, null);

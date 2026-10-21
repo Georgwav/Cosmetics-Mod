@@ -209,6 +209,26 @@ public final class Ui {
         return w;
     }
 
+    /** The width {@link #segmented} takes for these options. */
+    public float segmentedWidth(String[] options) {
+        SolFont f = g.font(SolFont.Family.PIXEL_BOLD, 11f);
+        float w = 0f;
+        for (String o : options) {
+            w += g.width(f, o) + 20f + 4f;
+        }
+        return w - 4f;
+    }
+
+    /** The width {@link #chip} takes for this text. */
+    public float chipWidth(String text) {
+        return g.width(g.font(SolFont.Family.PIXEL_BOLD, 11f), text) + 24f;
+    }
+
+    /** The width {@link #button} takes for this text. */
+    public float buttonWidth(String text) {
+        return g.width(g.font(SolFont.Family.PIXEL_BOLD, 12f), text) + 24f;
+    }
+
     /** A slider 140 wide ending before its value: an accent fill in a recess track and a slab knob; {@code value} 0..1. */
     public void slider(Tokens tk, float right, float cy, float value, String text, Consumer<Float> set) {
         PixelTokens p = PixelTokens.get();
@@ -252,6 +272,32 @@ public final class Ui {
         int st = state(x, y, w, h, accent);
         Pix.slab(g, p, x, y, w, h, st);
         g.textMid(f, text, x + 12f, cy + (st == Pix.PRESSED ? Pix.E : 0f), Pix.text(p, st));
+        if (focused(fi)) {
+            ring(x, y, w, h, 0f, tk);
+        }
+        return w;
+    }
+
+    /**
+     * A button that opens a list under it: as {@link #button}, its choice then a pixel caret pointing down (drawn on
+     * whole screen pixels). Returns its width.
+     */
+    public float dropButton(Tokens tk, float right, float cy, String text, boolean open, Runnable action) {
+        PixelTokens p = PixelTokens.get();
+        SolFont f = g.font(SolFont.Family.PIXEL_BOLD, 12f);
+        int k = Math.max(1, Math.round(g.d.u * 1.25f));
+        float caret = 7f * k / g.d.u;
+        float w = g.width(f, text) + 24f + 8f + caret, h = 30f, x = right - w, y = cy - h / 2f;
+        int fi = click(x, y, w, h, action);
+        int st = state(x, y, w, h, open);
+        float dy = st == Pix.PRESSED ? Pix.E : 0f;
+        Pix.slab(g, p, x, y, w, h, st);
+        int c = Pix.text(p, st);
+        g.textMid(f, text, x + 12f, cy + dy, c);
+        float sx = Math.round(g.d.sx(right - 12f - caret)), sy = Math.round(g.d.sy(cy + dy) - 2f * k);
+        for (int r = 0; r < 4; r++) {
+            g.rectPx(sx + r * k, sy + r * k, sx + (7 - r) * k, sy + (r + 1) * k, c);
+        }
         if (focused(fi)) {
             ring(x, y, w, h, 0f, tk);
         }

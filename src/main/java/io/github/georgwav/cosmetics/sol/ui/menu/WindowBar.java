@@ -26,7 +26,7 @@ import net.minecraft.client.Minecraft;
  */
 public final class WindowBar {
     /** The tabs after Sol's icon, in order. */
-    public static final String[] TABS = {"modules", "hud", "world", "presets", "wardrobe", "emotes", "music", "mods", "settings"};
+    public static final String[] TABS = {"modules", "hud", "world", "presets", "wardrobe", "styles", "emotes", "music", "mods", "settings"};
     /** The slabs' top, a tab's size and the gap between tabs; the close's width. */
     static final float Y = Pix.WIN_Y + Pix.E + 3f, TAB = 48f, GAP = 6f, CLOSE_W = 60f;
 

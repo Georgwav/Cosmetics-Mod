@@ -229,6 +229,16 @@ public final class GuiDraw {
     private static Object lastPipeline;
     private static SolTexture lastTexture;
 
+    /**
+     * A new game frame: last frame's batches are drawn, so the pool starts over, and each batch lands in the slot
+     * it had last frame (its copies of the texture setup and the boxes are kept, so a steady menu allocates nothing).
+     */
+    public static void gameFrame() {
+        //? if >=1.21.6 {
+        next = 0;
+        //?}
+    }
+
     /** A new frame of Sol GUI: its first batch starts a stratum of its own (over whatever the game drew before). */
     public static void newFrame() {
         lastPipeline = null;
@@ -244,6 +254,9 @@ public final class GuiDraw {
         TextureSetup setup;
         ScreenRectangle scissor;
         ScreenRectangle bounds;
+        // What the last frame's batch in this slot used, kept so the same batch next frame allocates nothing.
+        SolTexture setupFor;
+        ScreenRectangle box, boundsScissor, boundsBox;
 
         //? if >=1.21.9 {
         @Override
@@ -299,11 +312,14 @@ public final class GuiDraw {
         System.arraycopy(data, 0, e.verts, 0, count * FLOATS);
         e.count = count;
         e.pipeline = add ? RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA : RenderPipelines.GUI_TEXTURED;
-        //? if >=1.21.11 {
-        e.setup = TextureSetup.singleTexture(tex.view(), tex.sampler());
-        //?} else {
-        /*e.setup = TextureSetup.singleTexture(tex.view());
-        *///?}
+        if (e.setupFor != tex || e.setup == null) {
+            //? if >=1.21.11 {
+            e.setup = TextureSetup.singleTexture(tex.view(), tex.sampler());
+            //?} else {
+            /*e.setup = TextureSetup.singleTexture(tex.view());
+            *///?}
+            e.setupFor = tex;
+        }
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
         for (int v = 0; v < count; v++) {
             float x = data[v * FLOATS], y = data[v * FLOATS + 1];
@@ -314,8 +330,19 @@ public final class GuiDraw {
         }
         e.scissor = g.raw.scissorStack.peek();
         int bx = (int) Math.floor(minX), by = (int) Math.floor(minY);
-        ScreenRectangle box = new ScreenRectangle(bx, by, Math.max(1, (int) Math.ceil(maxX) - bx), Math.max(1, (int) Math.ceil(maxY) - by));
-        e.bounds = e.scissor != null ? e.scissor.intersection(box) : box;
+        int bw = Math.max(1, (int) Math.ceil(maxX) - bx), bh = Math.max(1, (int) Math.ceil(maxY) - by);
+        ScreenRectangle box = e.box;
+        if (box == null || box.left() != bx || box.top() != by || box.width() != bw || box.height() != bh) {
+            box = new ScreenRectangle(bx, by, bw, bh);
+            e.box = box;
+        }
+        if (e.scissor == null) {
+            e.bounds = box;
+        } else if (!e.scissor.equals(e.boundsScissor) || e.boundsBox != box) {
+            e.bounds = e.scissor.intersection(box);
+            e.boundsScissor = e.scissor;
+            e.boundsBox = box;
+        }
         if (e.bounds == null) {
             return;
         }

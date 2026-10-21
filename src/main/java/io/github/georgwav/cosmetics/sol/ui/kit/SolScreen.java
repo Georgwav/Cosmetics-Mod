@@ -85,6 +85,20 @@ public abstract class SolScreen extends Screen {
         return false;
     }
 
+    /** A key let go (the editor's space-to-pan). */
+    protected boolean keyUp(int key) {
+        return false;
+    }
+
+    /** Files dropped on the window (the editor's PNG import). */
+    protected void dropped(java.util.List<java.nio.file.Path> paths) {
+    }
+
+    @Override
+    public void onFilesDrop(java.util.List<java.nio.file.Path> paths) {
+        dropped(paths);
+    }
+
     /** A typed character, for type-to-search. */
     protected boolean typed(String text) {
         return false;
@@ -227,6 +241,11 @@ public abstract class SolScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(KeyEvent event) {
+        return keyUp(event.key()) || super.keyReleased(event);
+    }
+
+    @Override
     public boolean charTyped(CharacterEvent event) {
         return typed(event.codepointAsString()) || super.charTyped(event);
     }
@@ -252,6 +271,11 @@ public abstract class SolScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         return onKey(keyCode, Screen.hasControlDown(), Screen.hasShiftDown()) || super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        return keyUp(keyCode) || super.keyReleased(keyCode, scanCode, modifiers);
     }
 
     @Override

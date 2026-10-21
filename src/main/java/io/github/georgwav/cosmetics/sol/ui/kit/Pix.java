@@ -62,6 +62,36 @@ public final class Pix {
         g.rectPx(x0, y0, x1, y1, c);
     }
 
+    /**
+     * A pixel picture at whole screen pixels per picture pixel (2 design px each, rounded), centred in the box and cut
+     * at its edges: preset skies, panes.
+     */
+    public static void pixels(Gfx g, SolTexture t, int pw, int ph, float x, float y, float w, float h) {
+        int k = Math.max(1, Math.round(2f * g.d.u));
+        float bx0 = Math.round(g.d.sx(x)), by0 = Math.round(g.d.sy(y)), bx1 = Math.round(g.d.sx(x + w)), by1 = Math.round(g.d.sy(y + h));
+        float sw = pw * k, sh = ph * k;
+        float sx = Math.round((bx0 + bx1 - sw) / 2f), sy = Math.round((by0 + by1 - sh) / 2f);
+        float cx0 = Math.max(bx0, sx), cy0 = Math.max(by0, sy), cx1 = Math.min(bx1, sx + sw), cy1 = Math.min(by1, sy + sh);
+        if (cx1 <= cx0 || cy1 <= cy0) {
+            return;
+        }
+        g.imageScreen(t, cx0, cy0, cx1, cy1, (cx0 - sx) / sw, (cy0 - sy) / sh, (cx1 - sx) / sw, (cy1 - sy) / sh, 0xFFFFFFFF, false);
+    }
+
+    /**
+     * A worn tile (the Wardrobe): an outline in the on colour with two stepped rings of it outside, the on colour's
+     * faint tint fading to c0 by 70%, its lit top in the on colour's highlight.
+     */
+    public static void worn(Gfx g, PixelTokens p, float x, float y, float w, float h) {
+        box(g, x, y, w, h);
+        int e = g.px(E);
+        g.ringPx(x0, y0, x1, y1, 0, e, p.enA1);
+        g.ringPx(x0, y0, x1, y1, e, 2 * e, p.enA2);
+        g.stepped(x0, y0, x1, y1, Colors.mixRgb(p.c0, p.en, Colors.a(p.enA2) / 255f), p.c0, 0.7f, 3);
+        g.rectPx(x0 + e, y0 + e, x1 - e, Math.min(y1 - e, y0 + 2 * e), p.enHi);
+        g.framePx(x0, y0, x1, y1, e, p.en);
+    }
+
     /** A card that's on (a module that's enabled): the on colour's faint tint fading to c0 by 60%, in three steps. */
     public static void cardOn(Gfx g, PixelTokens p, float x, float y, float w, float h) {
         box(g, x, y, w, h);
@@ -193,6 +223,12 @@ public final class Pix {
         g.framePx(x0 - e, y0 - e, x1 + e, y1 + e, e, 0xFFFFFFFF);
     }
 
+    /** A one-pixel outline (a whole number of screen pixels, about one design pixel) on whole screen pixels. */
+    public static void frame(Gfx g, float x, float y, float w, float h, int c) {
+        box(g, x, y, w, h);
+        g.framePx(x0, y0, x1, y1, Math.max(1, Math.round(g.d.u)), c);
+    }
+
     /** A swatch (40 x 32 by default): the colour, a 3 px edge and a lit top; chosen, a 3 px white outline 2 px out. */
     public static void swatch(Gfx g, PixelTokens p, float x, float y, float w, float h, int colour, boolean chosen) {
         box(g, x, y, w, h);
@@ -316,7 +352,7 @@ public final class Pix {
         g.rectPx(x0, y0, x1, y1, 0xEB19191C);
         g.framePx(x0, y0, x1, y1, e, p.edge);
         SolFont tf = g.font(SolFont.Family.PIXEL_BOLD, 13f), lf = g.font(SolFont.Family.MEDIUM, 12.5f);
-        g.textMid(tf, g.fit(tf, title, cw - 24f), cx + 12f, cy + 18f, PixelTokens.INK);
+        g.textMid(tf, g.fitLabel(tf, title, cw - 24f), cx + 12f, cy + 18f, PixelTokens.INK);
         if (ch > 40f) {
             g.textMid(lf, g.fit(lf, line, cw - 24f), cx + 12f, cy + 39f, PixelTokens.INK2);
         }

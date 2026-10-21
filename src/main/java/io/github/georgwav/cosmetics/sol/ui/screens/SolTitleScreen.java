@@ -9,11 +9,12 @@ import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.LogoRenderer;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
+import io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.PlayerFace;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
-import io.github.georgwav.cosmetics.sol.util.Colors;
 import io.github.georgwav.cosmetics.sol.util.MiniSky;
 import io.github.georgwav.cosmetics.sol.util.SolExecutors;
 import io.github.georgwav.cosmetics.ui.ScreenOpener;
@@ -24,9 +25,10 @@ import net.minecraft.network.chat.Component;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Sol's title screen (with Sol UI on): the theme's own landscape alive behind everything (the prototype's sky, sun,
- * ridges and particles, drawn off the render thread about 20 times a second), the live logo, glass pills for
- * playing, and small round buttons for the Sol menu, mods, options and quitting. Replaces the game's title screen
+ * Sol's title screen (with Sol UI on, A.7.4): the theme's own landscape alive behind everything (the prototype's sky,
+ * sun, ridges and particles, drawn off the render thread about 20 times a second), the live logo, three big slabs
+ * (Singleplayer in the accent, Multiplayer, the Sol menu), a small row for Realms, mods, options and quitting, you
+ * at the top right and standing at the bottom right (both open the Wardrobe), and the footer in pixel type. Replaces the game's title screen
  * whenever the game opens it ({@link #swap}); the game's own comes back with Sol UI off or after an error.
  */
 public final class SolTitleScreen extends SolScreen {
@@ -109,13 +111,13 @@ public final class SolTitleScreen extends SolScreen {
 
     @Override
     protected void game(io.github.georgwav.cosmetics.ui.Canvas c, int mouseX, int mouseY) {
-        // Right of the buttons, standing in the landscape.
+        // You, bottom right: the Mannequin in its 240 x 288 box at (940, 344), with nothing under you.
         double gs = minecraft.getWindow().getGuiScale();
-        float size = 360f;
-        int side = (int) Math.round((d.sy(360f + size / 2f) - d.sy(360f - size / 2f)) / gs);
-        int x = (int) Math.round(d.sx(1015f) / gs) - side / 2, y = (int) Math.round(d.sy(395f) / gs) - side / 2;
+        int x1 = (int) Math.round(d.sx(FIG_X) / gs), x2 = (int) Math.round(d.sx(FIG_X + FIG_W) / gs);
+        int y1 = (int) Math.round(d.sy(FIG_Y) / gs), y2 = (int) Math.round(d.sy(FIG_Y + FIG_H) / gs);
+        int side = Math.min(x2 - x1, y2 - y1);
         float yaw = calm() ? 25f : 25f + (float) Math.sin(time * 0.35f) * 35f;
-        figure.draw(c, x, y, side, yaw, 14f, true);
+        figure.draw(c, (x1 + x2 - side) / 2, y2 - side, side, yaw, 14f, false);
     }
 
     /** The landscape: the next frame starts on the CPU thread once the last one is in, at most 20 a second. */
@@ -147,6 +149,8 @@ public final class SolTitleScreen extends SolScreen {
 
     /** Updates are looked for once per start, the first time the title screen shows. */
     private static boolean updatesChecked;
+    /** The Mannequin's box (A.7.4). */
+    private static final float FIG_X = 940f, FIG_Y = 344f, FIG_W = 240f, FIG_H = 288f;
 
     @Override
     protected void frame(Gfx g) {
@@ -156,10 +160,10 @@ public final class SolTitleScreen extends SolScreen {
             io.github.georgwav.cosmetics.sol.client.Updates.afterUpdate();
         }
         Tokens tk = ThemeState.tokens();
+        PixelTokens p = PixelTokens.get();
         ThemeRegistry.Entry e = ThemeState.entry();
         sky(e);
         ui.begin(g, mx, my);
-        float fade = calm() ? 1f : Math.min(1f, time / 0.8f);
         // The landscape, filling the window (cropped to keep its shape).
         float sw = g.d.screenW, sh = g.d.screenH;
         g.rect(g.d.left(), g.d.top(), g.d.right() - g.d.left(), g.d.bottom() - g.d.top(), 0xFF000000);
@@ -175,85 +179,100 @@ public final class SolTitleScreen extends SolScreen {
                 u0 = (1f - k) / 2f;
                 u1 = 1f - u0;
             }
-            g.imageScreen(sky, 0f, 0f, sw, sh, u0, v0, u1, v1, Colors.withAlpha(0xFFFFFFFF, fade), false);
+            g.imageScreen(sky, 0f, 0f, sw, sh, u0, v0, u1, v1, 0xFFFFFFFF, false);
         }
-        g.alpha = fade;
-        // A soft veil at the bottom, for the buttons and the footer.
-        g.vgradient(g.d.left(), 360f, g.d.right() - g.d.left(), g.d.bottom() - 360f, 0x00000000, 0xA6050508);
 
-        // The logo, three times the menu's, rising a little as it fades in.
-        float rise = (1f - fade) * 14f;
+        // The logo at three times the menu's, on whole screen pixels.
         SolTexture t = logo.texture(ThemeState.baseEntry(), time, dt);
-        float lw = LogoRenderer.W * 3.2f, lh = LogoRenderer.H * 3.2f;
-        g.image(t, 640f - lw / 2f, 70f + rise, lw, lh, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
+        int k = Math.max(1, Math.round(3f * g.d.u));
+        float lw = LogoRenderer.W * k, lh = LogoRenderer.H * k;
+        float lx = Math.round(g.d.sx(640f) - lw / 2f), ly = Math.round(g.d.sy(30f));
+        g.imageScreen(t, lx, ly, lx + lw, ly + lh, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
 
-        // The main pills.
-        SolFont big = g.font(SolFont.Family.SEMIBOLD, 15f);
-        String[] labels = {tr("menu.singleplayer"), tr("menu.multiplayer"), tr("menu.online")};
-        Runnable[] actions = {this::singleplayer, this::multiplayer, this::realms};
+        // The three buttons, 360 x 56 from y 266: Singleplayer in the accent.
+        SolFont big = g.font(SolFont.Family.PIXEL_BOLD, 16f);
+        String[] labels = {tr("menu.singleplayer"), tr("menu.multiplayer"), tr("sol.title.menu")};
+        String[] icons = {"person", "people", "solsq"};
+        Runnable[] actions = {this::singleplayer, this::multiplayer, this::solMenu};
         for (int i = 0; i < labels.length; i++) {
-            pill(g, tk, big, 640f, 404f + i * 52f, 300f, 42f, labels[i], i == 0, actions[i]);
-        }
-        // The round buttons: the Sol menu, mods, options, quit.
-        String[] icons = {"sun", "puzzle", "gear", "close"};
-        String[] tips = {"sol.title.menu", "sol.title.mods", "menu.options", "menu.quit"};
-        Runnable[] round = {this::solMenu, this::mods, this::options, this::quit};
-        float rx = 640f - (icons.length * 46f - 12f) / 2f;
-        SolFont small = g.font(SolFont.Family.MEDIUM, 11f);
-        for (int i = 0; i < icons.length; i++) {
-            float x = rx + i * 46f, y = 572f;
-            int fi = ui.click(x, y, 34f, 34f, round[i]);
-            boolean hover = ui.over(x, y, 34f, 34f);
-            g.glow(x, y, 34f, 34f, 17f, 10f, Colors.withAlpha(tk.glow, hover ? 0.3f : 0.12f));
-            g.round(x, y, 34f, 34f, 17f, Colors.withAlpha(tk.panel, Math.max(0.6f, tk.glass)));
-            g.stroke(x, y, 34f, 34f, 17f, Math.max(1f, g.d.u), hover ? tk.rim : 0x33FFFFFF);
-            Icons.draw(g, icons[i], x + 8f, y + 8f, 18f, hover ? tk.accent : 0xE6FFFFFF, hover ? Icons.FILL_ON : Icons.FILL, 0);
+            float bx = 460f, by = 266f + i * (56f + 12f), bw = 360f, bh = 56f;
+            boolean over = ui.over(bx, by, bw, bh);
+            int st = i == 0 ? Pix.ON : ui.pressed(bx, by, bw, bh) ? Pix.PRESSED : over ? Pix.HOVER : Pix.NORMAL;
+            if (i == 0 && over) {
+                Pix.slab(g, p, bx, by, bw, bh, Pix.ON);
+                Pix.fill(g, bx + Pix.E, by + Pix.E, bw - 2f * Pix.E, bh - 2f * Pix.E, 0x14FFFFFF);
+            } else {
+                Pix.slab(g, p, bx, by, bw, bh, st);
+            }
+            float dy = st == Pix.PRESSED ? Pix.E : 0f;
+            int c = Pix.text(p, st);
+            float tw = 24f + 14f + g.width(big, labels[i]), tx = bx + (bw - tw) / 2f;
+            Icons.draw(g, icons[i], tx, by + bh / 2f - 12f + dy, 24f, c, 0f, 0);
+            g.textMid(big, labels[i], tx + 24f + 14f, by + bh / 2f + dy, c);
+            int fi = ui.click(bx, by, bw, bh, actions[i]);
             if (ui.focused(fi)) {
-                g.stroke(x - 3f, y - 3f, 40f, 40f, 20f, 2f, tk.accent);
-            }
-            if (hover) {
-                String tip = tr(tips[i]);
-                g.textCentre(small, tip, x + 17f, y + 48f, 0xCCFFFFFF);
+                Pix.focus(g, bx, by, bw, bh);
             }
         }
+        // The small row at y 470: Realms, Mods, Options and the red Quit, each named under it.
+        String[] rIcons = {"globe", "box", "gear", "x"};
+        String[] names = {"sol.title.realms", "sol.title.mods", "sol.title.options", "sol.title.quit"};
+        SolFont nameFont = g.font(SolFont.Family.PIXEL, 11f);
+        float dropWas = g.drop;
+        g.drop = 2f;
+        Runnable[] round = {this::realms, this::mods, this::options, this::quit};
+        float rx = 640f - (rIcons.length * 52f + (rIcons.length - 1) * 12f) / 2f;
+        for (int i = 0; i < rIcons.length; i++) {
+            float x = rx + i * (52f + 12f), y = 470f;
+            boolean over = ui.over(x, y, 52f, 52f);
+            if (i == rIcons.length - 1) {
+                Pix.redClose(g, p, x, y, 52f, 52f, over);
+            } else {
+                int st = ui.pressed(x, y, 52f, 52f) ? Pix.PRESSED : over ? Pix.HOVER : Pix.NORMAL;
+                Pix.slab(g, p, x, y, 52f, 52f, st);
+                Icons.draw(g, rIcons[i], x + 14f, y + 14f + (st == Pix.PRESSED ? Pix.E : 0f), 24f, Pix.text(p, st), 0f, 0);
+            }
+            int fi = ui.click(x, y, 52f, 52f, round[i]);
+            if (ui.focused(fi)) {
+                Pix.focus(g, x, y, 52f, 52f);
+            }
+            g.textCentre(nameFont, g.fitLabel(nameFont, tr(names[i]), 64f), x + 26f, y + 52f + 14f, 0xFFFFFFFF);
+        }
+        g.drop = dropWas;
 
-        // The player at the top right.
+        // You, top right: your face, name and "Wardrobe"; and the Mannequin (drawn by game()) opens it too.
         var mc = net.minecraft.client.Minecraft.getInstance();
-        SolFont name = g.font(SolFont.Family.SEMIBOLD, 13f);
         String user = io.github.georgwav.cosmetics.sol.client.Streamer.shownName(mc.getUser().getName());
-        float nw = g.width(name, user) + 56f, px = g.d.right() - 24f - nw;
-        g.round(px, 22f, nw, 40f, 20f, Colors.withAlpha(tk.panel, Math.max(0.6f, tk.glass)));
-        g.stroke(px, 22f, nw, 40f, 20f, Math.max(1f, g.d.u), 0x33FFFFFF);
-        PlayerFace.draw(g, px + 6f, 28f, 28f, 0f);
-        g.textMid(name, user, px + 42f, 42f, 0xFFFFFFFF);
-
-        // The footer: versions at the left, Mojang's line at the right (it opens the credits).
-        SolFont mono = g.font(SolFont.Family.MONO, 11f);
-        String version = "Minecraft " + version("minecraft") + "  ·  Sol Client " + version("cosmeticsmod")
-                + "  ·  " + io.github.georgwav.cosmetics.sol.ui.kit.Widgets.themeName(ThemeState.baseEntry());
-        g.textMid(mono, version, g.d.left() + 24f, 696f, 0x99FFFFFF);
-        String copy = tr("title.credits");
-        float cw = g.width(mono, copy);
-        ui.click(g.d.right() - 24f - cw, 686f, cw, 20f, () -> ScreenOpener.open(
-                new net.minecraft.client.gui.screens.CreditsAndAttributionScreen(this)));
-        g.textRight(mono, copy, g.d.right() - 24f, 696f, ui.over(g.d.right() - 24f - cw, 686f, cw, 20f) ? 0xFFFFFFFF : 0x99FFFFFF);
-        g.alpha = 1f;
-    }
-
-    private void pill(Gfx g, Tokens tk, SolFont f, float cx, float y, float w, float h, String text, boolean accent, Runnable action) {
-        float x = cx - w / 2f;
-        int fi = ui.click(x, y, w, h, action);
-        boolean hover = ui.over(x, y, w, h);
-        g.glow(x, y, w, h, h / 2f, hover ? 18f : 12f, Colors.withAlpha(accent ? tk.accent : tk.glow, hover ? 0.32f : 0.14f));
-        // The accent pill is solid: see-through, the scene's edges behind it showed as a seam across it.
-        g.round(x, y, w, h, h / 2f, accent ? Colors.withAlpha(tk.accent, 1f)
-                : Colors.withAlpha(tk.panel, Math.max(0.62f, tk.glass)));
-        g.stroke(x, y, w, h, h / 2f, Math.max(1f, g.d.u), accent ? Colors.mix(tk.accent, 0xFFFFFFFF, 0.3f) : hover ? tk.rim : 0x33FFFFFF);
-        g.highlight(x, y, w, h, h / 2f, accent ? 0x59FFFFFF : 0x38FFFFFF);
-        g.textCentre(f, text, cx, y + h / 2f, accent ? tk.onAccent : 0xFFFFFFFF);
-        if (ui.focused(fi)) {
-            g.stroke(x - 3f, y - 3f, w + 6f, h + 6f, h / 2f + 3f, 2f, tk.accent);
+        String sub = tr("sol.section.wardrobe");
+        SolFont nf = g.font(SolFont.Family.PIXEL_BOLD, 13f), pf = g.font(SolFont.Family.MEDIUM, 11.5f);
+        float mw = 6f + 38f + 10f + Math.max(g.width(nf, user), g.width(pf, sub)) + 14f, mxx = 1280f - 24f - mw, myy = 24f;
+        boolean overMe = ui.over(mxx, myy, mw, 48f);
+        Pix.slab(g, p, mxx, myy, mw, 48f, overMe ? Pix.HOVER : Pix.NORMAL);
+        float fx = Math.round(g.d.sx(mxx + 9f)), fy = Math.round(g.d.sy(myy + 8f));
+        int fk = Math.max(1, Math.round(4f * g.d.u));
+        g.rectPx(fx - g.px(3f), fy - g.px(3f), fx + 8 * fk + g.px(3f), fy + 8 * fk + g.px(3f), p.edge);
+        PlayerFace.drawPx(g, fx, fy, fk);
+        g.textMid(nf, user, mxx + 54f, myy + 17f, Pix.text(p, overMe ? Pix.HOVER : Pix.NORMAL));
+        g.textMid(pf, sub, mxx + 54f, myy + 33f, p.acc);
+        int fm = ui.click(mxx, myy, mw, 48f, this::wardrobe);
+        if (ui.focused(fm)) {
+            Pix.focus(g, mxx, myy, mw, 48f);
         }
+        ui.click(FIG_X, FIG_Y, FIG_W, FIG_H, this::wardrobe);
+
+        // The footer in pixel type: versions at the left, Mojang's line at the right (it opens the credits).
+        SolFont f = g.font(SolFont.Family.PIXEL, 10f);
+        float shadow = g.drop;
+        g.drop = 2f;
+        String version = "Minecraft " + version("minecraft") + " · Sol Client " + version("cosmeticsmod")
+                + " · " + io.github.georgwav.cosmetics.sol.ui.kit.Widgets.themeName(ThemeState.baseEntry());
+        g.textMid(f, version, 20f, 703f, 0xFFFFFFFF);
+        String copy = tr("title.credits");
+        float cw = g.width(f, copy);
+        ui.click(1260f - cw, 694f, cw, 18f, () -> ScreenOpener.open(
+                new net.minecraft.client.gui.screens.CreditsAndAttributionScreen(this)));
+        g.textRight(f, copy, 1260f, 703f, ui.over(1260f - cw, 694f, cw, 18f) ? p.accHi : 0xFFFFFFFF);
+        g.drop = shadow;
     }
 
     private static String tr(String key) {
@@ -277,6 +296,10 @@ public final class SolTitleScreen extends SolScreen {
 
     private void realms() {
         ScreenOpener.open(new com.mojang.realmsclient.RealmsMainScreen(this));
+    }
+
+    private void wardrobe() {
+        ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.on(this, "all"));
     }
 
     private void solMenu() {

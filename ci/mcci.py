@@ -22,6 +22,7 @@ checks the log for mixin failures, crashes and errors from this mod, and screens
 Standard library only.
 """
 import argparse
+import atexit
 import hashlib
 import json
 import os
@@ -455,6 +456,11 @@ class Display:
         self.proc = subprocess.Popen(["Xvfb", self.name, "-screen", "0", f"{size}x24", "-nolisten", "tcp"],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(2)
+        if self.proc.poll() is not None:
+            # Another Xvfb holds the display (an earlier run's): its screen may be another size.
+            raise SystemExit(f"Xvfb couldn't start on {self.name} (the display is taken; pick another MCCI_DISPLAY)")
+        # Stopped with the script, so the next run gets a screen of its own size.
+        atexit.register(self.proc.terminate)
 
     def screenshot(self, png_path):
         """Grabs the whole virtual screen with xwd and converts it to PNG (no extra tools needed)."""
@@ -580,6 +586,14 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
     launcher.mkdir()
     shutil.copy(ROOT / "src" / "test" / "resources" / "skins" / "app.db", launcher / "app.db")
     (game_dir / "config" / "cosmeticsmod-client.json").write_text(json.dumps({"mainFolder": str(launcher.resolve())}))
+    if mode == "sol":
+        # Sol Styles' test packs (B.4), made from this version's own jar; no real pack is ever part of CI.
+        packs = game_dir / "resourcepacks"
+        packs.mkdir()
+        made = subprocess.run([inst.java, str(ROOT / "tools" / "styles-packs" / "MakePacks.java"), inst.classpath[-1], str(packs)],
+                              capture_output=True, text=True, timeout=900)
+        LOG(f"[{inst.mc}/{label}] Styles test packs: " + (made.stdout.strip().splitlines() or ["(none)"])[-1]
+            + (f" (failed: {made.stderr.strip()[-300:]})" if made.returncode else ""))
     if shaderpack:
         (game_dir / "shaderpacks").mkdir()
         shutil.copy(shaderpack, game_dir / "shaderpacks")
@@ -617,7 +631,7 @@ def run_game(inst, mod_jar, out_dir, label, extra_mods_dir=None, shaderpack=None
         jvm.append("-Dcosmeticsmod.standInKnife=true")
     if mode == "sol":
         # Local look runs: compare light-pass strengths in one run, or judge at another quality.
-        for env, prop in (("MCCI_SOL_ONLY", "solOnly"), ("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes"), ("MCCI_SOL_UI", "solUi"), ("MCCI_SOL_EVENTS", "solEvents")):
+        for env, prop in (("MCCI_SOL_ONLY", "solOnly"), ("MCCI_SOL_TUNE", "solTune"), ("MCCI_SOL_QUALITY", "solQuality"), ("MCCI_SOL_SHOTS", "solShots"), ("MCCI_SOL_THEMES", "solThemes"), ("MCCI_SOL_UI", "solUi"), ("MCCI_SOL_LOOK", "solUiLook"), ("MCCI_SOL_EVENTS", "solEvents")):
             if os.environ.get(env):
                 jvm.append("-Dcosmeticsmod.%s=%s" % (prop, os.environ[env]))
     if mode == "benchmark":
@@ -818,6 +832,103 @@ def glow_problems(game_dir, shots):
     return problems
 
 
+def _lab(c):
+    """sRGB 0..255 to CIE L*a*b* (D65)."""
+    def lin(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (lin(v) for v in c)
+    x, y, z = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, r * 0.2126 + g * 0.7152 + b * 0.0722, \
+        (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x), f(y), f(z)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def delta_e(a, b):
+    la, lb = _lab(a), _lab(b)
+    return sum((p - q) ** 2 for p, q in zip(la, lb)) ** 0.5
+
+
+# The pixel window's shots whose title bar is checked (A.8).
+PIXEL_BAR_SHOTS = ("ui_menu_modules", "ui_menu_presets", "ui_menu_settings")
+
+
+def pixel_ui_problems(game_dir, shots, results):
+    """
+    A.8: the pixel window's title bar (back, the quick menu's tab and the tabs) is flat pixel art: few colours, none
+    of them smoothing between two others; and the theme's accent shows in it (the open tab's outline) within delta E
+    12 (the accent the scenario had when it took the shot). The bar is opaque, so the world behind it can't add colours.
+    """
+    problems = []
+    accents = (results or {}).get("uiAccents", {})
+    for name in PIXEL_BAR_SHOTS:
+        file = f"screenshot-{name}.png"
+        if file not in shots:
+            continue
+        hexa = accents.get(name)
+        accent = tuple(int(hexa[i:i + 2], 16) for i in (1, 3, 5)) if hexa else None
+        w, h, rows = read_png(game_dir / file)
+        u = min(w / 1280, h / 720)
+        ox, oy = (w - 1280 * u) / 2, (h - 720 * u) / 2
+        x0, x1, y0, y1 = int(ox + 170 * u), int(ox + 850 * u), int(oy + 68 * u), int(oy + 100 * u)
+        colours, near = set(), 0
+        for y in range(y0, y1):
+            row = rows[y]
+            for x in range(x0, x1):
+                colours.add(bytes(row[x * 3:x * 3 + 3]))
+        for c in colours:
+            if accent and delta_e(tuple(c), accent) <= 12:
+                near += 1
+        # The window's left outline: a run of whole screen pixels in one colour, round(3 u) wide.
+        ey = int(oy + 400 * u)
+        ex = int(round(ox + 40 * u))
+        if 0 <= ey < h and 0 <= ex < w:
+            row, run = rows[ey], 0
+            edge = bytes(row[ex * 3:ex * 3 + 3])
+            while ex + run < w and bytes(row[(ex + run) * 3:(ex + run) * 3 + 3]) == edge:
+                run += 1
+            want = max(1, int(3 * u + 0.5))  # as Java rounds (half up)
+            if run != want:
+                problems.append(f"{name}: the window's outline is {run} px wide, not a whole {want} px")
+        if len(colours) > 64:
+            problems.append(f"{name}: the title bar has {len(colours)} colours; flat pixel art has a few dozen at most (smoothing?)")
+        if accent and near == 0:
+            problems.append(f"{name}: the accent {hexa} isn't in the title bar within delta E 12")
+        soft = soft_edges(rows, x0, x1, y0, y1)
+        if soft > 0:
+            problems.append(f"{name}: {soft} in-between pixels on the title bar's edges (icons and outlines must be hard)")
+    # No main label (a tab, a button, a card's or a tile's name) had to be cut to fit its slab.
+    for name, labels in sorted(((results or {}).get("textCuts") or {}).items()):
+        problems.append(f"{name}: labels cut to fit: {', '.join(labels[:5])}")
+    return problems
+
+
+def soft_edges(rows, x0, x1, y0, y1):
+    """Pixels between two clearly different neighbours (left and right, or above and below) whose colour sits on
+    the line between theirs, part way: what smoothing leaves along an edge. Hard pixel art has none."""
+    count = 0
+    for y in range(y0 + 1, y1 - 1):
+        for x in range(x0 + 1, x1 - 1):
+            p = rows[y][x * 3:x * 3 + 3]
+            for a, b in ((rows[y][(x - 1) * 3:(x - 1) * 3 + 3], rows[y][(x + 1) * 3:(x + 1) * 3 + 3]),
+                         (rows[y - 1][x * 3:x * 3 + 3], rows[y + 1][x * 3:x * 3 + 3])):
+                if a == p or b == p or a == b:
+                    continue
+                d = [b[i] - a[i] for i in range(3)]
+                dd = sum(v * v for v in d)
+                if dd < 60 * 60:
+                    continue
+                t = sum((p[i] - a[i]) * d[i] for i in range(3)) / dd
+                if not 0.25 < t < 0.75:
+                    continue
+                off = sum((p[i] - a[i] - t * d[i]) ** 2 for i in range(3))
+                if off <= 6 * 6:
+                    count += 1
+                    break
+    return count
+
+
 def our_log_problems(game_dir):
     """The log gate, on our own log file: unexpected warnings and errors, expected ones more than once, and any
     identical line more than REPEAT_LIMIT times (per-frame or per-tick logging)."""
@@ -881,6 +992,7 @@ def evaluate(inst, game_dir, label, mode, timed_out, seconds, shots, mods_info, 
         problems.append(f"{len(broken)} shader(s) of this mod didn't compile, e.g. {broken[0]}")
     if mode == "sol":
         problems.extend(glow_problems(game_dir, shots))
+        problems.extend(pixel_ui_problems(game_dir, shots, results))
     crashes = sorted((game_dir / "crash-reports").glob("*.txt")) if (game_dir / "crash-reports").exists() else []
     if crashes:
         first = crashes[0].read_text(errors="replace").splitlines()

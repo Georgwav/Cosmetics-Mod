@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.sol.theme.Customisation;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.ColorPicker;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.ModuleIcons;
@@ -93,10 +94,7 @@ public final class ModulePage implements Page {
 
     @Override
     public void draw(SolMenu menu, Gfx g, Ui ui, Tokens tk) {
-        g.glow(X, Y, W, H, 22f, 40f, Colors.withAlpha(tk.glow, 0.18f));
-        g.round(X, Y, W, H, 22f, 0xFF0B0C11);
-        g.stroke(X, Y, W, H, 22f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(X, Y, W, H, 22f, 0x40FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), X, Y, W, H);
         ui.area(X, Y, W, H, () -> { });
         boolean on = module.enabled();
         knob += ((on ? 1f : 0f) - knob) * Math.min(1f, menu.dt() * 16f);
@@ -110,7 +108,7 @@ public final class ModulePage implements Page {
 
     private void header(SolMenu menu, Gfx g, Ui ui, Tokens tk, boolean on) {
         float iy = Y + 16f;
-        g.round(X + PAD, iy, 46f, 46f, 13f, 0x1AFFFFFF);
+        Pix.fill(g, X + PAD, iy, 46f, 46f, 0x1AFFFFFF);
         Icons.draw(g, ModuleIcons.module(module.id), X + PAD + 11f, iy + 11f, 24f, tk.accent, Icons.FILL_ON,
                 Colors.withAlpha(tk.glow, 0.5f));
         float right = X + W - PAD;
@@ -127,7 +125,7 @@ public final class ModulePage implements Page {
             menu.toast(SolMenu.tr("sol.notify.reset", module.name()));
         });
         float tx = X + PAD + 60f, room = fx - 10f - rw - 16f - tx;
-        SolFont name = g.font(SolFont.Family.SEMIBOLD, 22f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
+        SolFont name = g.font(SolFont.Family.PIXEL_BOLD, 16f), desc = g.font(SolFont.Family.MEDIUM, 12.5f);
         g.textMid(name, g.fit(name, module.name(), room), tx, Y + 30f, 0xFFFFFFFF);
         g.textMid(desc, g.fit(desc, ModulesSection.description(module), room), tx, Y + 52f, 0x94FFFFFF);
         g.rect(X + 1f, Y + 76f, W - 2f, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
@@ -183,13 +181,13 @@ public final class ModulePage implements Page {
     }
 
     private void preview(Gfx g, Tokens tk, float x, float y, float w, float h) {
-        g.round(x, y, w, h, 14f, 0x0AFFFFFF);
-        g.stroke(x, y, w, h, 14f, Math.max(1f, g.d.u), 0x14FFFFFF);
+        Pix.fill(g, x, y, w, h, 0x0AFFFFFF);
+        Pix.frame(g, x, y, w, h, 0x14FFFFFF);
         pvX0 = Math.round(g.d.sx(x));
         pvY0 = Math.round(g.d.sy(y));
         pvX1 = Math.round(g.d.sx(x + w));
         pvY1 = Math.round(g.d.sy(y + h));
-        SolFont cap = g.font(SolFont.Family.MONO, 10.5f);
+        SolFont cap = g.font(SolFont.Family.PIXEL, 10f);
         if (module == Atmosphere.INSTANCE) {
             var e = ThemeState.baseEntry();
             int[] px = skyDone.getAndSet(null);
@@ -228,7 +226,6 @@ public final class ModulePage implements Page {
             // Drawn by the game itself, as it will look (see game()).
             g.text(cap, SolMenu.tr("sol.menu.drawer.live"), x + 12f, y + h - 10f, 0x8CFFFFFF);
         } else {
-            g.glowSprite(x + w / 2f, y + h / 2f, 54f, 54f, Colors.withAlpha(tk.glow, 0.35f));
             Icons.draw(g, ModuleIcons.module(module.id), x + w / 2f - 34f, y + h / 2f - 34f, 68f, tk.accent, Icons.FILL_ON,
                     Colors.withAlpha(tk.glow, 0.6f));
             g.text(cap, SolMenu.tr("sol.menu.drawer.live_game"), x + 12f, y + h - 10f, 0x8CFFFFFF);
@@ -386,7 +383,7 @@ public final class ModulePage implements Page {
                     picking = null;
                 }
             });
-            g.round(dx, cy - 10f, dw, 20f, 10f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
+            Pix.fill(g, dx, cy - 10f, dw, 20f, ui.over(dx, cy - 10f, dw, 20f) ? 0x29FFFFFF : 0x12FFFFFF);
             g.textMid(df, d, dx + 8f, cy, 0xB3FFFFFF);
         }
         float extra = 0f;
@@ -414,8 +411,8 @@ public final class ModulePage implements Page {
                     picker = new ColorPicker(() -> c.argb() & 0xFFFFFF, rgb -> c.set((c.argb() & 0xFF000000) | (rgb & 0xFFFFFF)));
                 }
             });
-            g.round(right - sw, cy - 12f, sw, 24f, 7f, c.argb() | 0xFF000000);
-            g.stroke(right - sw, cy - 12f, sw, 24f, 7f, Math.max(1f, g.d.u), open ? tk.accent : 0x40FFFFFF);
+            Pix.fill(g, right - sw, cy - 12f, sw, 24f, c.argb() | 0xFF000000);
+            Pix.frame(g, right - sw, cy - 12f, sw, 24f, open ? tk.accent : 0x40FFFFFF);
             float tx = right - sw - 10f;
             if (c.themed) {
                 // "Theme": the colour follows the theme's accent (lit while it does).
@@ -424,13 +421,13 @@ public final class ModulePage implements Page {
                 float cw = g.width(cf, tl) + 18f, chipX = tx - cw;
                 boolean on = c.followsTheme();
                 ui.click(chipX, cy - 11f, cw, 22f, () -> c.set(on ? c.argb() : Setting.Color.THEME));
-                g.round(chipX, cy - 11f, cw, 22f, 11f, on ? Colors.withAlpha(tk.accent, 0.9f)
+                Pix.fill(g, chipX, cy - 11f, cw, 22f, on ? Colors.withAlpha(tk.accent, 0.9f)
                         : ui.over(chipX, cy - 11f, cw, 22f) ? 0x29FFFFFF : 0x12FFFFFF);
                 g.textMid(cf, tl, chipX + 9f, cy, on ? tk.onAccent : 0xB3FFFFFF);
                 tx = chipX - 10f;
             }
             if (!c.followsTheme()) {
-                SolFont m = g.font(SolFont.Family.MONO, 11.5f);
+                SolFont m = g.font(SolFont.Family.PIXEL, 11f);
                 g.textRight(m, String.format(Locale.ROOT, "#%06X", c.get() & 0xFFFFFF), tx, cy, 0xB3FFFFFF);
             }
             if (open && picker != null) {
@@ -444,23 +441,21 @@ public final class ModulePage implements Page {
             }
         } else if (st instanceof Setting.Choice c) {
             String[] names = new String[c.options.size()];
-            float total = 0f;
-            SolFont of = g.font(SolFont.Family.MEDIUM, 12f);
             for (int i = 0; i < names.length; i++) {
                 names[i] = module.optionName(c, c.options.get(i));
-                total += g.width(of, names[i]) + 20f;
             }
+            float total = ui.segmentedWidth(names);
             int sel = Math.max(0, c.options.indexOf(c.get()));
             if (total <= w * 0.46f) {
                 ui.segmented(tk, right, cy, names, sel, i -> c.set(c.options.get(i)));
             } else {
                 // Too many to sit side by side: they open under the row.
                 boolean open = choosing == c;
-                ui.button(tk, right, cy, names[sel] + "  …", open, () -> choosing = open ? null : c);
+                ui.dropButton(tk, right, cy, names[sel], open, () -> choosing = open ? null : c);
                 if (open) {
                     float ox = x, oy = y + rh + 4f;
                     for (int i = 0; i < names.length; i++) {
-                        float cw = g.width(of, names[i]) + 22f;
+                        float cw = ui.chipWidth(names[i]);
                         if (ox + cw > right) {
                             ox = x;
                             oy += 30f;

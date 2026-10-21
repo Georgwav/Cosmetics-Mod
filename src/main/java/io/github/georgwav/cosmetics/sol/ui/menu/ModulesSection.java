@@ -87,8 +87,17 @@ final class ModulesSection implements Section {
         list();
         // The head: filter tabs on the left; the count and the search on the right.
         float tabH = 40f, ty = y;
-        SolFont tf = g.font(SolFont.Family.PIXEL_BOLD, 12f), cf = g.font(SolFont.Family.PIXEL, 11f);
+        SolFont cf = g.font(SolFont.Family.PIXEL, 11f);
         String count = SolMenu.tr("sol.menu.modules.count_shown", on, shown.size());
+        // The tabs in Silkscreen 12, or 10 when that leaves no room for the search (pixel type has whole steps only).
+        SolFont tf = g.font(SolFont.Family.PIXEL_BOLD, 12f);
+        float room = w - 200f - 12f - g.width(cf, count) - 12f, need = 0f;
+        for (String f : FILTERS) {
+            need += g.width(tf, SolMenu.tr("sol.menu.filter." + f)) + 26f + 6f;
+        }
+        if (need > room) {
+            tf = g.font(SolFont.Family.PIXEL_BOLD, 10f);
+        }
         float tx = x;
         for (String f : FILTERS) {
             String label = SolMenu.tr("sol.menu.filter." + f);
@@ -155,7 +164,7 @@ final class ModulesSection implements Section {
         // The name and the pin.
         SolFont nf = g.font(SolFont.Family.PIXEL_BOLD, 14f);
         float pinX = x + w - 12f - 30f, top = y + 12f;
-        g.textMid(nf, g.fit(nf, m.name(), pinX - x - 20f), x + 12f, top + 15f, on ? 0xFFF4F0EA : 0xFF8D8892);
+        g.textMid(nf, g.fitLabel(nf, m.name(), pinX - x - 20f), x + 12f, top + 15f, on ? 0xFFF4F0EA : 0xFF8D8892);
         boolean overPin = ui.over(pinX, top, 30f, 30f);
         Icons.draw(g, "star", pinX + 3f, top + 3f, 24f, pinned ? p.acc : overPin ? 0xFFBDB7C2 : 0xFF57535C, 0f, 0);
         int fp = ui.click(pinX, top, 30f, 30f, () -> {

@@ -38,6 +38,9 @@ public abstract class KnifePackMixin {
         if (root != null && folder.toAbsolutePath().normalize().equals(root.toAbsolutePath().normalize())) {
             io.github.georgwav.cosmetics.sol.Hooks.KNIFE_PACKS.hit();
             KnifePacks.load(out);
+            // Sol Styles' base pack and its mix, above the player's packs.
+            io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.STYLES,
+                    () -> io.github.georgwav.cosmetics.sol.styles.Styles.addPacks(out));
         }
     }
 }

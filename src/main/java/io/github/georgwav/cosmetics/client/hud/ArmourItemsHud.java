@@ -208,7 +208,7 @@ public final class ArmourItemsHud extends HudModule {
         float text = 0f;
         for (Row r : rows) {
             if (r.left() < 0f) {
-                text = Math.max(text, HudKit.measure(SolFont.Family.MONO, HudKit.SMALL, r.text(), scale()));
+                text = Math.max(text, HudKit.measure(SolFont.Family.PIXEL_BOLD, HudKit.SMALL, r.text(), scale()));
             }
         }
         return (int) Math.ceil(PAD * 2f + ICON + 4f + Math.max(BAR_W, text));
@@ -225,7 +225,7 @@ public final class ArmourItemsHud extends HudModule {
         List<Row> rows = rows(mc);
         float w = solWidth(mc), h = solHeight(mc);
         HudKit.card(g, tk, 0f, 0f, w, h, HudKit.CARD_R);
-        SolFont mono = g.font(SolFont.Family.MONO, HudKit.SMALL);
+        SolFont mono = g.font(SolFont.Family.PIXEL_BOLD, HudKit.SMALL);
         // The worn piece nearest to breaking pulses when it's under a tenth.
         int weakest = -1;
         float least = 0.1f;

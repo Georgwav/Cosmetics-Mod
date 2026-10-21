@@ -23,7 +23,8 @@ public enum Feature {
     TITLE("title"),
     SCREENS("screens"),
     NOTIFICATIONS("notifications"),
-    MODULES("modules");
+    MODULES("modules"),
+    STYLES("styles");
 
     public final String key;
 

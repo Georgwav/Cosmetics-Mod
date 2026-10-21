@@ -114,6 +114,35 @@ public final class EmoteWheel extends SolScreen {
         return this;
     }
 
+    /**
+     * The hub's text inside its disc: on one line when it fits, else on two (split at the space nearest the middle),
+     * else in Silkscreen's smallest size, and only then cut.
+     */
+    private void hubText(Gfx g, SolFont f, String text, int colour) {
+        float room = HUB * 1.8f;
+        if (g.width(f, text) <= room) {
+            g.textCentre(f, text, CX, CY, colour);
+            return;
+        }
+        int best = -1;
+        for (int i = text.indexOf(' '); i >= 0; i = text.indexOf(' ', i + 1)) {
+            if (best < 0 || Math.abs(i - text.length() / 2) < Math.abs(best - text.length() / 2)) {
+                best = i;
+            }
+        }
+        if (best > 0) {
+            String a = text.substring(0, best), b = text.substring(best + 1);
+            float line = f.cap() / g.d.u + 7f;
+            if (g.width(f, a) <= room * 0.95f && g.width(f, b) <= room * 0.95f) {
+                g.textCentre(f, a, CX, CY - line / 2f, colour);
+                g.textCentre(f, b, CX, CY + line / 2f, colour);
+                return;
+            }
+        }
+        SolFont small = g.font(SolFont.Family.PIXEL_BOLD, 10f);
+        g.textCentre(small, g.fitLabel(small, text, room), CX, CY, colour);
+    }
+
     // ------------------------------------------------------------------ drawing
 
     @Override
@@ -134,7 +163,7 @@ public final class EmoteWheel extends SolScreen {
         pointed = -1;
         // The ring the slots sit on, faintly.
         g.ring(CX, CY, RING, Math.max(1f, g.d.u) * 1.5f, Colors.withAlpha(tk.rim, 0.25f));
-        SolFont small = g.font(SolFont.Family.MEDIUM, 12f), mono = g.font(SolFont.Family.MONO, 11f);
+        SolFont small = g.font(SolFont.Family.MEDIUM, 12f), mono = g.font(SolFont.Family.PIXEL, 11f);
         String hoveredName = null;
         for (int i = 0; i < PER_PAGE; i++) {
             // Clockwise from the top.
@@ -164,17 +193,13 @@ public final class EmoteWheel extends SolScreen {
                     CosmeticsConfig.save();
                 });
             }
-            if (hover || playing) {
-                g.glow(sx, sy, SLOT, SLOT, 20f, 26f, Colors.withAlpha(tk.glow, hover ? 0.35f : 0.22f));
-            }
-            g.round(sx, sy, SLOT, SLOT, 20f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.08f) : tk.panel);
-            g.stroke(sx, sy, SLOT, SLOT, 20f, Math.max(1f, g.d.u), hover || playing ? tk.accent : 0x29FFFFFF);
-            g.highlight(sx, sy, SLOT, SLOT, 20f, 0x2EFFFFFF);
+            io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens p = io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get();
+            io.github.georgwav.cosmetics.sol.ui.kit.Pix.slab(g, p, sx, sy, SLOT, SLOT, playing || hover && emote != null
+                    ? io.github.georgwav.cosmetics.sol.ui.kit.Pix.ON : hover ? io.github.georgwav.cosmetics.sol.ui.kit.Pix.HOVER
+                    : io.github.georgwav.cosmetics.sol.ui.kit.Pix.NORMAL);
             if (emote == null) {
-                float arm = 12f, bar = 3f;
-                int c = hover ? tk.accent : 0x66FFFFFF;
-                g.round(sx + SLOT / 2f - arm, sy + SLOT / 2f - 6f - bar / 2f, arm * 2f, bar, bar / 2f, c);
-                g.round(sx + SLOT / 2f - bar / 2f, sy + SLOT / 2f - 6f - arm, bar, arm * 2f, bar / 2f, c);
+                int c = hover ? p.acc : 0xFF8D8892;
+                Icons.draw(g, "plus", sx + SLOT / 2f - 18f, sy + SLOT / 2f - 6f - 18f, 36f, c, 0f, 0);
                 g.textCentre(small, t("add"), sx + SLOT / 2f, sy + SLOT - 16f, hover ? 0xFFFFFFFF : 0x80FFFFFF);
             } else {
                 Canvas c = g.game();
@@ -185,13 +210,13 @@ public final class EmoteWheel extends SolScreen {
                 if (hover) {
                     boolean onGear = ui.over(sx + SLOT - 30f, sy + 4f, 26f, 26f);
                     boolean onCross = ui.over(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f);
-                    g.round(sx + SLOT - 30f, sy + 4f, 26f, 26f, 7f, onGear ? 0xE62A2A33 : 0xB30A0A0E);
-                    Icons.draw(g, "gear", sx + SLOT - 23f, sy + 11f, 12f, onGear ? tk.accent : 0xFFFFFFFF, Icons.FILL, 0);
-                    g.round(sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f, 7f, Colors.withAlpha(Tokens.RED, onCross ? 0.95f : 0.75f));
-                    Icons.draw(g, "close", sx + SLOT - 23f, sy + SLOT - 23f, 12f, 0xFFFFFFFF, Icons.FILL, 0);
+                    io.github.georgwav.cosmetics.sol.ui.kit.Pix.slab(g, p, sx + SLOT - 30f, sy + 4f, 26f, 26f,
+                            onGear ? io.github.georgwav.cosmetics.sol.ui.kit.Pix.HOVER : io.github.georgwav.cosmetics.sol.ui.kit.Pix.NORMAL);
+                    Icons.draw(g, "gear", sx + SLOT - 29f, sy + 5f, 24f, onGear ? p.acc : 0xFFFFFFFF, 0f, 0);
+                    io.github.georgwav.cosmetics.sol.ui.kit.Pix.redClose(g, p, sx + SLOT - 30f, sy + SLOT - 30f, 26f, 26f, onCross);
                     if (ui.focused(gearFocus) || ui.focused(crossFocus)) {
                         float fy = ui.focused(gearFocus) ? sy + 4f : sy + SLOT - 30f;
-                        g.stroke(sx + SLOT - 32f, fy - 2f, 30f, 30f, 9f, 2f * g.d.u, tk.accent);
+                        g.stroke(sx + SLOT - 32f, fy - 2f, 30f, 30f, 0f, g.px(2f), tk.accent);
                     }
                 }
                 // The name under the slot.
@@ -199,14 +224,15 @@ public final class EmoteWheel extends SolScreen {
                         hover ? 0xFFFFFFFF : 0x99FFFFFF);
             }
             if (ui.focused(fi)) {
-                g.stroke(sx - 3f, sy - 3f, SLOT + 6f, SLOT + 6f, 22f, 2f * g.d.u, tk.accent);
+                g.stroke(sx - 3f, sy - 3f, SLOT + 6f, SLOT + 6f, 0f, g.px(2f), tk.accent);
             }
         }
         // The disc in the middle: the name pointed at, the wheel's name, or Stop while an emote plays.
-        g.glow(CX - HUB, CY - HUB, HUB * 2f, HUB * 2f, HUB, 30f, Colors.withAlpha(tk.glow, 0.18f));
-        g.circle(CX, CY, HUB, tk.panel);
-        g.ring(CX, CY, HUB, Math.max(1f, g.d.u), tk.rim);
-        SolFont mid = g.font(SolFont.Family.SEMIBOLD, 15f);
+        // A pixel disc: the slab colour inside an edge ring.
+        io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens hp = io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get();
+        g.circle(CX, CY, HUB, hp.c1);
+        g.ring(CX, CY, HUB, 3f * g.d.u, hp.edge);
+        SolFont mid = g.font(SolFont.Family.PIXEL_BOLD, 15f);
         if (EmotePlayer.playing() != null) {
             float bw = g.width(small, t("stop")) + 28f;
             ui.button(tk, CX + bw / 2f, CY, t("stop"), true, () -> {
@@ -215,7 +241,7 @@ public final class EmoteWheel extends SolScreen {
             });
         } else {
             String middle = hoveredName != null ? hoveredName : title.getString();
-            g.textCentre(mid, g.fit(mid, middle, HUB * 1.8f), CX, CY, hoveredName != null ? 0xFFFFFFFF : 0xB3FFFFFF);
+            hubText(g, mid, middle, hoveredName != null ? 0xFFFFFFFF : 0xB3FFFFFF);
         }
         // Pages: turn, add one, remove an empty one; one row under the wheel.
         float by = CY + RING + SLOT / 2f + 42f;

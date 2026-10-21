@@ -84,6 +84,15 @@ public final class GlintModule extends Module {
         GlintColors.paint(rm, a, b, (float) (strength.get() / 100.0), phase);
     }
 
+    /** The glint's main colour now (the theme's accent while it follows the theme or is off), for Styles' tools. */
+    public static int colour() {
+        GlintModule m = io.github.georgwav.cosmetics.client.Modules.GLINT;
+        if (m == null || !m.enabled() || m.mode.get().equals("theme") || m.mode.get().equals("rainbow")) {
+            return ThemeState.tokens().accent;
+        }
+        return rgb(m.color);
+    }
+
     /** The glint's colour now (the theme's accent, the first colour, or the rainbow's) for the GUI outline. */
     private int outlineColour() {
         return switch (mode.get()) {

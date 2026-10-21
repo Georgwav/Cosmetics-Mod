@@ -264,10 +264,14 @@ public final class MusicHud extends TextHud {
     /** The cover, or the note on the theme's colours when there's none. */
     private void art(Gfx g, Tokens tk, Covers.Cover c, float x, float y, float size, float r) {
         if (cover.get() && c != null && Covers.small() != null) {
-            g.glowSprite(x + size / 2f, y + size / 2f, size * 0.7f, size * 0.7f, Colors.withAlpha(c.palette().glow(), 0.35f));
+            HudKit.glow(g, x, y, size, size, Colors.withAlpha(c.palette().glow(), 0.3f));
             g.image(Covers.small(), x, y, size, size, 0f, 0f, 1f, 1f, 0xFFFFFFFF, false);
         } else {
-            g.roundV(x, y, size, size, r, Colors.mix(tk.skyTop, 0xFF000000, 0.2f), tk.glow);
+            // The theme's sky in three hard bands, top to bottom.
+            int top = Colors.mix(tk.skyTop, 0xFF000000, 0.2f);
+            HudKit.box(g, x, y, size, size, top);
+            HudKit.box(g, x, y + Math.round(size * 0.5f), size, size - Math.round(size * 0.5f), Colors.mix(top, tk.glow, 0.5f));
+            HudKit.box(g, x, y + Math.round(size * 0.8f), size, size - Math.round(size * 0.8f), tk.glow);
             Icons.draw(g, "note", x + size * 0.25f, y + size * 0.25f, size * 0.5f, 0xCCFFFFFF, Icons.FILL, 0);
         }
     }
@@ -279,7 +283,7 @@ public final class MusicHud extends TextHud {
         art(g, tk, c, ax, ay, ART, 4f);
         float tx = ax + ART + 6f, room = x0 + CARD_W - PAD - tx;
         SolFont title = g.font(SolFont.Family.SEMIBOLD, HudKit.TEXT), small = HudKit.small(g);
-        SolFont mono = g.font(SolFont.Family.MONO, HudKit.SMALL);
+        SolFont mono = g.font(SolFont.Family.PIXEL_BOLD, HudKit.SMALL);
         g.textMid(title, g.fit(title, n.title(), room - 8f), tx, ay + 5f, 0xFFFFFFFF);
         // Playing: a little equaliser in the accent; paused: two bars.
         drawState(g, tk, n, x0 + CARD_W - PAD - 5f, ay + 5f);
@@ -301,7 +305,7 @@ public final class MusicHud extends TextHud {
         art(g, tk, c, ax, ay, BIG_ART, 5f);
         float tx = ax + BIG_ART + 7f, room = x0 + BIG_W - PAD - 2f - tx;
         SolFont title = g.font(SolFont.Family.SEMIBOLD, 8.5f), small = g.font(SolFont.Family.MEDIUM, 6.5f);
-        SolFont mono = g.font(SolFont.Family.MONO, HudKit.SMALL);
+        SolFont mono = g.font(SolFont.Family.PIXEL_BOLD, HudKit.SMALL);
         g.textMid(title, g.fit(title, n.title(), room - 8f), tx, ay + 8f, 0xFFFFFFFF);
         drawState(g, tk, n, x0 + BIG_W - PAD - 5f, ay + 8f);
         if (n.artist() != null && !n.artist().isBlank()) {
@@ -336,18 +340,17 @@ public final class MusicHud extends TextHud {
         drawState(g, tk, n, x0 + PILL_W - 7f, PILL_H / 2f);
         if (progress.get() && n.durationMs() > 0) {
             float bw = PILL_W - PILL_H;
-            g.round(x0 + PILL_H / 2f, PILL_H - 1.6f, bw, 0.9f, 0.45f, 0x30FFFFFF);
-            g.round(x0 + PILL_H / 2f, PILL_H - 1.6f, bw * n.progress(), 0.9f, 0.45f, tk.accent);
+            HudKit.bar(g, x0 + Math.round(PILL_H / 2f), PILL_H - 2f, bw, 1f, n.progress(), tk.accent);
         }
     }
 
     /** The cover alone, with the equaliser in its corner and the progress under it. */
     private void coverOnly(Gfx g, Tokens tk, NowPlaying n, Covers.Cover c, float x0) {
         if (HudKit.glass > 0f) {
-            g.glow(x0, 0f, COVER, COVER, 5f, 6f, Colors.withAlpha(tk.glow, 0.2f * Math.min(1f, HudKit.glass)));
+            HudKit.glow(g, x0, 0f, COVER, COVER, Colors.withAlpha(tk.glow, 0.3f * Math.min(1f, HudKit.glass)));
         }
         art(g, tk, c, x0, 0f, COVER, 5f);
-        g.round(x0 + COVER - 12f, COVER - 10f, 10f, 8f, 2.5f, 0x99000000);
+        HudKit.box(g, x0 + COVER - 12f, COVER - 10f, 10f, 8f, 0x99000000);
         drawState(g, tk, n, x0 + COVER - 7f, COVER - 6f);
         if (progress.get() && n.durationMs() > 0) {
             HudKit.bar(g, x0, COVER + 2.5f, COVER, 2f, n.progress(), tk.accent);
@@ -356,14 +359,15 @@ public final class MusicHud extends TextHud {
 
     private static void drawState(Gfx g, Tokens tk, NowPlaying n, float cx, float cy) {
         if (!n.playing()) {
-            g.rect(cx - 2f, cy - 2.5f, 1.2f, 5f, 0x99FFFFFF);
-            g.rect(cx + 0.8f, cy - 2.5f, 1.2f, 5f, 0x99FFFFFF);
+            HudKit.box(g, (float) Math.floor(cx - 2f), (float) Math.floor(cy - 2.5f), 1f, 5f, 0x99FFFFFF);
+            HudKit.box(g, (float) Math.floor(cx + 1f), (float) Math.floor(cy - 2.5f), 1f, 5f, 0x99FFFFFF);
             return;
         }
         double t = System.nanoTime() / 1e9;
         for (int b = 0; b < 3; b++) {
-            float h = 1.5f + 3.5f * (float) (0.5 + 0.5 * Math.sin(t * (5.0 + b * 1.7) + b * 2.1));
-            g.rect(cx - 2.5f + b * 2f, cy + 2.5f - h, 1.2f, h, tk.accent);
+            float h = Math.round(1.5f + 3.5f * (float) (0.5 + 0.5 * Math.sin(t * (5.0 + b * 1.7) + b * 2.1)));
+            float bottom = (float) Math.floor(cy + 2.5f);
+            HudKit.box(g, (float) Math.floor(cx - 2.5f) + b * 2f, bottom - h, 1f, h, tk.accent);
         }
     }
 

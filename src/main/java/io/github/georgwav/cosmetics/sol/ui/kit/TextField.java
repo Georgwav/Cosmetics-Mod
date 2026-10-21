@@ -53,8 +53,8 @@ public final class TextField {
         blink += dt;
         ui.click(x, y, w, h, () -> focus(true));
         boolean hover = ui.over(x, y, w, h);
-        g.round(x, y, w, h, h / 2f, 0xCC08080C);
-        g.stroke(x, y, w, h, h / 2f, Math.max(1f, g.d.u), focused ? tk.rim : hover ? 0x40FFFFFF : 0x24FFFFFF);
+        Pix.fill(g, x, y, w, h, 0xCC08080C);
+        Pix.frame(g, x, y, w, h, focused ? tk.rim : hover ? 0x40FFFFFF : 0x24FFFFFF);
         float tx = x + 14f;
         if (icon != null) {
             Icons.draw(g, icon, x + 12f, y + h / 2f - 8f, 16f, 0x99FFFFFF, Icons.FILL, 0);

@@ -32,6 +32,7 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("ListLookMixin");
         all.add("PackFoldersMixin");
         all.add("KnifePackMixin");
+        all.add("SpriteContentsAccess");
         all.add("KnifeHandMixin");
         all.add("HandMotionMixin");
         all.add("KnifeInputMixin");

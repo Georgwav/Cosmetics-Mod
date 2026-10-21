@@ -55,6 +55,16 @@ import java.util.List;
 public final class QuickMenu extends SolScreen {
     /** Frames drawn (the in-game check). */
     public static int framesRendered;
+    /**
+     * The menu's own drawing time and allocation for the last {@link #SAMPLES} frames (the speed checks read their
+     * medians, so the first frame's texture work doesn't count as a steady frame's cost).
+     */
+    public static final int SAMPLES = 128;
+    public static final long[] frameNanos = new long[SAMPLES], frameBytes = new long[SAMPLES];
+    /** Whether the moon showed on the dial in the last frame (the moon check). */
+    public static boolean moonShown;
+    private static final com.sun.management.ThreadMXBean THREADS =
+            java.lang.management.ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean t ? t : null;
     /** Labels that didn't fit their segment in the last fit (the in-game check: there must be none). */
     public static int labelsOutside;
 
@@ -96,7 +106,10 @@ public final class QuickMenu extends SolScreen {
     /** Keyboard focus: -1 none, 0 you, 1.. the ring's places, then the tray's items, then the bar's. */
     private int focus = -1;
     private final List<Hit> hits = new ArrayList<>();
-    private float presetScroll = Float.NaN;
+    /** The tray's width (design pixels, centred). */
+    private static final float TRAY_W = 1216f;
+    /** The first preset card the tray shows (whole cards, paged), or -1 to start round the one in use. */
+    private int presetFirst = -1;
     private final PresetThumbs thumbs = new PresetThumbs(53, 22, false);
     /** For the dev scenario: the theme whose sector stays pointed at, or null. */
     private String stagedHot;
@@ -303,7 +316,7 @@ public final class QuickMenu extends SolScreen {
             setRing(mainHot);
         } else {
             meRing = true;
-            presetScroll = Float.NaN;
+            presetFirst = -1;
             setRing(null);
         }
     }
@@ -540,6 +553,25 @@ public final class QuickMenu extends SolScreen {
 
     @Override
     protected void frame(Gfx g) {
+        long t0 = System.nanoTime(), b0 = THREADS != null ? THREADS.getCurrentThreadAllocatedBytes() : 0L;
+        draw(g);
+        int i = (framesRendered - 1) % SAMPLES;
+        frameNanos[i] = System.nanoTime() - t0;
+        frameBytes[i] = THREADS != null ? THREADS.getCurrentThreadAllocatedBytes() - b0 : 0L;
+    }
+
+    /** The median of the samples taken so far. */
+    public static long median(long[] samples) {
+        int n = Math.min(framesRendered, SAMPLES);
+        if (n == 0) {
+            return 0L;
+        }
+        long[] a = java.util.Arrays.copyOf(samples, n);
+        java.util.Arrays.sort(a);
+        return a[n / 2];
+    }
+
+    private void draw(Gfx g) {
         framesRendered++;
         Tokens tk = ThemeState.tokens();
         PixelTokens p = PixelTokens.get();
@@ -597,6 +629,7 @@ public final class QuickMenu extends SolScreen {
         float sunA = ang.value();
         float sinA = (float) Math.sin(Math.toRadians(sunA));
         boolean moonUp = sinA >= 0.02f && eclipse < 0.02f && eclTarget() == 0f;
+        moonShown = moonUp;
         // Where the wheel is on screen: whole screen pixels per art pixel, centred on (640, 330).
         wk = Math.max(1, Math.round(2f * g.d.u));
         float left = Math.round(g.d.sx(CX) - PixelWheel.WC * wk), top = Math.round(g.d.sy(CY) - PixelWheel.WC * wk);
@@ -768,23 +801,49 @@ public final class QuickMenu extends SolScreen {
         }
         float inner = PixelWheel.HR * ud + (MAIN_A - PixelWheel.HR) * ud - 6f;
         float y = wcy + PixelWheel.HR * ud + 3f;
-        y = line(g, SolFont.Family.PIXEL_BOLD, new float[]{15f, 13f, 12f}, title, y, inner, 0xFFFFFFFF);
-        line(g, SolFont.Family.SEMIBOLD, new float[]{12f, 11f}, sub, y + 2f, inner, p.acc);
+        y = line(g, SolFont.Family.PIXEL_BOLD, TITLE_SIZES, title, y, inner, 0xFFFFFFFF, true);
+        line(g, SolFont.Family.SEMIBOLD, SUB_SIZES, sub, y + 2f, inner, p.acc);
     }
+
+    /** The centre's title sizes (down to Silkscreen's smallest, one font pixel a screen pixel) and its line's. */
+    private static final float[] TITLE_SIZES = {15f, 13f, 12f, 10f}, SUB_SIZES = {12f, 11f, 10f};
 
     /** One centred line on a black backing, the largest size that fits the chord (else cut); returns its bottom. */
     private float line(Gfx g, SolFont.Family fam, float[] sizes, String text, float y, float inner, int colour) {
+        return line(g, fam, sizes, text, y, inner, colour, false);
+    }
+
+    private float line(Gfx g, SolFont.Family fam, float[] sizes, String text, float y, float inner, int colour, boolean label) {
         SolFont f = g.font(fam, sizes[sizes.length - 1]);
         float h = 0f, room = 0f;
         for (float s : sizes) {
             f = g.font(fam, s);
             h = f.cap() / g.d.u + 8f;
             room = WheelLabels.chordHalf(inner, y + h - wcy) * 2f;
-            if (g.width(f, text) <= room) {
+            if (g.width(f, text) <= room - 10f) {
                 break;
             }
         }
-        String shown = g.fit(f, text, room - 10f);
+        if (g.width(f, text) > room - 10f && text.indexOf(' ') > 0) {
+            // Too long even at the smallest size: on two lines, split at the space nearest its middle, when both fit.
+            int best = -1, mid = text.length() / 2;
+            for (int i = text.indexOf(' '); i >= 0; i = text.indexOf(' ', i + 1)) {
+                if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) {
+                    best = i;
+                }
+            }
+            String a = text.substring(0, best), b = text.substring(best + 1);
+            float room2 = WheelLabels.chordHalf(inner, y + 2f * h - wcy) * 2f;
+            if (g.width(f, a) <= room - 10f && g.width(f, b) <= room2 - 10f) {
+                float wa = g.width(f, a) + 10f, wb = g.width(f, b) + 10f;
+                g.rect(wcx - wa / 2f, y, wa, h, 0xB8080A0A);
+                g.textMid(f, a, wcx - wa / 2f + 5f, y + h / 2f, colour);
+                g.rect(wcx - wb / 2f, y + h, wb, h, 0xB8080A0A);
+                g.textMid(f, b, wcx - wb / 2f + 5f, y + h + h / 2f, colour);
+                return y + 2f * h;
+            }
+        }
+        String shown = label ? g.fitLabel(f, text, room - 10f) : g.fit(f, text, room - 10f);
         float w = g.width(f, shown) + 10f;
         g.rect(wcx - w / 2f, y, w, h, 0xB8080A0A);
         g.textMid(f, shown, wcx - w / 2f + 5f, y + h / 2f, colour);
@@ -958,32 +1017,31 @@ public final class QuickMenu extends SolScreen {
      */
     private void presets(Gfx g, PixelTokens p, float y) {
         List<ThemeRegistry.Entry> themes = ThemeRegistry.all();
-        float cardW = 118f, cardH = 74f, gap = 6f;
-        float total = themes.size() * (cardW + gap) - gap;
-        float viewX = 32f, viewW = 1216f;
+        float cardW = 136f, cardH = 74f, gap = 6f, arrow = 30f;
+        int n = themes.size();
+        // Whole cards only: as many as fit, and page arrows either side when they don't all fit.
+        boolean paged = n * (cardW + gap) - gap > TRAY_W;
+        int visible = paged ? Math.max(1, (int) ((TRAY_W - 2f * (arrow + 8f) + gap) / (cardW + gap))) : n;
         String current = ThemeState.themeId();
-        if (Float.isNaN(presetScroll)) {
+        if (presetFirst < 0) {
             int ci = 0;
-            for (int i = 0; i < themes.size(); i++) {
+            for (int i = 0; i < n; i++) {
                 if (themes.get(i).id().equals(current)) {
                     ci = i;
                 }
             }
-            presetScroll = Math.max(0f, Math.min(Math.max(0f, total - viewW), ci * (cardW + gap) - viewW / 2f + cardW / 2f));
+            presetFirst = ci - visible / 2;
         }
-        float x0 = total <= viewW ? CX - total / 2f : viewX - presetScroll;
-        g.clip(viewX, y - 4f, viewX + viewW, y + cardH + 6f);
-        SolFont nameF = g.font(SolFont.Family.PIXEL_BOLD, 10f);
+        presetFirst = Math.max(0, Math.min(Math.max(0, n - visible), presetFirst));
+        float width = visible * (cardW + gap) - gap, x0 = CX - width / 2f;
         int start = 1 + places().length + hits.size();
         int tk = Math.max(1, Math.round(2f * g.d.u));
-        for (int i = 0; i < themes.size(); i++) {
+        for (int v = 0; v < visible && presetFirst + v < n; v++) {
+            int i = presetFirst + v;
             ThemeRegistry.Entry e = themes.get(i);
-            float x = x0 + i * (cardW + gap);
-            if (x + cardW < viewX - 4f || x > viewX + viewW + 4f) {
-                continue;
-            }
+            float x = x0 + v * (cardW + gap);
             boolean cur = e.id().equals(current);
-            boolean over = overBox(x, y, cardW, cardH) && g.inClip(mx, my);
+            boolean over = overBox(x, y, cardW, cardH);
             int st = cur ? Pix.ON : over ? Pix.HOVER : Pix.NORMAL;
             Pix.slab(g, p, x, y, cardW, cardH, st);
             float px0 = Math.round(g.d.sx(x + 6f)), py0 = Math.round(g.d.sy(y + 6f));
@@ -995,14 +1053,31 @@ public final class QuickMenu extends SolScreen {
             } else {
                 g.rectPx(px0, py0, px0 + 53 * tk, py0 + 22 * tk, e.base().sky().top());
             }
-            g.textMid(nameF, g.fit(nameF, Widgets.themeName(e), cardW - 14f), x + 7f, y + cardH - 12f, Pix.text(p, st));
-            if (focus == start + i) {
+            String name = Widgets.themeName(e);
+            SolFont nameF = g.fitting(name, cardW - 14f, 10f, 8f);
+            g.textMid(nameF, g.fitLabel(nameF, name, cardW - 14f), x + 7f, y + cardH - 12f, Pix.text(p, st));
+            if (focus == start + v) {
                 Pix.focus(g, x, y, cardW, cardH);
             }
             final String id = e.id();
-            hits.add(new Hit(Math.max(x, viewX), y, Math.min(x + cardW, viewX + viewW) - Math.max(x, viewX), cardH, () -> applyPreset(id)));
+            hits.add(new Hit(x, y, cardW, cardH, () -> applyPreset(id)));
         }
-        g.endClip();
+        if (paged) {
+            float ay = y + cardH / 2f - arrow / 2f;
+            pageArrow(g, p, x0 - 8f - arrow, ay, arrow, "prev", presetFirst > 0, () -> presetFirst = Math.max(0, presetFirst - visible));
+            pageArrow(g, p, x0 + width + 8f, ay, arrow, "next", presetFirst + visible < n,
+                    () -> presetFirst = Math.min(Math.max(0, n - visible), presetFirst + visible));
+        }
+    }
+
+    /** A square page arrow in the tray; dim (and dead) at either end. */
+    private void pageArrow(Gfx g, PixelTokens p, float x, float y, float s, String icon, boolean live, Runnable turn) {
+        boolean over = live && overBox(x, y, s, s);
+        Pix.slab(g, p, x, y, s, s, over ? Pix.HOVER : Pix.NORMAL);
+        Icons.draw(g, icon, x + s / 2f - 9f, y + s / 2f - 9f, 18f, live ? Pix.text(p, over ? Pix.HOVER : Pix.NORMAL) : PixelTokens.INK3, 0f, 0);
+        if (live) {
+            hits.add(new Hit(x, y, s, s, turn));
+        }
     }
 
     private void emoteChips(Gfx g, Tokens tk, float y) {
@@ -1153,8 +1228,13 @@ public final class QuickMenu extends SolScreen {
         Pix.slab(g, p, px, py, pw, ph, Pix.NORMAL);
         ui.area(px, py, pw, ph, () -> { });
         SolFont h = g.font(SolFont.Family.PIXEL_BOLD, 12f), small = g.font(SolFont.Family.MEDIUM, 11f);
-        g.textMid(h, tr("sol.quick.wheel.colour_pick"), px + 14f, py + 18f, PixelTokens.INK);
-        g.textRight(small, g.fit(small, tr("sol.quick.wheel.colour_pick_hint"), pw - 150f), px + pw - 14f, py + 18f, PixelTokens.INK3);
+        String head = tr("sol.quick.wheel.colour_pick");
+        g.textMid(h, head, px + 14f, py + 18f, PixelTokens.INK);
+        // The hint beside the head, only where it has room to say something.
+        float hintRoom = pw - 28f - g.width(h, head) - 16f;
+        if (hintRoom > 80f) {
+            g.textRight(small, g.fit(small, tr("sol.quick.wheel.colour_pick_hint"), hintRoom), px + pw - 14f, py + 18f, PixelTokens.INK3);
+        }
         List<Integer> presets = new ArrayList<>(COLOURS.length);
         for (int c : COLOURS) {
             presets.add(c & 0xFFFFFF);
@@ -1339,8 +1419,8 @@ public final class QuickMenu extends SolScreen {
             return false;
         }
         if (meRing && y >= TRAY_Y) {
-            float total = ThemeRegistry.all().size() * 124f - 6f;
-            presetScroll = Math.max(0f, Math.min(Math.max(0f, total - 1216f), (Float.isNaN(presetScroll) ? 0f : presetScroll) - amount * 60f));
+            // A card at a time (presets() keeps it in range).
+            presetFirst = Math.max(0, presetFirst - (int) Math.signum(amount));
             return true;
         }
         return false;

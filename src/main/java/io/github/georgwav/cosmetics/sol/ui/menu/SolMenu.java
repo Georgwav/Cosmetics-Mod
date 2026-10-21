@@ -43,7 +43,7 @@ public final class SolMenu extends SolScreen {
     /** Frames drawn (the in-game check). */
     public static int framesRendered;
     /** The body under the title bar (design px): 22 px in from the window's sides, the footer under it. */
-    static final float BODY_X = Pix.WIN_X + Pix.E + 22f, BODY_Y = Pix.WIN_Y + Pix.BAR_H + Pix.E + 16f,
+    public static final float BODY_X = Pix.WIN_X + Pix.E + 22f, BODY_Y = Pix.WIN_Y + Pix.BAR_H + Pix.E + 16f,
             BODY_W = Pix.WIN_W - 2f * Pix.E - 44f, BODY_BOTTOM = Pix.WIN_Y + Pix.WIN_H - Pix.E - 28f;
 
     private String section;
@@ -105,13 +105,13 @@ public final class SolMenu extends SolScreen {
 
     private SolMenu(Screen parent, String section, boolean fromQuick) {
         super(Component.translatable("sol.menu.title"), parent, Feature.MENU);
-        this.section = indexOf(section) >= 0 ? section : "modules";
+        this.section = indexOf(section) >= 0 && !section.equals("wardrobe") ? section : "modules";
         this.fromQuick = fromQuick;
         sections.put("modules", new ModulesSection());
         sections.put("hud", new HudSection());
         sections.put("world", new WorldSection());
         sections.put("presets", new PresetsSection());
-        sections.put("wardrobe", new WardrobeSection());
+        sections.put("styles", new StylesSection());
         sections.put("emotes", new EmotesSection());
         sections.put("music", new MusicSection());
         sections.put("mods", new ModsSection());
@@ -122,9 +122,18 @@ public final class SolMenu extends SolScreen {
         return new SolMenu(parent, section, fromQuick);
     }
 
-    /** Opens the full menu on a page. */
+    /** Opens the full menu on a page (the Wardrobe tab is the Wardrobe itself, in the same window). */
     public static void open(Screen parent, String section, boolean fromQuick) {
+        if ("wardrobe".equals(section)) {
+            ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.inMenu(parent, "all", fromQuick));
+            return;
+        }
         ScreenOpener.open(create(parent, section, fromQuick));
+    }
+
+    /** The screen the menu goes back to when it closes. */
+    public Screen parentScreen() {
+        return parent;
     }
 
     /** Opens the full menu with search (Ctrl+K, or typing in the quick menu) already open. */
@@ -161,6 +170,10 @@ public final class SolMenu extends SolScreen {
             case "theme_night" -> {
                 go("world");
                 openTheme(true);
+            }
+            case "styles_tools", "styles_tools_full", "styles_look", "styles_crystal", "styles_tree" -> {
+                go("styles");
+                ((StylesSection) sections.get("styles")).stage(state.substring("styles_".length()));
             }
             case "settings_about" -> {
                 go("settings");
@@ -199,6 +212,12 @@ public final class SolMenu extends SolScreen {
     }
 
     public void go(String id) {
+        if (id.equals("wardrobe")) {
+            // The Wardrobe tab is the Wardrobe itself; Esc there comes back to the page you were on.
+            closeDrawer();
+            ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.inMenu(this, "all", fromQuick));
+            return;
+        }
         if (id.equals(section) || indexOf(id) < 0) {
             return;
         }
@@ -290,7 +309,7 @@ public final class SolMenu extends SolScreen {
      * A page's head (the prototype's .whead): a round "i", a line in Silkscreen 15 and, after it, a count in pixel 11.
      * Returns where the line ends.
      */
-    static float head(Gfx g, String line, String count, float x, float cy) {
+    public static float head(Gfx g, String line, String count, float x, float cy) {
         PixelTokens p = PixelTokens.get();
         // The "i": a 28 px disc of pale ink with a dark pixel "i".
         g.circle(x + 14f, cy, 14f, 0xFFD9D4DC);
@@ -540,6 +559,9 @@ public final class SolMenu extends SolScreen {
         }
         if (drawer != null) {
             closeDrawer();
+            return true;
+        }
+        if (sections.get(section).back()) {
             return true;
         }
         if (fromQuick) {

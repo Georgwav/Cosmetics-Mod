@@ -8,6 +8,7 @@ import io.github.georgwav.cosmetics.client.skins.SkinLibrary;
 import io.github.georgwav.cosmetics.client.skins.SkinUploader;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
@@ -305,7 +306,7 @@ final class SkinsView {
         g.rect(x, bodyTop - 6f, w, Math.max(1f / g.d.u, 1f), 0x14FFFFFF);
         g.clip(x - 4f, bodyTop, x + w + 6f, top + h);
         float y = bodyTop - scroll.value();
-        SolFont head = g.font(SolFont.Family.MONO, 11f);
+        SolFont head = g.font(SolFont.Family.PIXEL, 11f);
         g.textSpaced(head, WardrobeScreen.tr("sol.wardrobe.skins.title").toUpperCase(java.util.Locale.ROOT), x, y + 12f, 1.1f, 0x80FFFFFF);
         y += 24f;
         String empty = problem != null ? problem
@@ -366,7 +367,7 @@ final class SkinsView {
         SolFont f = g.font(SolFont.Family.MEDIUM, 12f);
         g.textCentre(f, t(e.skin.slim() ? "slim" : "wide"), x + CARD_W / 2f, y + CARD_H - 16f, picked ? tk.accent : 0x99FFFFFF);
         if (ui.focused(fi)) {
-            g.stroke(x - 2f, y - 2f, CARD_W + 4f, CARD_H + 4f, 14f, 2f * g.d.u, tk.accent);
+            Pix.frame(g, x - 2f, y - 2f, CARD_W + 4f, CARD_H + 4f, tk.accent);
         }
     }
 
@@ -389,16 +390,16 @@ final class SkinsView {
             g.textCentre(f, g.fit(f, e.cape.alias(), CAPE_W - 12f), x + CAPE_W / 2f, y + CAPE_H - 16f, worn ? tk.accent : 0xD9FFFFFF);
         }
         if (ui.focused(fi)) {
-            g.stroke(x - 2f, y - 2f, CAPE_W + 4f, CAPE_H + 4f, 14f, 2f * g.d.u, tk.accent);
+            Pix.frame(g, x - 2f, y - 2f, CAPE_W + 4f, CAPE_H + 4f, tk.accent);
         }
     }
 
     private static void card(Gfx g, Tokens tk, float x, float y, float w, float h, boolean on, boolean hover) {
         if (on) {
-            g.glow(x, y, w, h, 12f, 20f, Colors.withAlpha(tk.glow, 0.25f));
+            Pix.frame(g, x - 2f, y - 2f, w + 4f, h + 4f, Colors.withAlpha(tk.glow, 0.6f));
         }
-        g.round(x, y, w, h, 12f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
-        g.stroke(x, y, w, h, 12f, Math.max(1f, g.d.u), on ? tk.accent : hover ? 0x38FFFFFF : 0x1AFFFFFF);
+        Pix.fill(g, x, y, w, h, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.06f) : tk.panel);
+        Pix.frame(g, x, y, w, h, on ? tk.accent : hover ? 0x38FFFFFF : 0x1AFFFFFF);
         g.highlight(x, y, w, h, 12f, 0x24FFFFFF);
     }
 

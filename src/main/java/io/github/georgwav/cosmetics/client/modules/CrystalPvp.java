@@ -24,15 +24,13 @@ import java.util.UUID;
 /**
  * Crystal PvP, each part on its own switch: the crystal optimizer (an end crystal you hit is gone from your screen at
  * once when the hit will break it, instead of a moment later when the server says so, so the next one goes down
- * sooner; one the server keeps comes back after a second and a half); the crystals' size, spin and bounce; a line in chat when anyone near you pops a totem, with their count;
+ * sooner; one the server keeps comes back after a second and a half); the crystals' size (their spin and bounce are the Crystal part's, in Sol Styles); a line in chat when anyone near you pops a totem, with their count;
  * a warning when your offhand has no totem but your inventory does; and a red pulse round the screen when your health
  * runs low. All on your side only: nothing is sent that the game doesn't send anyway.
  */
 public final class CrystalPvp extends Module {
     final Setting.Toggle optimizer = add(new Setting.Toggle("optimizer", true).group("crystal"));
     final Setting.Slider size = add(new Setting.Slider("crystal_size", 100, 25, 150, 5, v -> Math.round(v) + "%").group("crystal"));
-    final Setting.Slider spin = add(new Setting.Slider("crystal_spin", 100, 0, 300, 10, v -> Math.round(v) + "%").group("crystal"));
-    final Setting.Toggle bounce = add(new Setting.Toggle("crystal_bounce", true).group("crystal"));
     private final Setting.Toggle pops = add(new Setting.Toggle("pop_messages", true).group("combat"));
     private final Setting.Toggle offhand = add(new Setting.Toggle("offhand_warning", true).group("combat"));
     private final Setting.Toggle lowHealth = add(new Setting.Toggle("low_health", true).group("combat"));
@@ -88,16 +86,40 @@ public final class CrystalPvp extends Module {
         return c.enabled() ? (float) (c.size.get() / 100.0) : 1f;
     }
 
-    /** How fast the crystals turn (1 = the game's). */
+    /** How fast the crystals turn (1 = the game's): the Crystal part's setting in Sol Styles. */
     public static float crystalSpin() {
-        CrystalPvp c = Modules.CRYSTAL_PVP;
-        return c.enabled() ? (float) (c.spin.get() / 100.0) : 1f;
+        return io.github.georgwav.cosmetics.sol.styles.Styles.crystalSpin();
     }
 
-    /** Whether the crystals bob up and down. */
+    /** Whether the crystals bob up and down: the Crystal part's setting in Sol Styles. */
     public static boolean crystalBounce() {
-        CrystalPvp c = Modules.CRYSTAL_PVP;
-        return !c.enabled() || c.bounce.get();
+        return io.github.georgwav.cosmetics.sol.styles.Styles.crystalBounce();
+    }
+
+    /** The spin and bounce moved to Sol Styles' Crystal part: an older save's values go there once. */
+    @Override
+    protected void migrate(com.google.gson.JsonObject settings) {
+        Float spin = null;
+        Boolean bounce = null;
+        if (settings.has("crystal_spin")) {
+            try {
+                spin = (float) (settings.get("crystal_spin").getAsDouble() / 100.0);
+            } catch (RuntimeException e) {
+                spin = null;
+            }
+            settings.remove("crystal_spin");
+        }
+        if (settings.has("crystal_bounce")) {
+            try {
+                bounce = settings.get("crystal_bounce").getAsBoolean();
+            } catch (RuntimeException e) {
+                bounce = null;
+            }
+            settings.remove("crystal_bounce");
+        }
+        if (spin != null || bounce != null) {
+            io.github.georgwav.cosmetics.sol.styles.Styles.legacyCrystal(spin, bounce);
+        }
     }
 
     // ------------------------------------------------------------------ totems

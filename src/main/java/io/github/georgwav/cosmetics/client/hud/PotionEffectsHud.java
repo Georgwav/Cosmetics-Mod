@@ -45,7 +45,6 @@ public final class PotionEffectsHud extends TextHud {
     private List<Holder<MobEffect>> shownEffects = List.of();
     /** The longest time left each effect has had (what its ring drains from). */
     private final Map<Holder<MobEffect>, Integer> longest = new HashMap<>();
-    private final float[] arcX = new float[49], arcY = new float[49];
 
     public PotionEffectsHud() {
         // Left middle: the right middle is the scoreboard's, the top right the game's own effect icons.
@@ -152,7 +151,7 @@ public final class PotionEffectsHud extends TextHud {
 
     private float chipWidth(Chip c) {
         float text = Math.max(HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, c.name(), scale()),
-                HudKit.measure(SolFont.Family.MONO, HudKit.SMALL, c.time(), scale()));
+                HudKit.measure(SolFont.Family.PIXEL_BOLD, HudKit.SMALL, c.time(), scale()));
         return PAD_L + RING + 4.5f + text + PAD_R;
     }
 
@@ -175,15 +174,16 @@ public final class PotionEffectsHud extends TextHud {
     protected void drawSol(Gfx g, Tokens tk, Minecraft mc) {
         List<Chip> chips = chips(mc);
         float full = solWidth(mc), y = 0f;
-        SolFont name = HudKit.text(g), time = g.font(SolFont.Family.MONO, HudKit.SMALL);
+        SolFont name = HudKit.text(g), time = g.font(SolFont.Family.PIXEL_BOLD, HudKit.SMALL);
         float pulse = HudKit.pulse();
         for (Chip c : chips) {
             float w = chipWidth(c), x = anchorX >= 0.5f ? full - w : 0f;
             HudKit.card(g, tk, x, y, w, H, HudKit.CARD_R);
             float cx = x + PAD_L + RING / 2f, cy = y + H / 2f;
             int col = c.ending() ? Colors.fade(Tokens.AMBER, pulse) : tk.accent;
-            g.ring(cx, cy, RING / 2f - 1f, 2f, 0x24FFFFFF);
-            arc(g, cx, cy, RING / 2f - 1f, c.left(), col);
+            float rx = x + PAD_L, ry = (float) Math.floor(cy - RING / 2f);
+            square(g, rx, ry, RING, 1f, 0x24FFFFFF);
+            square(g, rx, ry, RING, c.left(), col);
             float tx = x + PAD_L + RING + 4.5f;
             g.textMid(name, c.name(), tx, cy - 3f, 0xFFFFFFFF);
             g.textMid(time, c.time(), tx, cy + 3.5f, c.ending() ? Colors.fade(Tokens.AMBER, 0.5f + 0.5f * pulse) : 0xA8FFFFFF);
@@ -207,17 +207,30 @@ public final class PotionEffectsHud extends TextHud {
         gc.pop();
     }
 
-    /** The ring's part still left, clockwise from the top. */
-    private void arc(Gfx g, float cx, float cy, float r, float left, int color) {
+    /**
+     * The pixel ring: a square outline two GUI pixels thick round the icon, the part still left of it lit clockwise
+     * from the top's middle, a whole GUI pixel at a time.
+     */
+    private static void square(Gfx g, float x, float y, float side, float left, int color) {
         if (left <= 0f) {
             return;
         }
-        int n = Math.max(2, Math.round(48 * Math.min(1f, left)) + 1);
-        for (int i = 0; i < n; i++) {
-            double a = -Math.PI / 2 + Math.PI * 2 * Math.min(1f, left) * i / (n - 1);
-            arcX[i] = cx + (float) Math.cos(a) * r;
-            arcY[i] = cy + (float) Math.sin(a) * r;
-        }
-        g.strokePath(arcX, arcY, n, false, 2f, g.flat(color));
+        float t = 2f, run = side - t, half = Math.round(side / 2f);
+        // The perimeter as five runs: top right, right, bottom, left, top left.
+        float length = Math.round(4f * run * Math.min(1f, left));
+        float a = Math.min(length, side - half);
+        HudKit.box(g, x + half, y, a, t, color);
+        length -= a;
+        a = Math.min(length, run);
+        HudKit.box(g, x + side - t, y + t, t, a, color);
+        length -= a;
+        a = Math.min(length, run);
+        HudKit.box(g, x + side - t - a, y + side - t, a, t, color);
+        length -= a;
+        a = Math.min(length, run);
+        HudKit.box(g, x, y + side - t - a, t, a, color);
+        length -= a;
+        a = Math.min(length, half - t);
+        HudKit.box(g, x + t, y, a, t, color);
     }
 }

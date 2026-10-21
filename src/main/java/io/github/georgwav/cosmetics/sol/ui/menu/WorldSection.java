@@ -86,7 +86,7 @@ final class WorldSection implements Section {
         Pix.pane(g, p, vx, gy, PANE_W, gh);
         SolTexture sky = skies.get(cur);
         if (sky != null) {
-            PresetsSection.drawPixels(g, sky, SKY_W, SKY_H, vx + Pix.E, gy + Pix.E, PANE_W - 2f * Pix.E, gh - 2f * Pix.E);
+            Pix.pixels(g, sky, SKY_W, SKY_H, vx + Pix.E, gy + Pix.E, PANE_W - 2f * Pix.E, gh - 2f * Pix.E);
         }
         SolTexture t = logo.texture(cur, menu.time(), menu.dt());
         int k = Math.max(1, Math.round(3f * g.d.u));

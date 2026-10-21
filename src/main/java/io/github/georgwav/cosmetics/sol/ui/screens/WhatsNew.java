@@ -6,6 +6,7 @@ import io.github.georgwav.cosmetics.sol.client.Updates;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolScreen;
@@ -75,8 +76,8 @@ public final class WhatsNew extends SolScreen {
         Tokens tk = ThemeState.tokens();
         ui.begin(g, mx, my);
         g.rect(g.d.left(), g.d.top(), g.d.right() - g.d.left(), g.d.bottom() - g.d.top(), 0xA6050508);
-        SolFont h1 = g.font(SolFont.Family.SEMIBOLD, 26f), h2 = g.font(SolFont.Family.SEMIBOLD, 15f);
-        SolFont body = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont h1 = g.font(SolFont.Family.PIXEL_BOLD, 16f), h2 = g.font(SolFont.Family.PIXEL_BOLD, 13f);
+        SolFont body = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.PIXEL, 12f);
         float x0 = 240f, w = 800f, top = 60f;
         g.textMid(h1, Component.translatable("sol.whats_new.heading").getString(), x0, top, 0xFFFFFFFF);
         g.textMid(mono, "Sol Client " + version, x0 + g.width(h1, Component.translatable("sol.whats_new.heading").getString()) + 14f, top,
@@ -92,7 +93,7 @@ public final class WhatsNew extends SolScreen {
             ui.button(tk, right, top, Component.translatable("gui.done").getString(), true, this::onClose);
         }
         float ly = top + 44f, bottom = 690f;
-        g.round(x0 - 16f, ly - 12f, w + 32f, bottom - ly + 24f, 14f, 0x0DFFFFFF);
+        Pix.fill(g, x0 - 16f, ly - 12f, w + 32f, bottom - ly + 24f, 0x0DFFFFFF);
         if (notes.isEmpty()) {
             g.textMid(body, Component.translatable("sol.whats_new.none").getString(), x0, ly + 16f, 0x8CFFFFFF);
             return;

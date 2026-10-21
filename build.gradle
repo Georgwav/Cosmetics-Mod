@@ -128,6 +128,13 @@ if (bundleDir) {
             // A pack file at the same path as one of the mod's own is a mistake, not something to overwrite.
             duplicatesStrategy = DuplicatesStrategy.FAIL
         }
+        // Sol Styles' personal styles: the pack's styles/<tab>/<style>/ folders, each a small pack of its own.
+        def bundleStyles = new File(rootProject.file(bundleDir), 'styles')
+        if (bundleStyles.isDirectory()) {
+            from(bundleStyles) {
+                into 'solstyles'
+            }
+        }
     }
     modJar.configure {
         archiveClassifier.set('personal')
@@ -164,6 +171,73 @@ if (knivesDir) {
         archiveClassifier.set('personal')
     }
 }
+
+// Sol Styles' part table for this version (src/styles/parts.json): each part's path patterns resolved against this
+// version's own client assets, so a part lists exactly the files this version has. The game's jar is found on the
+// compile classpath (the jar holding assets/minecraft/). Written to assets/cosmeticsmod/styles/parts.json.
+def stylePartsOut = layout.buildDirectory.dir('generated/styleParts')
+def styleParts = tasks.register('styleParts') {
+    def source = rootProject.file('src/styles/parts.json')
+    def classpath = sourceSets.main.compileClasspath
+    inputs.file(source)
+    inputs.property('mc', mcVersion)
+    outputs.dir(stylePartsOut)
+    doLast {
+        def assets = new TreeSet<String>()
+        classpath.files.findAll { it.isFile() && it.name.endsWith('.jar') }.each { file ->
+            new java.util.zip.ZipFile(file).withCloseable { zip ->
+                if (zip.getEntry('assets/minecraft/textures/block/stone.png') == null) {
+                    return
+                }
+                zip.entries().each { e ->
+                    if (!e.isDirectory() && e.name.startsWith('assets/minecraft/')) {
+                        assets.add(e.name.substring('assets/minecraft/'.length()))
+                    }
+                }
+            }
+        }
+        if (assets.isEmpty()) {
+            throw new GradleException('styleParts: no jar on the classpath holds the game\'s assets')
+        }
+        def toRegex = { String glob ->
+            def sb = new StringBuilder('^')
+            int i = 0
+            while (i < glob.length()) {
+                char c = glob.charAt(i)
+                if (c == '*' && i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
+                    sb.append('.*')
+                    i += 2
+                } else if (c == '*') {
+                    sb.append('[^/]*')
+                    i++
+                } else {
+                    sb.append(java.util.regex.Pattern.quote(String.valueOf(c)))
+                    i++
+                }
+            }
+            java.util.regex.Pattern.compile(sb.append('$').toString())
+        }
+        def table = new groovy.json.JsonSlurper().parse(source)
+        def parts = table.parts.collect { part ->
+            def paths = new TreeSet<String>()
+            part.paths.each { glob ->
+                def re = toRegex(glob)
+                assets.each { if (re.matcher(it).matches()) paths.add(it) }
+            }
+            def icon = part.icon.find { assets.contains(it) }
+            def out = new LinkedHashMap(part)
+            out.paths = paths as List
+            out.icon = icon
+            out
+        }.findAll { !it.paths.isEmpty() }
+        def file = stylePartsOut.get().file('assets/cosmeticsmod/styles/parts.json').asFile
+        file.parentFile.mkdirs()
+        def json = [mc: mcVersion, tabs: table.tabs, groups: table.groups, parts: parts]
+        file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)) + '\n'
+    }
+}
+// Given as the task, so everything that reads the resources (the jar, the sources jar) runs it first.
+sourceSets.main.resources.srcDir(styleParts)
 
 // Copies every version's jar into <root>/build/libs so CI and releases find them in one place.
 tasks.register('collectJar', Copy) {

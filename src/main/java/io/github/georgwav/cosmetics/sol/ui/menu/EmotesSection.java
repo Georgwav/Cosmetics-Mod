@@ -18,7 +18,7 @@ import io.github.georgwav.cosmetics.ui.Mannequin;
 import net.minecraft.client.Minecraft;
 
 /**
- * Emotes (A.7.2): your wheel's page as eight slots round a recess (each with its emote's picture and name, or the plus
+ * Emotes (A.7.2): your wheel's page as eight slots on an oval in a recess (each with its emote's picture and name, or the plus
  * where none is), the page and its controls in the middle, and you on the right doing the one you picked. Click a
  * slot to play its emote, the gear on a slot (or an empty slot) to pick the emote for it. Play and Stop in the head;
  * the elytra wheel is a tab of its own.
@@ -68,7 +68,9 @@ final class EmotesSection implements Section {
         // The slots round the recess.
         float gy = y + 42f + 16f, gh = h - 42f - 16f, gw = w - PANE_W - 18f;
         Pix.recess(g, p, x, gy, gw, gh);
-        float cx = x + gw / 2f, cy = gy + gh / 2f, r = Math.min(gw, gh) / 2f - 66f;
+        // The slots on an oval: wider than tall, so the page controls in the middle keep clear of the side slots.
+        float cx = x + gw / 2f, cy = gy + gh / 2f, ry = Math.min(gw, gh) / 2f - 66f;
+        float rx = Math.min(gw / 2f - SLOT_W / 2f - 14f, ry * 1.35f);
         int per = CosmeticsConfig.WHEEL_SLOTS;
         Emote playing = EmotePlayer.playing();
         SolFont nf = g.font(SolFont.Family.PIXEL_BOLD, 10f);
@@ -76,7 +78,7 @@ final class EmotesSection implements Section {
             int slot = page * per + i;
             Emote e = Emotes.at(elytra, slot);
             double a = Math.toRadians(-90 + i * 360.0 / per);
-            float sx = Math.round(cx + (float) Math.cos(a) * r - SLOT_W / 2f), sy = Math.round(cy + (float) Math.sin(a) * r - SLOT_H / 2f);
+            float sx = Math.round(cx + (float) Math.cos(a) * rx - SLOT_W / 2f), sy = Math.round(cy + (float) Math.sin(a) * ry - SLOT_H / 2f);
             boolean on = e != null && (e == picked || e == playing), over = ui.over(sx, sy, SLOT_W, SLOT_H);
             Pix.slab(g, p, sx, sy, SLOT_W, SLOT_H, on ? Pix.ON : over ? Pix.HOVER : Pix.NORMAL);
             int c = Pix.text(p, on ? Pix.ON : over ? Pix.HOVER : Pix.NORMAL);
@@ -84,7 +86,11 @@ final class EmotesSection implements Section {
                 int size = Math.round(64f * g.d.u);
                 pictures.draw(g.game(), e, Math.round(g.d.sx(sx + SLOT_W / 2f) - size / 2f), Math.round(g.d.sy(sy + 10f)), size);
                 g.layer();
-                g.textCentre(nf, g.fit(nf, Emotes.name(e), SLOT_W - 12f), sx + SLOT_W / 2f, sy + SLOT_H - 16f, c);
+                // Two lines when the name needs them ("Head / Shake"), the first moved up to make room.
+                String name = Emotes.name(e);
+                float line = nf.cap() / g.d.u + 5f;
+                boolean two = g.width(nf, name) > SLOT_W - 12f;
+                g.labelCentre(nf, name, sx + SLOT_W / 2f, sy + SLOT_H - 16f - (two ? line : 0f), SLOT_W - 12f, line, c);
             } else {
                 Icons.draw(g, "plus", sx + SLOT_W / 2f - 18f, sy + 30f, 36f, c, 0f, 0);
                 g.textCentre(nf, SolMenu.tr("sol.quick.wheel.empty_slot"), sx + SLOT_W / 2f, sy + SLOT_H - 16f, c);

@@ -35,15 +35,18 @@ public final class SolScenario {
     /** The menus' shots, in the prototype's reference order: the quick menu's states, then the full menu's. */
     private static final String[] UI_SHOTS = {"quick_hud", "quick_modules", "quick_world", "quick_music", "quick_settings",
             "quick_mods", "quick_night", "quick_dusk", "quick_eclipse", "quick_presets", "quick_presets_hot", "quick_presets_colour", "quick_emotes", "quick_emote_picker", "quick_back", "menu_modules", "menu_hud",
-            "menu_world", "menu_world_night", "menu_presets", "menu_wardrobe", "menu_emotes", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
+            "menu_world", "menu_world_night", "menu_presets", "menu_wardrobe", "menu_emotes", "menu_modules_green", "menu_modules_light",
+            "quick_hud_light", "menu_music", "menu_music_lyrics", "menu_mods", "menu_settings",
             "menu_settings_about",
             "menu_drawer_atmosphere", "menu_drawer_advanced_atmosphere", "menu_drawer_crosshair", "menu_drawer_camera",
-            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_drawer",
+            "menu_drawer_crystal_pvp", "menu_drawer_pvp_effects", "menu_drawer_keystrokes", "menu_drawer_punchy", "menu_drawer_punchy__golden", "menu_theme", "menu_theme_night", "menu_cmdbar", "menu_profiles", "toast", "title", "pause", "death", "loading", "mods_browse", "wardrobe_grid", "wardrobe_try_on", "wardrobe_drawer",
             "wardrobe_drawer_cape", "wardrobe_drawer_pet", "wardrobe_drawer_knife", "wardrobe_mannequin", "wardrobe_outfits", "wardrobe_outfit_page", "wardrobe_emotes",
             "wardrobe_skins", "cosmetics_settings", "cosmetics_settings_performance", "cosmetics_settings_compatibility",
             "cosmetics_settings_maintenance", "hud_editor", "emote_wheel", "emote_wheel_elytra", "emote_picker", "quick_wheel",
             "hud_sol", "hud_colour", "hud_off", "tab", "chat", "inventory", "hud_styles", "hands", "hands_swing", "hands_swing_gold", "hands_gold", "hands_gold_bare", "hands_plain", "hands_night", "hands_night_bare", "knife_idle", "knife_draw", "knife_light", "knife_heavy",
-            "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs"};
+            "knife_inspect", "knife_glow", "knife_pvp", "knife_trail", "knife_third", "servers", "whats_new", "packs",
+            "styles_world", "styles_live", "menu_styles_tools", "menu_styles_tools_full", "menu_styles_crystal", "menu_styles_look", "menu_styles_tree", "menu_styles_editor",
+            "styles_sky", "styles_packsky"};
     /** Shots taken only when asked for by name (-Dcosmeticsmod.solUi=...), never in CI's set. */
     private static final String[] LOCAL_UI_SHOTS = {"hands_gold_spear", "hands_gold_outline", "hands_white", "knife_pinspect"};
     private static final int SETTLE = 70;
@@ -274,7 +277,12 @@ public final class SolScenario {
                 }
                 // The HUD in play: Ember Solstice by day, facing west (the hands also at Deep Field's night, and the gold
                 // swing, as in Georg's video, at Ember's night).
-                shots.add(ui.equals("hands_swing_gold") || ui.startsWith("hands_gold")
+                shots.add(ui.equals("styles_sky")
+                        // Styles' sun: the game's own sky (Empty), the afternoon sun in the west.
+                        ? new Shot("ui_" + ui, "empty", 40f, false, 90f, -40f)
+                        // A pack's skybox in Sol's sky: Ember by day, looking up to the west.
+                        : ui.equals("styles_packsky") ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -55f)
+                        : ui.equals("hands_swing_gold") || ui.startsWith("hands_gold")
                         ? new Shot("ui_" + ui, "ember_solstice", -40f, false, 90f, -Extras.SHOW_PITCH)
                         : inPlay(ui) && !ui.startsWith("hands_night")
                         ? new Shot("ui_" + ui, "ember_solstice", 40f, false, 90f, -Extras.SHOW_PITCH)
@@ -492,6 +500,29 @@ public final class SolScenario {
                 // two seconds before it fades).
                 asPlayer(mc, List.of("title @s actionbar {\"text\":\"Sol Client \u00b7 action bar\",\"color\":\"gold\"}"));
             }
+            String styles = s.name().startsWith("ui_") ? s.name().substring(3) : "";
+            if (phaseTick == 5 && styles.equals("styles_world")) {
+                StylesScenario.scene(mc, c -> asPlayer(mc, c));
+            }
+            if (phaseTick == SETTLE - 10 && StylesScenario.waiting(styles)) {
+                // A Styles shot waits for its change to be applied (a reload of the base takes a while).
+                phaseTick--;
+            }
+            if (phaseTick == SETTLE - 30 && styles.equals("menu_styles_editor")
+                    && io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor ed) {
+                if (!ed.ready() && editorWait++ < 400) {
+                    phaseTick--;
+                } else {
+                    ed.paintForShot(0xFF33DDFF);
+                }
+            }
+            if (phaseTick == SETTLE) {
+                StylesScenario.shot(styles);
+                if (styles.equals("menu_styles_editor") && !(io.github.georgwav.cosmetics.ui.ScreenOpener.current()
+                        instanceof io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor ed && ed.live())) {
+                    problems.add("ui_menu_styles_editor: the editor's stroke didn't go into the game live");
+                }
+            }
             if (phaseTick == SETTLE - 40 && s.name().equals("ui_hud_colour")) {
                 placeColourBlock(mc);
             }
@@ -522,6 +553,11 @@ public final class SolScenario {
                     && !io.github.georgwav.cosmetics.compat.Compat.isShaderPackActive()) {
                 // A.2: the world under the quick menu is drawn in the wheel's pixels.
                 problems.add(s.name() + ": the world under the quick menu wasn't drawn in pixels");
+            }
+            if (phaseTick == SETTLE && (s.name().equals("ui_quick_night") || s.name().equals("ui_quick_eclipse"))
+                    && io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.moonShown != s.name().equals("ui_quick_night")) {
+                // A.8: the moon below the horizon, never in the eclipse.
+                problems.add(s.name() + (s.name().equals("ui_quick_night") ? ": the moon didn't show below the horizon" : ": the moon showed in the eclipse"));
             }
             if (phaseTick == SETTLE && s.name().startsWith("ui_") && io.github.georgwav.cosmetics.sol.ui.kit.SolScreen.blursRun > 0) {
                 // A.2: no glass and no blur anywhere in the pixel UI.
@@ -620,7 +656,10 @@ public final class SolScenario {
             stageUi(s.name());
             spyglass(mc, spyglassShot(s.name()));
             motionBlur(s.name().equals("sol_motion_blur"));
-            ThemeState.setTheme(s.theme(), false);
+            // The "_light" shots (and a light run's) show a light preset, the rest their own, so the colours are
+            // checked on both.
+            boolean light = s.name().startsWith("ui_") && (s.name().endsWith("_light") || LOOK.equals("light"));
+            ThemeState.setTheme(light ? LIGHT_PRESET : s.theme(), false);
             if ("custom".equals(SHOTS)) {
                 ThemeState.setCustomisation(edits(s.name()));
             }
@@ -666,6 +705,8 @@ public final class SolScenario {
         }
     }
 
+    /** Ticks the editor shot has waited for its texture to be read. */
+    private static int editorWait;
     private static boolean screenWasOn;
     private static boolean blurOn;
 
@@ -698,6 +739,8 @@ public final class SolScenario {
 
     private static void stageUi(String name) {
         boolean ui = name.startsWith("ui_");
+        // Only this shot's own cut labels count.
+        io.github.georgwav.cosmetics.sol.ui.kit.TextCuts.drain();
         if (loadingShown) {
             loadingShown = false;
             io.github.georgwav.cosmetics.sol.render.Mc.setOverlay(null);
@@ -709,6 +752,14 @@ public final class SolScenario {
         boolean hud = inPlay(what);
         // Before the music's switches below, which set the album colours per shot after this puts them back.
         accentForShot(what.equals("hud_colour") || what.equals("quick_presets_colour"));
+        // The "_green" shots show the on glows in Dawn's green (Settings › Sol UI › On glows), the rest in the theme's.
+        var solCfg = io.github.georgwav.cosmetics.sol.config.SolConfig.get();
+        if (onGlowsWas == null) {
+            onGlowsWas = solCfg.onGlows;
+        }
+        // A whole run can be staged in the light preset or with green on glows (-Dcosmeticsmod.solUiLook=light|green).
+        boolean green = what.endsWith("_green") || ui && LOOK.equals("green");
+        solCfg.onGlows = green ? "green" : onGlowsWas;
         if (MOCK_CIDER) {
             // The album's colours only in the music shots: every other shot shows its theme.
             io.github.georgwav.cosmetics.sol.config.SolConfig.get().music.albumUi = what.startsWith("menu_music") || what.equals("hud_sol")
@@ -729,6 +780,7 @@ public final class SolScenario {
         handsForShot(what);
         blockForShot(what.equals("hud_colour"));
         stylesForShot(what.equals("hud_styles"));
+        StylesScenario.stage(what);
         hudForEditor(what.equals("hud_editor") || inPlay(what));
         if (!ui) {
             if (io.github.georgwav.cosmetics.ui.ScreenOpener.current() != null) {
@@ -880,9 +932,22 @@ public final class SolScenario {
                     net.minecraft.network.chat.Component.translatable("sol.notify.undo").getString(), () -> { });
             return;
         }
+        if (what.equals("styles_sky") || what.equals("styles_packsky")) {
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(null);
+            return;
+        }
+        if (what.equals("menu_styles_editor")) {
+            // The texture editor on the swords as they look now; a few pixels are painted in before the shot.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.menu.TextureEditor.current(null,
+                    io.github.georgwav.cosmetics.sol.styles.PartTable.get().part("swords")));
+            return;
+        }
         if (what.startsWith("quick_")) {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
                     new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null).stage(what.substring("quick_".length())));
+        } else if (what.equals("menu_wardrobe")) {
+            // The menu's Wardrobe tab: the Wardrobe itself, in the window.
+            io.github.georgwav.cosmetics.ui.ScreenOpener.open(io.github.georgwav.cosmetics.sol.ui.wardrobe.WardrobeScreen.inMenu(null, "all", false));
         } else {
             io.github.georgwav.cosmetics.ui.ScreenOpener.open(
                     io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "modules", false).stage(what.substring("menu_".length())));
@@ -1101,7 +1166,8 @@ public final class SolScenario {
     /** The shots of the HUD in play (the HUD shown, a player in survival with a boss bar and a scoreboard). */
     private static boolean inPlay(String what) {
         return what.equals("hud_sol") || what.equals("hud_colour") || what.equals("hud_off") || what.equals("tab") || what.equals("chat") || what.equals("inventory")
-                || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles");
+                || what.startsWith("hands") || what.startsWith("knife") || what.equals("hud_styles")
+                || what.equals("styles_world") || what.equals("styles_live");
     }
 
     /** The colour the colour shots pick: one that isn't in the quick menu's row, so the picker's own swatch shows it. */
@@ -1824,6 +1890,7 @@ public final class SolScenario {
         io.github.georgwav.cosmetics.sol.atmosphere.NightSky.daysOverride = Double.NaN;
         io.github.georgwav.cosmetics.sol.atmosphere.NightSky.lookOverride = null;
         crosshairOnly = false;
+        problems.addAll(StylesScenario.finish(mc, c -> asPlayer(mc, c)));
         if (!Guard.failed().isEmpty()) {
             problems.add("features switched off after errors: " + Guard.failed());
         }
@@ -1885,6 +1952,16 @@ public final class SolScenario {
             com.google.gson.JsonObject out = new com.google.gson.JsonObject();
             out.addProperty("passed", passed);
             out.add("problems", new com.google.gson.Gson().toJsonTree(problems));
+            // For the image checks (ci/mcci.py): the pixel UI's accent, and the quick menu's own time per frame.
+            out.add("uiAccents", accents);
+            out.add("textCuts", cuts);
+            if (io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.framesRendered > 0) {
+                // Medians over the last frames drawn, so the first frame's texture work isn't counted as a steady one.
+                out.addProperty("quickMenuMs", Math.round(io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.median(
+                        io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.frameNanos) / 1e4) / 100.0);
+                out.addProperty("quickMenuBytesPerFrame", io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.median(
+                        io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.frameBytes));
+            }
             if (bench.size() > 0) {
                 out.add("bench", bench);
             }
@@ -1919,7 +1996,28 @@ public final class SolScenario {
         CosmeticsMod.LOGGER.info("[Sol] Bench {}: {}", preset, o);
     }
 
+    /** The look a whole run of UI shots is staged in: "light", "green" or "" (each shot's own). */
+    private static final String LOOK = System.getProperty("cosmeticsmod.solUiLook", "");
+    /** The light preset the "_light" shots use. */
+    private static final String LIGHT_PRESET = "frost_morning";
+
+    /** The on glows' colour before the shots (the "_green" shots switch it). */
+    private static String onGlowsWas;
+
+    /** The pixel UI's accent at each UI shot (the image check compares the shot with it). */
+    private static final com.google.gson.JsonObject accents = new com.google.gson.JsonObject();
+
+    /** The main labels each UI shot had to cut (the image check fails on any). */
+    private static final com.google.gson.JsonObject cuts = new com.google.gson.JsonObject();
+
     private static void marker(Minecraft mc, String name) {
+        if (name.startsWith("ui_")) {
+            accents.addProperty(name, String.format("#%06X", io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get().acc & 0xFFFFFF));
+            java.util.List<String> cut = io.github.georgwav.cosmetics.sol.ui.kit.TextCuts.drain();
+            if (!cut.isEmpty()) {
+                cuts.add(name, new com.google.gson.Gson().toJsonTree(cut));
+            }
+        }
         try {
             Path p = mc.gameDirectory.toPath().resolve("cosmeticsmod-phase-" + name);
             Files.writeString(p, name);

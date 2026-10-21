@@ -276,9 +276,9 @@ public final class StatsHud extends TextHud {
     private float chipWidth(Stat s, String v) {
         boolean text = s == Stat.SERVER || s == Stat.PACK;
         float w = PAD + (dots.get() ? 3.5f + 3f : 0f) + (text ? HudKit.measure(SolFont.Family.MEDIUM, HudKit.TEXT, v, scale())
-                : HudKit.measure(SolFont.Family.MONO, HudKit.TEXT, "0", scale()) * v.length());
+                : HudKit.measure(SolFont.Family.PIXEL_BOLD, HudKit.TEXT, "0", scale()) * v.length());
         if (labels.get() && s != Stat.SERVER && s != Stat.PACK && s != Stat.CLOCK) {
-            w += 2.5f + HudKit.measure(SolFont.Family.MEDIUM, HudKit.SMALL, label(s), scale());
+            w += 2.5f + HudKit.measure(HudKit.LABEL, HudKit.SMALL, label(s), scale());
         }
         return w + PAD;
     }

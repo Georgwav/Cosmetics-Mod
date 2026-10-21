@@ -11,6 +11,7 @@ import io.github.georgwav.cosmetics.sol.render.SolTexture;
 import io.github.georgwav.cosmetics.sol.theme.ThemeState;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.Icons;
 import io.github.georgwav.cosmetics.sol.ui.kit.ModuleIcons;
 import io.github.georgwav.cosmetics.sol.ui.kit.Scroll;
@@ -139,8 +140,8 @@ final class HudSection implements Section {
     // ------------------------------------------------------------------ the list
 
     private void list(SolMenu menu, Gfx g, Ui ui, Tokens tk, SolConfig cfg, List<Item> items, Item sel, float x, float top, float bottom) {
-        g.round(x, top, LIST_W, bottom - top, 12f, 0x0AFFFFFF);
-        g.stroke(x, top, LIST_W, bottom - top, 12f, Math.max(1f, g.d.u), 0x14FFFFFF);
+        Pix.fill(g, x, top, LIST_W, bottom - top, 0x0AFFFFFF);
+        Pix.frame(g, x, top, LIST_W, bottom - top, 0x14FFFFFF);
         g.clip(x, top + 1f, x + LIST_W, bottom - 1f);
         float y = top + 6f - listScroll.value();
         SolFont f = g.font(SolFont.Family.MEDIUM, 13f), head = g.font(SolFont.Family.SEMIBOLD, 11f);
@@ -156,10 +157,10 @@ final class HudSection implements Section {
             float rx = x + 6f, rw = LIST_W - 12f;
             boolean hover = ui.over(rx, y, rw, ROW_H);
             if (picked || hover) {
-                g.round(rx, y, rw, ROW_H, 8f, picked ? Colors.withAlpha(tk.accent, 0.16f) : 0x0FFFFFFF);
+                Pix.fill(g, rx, y, rw, ROW_H, picked ? Colors.withAlpha(tk.accent, 0.16f) : 0x0FFFFFFF);
             }
             if (picked) {
-                g.round(rx, y + 6f, 2.5f, ROW_H - 12f, 1.25f, tk.accent);
+                Pix.fill(g, rx, y + 6f, 2.5f, ROW_H - 12f, tk.accent);
             }
             ui.click(rx, y, rw, ROW_H, () -> this.picked = it.key());
             String icon = it.module() != null ? ModuleIcons.module(it.module().id) : ModuleIcons.module("sol_ui");
@@ -227,11 +228,11 @@ final class HudSection implements Section {
             boolean picked = it == sel;
             float bx = x + b[0] * k, by = my + b[1] * k, bw = Math.max(14f, b[2] * k), bh = Math.max(8f, b[3] * k);
             if (picked) {
-                g.glow(bx, by, bw, bh, 4f, 10f, Colors.withAlpha(tk.glow, 0.5f));
+                Pix.frame(g, bx - 1f, by - 1f, bw + 2f, bh + 2f, tk.accent);
             }
-            g.round(bx, by, bw, bh, 4f, picked ? Colors.withAlpha(tk.accent, 0.28f) : 0x59000000);
+            Pix.fill(g, bx, by, bw, bh, picked ? Colors.withAlpha(tk.accent, 0.28f) : 0x59000000);
             if (picked) {
-                g.stroke(bx, by, bw, bh, 4f, 1.5f, tk.accent);
+                Pix.frame(g, bx, by, bw, bh, tk.accent);
             } else {
                 io.github.georgwav.cosmetics.sol.ui.kit.Widgets.dashed(g, bx, by, bw, bh, 4f, Colors.withAlpha(tk.rim, 0.7f));
             }
@@ -241,7 +242,7 @@ final class HudSection implements Section {
             ui.click(bx, by, bw, bh, () -> this.picked = it.key());
         }
         g.endClip();
-        g.stroke(x, my, MINI_W, MINI_H, 12f, Math.max(1f, g.d.u), 0x24FFFFFF);
+        Pix.frame(g, x, my, MINI_W, MINI_H, 0x24FFFFFF);
         // Under the picture: what's picked, and how to move things.
         SolFont cap = g.font(SolFont.Family.MEDIUM, 12f);
         float ty = my + MINI_H + 18f;

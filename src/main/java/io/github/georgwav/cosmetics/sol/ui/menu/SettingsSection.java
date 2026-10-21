@@ -137,7 +137,7 @@ final class SettingsSection implements Section {
 
     /** The version and the credits, each a short paragraph. */
     private static void about(Gfx g, float x, float y, float w) {
-        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.MONO, 12f);
+        SolFont f = g.font(SolFont.Family.MEDIUM, 13f), mono = g.font(SolFont.Family.PIXEL, 12f);
         float cy = y + 12f;
         g.textMid(mono, "Sol Client " + VERSION, x, cy, 0xB3FFFFFF);
         cy += 30f;

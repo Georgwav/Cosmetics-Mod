@@ -5,6 +5,7 @@ import io.github.georgwav.cosmetics.emote.Emote;
 import io.github.georgwav.cosmetics.emote.Emotes;
 import io.github.georgwav.cosmetics.sol.theme.Tokens;
 import io.github.georgwav.cosmetics.sol.ui.kit.Gfx;
+import io.github.georgwav.cosmetics.sol.ui.kit.Pix;
 import io.github.georgwav.cosmetics.sol.ui.kit.SolFont;
 import io.github.georgwav.cosmetics.sol.ui.kit.Ui;
 import io.github.georgwav.cosmetics.sol.util.Colors;
@@ -43,12 +44,9 @@ public final class EmotePicker {
     /** Draws the picker round (cx, cy); {@code done} runs when it should close (picked, emptied or Back). */
     public void draw(Gfx g, Ui ui, Tokens tk, float cx, float cy, float my, EmotePictures pictures, Runnable done) {
         float pw = 720f, ph = 520f, px = cx - pw / 2f, py = cy - ph / 2f;
-        g.glow(px, py, pw, ph, 20f, 34f, Colors.withAlpha(tk.glow, 0.16f));
-        g.round(px, py, pw, ph, 20f, Colors.withAlpha(tk.panel, 0.94f));
-        g.stroke(px, py, pw, ph, 20f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(px, py, pw, ph, 20f, 0x2EFFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), px, py, pw, ph);
         ui.area(px, py, pw, ph, () -> { });
-        SolFont h = g.font(SolFont.Family.SEMIBOLD, 17f), small = g.font(SolFont.Family.MEDIUM, 12f);
+        SolFont h = g.font(SolFont.Family.PIXEL_BOLD, 15f), small = g.font(SolFont.Family.MEDIUM, 12f);
         g.textMid(h, t("pick_title", slot % CosmeticsConfig.WHEEL_SLOTS + 1), px + 22f, py + 30f, 0xFFFFFFFF);
         List<Emote> all = new ArrayList<>(Emotes.all());
         all.sort(Comparator.comparing((Emote e) -> e.elytra() != elytra));
@@ -72,8 +70,8 @@ public final class EmotePicker {
                 pick(e);
                 done.run();
             });
-            g.round(tx, ty, TILE, TILE, 14f, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.1f) : 0x14FFFFFF);
-            g.stroke(tx, ty, TILE, TILE, 14f, Math.max(1f, g.d.u), hover ? tk.accent : e == current ? tk.rim : 0x1FFFFFFF);
+            Pix.fill(g, tx, ty, TILE, TILE, hover ? Colors.mix(tk.panel, 0xFFFFFFFF, 0.1f) : 0x14FFFFFF);
+            Pix.frame(g, tx, ty, TILE, TILE, hover ? tk.accent : e == current ? tk.rim : 0x1FFFFFFF);
             Canvas c = g.game();
             int s = Math.round((TILE - 8f) * g.d.u);
             pictures.draw(c, e, Math.round(g.d.sx(tx + TILE / 2f)) - s / 2, Math.round(g.d.sy(ty + TILE / 2f)) - s / 2, s);

@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.BossEvent;
 
 /**
- * Sol UI's glass under the HUD parts the game still lays out and writes itself: the boss bars, the scoreboard
+ * Sol UI's slabs under the HUD parts the game still lays out and writes itself: the boss bars, the scoreboard
  * sidebar, the tab list and the action bar. Their text (and the server's colours in it) stays the game's; Sol draws
  * the cards, bars and chips under it (the mixins hand over the game's own boxes). Each call is guarded: a failure
  * switches Sol UI off and the game's look comes back.
@@ -44,8 +44,8 @@ public final class SolHudCards {
     }
 
     /**
-     * A boss bar in place of the game's at (x, y), 182 x 5: a glass track filling in the bar's colour with its glow,
-     * the notches as gaps, and a glass chip under the name the game writes above it.
+     * A boss bar in place of the game's at (x, y), 182 x 5: a slab track filling in the bar's colour with a lit top,
+     * the notches as gaps, and a slab under the name the game writes above it.
      */
     public static void bossBar(Canvas c, int x, int y, BossEvent event) {
         SolHud.DRAWN[SolHud.Part.BOSS.ordinal()]++;
@@ -58,20 +58,18 @@ public final class SolHudCards {
             Gfx g = SolHud.begin(c);
             float cx = x + 91f;
             if (nameW > 0) {
-                g.round(cx - nameW / 2f - 5f, y - 10.5f, nameW + 10f, 10.5f, 5.25f, Colors.withAlpha(tk.panel, 0.5f));
-                g.stroke(cx - nameW / 2f - 5f, y - 10.5f, nameW + 10f, 10.5f, 5.25f, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.35f));
+                float nx = Math.round(cx - nameW / 2f - 5f);
+                HudKit.slab(g, tk, nx, y - 11f, nameW + 10f, 11f, 0.7f);
             }
-            g.round(x, y, 182f, 5f, 2.5f, Colors.withAlpha(tk.panel, 0.7f));
-            g.stroke(x, y, 182f, 5f, 2.5f, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.45f));
+            HudKit.slab(g, tk, x, y, 182f, 5f, 1f);
             if (k > 0f) {
-                float fw = Math.max(3f, 182f * k);
-                g.glow(x, y + 0.5f, fw, 4f, 2f, 4f, Colors.withAlpha(col, 0.4f));
-                g.round(x + 0.5f, y + 0.5f, fw - 1f, 4f, 2f, col);
-                g.round(x + 0.5f, y + 0.5f, fw - 1f, 1.5f, 0.75f, 0x55FFFFFF);
+                float fw = Math.max(3f, Math.round(182f * k));
+                HudKit.box(g, x + 1f, y + 1f, fw - 2f, 3f, col);
+                HudKit.box(g, x + 1f, y + 1f, fw - 2f, 1f, 0x55FFFFFF);
             }
             int n = notches(event.getOverlay());
             for (int i = 1; i < n; i++) {
-                g.rect(x + 182f * i / n - 0.5f, y + 1f, 1f, 3f, 0x99000000);
+                HudKit.box(g, Math.round(x + 182f * i / n), y + 1f, 1f, 3f, 0x99000000);
             }
             SolHud.end(c);
         });
@@ -84,8 +82,8 @@ public final class SolHudCards {
             Tokens tk = ThemeState.tokens();
             Gfx g = SolHud.begin(c);
             float x = x1 - 2f, y = top - 2f, w = x2 - x1 + 4f, h = bottom - top + 4f;
-            SolHud.glass(g, tk, x, y, w, h, 4f);
-            g.rect(x + 4f, titleBottom, w - 8f, 1f, Colors.withAlpha(tk.accent, 0.55f));
+            SolHud.glass(g, tk, x, y, w, h);
+            HudKit.box(g, x + 2f, titleBottom, w - 4f, 1f, Colors.withAlpha(tk.accent, 0.55f));
             SolHud.end(c);
         });
     }
@@ -96,7 +94,7 @@ public final class SolHudCards {
         Guard.run(Feature.SOL_UI, () -> {
             Tokens tk = ThemeState.tokens();
             Gfx g = SolHud.begin(c);
-            SolHud.glass(g, tk, x1 - 1f, y1 - 1f, x2 - x1 + 2f, y2 - y1 + 2f, 3.5f);
+            SolHud.glass(g, tk, x1 - 1f, y1 - 1f, x2 - x1 + 2f, y2 - y1 + 2f);
             SolHud.end(c);
         });
     }
@@ -105,7 +103,7 @@ public final class SolHudCards {
     public static void tabRow(Canvas c, int x1, int y1, int x2, int y2) {
         Guard.run(Feature.SOL_UI, () -> {
             Gfx g = SolHud.begin(c);
-            g.round(x1, y1, x2 - x1, y2 - y1, 2f, 0x1AFFFFFF);
+            HudKit.box(g, x1, y1, x2 - x1, y2 - y1, 0x1AFFFFFF);
             SolHud.end(c);
         });
     }
@@ -121,8 +119,7 @@ public final class SolHudCards {
             Tokens tk = ThemeState.tokens();
             Gfx g = SolHud.begin(c);
             g.alpha = a;
-            g.round(x - 6f, y - 3f, width + 12f, 14f, 7f, Colors.withAlpha(tk.panel, Math.max(0.55f, tk.glass)));
-            g.stroke(x - 6f, y - 3f, width + 12f, 14f, 7f, 1f / g.d.u, Colors.withAlpha(tk.rim, 0.45f));
+            HudKit.slab(g, tk, x - 6f, y - 3f, width + 12f, 14f, 0.9f);
             SolHud.end(c);
         });
     }

@@ -89,7 +89,7 @@ public final class ColorPicker {
             int top = 0xFF000000 | Tint.hsvToRgb(hue, (i + 0.5f) / cols, 1f);
             g.vgradient(x0, sy, x1 - x0, sh, top, 0xFF000000);
         }
-        g.stroke(x, sy, SQUARE_W, sh, 4f, Math.max(1f, g.d.u), 0x33FFFFFF);
+        Pix.frame(g, x, sy, SQUARE_W, sh, 0x33FFFFFF);
         ui.drag(x, sy, SQUARE_W, sh, (px, py) -> {
             sat = clamp01((px - x) / SQUARE_W);
             val = 1f - clamp01((py - sy) / sh);
@@ -110,11 +110,11 @@ public final class ColorPicker {
             applyHsv();
         });
         float hy = sy + hue * sh;
-        g.round(bx - 2f, hy - 2.5f, BAR + 4f, 5f, 2f, 0xFFFFFFFF);
+        Pix.fill(g, bx - 2f, hy - 2.5f, BAR + 4f, 5f, 0xFFFFFFFF);
         // The colour, its hex code, the quick picks and the way back.
         float px = bx + BAR + 16f;
-        g.round(px, sy, 40f, 26f, 7f, 0xFF000000 | shown);
-        g.stroke(px, sy, 40f, 26f, 7f, Math.max(1f, g.d.u), 0x40FFFFFF);
+        Pix.fill(g, px, sy, 40f, 26f, 0xFF000000 | shown);
+        Pix.frame(g, px, sy, 40f, 26f, 0x40FFFFFF);
         hex.draw(g, ui, tk, px + 48f, sy, Math.min(120f, x + w - px - 48f), 26f, null, "#RRGGBB", dt);
         float swx = px, swy = sy + 36f;
         int perRow = Math.max(1, (int) ((x + w - px + 6f) / 26f));
@@ -122,10 +122,10 @@ public final class ColorPicker {
             float qx = swx + (i % perRow) * 26f, qy = swy + (i / perRow) * 26f;
             int rgb = presets.get(i);
             ui.click(qx, qy, 20f, 20f, () -> apply(rgb));
-            g.round(qx, qy, 20f, 20f, 6f, 0xFF000000 | rgb);
-            g.stroke(qx, qy, 20f, 20f, 6f, Math.max(1f, g.d.u), ui.over(qx, qy, 20f, 20f) ? tk.rim : 0x40FFFFFF);
+            Pix.fill(g, qx, qy, 20f, 20f, 0xFF000000 | rgb);
+            Pix.frame(g, qx, qy, 20f, 20f, ui.over(qx, qy, 20f, 20f) ? tk.rim : 0x40FFFFFF);
             if ((rgb & 0xFFFFFF) == shown) {
-                g.stroke(qx - 2f, qy - 2f, 24f, 24f, 8f, 1.5f * g.d.u, 0xFFFFFFFF);
+                Pix.frame(g, qx - 2f, qy - 2f, 24f, 24f, 0xFFFFFFFF);
             }
         }
         if (resetLabel != null) {

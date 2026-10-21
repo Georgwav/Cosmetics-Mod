@@ -44,6 +44,7 @@ public final class Sol {
         io.github.georgwav.cosmetics.sol.client.Updates.registerSwap();
         io.github.georgwav.cosmetics.sol.compat.KeptModsPack.register();
         SolScenario.init();
+        io.github.georgwav.cosmetics.sol.styles.Styles.start();
         CosmeticsMod.LOGGER.info("[Sol] Sol Client ready{}", firstLaunch ? " (first launch)" : "");
     }
 
@@ -84,5 +85,7 @@ public final class Sol {
         }
         io.github.georgwav.cosmetics.sol.config.SolProfiles.tick();
         io.github.georgwav.cosmetics.sol.hud.SolHud.tick(mc);
+        io.github.georgwav.cosmetics.sol.Guard.run(io.github.georgwav.cosmetics.sol.Feature.STYLES,
+                () -> io.github.georgwav.cosmetics.sol.styles.Styles.tick(mc));
     }
 }

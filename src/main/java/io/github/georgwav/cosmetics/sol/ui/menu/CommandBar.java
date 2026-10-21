@@ -137,10 +137,7 @@ final class CommandBar {
         boxY = y;
         boxW = w;
         boxH = h;
-        g.glow(x, y, w, h, 18f, 40f, Colors.withAlpha(tk.glow, 0.25f));
-        g.round(x, y, w, h, 18f, 0xF50A0A0E);
-        g.stroke(x, y, w, h, 18f, Math.max(1f, g.d.u), tk.rim);
-        g.highlight(x, y, w, h, 18f, 0x38FFFFFF);
+        io.github.georgwav.cosmetics.sol.ui.kit.Pix.card(g, io.github.georgwav.cosmetics.sol.ui.kit.PixelTokens.get(), x, y, w, h);
         // Input.
         Icons.draw(g, "search", x + 16f, y + 17f, 18f, 0x99FFFFFF, Icons.FILL, 0);
         SolFont in = g.font(SolFont.Family.MEDIUM, 16f);
@@ -156,7 +153,7 @@ final class CommandBar {
         }
         g.rect(x + 1f, y + 52f, w - 2f, Math.max(1f / g.d.u, 1f), 0x1AFFFFFF);
         // Results.
-        SolFont f = g.font(SolFont.Family.MEDIUM, 13.5f), k = g.font(SolFont.Family.MONO, 11f);
+        SolFont f = g.font(SolFont.Family.MEDIUM, 13.5f), k = g.font(SolFont.Family.PIXEL, 11f);
         float ry = y + 52f;
         if (results.isEmpty()) {
             g.textMid(f, SolMenu.tr("sol.cmd.nothing", query), x + 44f, ry + 19f, 0xB3FFFFFF);

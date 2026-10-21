@@ -820,6 +820,66 @@ public final class Gfx {
         return f.fit(s, room * d.u);
     }
 
+    /**
+     * The first pixel font that fits {@code s} in {@code room}, trying each size in bold, then each in regular (pixel
+     * type's width moves in whole font pixels, so a smaller size or the lighter weight can be what fits); the last
+     * one when none does.
+     */
+    public SolFont fitting(String s, float room, float... sizes) {
+        SolFont last = null;
+        for (SolFont.Family fam : PIXEL_WEIGHTS) {
+            for (float size : sizes) {
+                last = font(fam, size);
+                if (width(last, s) <= room) {
+                    return last;
+                }
+            }
+        }
+        return last;
+    }
+
+    private static final SolFont.Family[] PIXEL_WEIGHTS = {SolFont.Family.PIXEL_BOLD, SolFont.Family.PIXEL};
+
+    /**
+     * A main label centred on ({@code cx}, {@code cy}) in {@code room}: on one line when it fits, else on two lines
+     * split at the space nearest its middle (the second {@code lineGap} below the first), and only then cut (and
+     * logged, as {@link #fitLabel}). Returns how many lines it took.
+     */
+    public int labelCentre(SolFont f, String s, float cx, float cy, float room, float lineGap, int argb) {
+        if (width(f, s) <= room) {
+            textCentre(f, s, cx, cy, argb);
+            return 1;
+        }
+        int best = -1, mid = s.length() / 2;
+        for (int i = s.indexOf(' '); i >= 0; i = s.indexOf(' ', i + 1)) {
+            if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) {
+                best = i;
+            }
+        }
+        if (best > 0) {
+            String a = s.substring(0, best), b = s.substring(best + 1);
+            if (width(f, a) <= room && width(f, b) <= room) {
+                textCentre(f, a, cx, cy, argb);
+                textCentre(f, b, cx, cy + lineGap, argb);
+                return 2;
+            }
+        }
+        textCentre(f, fitLabel(f, s, room), cx, cy, argb);
+        return 1;
+    }
+
+    /**
+     * A main label (a tab, a button, a card's or a tile's name) fitted to its slab: as {@link #fit}, and a cut one is
+     * logged ({@link TextCuts}), since none should need it.
+     */
+    public String fitLabel(SolFont f, String s, float room) {
+        String out = f.fit(s, room * d.u);
+        if (out != s) {
+            TextCuts.record(s);
+        }
+        return out;
+    }
+
     // ------------------------------------------------------------------ clipping and the game's own drawing
 
     private final float[] clipStack = new float[64];

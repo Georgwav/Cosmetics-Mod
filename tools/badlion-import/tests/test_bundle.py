@@ -63,6 +63,23 @@ def test_packs_go_into_a_personal_copy_of_the_jar(tmp_path):
     assert bundle.STAMP not in _contents(jar)
 
 
+def test_styles_go_in_as_personal_styles(tmp_path, capsys):
+    jar = _mod_jar(tmp_path / "cosmeticsmod-1.0+mc26.2.jar")
+    pack = tmp_path / "packs" / "personal"
+    _write(pack / "pack.mcmeta", {"pack": {"pack_format": 34}})
+    _write(pack / "assets" / "blc_import" / "cosmetics" / "cape_1.json", {"id": "cape_1"})
+    style = pack / "styles" / "crystal" / "Ice Crystal"
+    _write(style / "pack.mcmeta", {"pack": {"pack_format": 34}})
+    _write(style / "assets" / "minecraft" / "textures" / "entity" / "end_crystal" / "end_crystal.png", b"\x89PNG ice")
+    _write(pack / "styles" / "tools" / "Red Sword" / "assets" / "minecraft" / "textures" / "item" / "diamond_sword.png", b"\x89PNG red")
+    assert cli.main(["bundle", str(jar), str(pack)]) == 0
+    files = _contents(tmp_path / "cosmeticsmod-1.0+mc26.2-personal.jar")
+    assert files["solstyles/crystal/Ice Crystal/assets/minecraft/textures/entity/end_crystal/end_crystal.png"] == b"\x89PNG ice"
+    assert "solstyles/crystal/Ice Crystal/pack.mcmeta" in files
+    assert "solstyles/tools/Red Sword/assets/minecraft/textures/item/diamond_sword.png" in files
+    assert bundle.bundle(jar, [pack], tmp_path / "again-personal.jar").styles == 2
+
+
 def test_says_how_many_cosmetics_and_emotes_and_warns_without_emotes(tmp_path, capsys):
     jar = _mod_jar(tmp_path / "Downloads" / "cosmeticsmod-1.0+mc26.2.jar")
     badlion, emotes = _packs(tmp_path)

@@ -80,7 +80,19 @@ bar, with the sun sitting on it under the tab you're on.
 - **Presets:** every theme as a card with its sky in pixels; the preview pane shows the one you point at under Sol's
   logo. Apply preset and Random.
 - **Emotes:** your wheel's page as eight slots, the page controls in the middle, and you on the right doing it.
+- **Wardrobe:** the Wardrobe itself, in the same window (below).
 - **Main folder:** Settings › Main folder.
+
+**Everything else Sol draws** uses the same pixel pieces: the HUD editor, the emote wheel and picker, the mod
+browser, What's new, the colour picker, text fields, the server list, the command bar and the Night page. With Sol
+UI on, the game's own buttons, tooltips and list selections are pixel slabs too, the pause screen dims the world
+flat and the death screen fades in red steps; with Sol UI off they are the game's own.
+
+### Title screen
+
+Your landscape, Sol's logo and three slabs: Singleplayer, Multiplayer and the Sol menu. Under them Realms, Mods,
+Options and Quit, each named underneath. You stand on the right, with what you wear: click yourself (or your slab
+in the corner) to open the Wardrobe.
 
 ### Wardrobe
 
@@ -90,8 +102,10 @@ bar, with the sun sitting on it under the tab you're on.
 - the menu's Wardrobe section;
 - Settings › Cosmetics.
 
-**Layout:** the views down the left (with counts and the source they come from), glass tiles in the middle, and
-you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts one on you).
+**Layout:** a tab of the full menu's window. The views down the left (with counts and the source they come from),
+pixel tiles in the middle, and you on the right in a 3D preview over your preset's sky (drag to turn and tilt; the
+Elytra chip puts one on you). What you wear glows in the on colour with a WORN tag; the gear in a tile's corner
+opens its page.
 
 **Tiles:**
 - Each tile has its own picture of the cosmetic alone, turned three quarters towards you.
@@ -120,6 +134,7 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
 - **Reset.**
 
 **Outfits:**
+- Each outfit is a tile with its cosmetics' pictures and how many items it holds.
 - Save what you wear, with each cosmetic's settings.
 - Point at an outfit to see it on you; click it to wear it.
 - Its page renames it, updates it to what you wear now, or deletes it.
@@ -146,6 +161,30 @@ you on the right in a 3D preview (drag to turn and tilt; the Elytra chip puts on
 
 Players' names move up above their hats, halos and other head cosmetics, so they never overlap.
 
+### Sol Styles
+
+The menu's Styles tab mixes resource packs part by part: the crystal from one pack, the swords from another, the fire
+from a third, over a base pack of your choice. Open it from the tab, Ctrl+K or its own key (unbound by default).
+- **Tabs:** Crystal, Anchor, Armor, Tools, Inventory, Fire, Sky, Deepslate, Stone and Snow (each with its parts:
+  the totem, swords, shield, GUI, particles and the rest), then Extras, Cosmetics, More (Sol's parts and the whole
+  texture tree) and Your look (everything you mixed, in one list).
+- **Tiles:** every pack that has the part shows it as a tile with its own picture; packs with the same files show
+  once (+N). Besides the packs: the base, Vanilla, Off where it makes sense, and Sol's own looks (see-through crystal,
+  low fire, eight recolours). Packs that change everything sit folded at the end of each part.
+- **Your colour:** each part can stay as is, take a tint, go rainbow or follow your theme's colour; hue, saturation
+  and brightness sliders; glint parts can follow the Glint module's colour. Items can be flat, 3D or one of Sol's own
+  models (a sword, a totem and a crystal). The crystal's frame and core take colours apart; spin and bounce live here.
+- **Preview:** the part on a turntable, armour on a mannequin, blocks, fire, the sky, GUI pieces and particles, live
+  as you change it.
+- **Editor:** the brush on a tile (or the colour panel's Edit) opens a pixel editor: pencil, eraser, fill, line,
+  rectangle, picker, select and move, replace colour, hue shift, gradient, outline; mirror, grid, onion skin, the
+  texture's UV islands, frames for animated textures, undo, 16/32/64 sizes, PNG drop and export. It paints live into
+  the game (on the mannequin too) and saves as your own style in `client/styles/<tab>/<name>/`.
+- **Skies:** OptiFine sky layers (`optifine/sky/world0/sky*.properties`, with fades, blend, rotation and weather) and
+  FabricSkyboxes skies from the Sky part's pack or the base, drawn in Sol's sky pass.
+- **Presets, share and import:** save a mix by name, copy it as text and paste it back; recent mixes stay listed.
+- Applying is one resource reload with only the files you changed; the mix always sits above the base pack.
+
 Changes apply immediately and are saved when the Wardrobe closes. Reset settings restores the defaults but keeps
 what you wear, your outfits and how each cosmetic looks; each cosmetic's page has its own reset.
 
@@ -157,8 +196,11 @@ picture of the layout with the picked element lit (click a box to pick it), and 
 - **Your elements:** their look, size, text (shadow, font, colour) and background, which can go fully off (the text
   then gets a shadow in Sol's look).
 - **The game's parts:** Sol UI's settings for them. The hotbar's selected slot lifts, grows in place or is only
-  ringed; slot numbers, its light sweep and its glass (down to none) are switches; the hotbar and the bars over it can
-  be sized; the hearts' and experience bar's glow can go.
+  ringed; slot numbers, its light sweep and its backing (down to none) are switches; the hotbar and the bars over it
+  can be sized; the hearts' and experience bar's glow can go.
+
+In Sol UI's look every card, the hotbar and the bars are the menus' pixel slabs at the game's GUI scale: one GUI
+pixel outlines, a lit top edge, labels and numbers in Silkscreen, and glows in hard steps; no glass and no blur.
 
 ### HUD editor
 
@@ -369,6 +411,7 @@ badlion-import bundle solclient-<v>+mc26.2.jar C:\badlion-packs\badlion C:\badli
   own cosmetics. The path is relative to this repository's root, or absolute.
 - The jars are named `solclient-<v>+mc<minecraft>-personal.jar`.
 - A pack file at the same path as one of the mod's own files fails the build instead of replacing it.
+- The pack's `styles/<tab>/<name>/` folders (Sol Styles you made in the editor) come along as built-in styles.
 - Without `-Pcosmetics.bundleDir` the build is exactly the normal one. Normal CI never reads your pack; it only
   checks this mechanism with a tiny made-up pack.
 

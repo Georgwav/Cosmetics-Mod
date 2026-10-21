@@ -17,8 +17,12 @@ public final class WheelLabels {
     public static boolean fits(float room) {
         return room >= MARGIN - 0.05f;
     }
-    /** The tries, in order: text size, small icon (24 px, else 36), icon and text in a row. */
-    static final float[][] TRIES = {{12, 0, 0}, {11, 0, 0}, {10, 0, 0}, {12, 1, 0}, {10, 1, 0}, {12, 1, 1}, {10, 1, 1}};
+    /**
+     * The tries, in order: text size, small icon (24 px, else 36), icon and text in a row. Pixel type only comes in
+     * whole steps (11 and 10 are the same 8 px on a 1366 x 768 screen), so the smaller icon is tried at 12 before the
+     * text gets smaller.
+     */
+    static final float[][] TRIES = {{12, 0, 0}, {12, 1, 0}, {11, 0, 0}, {10, 0, 0}, {10, 1, 0}, {12, 1, 1}, {10, 1, 1}};
     /** The gap between the icon and the text, stacked and in a row. */
     static final float STACK_GAP = 6f, ROW_GAP = 7f;
 

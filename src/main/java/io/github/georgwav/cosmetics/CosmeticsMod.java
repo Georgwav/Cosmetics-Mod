@@ -37,6 +37,7 @@ public final class CosmeticsMod implements ClientModInitializer {
         KeyMapping emoteKey = VersionHooks.registerEmoteKeyMapping();
         KeyMapping wheelKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.quick_wheel");
         KeyMapping lookKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.look_around");
+        KeyMapping stylesKey = VersionHooks.registerUnboundKey("key.cosmeticsmod.styles");
         io.github.georgwav.cosmetics.sol.ui.screens.QuickWheel.key = wheelKey;
         io.github.georgwav.cosmetics.sol.ui.screens.EmoteWheel.key = emoteKey;
         KeyBinds.open = openKey;
@@ -61,6 +62,9 @@ public final class CosmeticsMod implements ClientModInitializer {
             }
             while (quickKey.consumeClick()) {
                 ScreenOpener.request(() -> new io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu(null));
+            }
+            while (stylesKey.consumeClick()) {
+                ScreenOpener.request(() -> io.github.georgwav.cosmetics.sol.ui.menu.SolMenu.create(null, "styles", false));
             }
             while (lookKey.consumeClick()) {
                 io.github.georgwav.cosmetics.sol.atmosphere.LookAround.toggle();
