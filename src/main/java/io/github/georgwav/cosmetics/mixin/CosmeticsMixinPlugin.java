@@ -42,11 +42,18 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("CosmosCracksMixin");
         all.add("ContainerScreenAccessor");
         all.add("ScreenSlideMixin");
-        // Chunk rise: not on 1.21.5 (ChunkRise).
+        // Chunk rise: not on 1.21.5 (ChunkRise), nor with Sodium. Sodium replaces the game's chunk drawing with its
+        // own copy of the method, and Mixin refuses to inject into a replaced method even where it isn't required:
+        // the game wouldn't start.
+        boolean sodium = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("sodium");
         //? if >=1.21.6 {
-        all.add("ChunkRiseMixin");
+        if (!sodium) {
+            all.add("ChunkRiseMixin");
+        }
         //?} elif <1.21.5 {
-        /*all.add("ChunkRiseMixin");
+        /*if (!sodium) {
+            all.add("ChunkRiseMixin");
+        }
         *///?}
         all.add("KnifeInputMixin");
         //? if <26.3 {

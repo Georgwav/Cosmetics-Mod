@@ -207,6 +207,7 @@ public final class DevScenario {
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     if (smoke) {
                         giveShield(client);
+                        MixinAudit.run(failures);
                     }
                     enter(Phase.WARMUP);
                 } else if (ticks > 20 * 60 * 5) {

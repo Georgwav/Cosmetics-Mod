@@ -330,22 +330,28 @@ def fetch_stack(mods, mc, dest_dir, prerelease=False):
     """
     chosen, names, missing = {}, {}, []
     pins = {}
-    queue = list(mods)
+    # (spec, soft): soft for a dependency listed by a file made for several loaders, which lists every loader's
+    # dependencies together; one with no Fabric build belongs to another loader (Zoomify lists Kotlin for Forge).
+    queue = [(m, False) for m in mods]
     while queue:
-        spec = queue.pop(0)
+        spec, soft = queue.pop(0)
         version, name = None, spec
         for name in spec.split("|"):
             version = modrinth_version(name, mc, prerelease=prerelease)
             if version:
                 break
         if version is None:
-            missing.append(spec)
+            if soft:
+                LOG(f"[{mc}] skipped {spec}: another loader's dependency of a multi-loader file (no Fabric build)")
+            else:
+                missing.append(spec)
             continue
         project = version["project_id"]
         if project in chosen or project in SKIP_PROJECTS:
             continue
         chosen[project] = version
         names[project] = name
+        multi = any(loader not in ("fabric", "quilt") for loader in version.get("loaders", []))
         for dep in version.get("dependencies", []):
             dep_project = dep.get("project_id")
             if dep.get("dependency_type") != "required" or dep_project in SKIP_PROJECTS:
@@ -356,7 +362,7 @@ def fetch_stack(mods, mc, dest_dir, prerelease=False):
                     pins[pinned["project_id"]] = pinned
                     dep_project = pinned["project_id"]
             if dep_project and dep_project not in chosen:
-                queue.append(dep_project)
+                queue.append((dep_project, multi))
     for project, pinned in pins.items():
         if project not in SKIP_PROJECTS:
             chosen[project] = pinned
