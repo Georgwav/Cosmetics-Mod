@@ -206,7 +206,11 @@ final class StylesSection implements Section {
         float end = SolMenu.head(g, SolMenu.tr("sol.styles.head"), count, x, cy);
         String pill = null;
         boolean accent = false;
-        if (Styles.applying()) {
+        if (Styles.held()) {
+            // Shown live already; the rest (sharper textures, models, a new base) with one reload on leaving the menu.
+            pill = SolMenu.tr("sol.styles.held");
+            accent = true;
+        } else if (Styles.applying()) {
             pill = SolMenu.tr("sol.styles.applying");
             accent = true;
         } else if (!Styles.lastApply.isEmpty() && System.currentTimeMillis() - lastApplySeen() < 5000L) {

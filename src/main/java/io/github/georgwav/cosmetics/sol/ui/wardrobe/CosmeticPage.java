@@ -66,7 +66,9 @@ final class CosmeticPage {
         if (gate.option() != null) {
             boolean colour = gate.option() == CosmeticOption.TINT || gate.option() == CosmeticOption.RAINBOW
                     || gate.option() == CosmeticOption.SATURATION;
-            if (!(colour ? config.allows(cosmetic, gate.option()) : cosmetic.allows(gate.option()))) {
+            // The picker, rainbow and saturation as the file (or Colour any cosmetic) allows: following the theme
+            // paints a cosmetic, it doesn't open its colour picker.
+            if (!(colour ? config.allowsOwn(cosmetic, gate.option()) : cosmetic.allows(gate.option()))) {
                 return false;
             }
         }

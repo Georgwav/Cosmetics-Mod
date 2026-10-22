@@ -302,6 +302,30 @@ public final class Mixer {
                 }
             }
         }
+        // Last: an animated texture keeps its animation. The game reads a texture's .mcmeta from the pack its picture
+        // comes from, so wherever the mix gives a picture (a pack's, or one Sol made from one), its .mcmeta comes
+        // along from that same place; without it the whole strip of frames is drawn as one picture.
+        for (String path : new ArrayList<>(files.keySet())) {
+            String meta = path + ".mcmeta";
+            if (!path.endsWith(".png") || files.containsKey(meta)) {
+                continue;
+            }
+            Source origin = files.get(path);
+            while (origin instanceof Made m) {
+                origin = m.input();
+            }
+            if (origin instanceof FromPack fp) {
+                PackInfo p = base != null && base.key().equals(fp.pack()) ? base : packs.apply(fp.pack());
+                if (p != null && p.has(meta)) {
+                    files.put(meta, fromPack(p, meta));
+                }
+            } else if (origin instanceof FromGame) {
+                VanillaIndex.Entry v = vanilla.get(meta);
+                if (v != null) {
+                    files.put(meta, new FromGame(meta, v.crc(), v.size()));
+                }
+            }
+        }
         return new Plan(java.util.Collections.unmodifiableMap(files), List.copyOf(notes));
     }
 

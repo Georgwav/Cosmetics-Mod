@@ -53,6 +53,16 @@ public abstract class SolScreen extends Screen {
         super(title);
         this.parent = parent;
         this.feature = feature;
+        if (feature == Feature.MENU || feature == Feature.QUICK_MENU || feature == Feature.STYLES) {
+            // Opening a menu asks for it again: one that failed earlier this session (and closed itself then) gets
+            // another try, instead of a menu that won't open until the game restarts.
+            Guard.reset(feature);
+        }
+    }
+
+    /** The guarded feature this screen belongs to. */
+    public Feature feature() {
+        return feature;
     }
 
     // ------------------------------------------------------------------ what a screen implements

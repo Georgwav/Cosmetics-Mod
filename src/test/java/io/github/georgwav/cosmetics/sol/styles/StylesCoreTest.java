@@ -26,6 +26,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * dependencies, extruded models, forced-opaque blocks and share codes. Every pack is made here; none is real.
  */
 class StylesCoreTest {
+    /** A 32x pack's texture brought live into a 16x atlas place: averaged by alpha; an animation strip keeps frame one. */
+    @Test
+    void resampleAveragesByAlphaAndKeepsTheFirstFrame() {
+        int[] px = new int[32 * 32];
+        for (int y = 0; y < 32; y++) {
+            for (int x = 0; x < 32; x++) {
+                // Each 2x2 block: one opaque red pixel, three clear ones (whose colour must not count).
+                px[y * 32 + x] = (x % 2 == 0 && y % 2 == 0) ? 0xFFFF0000 : 0x0000FF00;
+            }
+        }
+        Pixels.Image half = Pixels.resample(new Pixels.Image(32, 32, px), 16, 16);
+        assertEquals(16, half.w());
+        assertEquals(16, half.h());
+        // A quarter covered: alpha 255 / 4, colour the red pixel's alone.
+        assertEquals(0x3FFF0000, half.argb()[5 * 16 + 7]);
+
+        // Two 4x4 frames stacked (red over blue) into a 2x2 place: the red frame, nothing of the blue one.
+        int[] strip = new int[4 * 8];
+        for (int i = 0; i < strip.length; i++) {
+            strip[i] = i < 16 ? 0xFFFF0000 : 0xFF0000FF;
+        }
+        Pixels.Image first = Pixels.resample(new Pixels.Image(4, 8, strip), 2, 2);
+        for (int c : first.argb()) {
+            assertEquals(0xFFFF0000, c);
+        }
+
+        // Up: each pixel repeated.
+        Pixels.Image up = Pixels.resample(new Pixels.Image(1, 1, new int[]{0xFF123456}), 4, 4);
+        for (int c : up.argb()) {
+            assertEquals(0xFF123456, c);
+        }
+    }
+
     @TempDir
     Path tmp;
 
@@ -259,6 +292,50 @@ class StylesCoreTest {
         assertInstanceOf(Mixer.FromPack.class, Choices.file(redTile, "textures/entity/end_crystal/end_crystal.png", table.part("crystal"), idx,
                 StyleSetup.EMPTY, 0));
         assertInstanceOf(Mixer.FromGame.class, Choices.file(redTile, "textures/block/b0.png", table.part("crystal"), idx, StyleSetup.EMPTY, 0));
+    }
+
+    /**
+     * Low fire, a recolour, or a pack's single texture: an animated texture's .mcmeta comes along from where its
+     * picture comes from, else the game draws the whole strip of frames as one picture (fire squashed into lines).
+     */
+    @Test
+    void animatedTexturesKeepTheirAnimation() throws IOException {
+        PartTable table = new PartTable("test", List.of("fire"), List.of("world"), List.of(
+                new PartTable.Part("fire", "world", "fire", PartTable.Kind.OVERLAY, true, false, false, false,
+                        "textures/block/fire_0.png", List.of("textures/block/fire_0.png", "textures/block/fire_0.png.mcmeta"))));
+        byte[] meta = "{\"animation\":{}}".getBytes();
+        Map<String, byte[]> game = new LinkedHashMap<>();
+        game.put("textures/block/fire_0.png", StylesTestPacks.png(16, 512, 0xFFFF8800));
+        game.put("textures/block/fire_0.png.mcmeta", meta);
+        VanillaIndex vanilla = StylesTestPacks.vanilla(game);
+
+        // Low fire made from the game's fire: the game's animation with it.
+        Mixer.Plan low = Mixer.plan(StyleSetup.EMPTY.with("fire", StyleSetup.Choice.DEFAULT.withSource("builtin:low_fire")),
+                table, k -> null, vanilla, (p, path) -> null, 0);
+        assertInstanceOf(Mixer.Made.class, low.files().get("textures/block/fire_0.png"));
+        assertInstanceOf(Mixer.FromGame.class, low.files().get("textures/block/fire_0.png.mcmeta"));
+
+        // A pack's fire recoloured: the pack's animation, not the game's.
+        Map<String, byte[]> red = new HashMap<>();
+        red.put("textures/block/fire_0.png", StylesTestPacks.png(16, 256, 0xFFFF0000));
+        red.put("textures/block/fire_0.png.mcmeta", "{\"animation\":{\"frametime\":2}}".getBytes());
+        PackInfo pack = PackScanner.scan("rp:red", "Red", PackInfo.Origin.RESOURCE_PACK, null, StylesTestPacks.zip(tmp, "redfire", red), vanilla);
+        Mixer.Plan painted = Mixer.plan(StyleSetup.EMPTY.with("fire", StyleSetup.Choice.DEFAULT.withSource("pack:rp:red")
+                        .withColour(StyleSetup.Paint.RECOLOUR, 0, 1f, 1f, 0x33DDFF)),
+                table, k -> k.equals("rp:red") ? pack : null, vanilla, (p, path) -> null, 0);
+        assertInstanceOf(Mixer.Made.class, painted.files().get("textures/block/fire_0.png"));
+        Mixer.Source m = painted.files().get("textures/block/fire_0.png.mcmeta");
+        assertInstanceOf(Mixer.FromPack.class, m);
+        assertEquals("rp:red", ((Mixer.FromPack) m).pack());
+
+        // A still picture (no animation where it comes from) gets none.
+        Map<String, byte[]> still = new HashMap<>();
+        still.put("textures/block/fire_0.png", StylesTestPacks.png(16, 16, 0xFF00FF00));
+        PackInfo stillPack = PackScanner.scan("rp:still", "Still", PackInfo.Origin.RESOURCE_PACK, null, StylesTestPacks.zip(tmp, "still", still), vanilla);
+        Mixer.Plan flat = Mixer.plan(StyleSetup.EMPTY.with("fire", StyleSetup.Choice.DEFAULT.withSource("pack:rp:still")),
+                table, k -> k.equals("rp:still") ? stillPack : null, vanilla, (p, path) -> null, 0);
+        assertInstanceOf(Mixer.FromPack.class, flat.files().get("textures/block/fire_0.png"));
+        assertFalse(flat.files().containsKey("textures/block/fire_0.png.mcmeta"));
     }
 
     @Test

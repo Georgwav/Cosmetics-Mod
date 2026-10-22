@@ -169,7 +169,7 @@ public final class CapeElytra {
             // In steps, so the frame isn't repainted for every change of hue.
             color = 0xFF000000 | Recolor.rainbowStep(color);
         }
-        boolean takesColor = base.tinted() || (config.colorAnyCosmetic && !cape.hasTintedLayer());
+        boolean takesColor = base.tinted() || config.paintsWhole(cape);
         Recolor.Paint paint = takesColor ? CosmeticRenderer.paint(options.colorStyle, picked, rainbow, base.texture())
                 : Recolor.Paint.NONE;
         return new Look(Recolor.painted(recolor, paint, color),

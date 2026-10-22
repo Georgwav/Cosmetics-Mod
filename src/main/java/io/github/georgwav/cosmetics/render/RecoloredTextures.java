@@ -259,7 +259,7 @@ public final class RecoloredTextures {
     }
 
     /** An empty texture of this size, to fill with {@link #upload}. */
-    static DynamicTexture newTexture(int width, int height) {
+    public static DynamicTexture newTexture(int width, int height) {
         //? if >=1.21.5 {
         return new DynamicTexture("cosmeticsmod recolored", width, height, false);
         //?} else {
@@ -268,7 +268,7 @@ public final class RecoloredTextures {
     }
 
     /** Puts ARGB pixels ({@code width} x {@code height}, the texture's size) into a texture and uploads it. */
-    static void upload(DynamicTexture texture, int[] argb, int width, int height) {
+    public static void upload(DynamicTexture texture, int[] argb, int width, int height) {
         NativeImage pixels = texture.getPixels();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -288,7 +288,7 @@ public final class RecoloredTextures {
         return (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF);
     }
 
-    static void register(Object id, DynamicTexture texture) {
+    public static void register(Object id, DynamicTexture texture) {
         //? if >=1.21.11 {
         Minecraft.getInstance().getTextureManager().register((Identifier) id, texture);
         //?} else {
@@ -296,7 +296,7 @@ public final class RecoloredTextures {
         *///?}
     }
 
-    static void release(Object id) {
+    public static void release(Object id) {
         //? if >=1.21.11 {
         Minecraft.getInstance().getTextureManager().release((Identifier) id);
         //?} else {
