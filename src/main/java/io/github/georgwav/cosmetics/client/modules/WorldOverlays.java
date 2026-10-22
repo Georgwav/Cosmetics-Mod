@@ -39,6 +39,8 @@ public final class WorldOverlays extends Module {
     /** The structures round you (min x, y, z, max x, y, z each), found on the game's server thread. */
     private volatile int[] structureBoxes = NONE;
     private volatile boolean structureSearch;
+    /** Client ticks since the last look for structures. */
+    private int structureWait;
     private volatile Throwable structureError;
     /** How many searches the server thread has finished (the self-test waits for one). */
     public static volatile int structureScans;
@@ -170,7 +172,10 @@ public final class WorldOverlays extends Module {
         }
         var server = mc.getSingleplayerServer();
         if (structures.get() && server != null) {
-            if (!structureSearch && mc.level.getGameTime() % 20 == 0) {
+            // Once a second by the client's own ticks: the world's clock jumps when the server lags, and could step
+            // over every whole second for a long time.
+            if (!structureSearch && ++structureWait >= 20) {
+                structureWait = 0;
                 findStructures(server, mc.level.dimension(), mc.player.blockPosition());
             }
         } else {
