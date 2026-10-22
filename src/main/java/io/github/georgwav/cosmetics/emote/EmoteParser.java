@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import io.github.georgwav.cosmetics.model.BoneAnimationParser;
 import io.github.georgwav.cosmetics.model.Molang;
 
 import java.io.Reader;
@@ -306,12 +307,17 @@ public final class EmoteParser {
             }
             return new Molang.Expr[][]{vector(pre, where), vector(post, where)};
         }
+        if (BoneAnimationParser.isPrePost(json)) {
+            JsonArray halves = json.getAsJsonArray();
+            return new Molang.Expr[][]{vector(halves.get(0), where), vector(halves.get(1), where)};
+        }
         Molang.Expr[] v = vector(json, where);
         return new Molang.Expr[][]{v, v};
     }
 
     /** A Bedrock vector, as Bedrock writes it (degrees, +Y up): {@code [x, y, z]} or one value for all three. */
     private static Molang.Expr[] vector(JsonElement json, String where) {
+        json = BoneAnimationParser.unwrapVector(json);
         if (json.isJsonArray()) {
             JsonArray array = json.getAsJsonArray();
             // Blockbench writes one-value arrays for some channels: the same value on every axis.
