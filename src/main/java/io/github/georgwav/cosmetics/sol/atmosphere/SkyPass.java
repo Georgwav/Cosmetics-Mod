@@ -130,7 +130,7 @@ public final class SkyPass {
         SkyEvents.render(theme, at, t, rain);
         SolTiming.end(SolTiming.Part.EVENTS, tp);
         SkyLabels.draw();
-        StarText.render(tk, sunAz, t, rain);
+        SkyLyrics.render(tk, t, rain);
         Extras.renderBehind(theme, tk, t, rain);
         if (theme.eclipse() != null) {
             eclipse(theme, tk, rain);

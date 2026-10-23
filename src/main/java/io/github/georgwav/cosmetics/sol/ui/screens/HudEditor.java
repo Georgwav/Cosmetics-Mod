@@ -288,7 +288,7 @@ public final class HudEditor extends SolScreen {
         if (box == null) {
             return false;
         }
-        if (button == 1) {
+        if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
             if (box instanceof ModuleBox mb) {
                 SolMenu menu = SolMenu.create(this, "modules", false);
                 menu.openDrawer(mb.m());
@@ -300,7 +300,7 @@ public final class HudEditor extends SolScreen {
             }
             return true;
         }
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             HudSnap.Rect r = box.rect();
             dragging = box;
             selected = box;

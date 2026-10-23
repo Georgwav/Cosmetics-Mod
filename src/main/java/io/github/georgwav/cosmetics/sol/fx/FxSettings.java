@@ -40,6 +40,7 @@ public final class FxSettings {
     public static final class Spec {
         boolean toggle, random, sound, who, firstPerson, speed = true, amount = true, duration = true, glow = true;
         boolean onByDefault;
+        Boolean onWas;
         String defaultSound = "tick";
         boolean playersOnly = true;
         int defaultColour = 0xFF5FD4FF;
@@ -50,6 +51,12 @@ public final class FxSettings {
         public Spec toggle(boolean on) {
             toggle = true;
             onByDefault = on;
+            return this;
+        }
+
+        /** The switch's default before this one (see {@link Setting#was}). */
+        public Spec toggleWas(boolean old) {
+            onWas = old;
             return this;
         }
 
@@ -114,7 +121,8 @@ public final class FxSettings {
         FxSettings f = new FxSettings(group, styles);
         String p = group + "_";
         if (spec.toggle) {
-            f.on = put(add, std, "on", new Setting.Toggle(p + "on", spec.onByDefault).group(group));
+            Setting.Toggle on = new Setting.Toggle(p + "on", spec.onByDefault).group(group);
+            f.on = put(add, std, "on", spec.onWas != null ? on.was(spec.onWas) : on);
         }
         if (styles.size() > 1) {
             f.style = put(add, std, "style", new Setting.Choice(p + "style", styles.get(0), styles).group(group));

@@ -1351,7 +1351,7 @@ public final class QuickMenu extends SolScreen {
                 return true;
             }
         }
-        if (viewWheel != Wheel.NONE && button == 1) {
+        if (viewWheel != Wheel.NONE && button == InputConstants.MOUSE_BUTTON_RIGHT) {
             int i = itemAt(x, y, true);
             if (i >= 0 && items.get(i).alt != null) {
                 items.get(i).alt.run();
@@ -1359,7 +1359,7 @@ public final class QuickMenu extends SolScreen {
             }
             return false;
         }
-        if (button != 0) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         for (Hit h : hits) {

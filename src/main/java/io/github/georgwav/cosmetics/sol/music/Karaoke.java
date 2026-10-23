@@ -51,6 +51,31 @@ public final class Karaoke {
         return found;
     }
 
+    /**
+     * How much of line {@code index} has been sung, 0..1 by its letters (the words before the one being sung, and that
+     * one as far as it's got), for a sweep across the whole line; -1 when the lyrics don't time its words.
+     */
+    public static float sung(Lyrics lyrics, int index, long positionMs, long offsetMs) {
+        if (index < 0 || index >= lyrics.lines().size() || lyrics.lines().get(index).words().isEmpty()) {
+            return -1f;
+        }
+        List<Lyrics.Word> words = lyrics.lines().get(index).words();
+        int w = word(lyrics, index, positionMs, offsetMs);
+        int total = 0, before = 0;
+        for (int i = 0; i < words.size(); i++) {
+            int n = words.get(i).text().length();
+            total += n;
+            if (i < w) {
+                before += n;
+            }
+        }
+        if (total == 0) {
+            return -1f;
+        }
+        float in = w < 0 ? 0f : words.get(w).text().length() * wordProgress(lyrics, index, w, positionMs, offsetMs);
+        return Math.min(1f, (before + in) / total);
+    }
+
     /** How far through word {@code w} of line {@code index} the song is (0..1), for the lit sweep. */
     public static float wordProgress(Lyrics lyrics, int index, int w, long positionMs, long offsetMs) {
         if (index < 0 || w < 0) {

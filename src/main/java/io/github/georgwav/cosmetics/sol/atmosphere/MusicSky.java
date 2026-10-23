@@ -48,9 +48,12 @@ public final class MusicSky {
         return sunBeat ? 1f + beat * 0.06f : 1f;
     }
 
-    /** The lyric line written in stars (null: none). */
-    public static void starLine(String line) {
-        StarText.line = line;
+    /**
+     * The lyric line written on the night sky (null: none) and how much of it is sung, 0..1 by its letters (-1: its
+     * words aren't timed).
+     */
+    public static void skyLine(String line, float sung) {
+        SkyLyrics.feed(line, sung);
     }
 
     /** The beat ring's phase 0..1, or -1 when none shows. */

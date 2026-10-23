@@ -659,16 +659,16 @@ public final class TextureEditor extends SolScreen {
 
     @Override
     protected boolean press(float x, float y, int button) {
-        if (picker == null && (button == 0 || button == 1) && !spaceDown && mx >= CX && my >= CY && mx <= CX + CW && my <= CY + CH && img != null) {
+        if (picker == null && (button == InputConstants.MOUSE_BUTTON_LEFT || button == InputConstants.MOUSE_BUTTON_RIGHT) && !spaceDown && mx >= CX && my >= CY && mx <= CX + CW && my <= CY + CH && img != null) {
             int[] at = texel(img, g);
-            downButton = button;
+            downButton = button == InputConstants.MOUSE_BUTTON_RIGHT ? 1 : 0;
             if (at == null && !tool.equals("select")) {
                 return true;
             }
             startStroke(at == null ? new int[]{0, 0} : at);
             return true;
         }
-        if (picker == null && (button == 2 || spaceDown && button == 0) && mx >= CX && my >= CY && mx <= CX + CW && my <= CY + CH) {
+        if (picker == null && (button == InputConstants.MOUSE_BUTTON_MIDDLE || spaceDown && button == InputConstants.MOUSE_BUTTON_LEFT) && mx >= CX && my >= CY && mx <= CX + CW && my <= CY + CH) {
             panning = true;
             panFromX = g.d.sx(x);
             panFromY = g.d.sy(y);
@@ -677,7 +677,7 @@ public final class TextureEditor extends SolScreen {
             return true;
         }
         // Paint on the model: a click on the mannequin paints its texel.
-        if (picker == null && button == 0 && img != null && armourLayer() && mx >= RX && my >= CY && mx <= RX + RW && my <= CY + 200f
+        if (picker == null && button == InputConstants.MOUSE_BUTTON_LEFT && img != null && armourLayer() && mx >= RX && my >= CY && mx <= RX + RW && my <= CY + 200f
                 && (tool.equals("pencil") || tool.equals("eraser"))) {
             int[] uvAt = StylesPreview.texelAt(g.d.sx(x), g.d.sy(y), path.contains("humanoid/") || path.endsWith("_layer_1.png"), img.width(), img.height());
             if (uvAt != null) {
@@ -687,7 +687,7 @@ public final class TextureEditor extends SolScreen {
                 return true;
             }
         }
-        if (button != 0) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         return ui.press(x, y);

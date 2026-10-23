@@ -632,6 +632,15 @@ public final class SolScenario {
                 }
                 *///?}
             }
+            if (phaseTick == SETTLE + 20 && s.name().equals("ui_menu_modules")
+                    && io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof io.github.georgwav.cosmetics.sol.ui.menu.SolMenu menu) {
+                // After the shot: a left click on the HUD tab as the game delivers one (26.3 numbers the buttons as
+                // SDL does) must open it.
+                if (!menu.testClickTab("hud") || !menu.section().equals("hud")) {
+                    problems.add(s.name() + ": a left click (the game's button " + com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
+                            + ") on the HUD tab didn't open it (" + menu.section() + ")");
+                }
+            }
             if (phaseTick == SETTLE && s.name().equals("ui_whats_new") && io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew.shown == 0) {
                 problems.add(s.name() + ": the what's new screen didn't draw");
             }
@@ -647,6 +656,14 @@ public final class SolScenario {
                         : io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.veils == 0
                         || io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.buttons == 0) {
                     problems.add(s.name() + ": the game's screen didn't take Sol's look (" + look.getSimpleName() + ")");
+                }
+            }
+            if (phaseTick == SETTLE && s.name().equals("sol_music_stars")) {
+                String line = io.github.georgwav.cosmetics.sol.atmosphere.SkyLyrics.wanted();
+                int letters = io.github.georgwav.cosmetics.sol.atmosphere.SkyLyrics.lettersDrawn;
+                CosmeticsMod.LOGGER.info("[Sol] {}: sky lyrics \"{}\", {} letters written", s.name(), line, letters);
+                if (!line.isEmpty() && letters == 0) {
+                    problems.add(s.name() + ": the line being sung (\"" + line + "\") wasn't written on the sky");
                 }
             }
             if (phaseTick == SETTLE && s.name().equals("sol_music_viz")) {

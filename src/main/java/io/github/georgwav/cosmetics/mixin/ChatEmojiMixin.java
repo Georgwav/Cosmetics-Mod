@@ -47,7 +47,7 @@ abstract class ChatEmojiMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 0)
     private void cosmeticsmod$click(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         Screen self = (Screen) (Object) this;
-        if (event.button() == 0 && EmojiPicker.click(self.width, self.height, event.x(), event.y(), input::insertText)) {
+        if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && EmojiPicker.click(self.width, self.height, event.x(), event.y(), input::insertText)) {
             cir.setReturnValue(true);
         }
     }
@@ -62,7 +62,7 @@ abstract class ChatEmojiMixin {
     /*@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 0)
     private void cosmeticsmod$click(double x, double y, int button, CallbackInfoReturnable<Boolean> cir) {
         Screen self = (Screen) (Object) this;
-        if (button == 0 && EmojiPicker.click(self.width, self.height, x, y, input::insertText)) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && EmojiPicker.click(self.width, self.height, x, y, input::insertText)) {
             cir.setReturnValue(true);
         }
     }

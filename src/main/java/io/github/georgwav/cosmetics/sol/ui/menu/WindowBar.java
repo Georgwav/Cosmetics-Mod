@@ -204,6 +204,11 @@ public final class WindowBar {
         return iconTex;
     }
 
+    /** For the in-game checks: the middle of a section's tab as last drawn, in design pixels. */
+    float[] tabCentre(String id) {
+        return new float[]{tabMid[indexOf(id)], Y + TAB / 2f};
+    }
+
     /** The sun laid flat: a 32 x 32 pixel sun on the horizon under the tab you're on. */
     private void sun(Gfx g, Tokens tk, float time, float dt, String current) {
         int at = indexOf(current);
