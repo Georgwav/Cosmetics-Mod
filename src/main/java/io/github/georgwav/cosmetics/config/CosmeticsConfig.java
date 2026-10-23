@@ -401,8 +401,17 @@ public final class CosmeticsConfig {
             | io.github.georgwav.cosmetics.model.CosmeticOption.RAINBOW.bit()
             | io.github.georgwav.cosmetics.model.CosmeticOption.SATURATION.bit();
 
-    /** The options players may change on a cosmetic: what its file allows, plus colour with {@link #colorAnyCosmetic}. */
+    /**
+     * The options a cosmetic takes now: what {@link #ownOptions} allows, plus its tint while it follows the theme
+     * (Sol's theme colour reaches every cosmetic, whether its file allows a colour or not).
+     */
     public int allowedOptions(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
+        int allowed = ownOptions(cosmetic);
+        return followsTheme(cosmetic) ? allowed | io.github.georgwav.cosmetics.model.CosmeticOption.TINT.bit() : allowed;
+    }
+
+    /** The options players may change on a cosmetic: what its file allows, plus colour with {@link #colorAnyCosmetic}. */
+    public int ownOptions(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
         int allowed = cosmetic.definition().options();
         // Knives keep their packs' own colours.
         return colorAnyCosmetic && cosmetic.slot() != CosmeticSlot.MELEE ? allowed | COLOR_OPTIONS : allowed;
@@ -411,6 +420,22 @@ public final class CosmeticsConfig {
     public boolean allows(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic,
                           io.github.georgwav.cosmetics.model.CosmeticOption option) {
         return (allowedOptions(cosmetic) & option.bit()) != 0;
+    }
+
+    /** Whether the player may change {@code option} on the cosmetic's page (its file, or Colour any cosmetic). */
+    public boolean allowsOwn(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic,
+                             io.github.georgwav.cosmetics.model.CosmeticOption option) {
+        return (ownOptions(cosmetic) & option.bit()) != 0;
+    }
+
+    /** Whether the cosmetic takes the theme's colour now (its own Follow theme, else Theme colour on every cosmetic). */
+    public boolean followsTheme(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
+        return cosmetic.slot() != CosmeticSlot.MELEE && io.github.georgwav.cosmetics.render.Tint.follows(options(cosmetic.id())) != null;
+    }
+
+    /** Whether a cosmetic none of whose parts take colour is painted all over (Colour any cosmetic, or the theme). */
+    public boolean paintsWhole(io.github.georgwav.cosmetics.model.BakedCosmetic cosmetic) {
+        return (colorAnyCosmetic || followsTheme(cosmetic)) && !cosmetic.hasTintedLayer();
     }
 
     public static CosmeticsConfig get() {

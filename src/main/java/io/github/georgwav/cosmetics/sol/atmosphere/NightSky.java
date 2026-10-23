@@ -69,8 +69,8 @@ public final class NightSky {
     /** The view's half-extents (tangents), the screen in pixels, and the sky's pixel (2 at 1080p). */
     static float tanX, tanY, sw, sh, pixel;
     private static final float[] v = new float[9];
-    /** The world-to-view rotation this frame, by rows. */
-    private static final float[] vw = new float[9];
+    /** The world-to-view rotation this frame, by rows (the third row is the view's back, in the world). */
+    static final float[] vw = new float[9];
     /** The last {@link #project}ed point: world direction, screen pixels, and its depth (cosine off the view's axis). */
     static final float[] world = new float[3];
     static final float[] screen = new float[2];

@@ -119,6 +119,42 @@ class BoneRigTest {
     }
 
     @Test
+    void noRisksBracketedKeyframesTurnTheBoneToo() {
+        // NoRisk's flags write each keyframe in brackets once more, and some as [arriving, leaving].
+        String animations = """
+                {"animations": {"nrc.idle": {"loop": true, "animation_length": 2, "bones": {
+                  "right_wing": {"rotation": {"0.0": [[0, 0, 0]], "1.0": [[0, -90, 0], [0, -90, 0]],
+                                              "2.0": {"post": [[0, 0, 0]], "lerp_mode": "linear"}}}}}}}
+                """;
+        BedrockGeometry.Model model = model();
+        List<String> warnings = new ArrayList<>();
+        List<BoneRig.Clip> clips = BoneAnimationParser.parse(JsonParser.parseString(animations).getAsJsonObject(),
+                model.bones(), "test", warnings::add);
+        assertTrue(warnings.isEmpty(), warnings.toString());
+        BoneRig rig = new BoneRig(model.bones(), clips, List.of(), false);
+        int right = rig.boneNamed("right_wing");
+        BoneRig.Playback playback = rig.newPlayback();
+        Molang.Context context = new Molang.Context().clear();
+        rig.pose(playback, 10.0, 1f, context);
+        rig.pose(playback, 11.0, 1f, context);
+        float[] tip = moved(rig, right, -12f, 4f, 2f);
+        assertEquals(-2f, tip[0], EPS);
+        assertEquals(10f, Math.abs(tip[2] - 2f), EPS);
+    }
+
+    @Test
+    void oneOddValueWarnsOnceNotForBothSidesOfItsKeyframe() {
+        String animations = """
+                {"animations": {"quirk": {"animation_length": 1, "bones": {
+                  "left_wing": {"rotation": {"0.0": [0, 0, 0], "0.5": [null, 0, 0]}}}}}}
+                """;
+        List<String> warnings = new ArrayList<>();
+        BoneAnimationParser.parse(JsonParser.parseString(animations).getAsJsonObject(), model().bones(), "test",
+                warnings::add);
+        assertEquals(1, warnings.size(), warnings.toString());
+    }
+
+    @Test
     void oddKeyframeValuesAreReadOrLeftOutNotFatal() {
         // NoRisk's easter bunny has a keyframe value that isn't a number; wrapped values are read through.
         String animations = """

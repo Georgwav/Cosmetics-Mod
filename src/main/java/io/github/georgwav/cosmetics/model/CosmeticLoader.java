@@ -34,6 +34,7 @@ public final class CosmeticLoader {
     private static final String MODEL_DIRECTORY = "cosmetic_models";
     private static final String SUFFIX = ".json";
     private static final String GEO_SUFFIX = ".geo.json";
+    private static final int WARNINGS_SHOWN = 5;
     /**
      * Imported packs' namespaces and the import format the mod's fixes need: a pack whose
      * {@code <namespace>:cosmetics_import.json} says less (or that has none) was made by an older importer, and the
@@ -115,13 +116,23 @@ public final class CosmeticLoader {
                     + path.substring(DIRECTORY.length() + 1, path.length() - SUFFIX.length());
             String file = "assets/" + entry.getKey().getNamespace() + "/" + path;
             ids[i] = id;
-            CosmeticParser.Context context = new CosmeticParser.Context(models, files,
-                    warning -> CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {}", id, file, warning), maxMeshTriangles);
+            // An odd animation can warn once per keyframe: the first few say what's wrong, thousands of lines would
+            // only slow loading down.
+            int[] warned = {0};
+            CosmeticParser.Context context = new CosmeticParser.Context(models, files, warning -> {
+                if (++warned[0] <= WARNINGS_SHOWN) {
+                    CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {}", id, file, warning);
+                }
+            }, maxMeshTriangles);
             try (Reader reader = entry.getValue().openAsReader()) {
                 baked[i] = CosmeticBaker.bake(CosmeticParser.parse(id, reader, context));
             } catch (Exception e) {
                 CosmeticsMod.LOGGER.error("Skipping cosmetic '{}' ({}): {}", id, file, e.toString());
                 failed[i] = id + ": " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            }
+            if (warned[0] > WARNINGS_SHOWN) {
+                CosmeticsMod.LOGGER.warn("Cosmetic '{}' ({}): {} more warning(s) like these", id, file,
+                        warned[0] - WARNINGS_SHOWN);
             }
         });
         Map<String, BakedCosmetic> loaded = new LinkedHashMap<>();

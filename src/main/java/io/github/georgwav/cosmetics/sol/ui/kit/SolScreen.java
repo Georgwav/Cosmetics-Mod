@@ -28,7 +28,9 @@ import net.minecraft.client.input.MouseButtonEvent;
  *   at every GUI scale.</li>
  *   <li><b>Background:</b> never a blur and never the game's dark menu wash: the pixel UI dims the world with flat
  *   black at 24% (screens that show the world as it is, such as the HUD editor, don't).</li>
- *   <li><b>Input:</b> arrives in design pixels, with Ctrl and Shift.</li>
+ *   <li><b>Input:</b> arrives in design pixels, with Ctrl and Shift. Buttons and keys are the game's own numbers:
+ *   compare them with {@code InputConstants.MOUSE_BUTTON_*} and {@code KEY_*}, never with literals (26.3 numbers them
+ *   as SDL does, left click 1 and right click 3).</li>
  *   <li><b>Errors:</b> a screen that throws while drawing is closed (Guard switches the Sol UI off and says so
  *   once), never the game.</li>
  * </ul>
@@ -53,6 +55,16 @@ public abstract class SolScreen extends Screen {
         super(title);
         this.parent = parent;
         this.feature = feature;
+        if (feature == Feature.MENU || feature == Feature.QUICK_MENU || feature == Feature.STYLES) {
+            // Opening a menu asks for it again: one that failed earlier this session (and closed itself then) gets
+            // another try, instead of a menu that won't open until the game restarts.
+            Guard.reset(feature);
+        }
+    }
+
+    /** The guarded feature this screen belongs to. */
+    public Feature feature() {
+        return feature;
     }
 
     // ------------------------------------------------------------------ what a screen implements
@@ -80,7 +92,7 @@ public abstract class SolScreen extends Screen {
     protected void moved(float x, float y) {
     }
 
-    /** A key (GLFW key codes, as {@code InputConstants.KEY_*}). Esc is handled by {@link #back()} unless this takes it. */
+    /** A key (the game's key codes, as {@code InputConstants.KEY_*}). Esc is handled by {@link #back()} unless this takes it. */
     protected boolean key(int key, boolean ctrl, boolean shift) {
         return false;
     }
@@ -101,6 +113,14 @@ public abstract class SolScreen extends Screen {
 
     /** A typed character, for type-to-search. */
     protected boolean typed(String text) {
+        return false;
+    }
+
+    /**
+     * Whether typing goes somewhere even with no text field focused (type-to-search). A focused {@link TextField}
+     * asks for it by itself as it draws.
+     */
+    protected boolean wantsText() {
         return false;
     }
 
@@ -149,8 +169,31 @@ public abstract class SolScreen extends Screen {
 
     @Override
     public void removed() {
+        // The game stops text input whenever the screen changes: ask again if this screen comes back.
+        textOn = false;
         closed();
         super.removed();
+    }
+
+    /** Set by a focused {@link TextField} as it draws, so this frame the screen asks for typed text. */
+    static boolean fieldFocused;
+    private boolean textOn;
+
+    /**
+     * 26.3 sends typed characters only while a screen asks for text input, as the game's own text boxes do when
+     * focused; before that every screen gets them.
+     */
+    private void textInput(boolean on) {
+        //? if >=26.3 {
+        /*if (on != textOn) {
+            textOn = on;
+            if (on) {
+                minecraft.textInputManager().startTextInput(this);
+            } else {
+                minecraft.textInputManager().stopTextInput(this);
+            }
+        }
+        *///?}
     }
 
     private boolean opened;
@@ -186,7 +229,9 @@ public abstract class SolScreen extends Screen {
         if (blurs() && minecraft.level != null) {
             g.rectScreen(0f, 0f, d.screenW, d.screenH, 0x3D000000, 0x3D000000);
         }
+        fieldFocused = false;
         boolean ok = Guard.on(feature) && Guard.run(feature, () -> frame(g));
+        textInput(ok && (fieldFocused || wantsText()));
         g.end();
         canvas.pop();
         if (ok) {
@@ -350,6 +395,25 @@ public abstract class SolScreen extends Screen {
         }
     }
     *///?}
+
+    /**
+     * For the in-game checks: a left click at design (x, y), pressed and let go as the game delivers one (its own
+     * button numbers, through this version's own methods). Whether the screen took it.
+     */
+    public boolean testClick(float x, float y) {
+        double gx = d.sx(x) / d.gs;
+        double gy = d.sy(y) / d.gs;
+        int left = com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT;
+        //? if >=1.21.9 {
+        MouseButtonEvent event = new MouseButtonEvent(gx, gy, new net.minecraft.client.input.MouseButtonInfo(left, 0));
+        boolean took = mouseClicked(event, false);
+        mouseReleased(event);
+        //?} else {
+        /*boolean took = mouseClicked(gx, gy, left);
+        mouseReleased(gx, gy, left);
+        *///?}
+        return took;
+    }
 
     /** The keyboard key as the game names keys, for hints ("Right Shift"). */
     protected static String keyName(net.minecraft.client.KeyMapping mapping) {

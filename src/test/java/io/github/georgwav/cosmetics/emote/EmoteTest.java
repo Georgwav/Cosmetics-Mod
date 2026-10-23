@@ -52,6 +52,17 @@ class EmoteTest {
         assertEquals(EmotePose.REST[EmotePose.LEFT_LEG][0], posed[EmotePose.LEFT_LEG][0], EPS, "legs stay put");
     }
 
+    @Test
+    void noRisksBracketedKeyframesPlay() {
+        // NoRisk's emotes write each keyframe in brackets once more, and some as [arriving, leaving].
+        Emote wave = parse("""
+                {"format_version": "1.8.0", "animations": {"animation.emote.wave": {"animation_length": 2,
+                  "bones": {"right_arm": {"rotation": {"0.0": [[0, 0, 0]], "1.0": [[0, 0, 150], [0, 0, 150]],
+                                                       "2.0": {"post": [[0, 0, 0]]}}}}}}}
+                """).get(0);
+        assertTrue(Math.abs(EmotePose.posed(wave, 1f)[EmotePose.RIGHT_ARM][5]) > 2f, "the arm is raised");
+    }
+
     // ---------------------------------------------------------------- easing and channels
 
     @Test

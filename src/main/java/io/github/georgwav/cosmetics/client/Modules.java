@@ -258,10 +258,11 @@ public final class Modules {
 
     /**
      * The version of the defaults settings are saved with: 2 made the theme's colour every colour's default (and
-     * turned on the modules that show it); 3 made the effects smooth (pixel snap off). Saved settings still at an older
+     * turned on the modules that show it); 3 made the effects smooth (pixel snap off); 4 turned off Crystal PvP's low
+     * health pulse and made Firefly the trail behind you instead of the Ribbon. Saved settings still at an older
      * default take the new one, once.
      */
-    public static final int DEFAULTS = 3;
+    public static final int DEFAULTS = 4;
 
     /** The defaults' version a module's saved settings were written with (1 before it was recorded). */
     private static int defaultsSeen(JsonObject saved) {

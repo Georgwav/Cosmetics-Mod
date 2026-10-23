@@ -60,6 +60,7 @@ public final class Sol {
         }
         io.github.georgwav.cosmetics.sol.render.LightPass.reset();
         io.github.georgwav.cosmetics.client.modules.GlintModule.reloaded();
+        io.github.georgwav.cosmetics.sol.styles.Styles.resourcesReloaded();
     }
 
     private static void tick(Minecraft mc) {

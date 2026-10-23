@@ -8,31 +8,53 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
 /**
- * Styles' live path (B.2.6): a texture's new pixels written straight into the game, with no reload, when it keeps its
- * size and frames. A sprite is written into its place in its atlas, every mip level (made here again from the new
- * pixels); a texture of its own is uploaded again. Each era writes textures its own way, so every difference is here.
- * Render thread only. False whenever it can't (an animated sprite, another size, an unknown texture): then a reload
- * does it.
+ * Styles' live path (B.2.6): a texture's new pixels written straight into the game, with no reload. A sprite is
+ * written into its place in its atlas, every mip level (made here again from the new pixels); one of another
+ * resolution (a 32x pack's over a 16x one) is brought to the size of that place until a reload stitches the atlas
+ * again. A texture of its own is uploaded again, or, at another size, replaced by one of the new size (given back to
+ * the game at the next reload). Each era writes textures its own way, so every difference is here. Render thread
+ * only.
  */
 final class LiveWrite {
     private LiveWrite() {
     }
 
+    /** How a texture went in. */
+    enum Result {
+        /** As it is. */
+        EXACT,
+        /** Brought to the size of its place in an atlas: right, but sharper only after a reload. */
+        SCALED,
+        /** Not at all (an animated sprite, an unknown texture): a reload does it. */
+        NO
+    }
+
+    /** Textures of their own replaced at another size: the game's again at the next reload. */
+    private static final java.util.Set<Object> REPLACED = new java.util.HashSet<>();
+
     /** Writes the texture at {@code path} (under assets/minecraft/). {@code w} and {@code h}: its size now. */
-    static boolean write(String path, Pixels.Image img, int w, int h) {
-        if (!path.startsWith("textures/") || !path.endsWith(".png") || img.w() != w || img.h() != h) {
-            return false;
+    static Result write(String path, Pixels.Image img, int w, int h) {
+        if (!path.startsWith("textures/") || !path.endsWith(".png")) {
+            return Result.NO;
         }
         String name = path.substring("textures/".length(), path.length() - 4);
         TextureAtlasSprite sprite = sprite(name);
         if (sprite != null) {
-            return writeSprite(sprite, img);
+            if (animated(sprite)) {
+                return Result.NO;
+            }
+            int sw = sprite.contents().width(), sh = sprite.contents().height();
+            boolean same = img.w() == sw && img.h() == sh;
+            if (!writeSprite(sprite, same ? img : Pixels.resample(img, sw, sh))) {
+                return Result.NO;
+            }
+            return same ? Result.EXACT : Result.SCALED;
         }
         if (inAtlas(name)) {
             // An atlas sprite we couldn't find: leave it to the reload.
-            return false;
+            return Result.NO;
         }
-        return writeTexture(path, img);
+        return writeTexture(path, img, img.w() != w || img.h() != h) ? Result.EXACT : Result.NO;
     }
 
     /** The game's atlases that Styles' textures can sit in (each one's sources read from its atlases/ file). */
@@ -45,9 +67,16 @@ final class LiveWrite {
 
     private static java.util.List<Source> sources;
 
-    /** Forgets the atlases' sources (after a reload, a pack may have changed them). */
+    /**
+     * After a reload: forgets the atlases' sources (a pack may have changed them), and gives the textures replaced at
+     * another size back to the game, which loads each again from the packs the next time it's drawn.
+     */
     static void reloaded() {
         sources = null;
+        for (Object id : REPLACED) {
+            io.github.georgwav.cosmetics.render.RecoloredTextures.release(id);
+        }
+        REPLACED.clear();
     }
 
     /** Every atlas's directory and single-file sources, read once from the game's resources. */
@@ -120,7 +149,7 @@ final class LiveWrite {
     }
 
     private static boolean writeSprite(TextureAtlasSprite sprite, Pixels.Image img) {
-        if (sprite.contents().width() != img.w() || sprite.contents().height() != img.h() || animated(sprite)) {
+        if (sprite.contents().width() != img.w() || sprite.contents().height() != img.h()) {
             return false;
         }
         NativeImage[] mips = ((SpriteContentsAccess) sprite.contents()).cosmeticsmod$byMipLevel();
@@ -174,17 +203,23 @@ final class LiveWrite {
         *///?}
     }
 
-    /** A texture of its own, uploaded again (it must already be loaded at this size). */
-    private static boolean writeTexture(String path, Pixels.Image img) {
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id(path));
+    /** A texture of its own, uploaded again; at another size ({@code resized}), a texture of the new size in its place. */
+    private static boolean writeTexture(String path, Pixels.Image img, boolean resized) {
+        var id = id(path);
+        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
         if (texture == null || texture instanceof TextureAtlas) {
             return false;
         }
         //? if >=1.21.5 {
-        if (texture.getTexture().getWidth(0) != img.w() || texture.getTexture().getHeight(0) != img.h()) {
-            return false;
-        }
+        resized |= texture.getTexture().getWidth(0) != img.w() || texture.getTexture().getHeight(0) != img.h();
         //?}
+        if (resized) {
+            var made = io.github.georgwav.cosmetics.render.RecoloredTextures.newTexture(img.w(), img.h());
+            io.github.georgwav.cosmetics.render.RecoloredTextures.upload(made, img.argb(), img.w(), img.h());
+            io.github.georgwav.cosmetics.render.RecoloredTextures.register(id, made);
+            REPLACED.add(id);
+            return true;
+        }
         try (NativeImage image = new NativeImage(img.w(), img.h(), false)) {
             for (int y = 0; y < img.h(); y++) {
                 for (int x = 0; x < img.w(); x++) {

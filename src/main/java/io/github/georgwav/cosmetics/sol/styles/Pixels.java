@@ -293,6 +293,37 @@ public final class Pixels {
         return new Image(in.w(), in.w(), out);
     }
 
+    /**
+     * The picture brought to {@code w} x {@code h} (a texture of another resolution into the place its old one left):
+     * cut to that shape from the top first (a strip of animation frames keeps its first frame), then averaged down,
+     * each pixel weighted by its alpha, or repeated up.
+     */
+    public static Image resample(Image in, int w, int h) {
+        int cutH = Math.min(in.h(), Math.max(1, Math.round(in.w() * h / (float) w)));
+        int[] out = new int[w * h];
+        for (int y = 0; y < h; y++) {
+            int y0 = y * cutH / h, y1 = Math.max(y0 + 1, (y + 1) * cutH / h);
+            for (int x = 0; x < w; x++) {
+                int x0 = x * in.w() / w, x1 = Math.max(x0 + 1, (x + 1) * in.w() / w);
+                long a = 0, r = 0, g = 0, b = 0;
+                int n = 0;
+                for (int sy = y0; sy < y1; sy++) {
+                    for (int sx = x0; sx < x1; sx++) {
+                        int p = in.argb()[sy * in.w() + sx];
+                        int pa = p >>> 24;
+                        a += pa;
+                        r += (long) (p >> 16 & 255) * pa;
+                        g += (long) (p >> 8 & 255) * pa;
+                        b += (long) (p & 255) * pa;
+                        n++;
+                    }
+                }
+                out[y * w + x] = a == 0 ? 0 : (int) (a / n) << 24 | (int) (r / a) << 16 | (int) (g / a) << 8 | (int) (b / a);
+            }
+        }
+        return new Image(w, h, out);
+    }
+
     /** Nearest-neighbour scaled to fit {@code size} x {@code size}, centred, the rest clear (a tile's picture). */
     public static Image fit(Image in, int size) {
         int[] out = new int[size * size];

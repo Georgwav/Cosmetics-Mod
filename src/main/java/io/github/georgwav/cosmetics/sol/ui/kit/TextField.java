@@ -51,6 +51,9 @@ public final class TextField {
     /** Draws it at (x, y), w x h design pixels, with an icon (or null) and a hint while empty. */
     public void draw(Gfx g, Ui ui, Tokens tk, float x, float y, float w, float h, String icon, String hint, float dt) {
         blink += dt;
+        if (focused) {
+            SolScreen.fieldFocused = true;
+        }
         ui.click(x, y, w, h, () -> focus(true));
         boolean hover = ui.over(x, y, w, h);
         Pix.fill(g, x, y, w, h, 0xCC08080C);

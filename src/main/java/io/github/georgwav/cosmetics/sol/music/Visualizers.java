@@ -61,13 +61,14 @@ public final class Visualizers {
         MusicSky.ringPhase = m.viz("rings") && ringStart != Long.MIN_VALUE ? Math.min(2f, (now - ringStart) / 0.9e9f) : 2f;
         Covers.Cover c = m.viz("album_sun") ? Covers.current() : null;
         MusicSky.album = c == null ? null : c.sun();
-        // The lyric line in stars, on the album sky.
+        // The lyric line written on the album sky at night, lit as it's sung.
         if (SolConfig.get().music.albumSky && SolConfig.get().music.lyricsHud && m.viz("stars")) {
             Lyrics l = MusicService.lyrics();
-            int i = Karaoke.line(l, n.position(), MusicService.offset(n));
-            MusicSky.starLine(i >= 0 ? l.lines().get(i).text() : null);
+            long offset = MusicService.offset(n);
+            int i = Karaoke.line(l, n.position(), offset);
+            MusicSky.skyLine(i >= 0 ? l.lines().get(i).text() : null, Karaoke.sung(l, i, n.position(), offset));
         } else {
-            MusicSky.starLine(null);
+            MusicSky.skyLine(null, -1f);
         }
         if (m.viz("eq")) {
             float[] bands = s.bands();
@@ -92,7 +93,7 @@ public final class Visualizers {
     }
 
     private static void off() {
-        MusicSky.starLine(null);
+        MusicSky.skyLine(null, -1f);
         MusicSky.level = 0f;
         MusicSky.beat = 0f;
         MusicSky.bass = 0f;

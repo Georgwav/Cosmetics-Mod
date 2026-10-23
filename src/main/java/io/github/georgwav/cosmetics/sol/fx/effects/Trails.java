@@ -58,9 +58,11 @@ public final class Trails extends FxModule {
     public final Setting.Toggle potions = add(new Setting.Toggle("projectile_potions", true).group("projectile"));
 
     /** Its size is the bands' width (2 texels each at 100%) and its duration the length (1.5 s of your way). */
-    public final FxSettings ribbon = fx("ribbon", RIBBON_STYLES, new FxSettings.Spec().toggle(true).noSpeed().noAmount().firstPerson());
+    public final FxSettings ribbon = fx("ribbon", RIBBON_STYLES, new FxSettings.Spec().toggle(false).toggleWas(true).noSpeed().noAmount()
+            .firstPerson());
     public final Setting.Choice ribbonFrom = add(new Setting.Choice("ribbon_from", "waist", List.of("waist", "feet")).group("ribbon"));
-    public final FxSettings firefly = fx("firefly", ONE, new FxSettings.Spec().toggle(false).noSpeed().firstPerson());
+    /** The trail behind you when Trails is first switched on. */
+    public final FxSettings firefly = fx("firefly", ONE, new FxSettings.Spec().toggle(true).toggleWas(false).noSpeed().firstPerson());
     /** Its duration is how far apart in time the copies are. */
     public final FxSettings ghost = fx("ghost_trail", ONE, new FxSettings.Spec().toggle(false).noSpeed().noAmount().noGlow().firstPerson());
     public final Setting.Slider ghostCount = add(new Setting.Slider("ghost_trail_count", 4, 3, 6, 1, v -> String.valueOf(Math.round(v)))

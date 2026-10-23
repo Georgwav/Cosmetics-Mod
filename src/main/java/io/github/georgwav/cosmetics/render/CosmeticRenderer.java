@@ -250,8 +250,9 @@ public final class CosmeticRenderer {
                     continue;
                 }
                 int light = layer.mode() == RenderMode.EMISSIVE ? MeshEmitter.FULL_BRIGHT : packedLight;
-                // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be.
-                boolean takesColor = layer.tinted() || (config.colorAnyCosmetic && !cosmetic.hasTintedLayer());
+                // A cosmetic none of whose parts take colour is coloured all over when any cosmetic may be, or while
+                // it follows the theme.
+                boolean takesColor = layer.tinted() || config.paintsWhole(cosmetic);
                 Recolor.Paint paint = takesColor ? paint(options.colorStyle, picked, rainbow, layer.texture())
                         : Recolor.Paint.NONE;
                 RecoloredTextures.begin(cosmetic.id(), Recolor.painted(recolor, paint,

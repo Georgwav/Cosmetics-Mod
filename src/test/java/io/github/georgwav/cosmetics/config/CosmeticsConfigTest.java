@@ -12,6 +12,35 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CosmeticsConfigTest {
+    /** Follow theme colour reaches a cosmetic whose file allows no colour (an imported one), and only while chosen. */
+    @Test
+    void followingTheThemeTintsACosmeticThatAllowsNoColour() {
+        io.github.georgwav.cosmetics.model.BakedCosmetic fixed = io.github.georgwav.cosmetics.model.CosmeticBaker.bake(
+                io.github.georgwav.cosmetics.model.CosmeticParser.parse("test:fixed", new java.io.StringReader("""
+                        {"slot": "head", "texture": "test:t.png", "texture_size": [64, 64],
+                         "options": {"tint": false, "rainbow": false, "saturation": false},
+                         "parts": [{"cubes": [{"from": [-4, -8, -4], "to": [4, 0, 4], "uv": [0, 0]}]}]}
+                        """)));
+        CosmeticsConfig config = new CosmeticsConfig();
+        // As a config from before Colour any cosmetic was on by default has it.
+        config.colorAnyCosmetic = false;
+        int tint = io.github.georgwav.cosmetics.model.CosmeticOption.TINT.bit();
+        assertEquals(0, config.allowedOptions(fixed) & tint);
+        assertFalse(config.paintsWhole(fixed));
+
+        config.editOptions("test:fixed").themeColor = "accent";
+        assertTrue(config.followsTheme(fixed));
+        assertEquals(tint, config.allowedOptions(fixed) & tint);
+        // Its part takes the colour, as the renderer decides: a part that takes colour, or all of it when none does.
+        assertTrue(fixed.layers()[0].tinted() || config.paintsWhole(fixed));
+        // The colour picker stays as the file says: following the theme paints, it doesn't open the picker.
+        assertFalse(config.allowsOwn(fixed, io.github.georgwav.cosmetics.model.CosmeticOption.TINT));
+
+        config.editOptions("test:fixed").themeColor = "own";
+        assertFalse(config.followsTheme(fixed));
+        assertEquals(0, config.allowedOptions(fixed) & tint);
+    }
+
     @Test
     void sanitizeRepairsAHandEditedFile() {
         CosmeticsConfig config = new CosmeticsConfig();
