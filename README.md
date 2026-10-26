@@ -368,7 +368,8 @@ to your back").
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
-- **Bundled**: wave, clap, cheer, dance, dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
+- **Bundled**: wave, clap, cheer, dance, Freestyle (a 14-second dance taken from a video, with its music when a pack
+  has `emote_music:freestyle`), dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
   plus Cloud Rider (stand on a cloud and surf) and Cloud Sit for flying. Cloud Rider, Cloud Sit, wave, cheer,
   dance, dab, salute, spin and T-pose are made for the elytra wheel.
 - **Add more** from any resource pack at `assets/<ns>/emotes/*.json`: animations exported from Blockbench
@@ -494,6 +495,7 @@ To run the same scenario yourself, start the game with these JVM arguments:
 |---|---|
 | `-Dcosmeticsmod.equipAll=true` | Every player wears every cosmetic. |
 | `-Dcosmeticsmod.smokeTest=true` | After joining a world: third person front and back, then (with Iris and `-Dcosmeticsmod.expectShaders=true`) shaders on and the shadow-pass option off. It writes `cosmeticsmod-results.json`, logs PASSED/FAILED and quits. |
+| `-Dcosmeticsmod.emoteFrames=<emote id>` | Local only: once in the world, plays that emote facing the camera and saves the game's frames as `emote-frame-<ms>.png`, then quits. `tools/video-emote` uses it to put an emote next to its video. |
 | `-Dcosmeticsmod.benchmark=true` | Timed, shaders off then on. Each view runs three times: at the stress load, with every cosmetic drawn once, and with the mod switched off, so the frame rates show what cosmetics cost. Add `-Dcosmeticsmod.benchmark.copies=50` to make the stress load every cosmetic 50 times, like a crowded server. |
 
 Locally, `python3 ci/mcci.py runtime --node 1.21.8` does what CI does. You need Xvfb, `xwd` and the jar in

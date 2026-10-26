@@ -32,7 +32,7 @@ class BundledEmotesTest {
         try (Stream<Path> stream = Files.list(dir)) {
             files = stream.filter(p -> p.toString().endsWith(".json")).sorted().toList();
         }
-        assertEquals(16, files.size(), "the in-game test expects 16 bundled emotes");
+        assertEquals(17, files.size(), "the in-game test expects 17 bundled emotes");
         for (Path file : files) {
             String name = file.getFileName().toString();
             String id = "cosmeticsmod:" + name.substring(0, name.length() - ".json".length());

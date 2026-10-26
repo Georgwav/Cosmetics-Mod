@@ -81,5 +81,6 @@ public final class CosmeticsMod implements ClientModInitializer {
             EmotePlayer.tick(client);
         });
         DevScenario.init();
+        io.github.georgwav.cosmetics.devtools.EmoteFrames.init();
     }
 }

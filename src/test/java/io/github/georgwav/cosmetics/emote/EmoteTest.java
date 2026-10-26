@@ -312,6 +312,28 @@ class EmoteTest {
                 """));
     }
 
+    @Test
+    void readsSound() {
+        Emote emote = parse("""
+                {"animations": {"a": {"sound": "emote_music:freestyle", "sound_volume": 0.35,
+                  "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0);
+        assertEquals("emote_music:freestyle", emote.sound());
+        assertEquals(0.35f, emote.soundVolume(), 1e-6f);
+        Emote plain = parse("{\"animations\": {\"a\": {\"bones\": {\"head\": {\"rotation\": [0, 10, 0]}}}}}").get(0);
+        assertEquals(null, plain.sound());
+        assertEquals(1f, plain.soundVolume(), 0f, "full volume when not given");
+        assertEquals(1f, parse("""
+                {"animations": {"a": {"sound": "a:song", "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0).soundVolume(), 0f);
+        assertThrows(JsonParseException.class, () -> parse("""
+                {"animations": {"a": {"sound": "Not An Id", "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """));
+        assertThrows(JsonParseException.class, () -> parse("""
+                {"animations": {"a": {"sound": "a:song", "sound_volume": 2, "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """));
+    }
+
     // ---------------------------------------------------------------- Emotecraft files
 
     @Test

@@ -24,14 +24,16 @@ import java.util.Map;
  * @param bones      channels per bone: an array of six, null where the emote doesn't move that number
  * @param elytra     made for flying with an elytra: on the elytra wheel unless the player picks its emotes
  * @param props      cosmetic ids shown on the player while the emote plays (a cloud to ride)
+ * @param sound      a sound event (namespace:path) played for you from the emote's start, or null
+ * @param soundVolume its volume, 0..1
  */
 public record Emote(String id, String name, String author, float length, Ending ending, float loopStart,
                     float fadeIn, float fadeOut, float rootPivotY, Map<Bone, Channel[]> bones, boolean elytra,
-                    List<String> props) {
+                    List<String> props, String sound, float soundVolume) {
 
     public Emote(String id, String name, String author, float length, Ending ending, float loopStart,
                  float fadeIn, float fadeOut, float rootPivotY, Map<Bone, Channel[]> bones) {
-        this(id, name, author, length, ending, loopStart, fadeIn, fadeOut, rootPivotY, bones, false, List.of());
+        this(id, name, author, length, ending, loopStart, fadeIn, fadeOut, rootPivotY, bones, false, List.of(), null, 1f);
     }
 
     public static final int X = 0;

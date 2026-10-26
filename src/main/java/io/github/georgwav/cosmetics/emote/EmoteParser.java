@@ -140,7 +140,8 @@ public final class EmoteParser {
             ending = Emote.Ending.HOLD;
         }
         return new Emote(id, string(json, "name"), string(json, "author"), length, ending, 0f, DEFAULT_FADE_IN,
-                DEFAULT_FADE_OUT, rootPivot(json, where), bones, elytra(json), props(json, where));
+                DEFAULT_FADE_OUT, rootPivot(json, where), bones, elytra(json), props(json, where), sound(json, where),
+                soundVolume(json, where));
     }
 
     /**
@@ -478,7 +479,8 @@ public final class EmoteParser {
         float loopStart = Math.max(0f, Math.min(length, ticks(emote, "returnTick", begin)));
         return new Emote(id, text(json.get("name")), text(json.get("author")), length,
                 loop ? Emote.Ending.LOOP : length <= 0f ? Emote.Ending.HOLD : Emote.Ending.STOP, loopStart,
-                begin, Math.max(0f, stop - end), EMOTECRAFT_ROOT_PIVOT, bones, elytra(json), props(json, "emote"));
+                begin, Math.max(0f, stop - end), EMOTECRAFT_ROOT_PIVOT, bones, elytra(json), props(json, "emote"),
+                sound(json, "emote"), soundVolume(json, "emote"));
     }
 
     /** A tick field in seconds. */
@@ -511,6 +513,31 @@ public final class EmoteParser {
             throw new JsonParseException(where + ": at most 8 props");
         }
         return List.copyOf(ids);
+    }
+
+    /** {@code "sound"}: a sound event id played for you from the emote's start (music for a dance), or null. */
+    private static String sound(JsonObject json, String where) {
+        JsonElement sound = json.get("sound");
+        if (sound == null || sound.isJsonNull()) {
+            return null;
+        }
+        String id = sound.getAsString();
+        if (!id.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+            throw new JsonParseException(where + ": sound '" + id + "' is not a sound event id (namespace:name)");
+        }
+        return id;
+    }
+
+    /** {@code "sound_volume"}: 0..1, 1 when left out. */
+    private static float soundVolume(JsonObject json, String where) {
+        if (!json.has("sound_volume")) {
+            return 1f;
+        }
+        float v = json.get("sound_volume").getAsFloat();
+        if (!(v >= 0f && v <= 1f)) {
+            throw new JsonParseException(where + ": sound_volume must be between 0 and 1");
+        }
+        return v;
     }
 
     /** The bone a file's name means; {@code emotecraft} for its names (its "body" is the whole player). */
