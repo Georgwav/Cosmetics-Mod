@@ -69,12 +69,13 @@ public final class EmoteFrames {
             return;
         }
         int t = ticks - start;
-        // The emote runs on the clock, not on ticks: each frame is named by where in the emote it is.
-        long ms = (System.nanoTime() - startNanos) / 1_000_000L;
-        if (t % 2 == 0 && ms <= length * 1000f) {
+        // The emote runs on the clock, not on ticks: each frame is named by where in the emote it was when the game drew
+        // it (the grab takes the last frame drawn, which with a slow renderer is a good part of a tick old).
+        long ms = (io.github.georgwav.cosmetics.sol.render.FrameInfo.frameNanos() - startNanos) / 1_000_000L;
+        if (t % 2 == 0 && ms >= 0 && ms <= length * 1000f) {
             FrameGrab.grab(mc, String.format(java.util.Locale.ROOT, "emote-frame-%05d", ms));
         }
-        if (!stopping && ms > length * 1000f + 500f && FrameGrab.PENDING.get() == 0) {
+        if (!stopping && (System.nanoTime() - startNanos) / 1.0e6 > length * 1000f + 500f && FrameGrab.PENDING.get() == 0) {
             stopping = true;
             CosmeticsMod.LOGGER.info("[Sol] Emote frames: {} frames written", t / 2);
             mc.stop();

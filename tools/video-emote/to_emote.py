@@ -153,7 +153,7 @@ for k, v in deg.items():
 
 anim = {
     "animation_length": round((n - 1) / fps, 3),
-    # The video's music, quiet, from a pack kept out of this repository (see README.md); silent without it.
+    # The video's music, quiet (see README.md); silent where no pack has it.
     "sound": "emote_music:" + NAME,
     "sound_volume": VOLUME,
     "bones": bones,

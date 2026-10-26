@@ -1,7 +1,7 @@
 # Video to emote
 
 Turns a video of someone dancing (facing the camera, whole body in view) into a Bedrock emote for the client, the way
-the bundled Freestyle emote was made.
+the bundled Brazilian Dance emote was made.
 
 1. **Track the body** in every frame with MediaPipe's pose landmarker (Python 3.10+):
 
@@ -45,8 +45,9 @@ the bundled Freestyle emote was made.
 
 ## The music
 
-The emote names the sound `emote_music:<name>`. Songs from videos are almost never ours to share, so they stay out of
-this repository and its releases, like the knife packs. Make a resource pack for yourself instead:
+The emote names the sound `emote_music:<name>`. Brazilian Dance's song ships with the mod, in
+`src/main/resources/assets/emote_music/` (`sounds/<name>.ogg` and an entry in its `sounds.json`); while this
+repository is public, mind whose song it is. Or keep a song to yourself in a resource pack:
 
 ```
 mkdir -p music/assets/emote_music/sounds

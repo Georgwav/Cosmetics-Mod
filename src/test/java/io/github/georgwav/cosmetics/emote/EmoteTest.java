@@ -315,10 +315,10 @@ class EmoteTest {
     @Test
     void readsSound() {
         Emote emote = parse("""
-                {"animations": {"a": {"sound": "emote_music:freestyle", "sound_volume": 0.35,
+                {"animations": {"a": {"sound": "emote_music:brazilian_dance", "sound_volume": 0.35,
                   "bones": {"head": {"rotation": [0, 10, 0]}}}}}
                 """).get(0);
-        assertEquals("emote_music:freestyle", emote.sound());
+        assertEquals("emote_music:brazilian_dance", emote.sound());
         assertEquals(0.35f, emote.soundVolume(), 1e-6f);
         Emote plain = parse("{\"animations\": {\"a\": {\"bones\": {\"head\": {\"rotation\": [0, 10, 0]}}}}}").get(0);
         assertEquals(null, plain.sound());

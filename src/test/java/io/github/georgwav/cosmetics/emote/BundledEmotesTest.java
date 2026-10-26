@@ -47,6 +47,23 @@ class BundledEmotesTest {
             assertEquals(id, emote.id());
             assertFalse(emote.bones().isEmpty(), id + " moves nothing");
             assertTrue(lang.has("emote." + id.replace(':', '.')), id + " has no name in en_us.json");
+            if (emote.sound() != null) {
+                // A bundled emote's sound is bundled too: its sounds.json entry and the file it names.
+                String ns = emote.sound().substring(0, emote.sound().indexOf(':'));
+                String event = emote.sound().substring(ns.length() + 1);
+                Path assets = dir.getParent().getParent();
+                JsonObject sounds;
+                try (Reader reader = Files.newBufferedReader(assets.resolve(ns + "/sounds.json"))) {
+                    sounds = JsonParser.parseReader(reader).getAsJsonObject();
+                }
+                assertTrue(sounds.has(event), id + " plays " + emote.sound() + ", which no bundled sounds.json has");
+                for (var entry : sounds.getAsJsonObject(event).getAsJsonArray("sounds")) {
+                    String sound = entry.isJsonObject() ? entry.getAsJsonObject().get("name").getAsString() : entry.getAsString();
+                    String ogg = sound.substring(sound.indexOf(':') + 1) + ".ogg";
+                    assertTrue(Files.exists(assets.resolve(sound.substring(0, sound.indexOf(':')) + "/sounds/" + ogg)),
+                            id + "'s sound file " + sound + " is missing");
+                }
+            }
             for (String prop : emote.props()) {
                 // A prop is a bundled cosmetic marked "prop": true.
                 Path cosmetic = dir.getParent().resolve("cosmetics/" + prop.substring(prop.indexOf(':') + 1) + ".json");

@@ -767,8 +767,8 @@ These keys work in both formats (in a Bedrock animation, next to `bones`; in an 
 - **`"sound": "ns:name"`** and **`"sound_volume": 0..1`** (1 when left out): a sound event played for you from the
   emote's start, music for a dance. Only you hear it, not from a place in the world, on the Players volume slider; it
   fades out over 0.4 s when you stop the emote early. The sound comes from any resource pack's `sounds.json` (use
-  `"stream": true` for music). If no pack has it, the emote plays silently. The bundled Freestyle emote names
-  `emote_music:freestyle`, which no public pack has: its song stays out of this repository.
+  `"stream": true` for music). If no pack has it, the emote plays silently. The bundled Brazilian Dance emote plays
+  `emote_music:brazilian_dance`, which the mod brings (`assets/emote_music/`).
 
 ### Names and limits
 
