@@ -43,6 +43,13 @@ public final class EmotePlayer {
     public static long posedFrames;
 
     private static final float[][] POSE = new float[EmotePose.PARTS][6];
+    /** The lower bones in the order {@link #bends} gives them: left arm, right arm, left leg, right leg. */
+    private static final Emote.Bone[] LOWER = {Emote.Bone.LEFT_FOREARM, Emote.Bone.RIGHT_FOREARM, Emote.Bone.LEFT_SHIN,
+            Emote.Bone.RIGHT_SHIN};
+    private static final float[][] BEND = new float[4][3];
+    private static final float[][] BENDS = new float[4][];
+    /** The player the bends were worked out for in its last pose, or -1 when nothing bends. */
+    private static int bentEntity = -1;
     private static final float[][] REST = new float[EmotePose.PARTS][3];
     private static final float[][] SIZE = new float[EmotePose.PARTS][3];
     /** Models whose parts an emote sized this frame (to size back next time). */
@@ -193,6 +200,7 @@ public final class EmotePlayer {
         }
         Emote emote = current;
         if (emote == null) {
+            bentEntity = -1;
             return false;
         }
         LocalPlayer player = Minecraft.getInstance().player;
@@ -202,6 +210,7 @@ public final class EmotePlayer {
         float elapsed = seconds(startNanos);
         float weight = emote.weightAt(elapsed) * stopWeight();
         if (weight <= 0f) {
+            bentEntity = -1;
             return false;
         }
         ModelPart[] parts = {model.head, model.body, model.rightArm, model.leftArm, model.rightLeg, model.leftLeg};
@@ -237,6 +246,21 @@ public final class EmotePlayer {
             part.yRot = pose[4];
             part.zRot = pose[5];
         }
+        // Elbows and knees: the lower bones' turns, blended in and out with the emote.
+        bentEntity = -1;
+        for (int i = 0; i < LOWER.length; i++) {
+            Channel[] ch = emote.channels(LOWER[i]);
+            BENDS[i] = null;
+            if (ch == null) {
+                continue;
+            }
+            for (int axis = 0; axis < 3; axis++) {
+                Channel c = ch[Emote.X_ROT + axis];
+                BEND[i][axis] = c == null ? 0f : c.sample(time, 0f) * weight;
+            }
+            BENDS[i] = BEND[i];
+            bentEntity = entityId;
+        }
         // Body parts an emote makes bigger or smaller (Blockbench "scale").
         if (EmotePose.scales(emote, time, weight, SIZE)) {
             for (int p = 0; p < EmotePose.PARTS; p++) {
@@ -265,6 +289,15 @@ public final class EmotePlayer {
         }
         // An emote that played out blends back down with its own fade; while it holds or loops, stay upright.
         return Math.max(0f, Math.min(1f, emote.weightAt(seconds(startNanos)) * stopWeight()));
+    }
+
+    /**
+     * How the elbows and knees of your player {@code entityId} bend in its latest pose: the lower halves' turns
+     * (radians, x y z as a part's), left arm, right arm, left leg and right leg, null where that limb doesn't bend.
+     * Null when nothing bends (no emote, another player, or an emote without forearm or shin bones).
+     */
+    public static float[][] bends(int entityId) {
+        return bentEntity == entityId && entityId >= 0 ? BENDS : null;
     }
 
     /** Whether your player {@code entityId} is posed by an emote now ({@link #pose} changes its model). */

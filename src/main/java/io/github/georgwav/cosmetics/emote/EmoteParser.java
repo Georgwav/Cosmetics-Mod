@@ -559,6 +559,10 @@ public final class EmoteParser {
             case "leftarm", "armleft", "larm" -> Emote.Bone.LEFT_ARM;
             case "rightleg", "legright", "rleg" -> Emote.Bone.RIGHT_LEG;
             case "leftleg", "legleft", "lleg" -> Emote.Bone.LEFT_LEG;
+            case "rightforearm", "rightlowerarm", "rightarmlower", "forearmright" -> Emote.Bone.RIGHT_FOREARM;
+            case "leftforearm", "leftlowerarm", "leftarmlower", "forearmleft" -> Emote.Bone.LEFT_FOREARM;
+            case "rightshin", "rightlowerleg", "rightleglower", "shinright" -> Emote.Bone.RIGHT_SHIN;
+            case "leftshin", "leftlowerleg", "leftleglower", "shinleft" -> Emote.Bone.LEFT_SHIN;
             default -> null;
         };
     }

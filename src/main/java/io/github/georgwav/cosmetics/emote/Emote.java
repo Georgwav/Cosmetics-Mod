@@ -64,7 +64,9 @@ public record Emote(String id, String name, String author, float length, Ending 
     }
 
     public enum Bone {
-        ROOT, WAIST, BODY, HEAD, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG
+        ROOT, WAIST, BODY, HEAD, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG,
+        /** The lower halves of the limbs: rotation only, at the elbow or knee, relative to the upper half. */
+        RIGHT_FOREARM, LEFT_FOREARM, RIGHT_SHIN, LEFT_SHIN
     }
 
     /** Where in the emote's timeline it is {@code elapsed} seconds after it started. */

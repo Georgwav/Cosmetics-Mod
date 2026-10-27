@@ -126,6 +126,8 @@ public final class DevScenario {
     private long phaseStart;
     private long particlesAtPhaseStart;
     private long emoteFramesAtStart;
+    private long bentAtStart;
+    private long bentDraws = -1;
     private int wheelPicturesAtStart;
     private long uprightFramesAtStart;
     /** Whether the elytra emote still played after a right-click mid-flight; null when it wasn't tried. */
@@ -421,17 +423,27 @@ public final class DevScenario {
                         failures.add("only " + Emotes.all().size() + " of the " + BUNDLED_EMOTES + " bundled emotes loaded");
                     }
                     ScreenOpener.open(null);
-                    // A looping emote, so it still plays when the phase ends.
-                    EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":dance"));
+                    // First one that bends the elbows and knees (BentLimbs), then a looping one.
+                    EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":brazilian_dance"));
+                    bentAtStart = io.github.georgwav.cosmetics.render.BentLimbs.drawn;
                     emoteFramesAtStart = EmotePlayer.posedFrames;
                     enter(Phase.EMOTE);
                 }
             }
             case EMOTE -> {
+                if (ticks == EMOTE_TICKS / 2) {
+                    // A looping emote, so it still plays when the phase ends.
+                    bentDraws = io.github.georgwav.cosmetics.render.BentLimbs.drawn - bentAtStart;
+                    EmotePlayer.play(Emotes.get(CosmeticsMod.MOD_ID + ":dance"));
+                }
                 if (ticks >= EMOTE_TICKS) {
                     long posed = EmotePlayer.posedFrames - emoteFramesAtStart;
                     JsonObject emote = phases.getAsJsonObject("emote");
                     emote.addProperty("posedFrames", posed);
+                    emote.addProperty("bentDraws", bentDraws);
+                    if (bentDraws <= 0) {
+                        failures.add("Brazilian Dance never drew bent arms or legs");
+                    }
                     emote.addProperty("stillPlaying", EmotePlayer.playing() != null);
                     CosmeticsMod.LOGGER.info("Dev scenario emote: {}", emote);
                     if (posed <= 0) {

@@ -368,7 +368,8 @@ to your back").
 Fill each wheel from the wheel itself, or with "Wheel +/-" and "Elytra +/-" in Wardrobe → Emotes (which puts an
 emote in the first empty slot). In the picker the elytra wheel lists the emotes made for flying first.
 
-- **Bundled**: wave, clap, cheer, dance, Brazilian Dance (a 14-second dance taken from a video, with its music, quiet),
+- **Bundled**: wave, clap, cheer, dance, Brazilian Dance (a 14-second dance taken from a video, with its music, quiet, and
+  elbows and knees that bend),
   dab, facepalm, salute, shrug, bow, nod, head shake, spin, T-pose and sit,
   plus Cloud Rider (stand on a cloud and surf) and Cloud Sit for flying. Cloud Rider, Cloud Sit, wave, cheer,
   dance, dab, salute, spin and T-pose are made for the elytra wheel.
