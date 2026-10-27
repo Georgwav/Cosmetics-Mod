@@ -1,0 +1,7 @@
+{
+  "brazilian_dance": {
+    "sounds": [
+      {"name": "emote_music:brazilian_dance", "stream": true}
+    ]
+  }
+}

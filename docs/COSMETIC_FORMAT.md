@@ -752,9 +752,9 @@ player) and the axes `x`, `y`, `z`, `pitch`, `yaw`, `roll`. Limbs don't bend her
 skipped. Before a part's first move it eases in from your normal pose, like in Emotecraft. Binary
 `.emotecraft` files aren't supported.
 
-### Flying and props
+### Flying, props and sound
 
-Two more keys work in both formats (in a Bedrock animation, next to `bones`; in an Emotecraft file, at the top):
+These keys work in both formats (in a Bedrock animation, next to `bones`; in an Emotecraft file, at the top):
 
 - **`"elytra": true`**: the emote is made for flying, so it is on the elytra wheel until the player picks that
   wheel's emotes. Any emote can be played from the elytra wheel; there it plays until the player lands, and the
@@ -764,6 +764,11 @@ Two more keys work in both formats (in a Bedrock animation, next to `bones`; in 
   ordinary cosmetic files with `"prop": true`, so the Wardrobe doesn't list them. For example the bundled
   `cosmeticsmod:flying_cloud` is a `body` cosmetic modelled under the feet (the model's y = 24), with particles
   trailing behind it.
+- **`"sound": "ns:name"`** and **`"sound_volume": 0..1`** (1 when left out): a sound event played for you from the
+  emote's start, music for a dance. Only you hear it, not from a place in the world, on the Players volume slider; it
+  fades out over 0.4 s when you stop the emote early. The sound comes from any resource pack's `sounds.json` (use
+  `"stream": true` for music). If no pack has it, the emote plays silently. The bundled Brazilian Dance emote plays
+  `emote_music:brazilian_dance`, which the mod brings (`assets/emote_music/`).
 
 ### Names and limits
 

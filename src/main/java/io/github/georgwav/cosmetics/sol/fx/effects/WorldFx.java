@@ -91,6 +91,8 @@ public final class WorldFx extends FxModule implements FxWorld.Layer {
         leavesSound.shownWhen(leaves.on::get);
         ripplesSound.shownWhen(ripples.on::get);
         cosmosSound.shownWhen(cosmos.on::get);
+        // Not offered where it can't work (1.21.5, or Sodium drawing the chunks): no switch that does nothing.
+        chunkRise.shownWhen(io.github.georgwav.cosmetics.render.ChunkRise::works);
         // The rainbow keeps the spectrum's colours: no colour to pick.
         rainbow.colourMode.alsoShownWhen(() -> false);
         rainbow.colour.alsoShownWhen(() -> false);

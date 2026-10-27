@@ -52,6 +52,17 @@ class EmoteTest {
         assertEquals(EmotePose.REST[EmotePose.LEFT_LEG][0], posed[EmotePose.LEFT_LEG][0], EPS, "legs stay put");
     }
 
+    @Test
+    void noRisksBracketedKeyframesPlay() {
+        // NoRisk's emotes write each keyframe in brackets once more, and some as [arriving, leaving].
+        Emote wave = parse("""
+                {"format_version": "1.8.0", "animations": {"animation.emote.wave": {"animation_length": 2,
+                  "bones": {"right_arm": {"rotation": {"0.0": [[0, 0, 0]], "1.0": [[0, 0, 150], [0, 0, 150]],
+                                                       "2.0": {"post": [[0, 0, 0]]}}}}}}}
+                """).get(0);
+        assertTrue(Math.abs(EmotePose.posed(wave, 1f)[EmotePose.RIGHT_ARM][5]) > 2f, "the arm is raised");
+    }
+
     // ---------------------------------------------------------------- easing and channels
 
     @Test
@@ -298,6 +309,28 @@ class EmoteTest {
                 """).get(0).props());
         assertThrows(JsonParseException.class, () -> parse("""
                 {"animations": {"a": {"props": ["Not An Id"], "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """));
+    }
+
+    @Test
+    void readsSound() {
+        Emote emote = parse("""
+                {"animations": {"a": {"sound": "emote_music:brazilian_dance", "sound_volume": 0.35,
+                  "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0);
+        assertEquals("emote_music:brazilian_dance", emote.sound());
+        assertEquals(0.35f, emote.soundVolume(), 1e-6f);
+        Emote plain = parse("{\"animations\": {\"a\": {\"bones\": {\"head\": {\"rotation\": [0, 10, 0]}}}}}").get(0);
+        assertEquals(null, plain.sound());
+        assertEquals(1f, plain.soundVolume(), 0f, "full volume when not given");
+        assertEquals(1f, parse("""
+                {"animations": {"a": {"sound": "a:song", "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """).get(0).soundVolume(), 0f);
+        assertThrows(JsonParseException.class, () -> parse("""
+                {"animations": {"a": {"sound": "Not An Id", "bones": {"head": {"rotation": [0, 10, 0]}}}}}
+                """));
+        assertThrows(JsonParseException.class, () -> parse("""
+                {"animations": {"a": {"sound": "a:song", "sound_volume": 2, "bones": {"head": {"rotation": [0, 10, 0]}}}}}
                 """));
     }
 

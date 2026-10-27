@@ -37,6 +37,8 @@ public final class EmotePlayer {
     /** The camera from before the emote moved it, and where it moved it; null when it didn't. */
     private static CameraType cameraBefore;
     private static CameraType cameraSet;
+    /** The emote's sound playing now, or null. */
+    private static EmoteSound sound;
     /** Frames your model was posed for an emote (read by the in-game test). */
     public static long posedFrames;
 
@@ -65,6 +67,10 @@ public final class EmotePlayer {
         elytra = whileGliding;
         startNanos = System.nanoTime();
         stopNanos = 0L;
+        if (sound != null) {
+            sound.end();
+        }
+        sound = EmoteSound.start(emote);
         EquippedCosmetics.emoteProps(emote.props());
         CosmeticsConfig.EmoteCamera camera = CosmeticsConfig.get().emoteCamera;
         // Gliding, you need to see where you're going.
@@ -86,7 +92,15 @@ public final class EmotePlayer {
     public static void stop() {
         if (current != null && stopNanos == 0L) {
             stopNanos = System.nanoTime();
+            if (sound != null) {
+                sound.fadeOut();
+            }
         }
+    }
+
+    /** Whether {@code emote} has a sound and a resource pack (or the mod) has it. */
+    public static boolean soundFound(Emote emote) {
+        return EmoteSound.available(emote);
     }
 
     /** The emote playing now (and not stopping), or null. */
@@ -146,6 +160,11 @@ public final class EmotePlayer {
         current = null;
         elytra = false;
         stopNanos = 0L;
+        if (sound != null) {
+            // Played out: the sound finishes on its own; stopped or left: it fades.
+            sound.fadeOut();
+            sound = null;
+        }
         EquippedCosmetics.emoteProps(java.util.List.of());
         if (cameraBefore != null) {
             // Put the camera back, unless you've moved it yourself since.

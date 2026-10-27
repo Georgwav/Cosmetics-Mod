@@ -1,12 +1,15 @@
 """Builds the night sky's lettering: the Sol font (Geist Mono and Geist) cut into glyphs at every pixel size the sky's
-names are written at, so they are drawn in the sky itself, each glyph a small picture on the sky's pixels.
+names are written at, so they are drawn in the sky itself, each glyph a small picture on the sky's pixels. Also the
+lyrics' lettering (Geist SemiBold with punctuation and accented letters, at the sizes the line being sung is written
+at), in its own picture so the names' stays small.
 
-    python3 tools/sol-assets/make_sky_text.py <resources dir>
+    python3 tools/sol-assets/make_sky_text.py <resources dir> [sky|lyrics]   (both when not named)
 
-Reads assets/cosmeticsmod/font/geist-mono-medium.ttf and geist-medium.ttf from the resources and writes sky/sky_text.png (white,
-coverage in alpha) and sky/sky_text.dat, big-endian: "SOLT", version, number of fonts, then per font its family
-(0 mono, 1 sans), pixel size, ascent and glyph count, and per glyph its code point (int), place in the picture
-(x, y, w, h), offset from the pen on the baseline (dx, dy) and advance (shorts).
+Reads assets/cosmeticsmod/font/geist-mono-medium.ttf, geist-medium.ttf and geist-semibold.ttf from the resources and
+writes sky/sky_text.png and sky/lyrics_text.png (white, coverage in alpha) with sky/sky_text.dat and
+sky/lyrics_text.dat, big-endian: "SOLT", version, number of fonts, then per font its family (0 mono, 1 sans, 2 lyrics),
+pixel size, ascent and glyph count, and per glyph its code point (int), place in the picture (x, y, w, h), offset from
+the pen on the baseline (dx, dy) and advance (shorts).
 """
 import os
 import struct
@@ -18,6 +21,9 @@ SIZES = range(6, 29)
 # Constellations are written in capitals; stars, planets and worlds as they are named.
 MONO = list(" ABCDEFGHIJKLMNOPQRSTUVWXYZÖ'-.")
 SANS = list(" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÖö'-.0123456789")
+# Lyrics: printable ASCII, the accented letters of the Latin languages, curly quotes, dashes and the ellipsis.
+LYRICS = [chr(c) for c in range(32, 127)] + list("¡¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝßàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿŒœ‘’“”–—…")
+LYRICS_SIZES = (14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 44)
 WIDTH = 1024
 
 
@@ -38,9 +44,17 @@ def glyphs(path, size, chars):
 
 def main():
     res = sys.argv[1]
+    which = sys.argv[2] if len(sys.argv) > 2 else "both"
     font = os.path.join(res, "assets", "cosmeticsmod", "font")
-    fonts = [(0, os.path.join(font, "geist-mono-medium.ttf"), MONO), (1, os.path.join(font, "geist-medium.ttf"), SANS)]
-    cut = [(fam, size) + glyphs(path, size, chars) for fam, path, chars in fonts for size in SIZES]
+    if which in ("sky", "both"):
+        fonts = [(0, os.path.join(font, "geist-mono-medium.ttf"), MONO), (1, os.path.join(font, "geist-medium.ttf"), SANS)]
+        write(res, "sky_text", [(fam, size) + glyphs(path, size, chars) for fam, path, chars in fonts for size in SIZES])
+    if which in ("lyrics", "both"):
+        path = os.path.join(font, "geist-semibold.ttf")
+        write(res, "lyrics_text", [(2, size) + glyphs(path, size, LYRICS) for size in LYRICS_SIZES])
+
+
+def write(res, name, cut):
     # Shelf packing, a texel apart.
     x = y = shelf = 0
     places = []
@@ -67,10 +81,10 @@ def main():
                 sheet.paste(white, (px, py))
             data += struct.pack(">ihhhhhhh", code, px, py, w, h, dx, dy, adv)
     os.makedirs(os.path.join(res, "assets", "cosmeticsmod", "sky"), exist_ok=True)
-    sheet.save(os.path.join(res, "assets", "cosmeticsmod", "sky", "sky_text.png"), optimize=True)
-    with open(os.path.join(res, "assets", "cosmeticsmod", "sky", "sky_text.dat"), "wb") as f:
+    sheet.save(os.path.join(res, "assets", "cosmeticsmod", "sky", name + ".png"), optimize=True)
+    with open(os.path.join(res, "assets", "cosmeticsmod", "sky", name + ".dat"), "wb") as f:
         f.write(data)
-    print(len(cut), "fonts,", WIDTH, "x", height)
+    print(name + ":", len(cut), "fonts,", WIDTH, "x", height)
 
 
 if __name__ == "__main__":

@@ -191,9 +191,16 @@ public final class BoneAnimationParser {
                 if (preJson == null) {
                     throw new JsonParseException(at + ": a keyframe needs \"pre\", \"post\" or \"vector\"");
                 }
+            } else if (isPrePost(value)) {
+                preJson = value.getAsJsonArray().get(0);
+                postJson = value.getAsJsonArray().get(1);
             }
             vector(preJson, neutral, at, warnings, pre, k * 3);
-            vector(postJson, neutral, at, warnings, post, k * 3);
+            if (postJson == preJson) {
+                System.arraycopy(pre, k * 3, post, k * 3, 3);
+            } else {
+                vector(postJson, neutral, at, warnings, post, k * 3);
+            }
             // Blockbench: a segment is smooth when either end is catmullrom, a step when it starts on one.
             eases[k] = k == 0 ? Ease.LINEAR
                     : previous == Ease.STEP ? Ease.STEP
@@ -209,9 +216,41 @@ public final class BoneAnimationParser {
         return json.has("pre") || json.has("post") || json.has("vector") || json.has("lerp_mode");
     }
 
+    /**
+     * A vector wrapped once more, as some exporters write it (NoRisk's {@code [[x, y, z]]}, or {@code {"vector": v}}
+     * where a vector goes): the vector inside.
+     */
+    public static JsonElement unwrapVector(JsonElement json) {
+        for (int depth = 0; depth < 4; depth++) {
+            if (json.isJsonObject() && json.getAsJsonObject().has("vector")) {
+                json = json.getAsJsonObject().get("vector");
+            } else if (json.isJsonArray() && json.getAsJsonArray().size() == 1
+                    && !json.getAsJsonArray().get(0).isJsonPrimitive()) {
+                json = json.getAsJsonArray().get(0);
+            } else {
+                break;
+            }
+        }
+        return json;
+    }
+
+    /** {@code [[x, y, z], [x, y, z]]}: the value arriving at a keyframe, then the one leaving it. */
+    public static boolean isPrePost(JsonElement json) {
+        if (!json.isJsonArray() || json.getAsJsonArray().size() != 2) {
+            return false;
+        }
+        for (JsonElement half : json.getAsJsonArray()) {
+            if (!half.isJsonArray() && !half.isJsonObject()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** {@code [x, y, z]} or one value for all three; each a number or Molang. */
     private static void vector(JsonElement json, float neutral, String where, Consumer<String> warnings,
                                Molang.Expr[] out, int at) {
+        json = unwrapVector(json);
         if (json.isJsonArray()) {
             JsonArray array = json.getAsJsonArray();
             if (array.isEmpty() || array.size() > 3) {

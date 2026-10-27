@@ -1026,7 +1026,7 @@ public final class WardrobeScreen extends SolScreen {
     @Override
     protected boolean press(float x, float y, int button) {
         if (listeningFor != null) {
-            if (button != 0) {
+            if (button != InputConstants.MOUSE_BUTTON_LEFT) {
                 KeyBinds.bind(listeningFor, KeyBinds.mouse(button));
             }
             listeningFor = null;
@@ -1104,6 +1104,12 @@ public final class WardrobeScreen extends SolScreen {
                 return false;
             }
         }
+    }
+
+    @Override
+    protected boolean wantsText() {
+        // Typing in a cosmetics view searches it.
+        return view.lists() && cosmeticPage == null && outfitPageView == null;
     }
 
     @Override

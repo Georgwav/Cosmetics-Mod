@@ -69,4 +69,17 @@ class LyricsTest {
         assertEquals(0.5f, Karaoke.wordProgress(l, 0, 0, 10_300, 0), 0.01f);
         assertEquals(-1, Karaoke.line(LrcParser.plain("a\nb", "x"), 1000, 0), "plain lyrics don't follow");
     }
+
+    @Test
+    void howMuchOfTheLineIsSung() {
+        Lyrics l = TtmlParser.parse(TTML, "apple");
+        // "Hel", "lo ", "world": 11 letters.
+        assertEquals(0f, Karaoke.sung(l, 0, 9_000, 0), 1e-4f, "before its first word");
+        assertEquals(1.5f / 11f, Karaoke.sung(l, 0, 10_300, 0), 1e-3f, "half of Hel");
+        assertEquals(6f / 11f, Karaoke.sung(l, 0, 11_000, 0), 1e-3f, "Hello sung");
+        assertEquals(1f, Karaoke.sung(l, 0, 13_000, 0), 1e-4f);
+        assertEquals(6f / 11f, Karaoke.sung(l, 0, 10_000, 1_000), 1e-3f, "the per-song offset nudges it");
+        assertEquals(-1f, Karaoke.sung(l, 2, 63_000, 0), "line-level timing: no sweep");
+        assertEquals(-1f, Karaoke.sung(l, 7, 63_000, 0));
+    }
 }

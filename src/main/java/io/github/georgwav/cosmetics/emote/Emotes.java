@@ -24,7 +24,7 @@ public final class Emotes {
     private static volatile Map<String, Emote> emotes = Map.of();
     /** The bundled emotes in their place on the wheel: the most used first. */
     private static final List<String> BUNDLED_ORDER = java.util.stream.Stream.of("wave", "clap", "cheer", "dance",
-                    "dab", "facepalm", "salute", "shrug", "bow", "nod", "head_shake", "spin", "t_pose", "sit", "cloud_rider",
+                    "brazilian_dance", "dab", "facepalm", "salute", "shrug", "bow", "nod", "head_shake", "spin", "t_pose", "sit", "cloud_rider",
                     "cloud_sit")
             .map(name -> CosmeticsMod.MOD_ID + ":" + name).toList();
 

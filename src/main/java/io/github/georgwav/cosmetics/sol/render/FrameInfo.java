@@ -56,6 +56,11 @@ public final class FrameInfo {
     private FrameInfo() {
     }
 
+    /** When the frame being drawn now (or last drawn) began, by {@link System#nanoTime()}. */
+    public static long frameNanos() {
+        return lastNanos;
+    }
+
     /** Advances the clock; called once per frame. */
     public static void tick() {
         long now = System.nanoTime();

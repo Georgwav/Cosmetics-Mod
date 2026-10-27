@@ -211,6 +211,12 @@ public final class SolMenu extends SolScreen {
         return section;
     }
 
+    /** For the in-game checks: a real left click on a section's tab (see {@link #testClick}). */
+    public boolean testClickTab(String id) {
+        float[] at = bar.tabCentre(id);
+        return testClick(at[0], at[1]);
+    }
+
     public void go(String id) {
         if (id.equals("wardrobe")) {
             // The Wardrobe tab is the Wardrobe itself; Esc there comes back to the page you were on.
@@ -457,7 +463,7 @@ public final class SolMenu extends SolScreen {
 
     @Override
     protected boolean press(float x, float y, int button) {
-        if (button != 0) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         if (palette != null) {
@@ -523,6 +529,12 @@ public final class SolMenu extends SolScreen {
             }
         }
         return false;
+    }
+
+    @Override
+    protected boolean wantsText() {
+        // Typing anywhere searches (the command palette, the Styles section's search).
+        return true;
     }
 
     @Override

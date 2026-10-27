@@ -603,9 +603,11 @@ public final class SolScenario {
                 problems.add(s.name() + ": " + io.github.georgwav.cosmetics.sol.ui.quick.QuickMenu.labelsOutside
                         + " label(s) on the quick menu's wheel didn't fit inside their segment");
             }
-            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && io.github.georgwav.cosmetics.sol.render.LightPass.pixelFrames == 0
+            if (phaseTick == SETTLE && s.name().startsWith("ui_quick_") && !s.name().equals("ui_quick_wheel")
+                    && io.github.georgwav.cosmetics.sol.render.LightPass.pixelFrames == 0
                     && !io.github.georgwav.cosmetics.compat.Compat.isShaderPackActive()) {
-                // A.2: the world under the quick menu is drawn in the wheel's pixels.
+                // A.2: the world under the quick menu is drawn in the wheel's pixels (the quick menu's; the hold-key
+                // quick wheel is another screen and draws the world as it is).
                 problems.add(s.name() + ": the world under the quick menu wasn't drawn in pixels");
             }
             if (phaseTick == SETTLE && (s.name().equals("ui_quick_night") || s.name().equals("ui_quick_eclipse"))
@@ -630,6 +632,15 @@ public final class SolScenario {
                 }
                 *///?}
             }
+            if (phaseTick == SETTLE + 20 && s.name().equals("ui_menu_modules")
+                    && io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof io.github.georgwav.cosmetics.sol.ui.menu.SolMenu menu) {
+                // After the shot: a left click on the HUD tab as the game delivers one (26.3 numbers the buttons as
+                // SDL does) must open it.
+                if (!menu.testClickTab("hud") || !menu.section().equals("hud")) {
+                    problems.add(s.name() + ": a left click (the game's button " + com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
+                            + ") on the HUD tab didn't open it (" + menu.section() + ")");
+                }
+            }
             if (phaseTick == SETTLE && s.name().equals("ui_whats_new") && io.github.georgwav.cosmetics.sol.ui.screens.WhatsNew.shown == 0) {
                 problems.add(s.name() + ": the what's new screen didn't draw");
             }
@@ -645,6 +656,14 @@ public final class SolScenario {
                         : io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.veils == 0
                         || io.github.georgwav.cosmetics.sol.ui.screens.VanillaLook.buttons == 0) {
                     problems.add(s.name() + ": the game's screen didn't take Sol's look (" + look.getSimpleName() + ")");
+                }
+            }
+            if (phaseTick == SETTLE && s.name().equals("sol_music_stars")) {
+                String line = io.github.georgwav.cosmetics.sol.atmosphere.SkyLyrics.wanted();
+                int letters = io.github.georgwav.cosmetics.sol.atmosphere.SkyLyrics.lettersDrawn;
+                CosmeticsMod.LOGGER.info("[Sol] {}: sky lyrics \"{}\", {} letters written", s.name(), line, letters);
+                if (!line.isEmpty() && letters == 0) {
+                    problems.add(s.name() + ": the line being sung (\"" + line + "\") wasn't written on the sky");
                 }
             }
             if (phaseTick == SETTLE && s.name().equals("sol_music_viz")) {
@@ -1645,8 +1664,8 @@ public final class SolScenario {
             }
             case "ui_inventory_slide" -> {
                 if (io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.slides == 0
-                        || io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.ditherFrames == 0) {
-                    problems.add(name + ": the inventory didn't slide in through its dither");
+                        || io.github.georgwav.cosmetics.sol.ui.kit.ScreenSlide.fadeFrames == 0) {
+                    problems.add(name + ": the inventory didn't slide in and fade in");
                 }
             }
             case "ui_tab_slide" -> {

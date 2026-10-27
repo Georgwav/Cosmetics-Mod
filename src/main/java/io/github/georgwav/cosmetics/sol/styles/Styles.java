@@ -52,6 +52,24 @@ public final class Styles {
     private static volatile boolean working;
     private static volatile boolean dirty;
     private static long reloadAt = -1L;
+    /** Set while mixing: a texture's animation settings changed, which only a reload puts in (its picture goes live). */
+    private static volatile boolean owedNext;
+    /**
+     * A reload waits while a Sol menu is open (picking styles is live; one reload at the end puts in the rest). Off in
+     * the scenarios, whose shots wait for each change to be applied.
+     */
+    private static final boolean HOLD_IN_MENU = System.getProperty("cosmeticsmod.solScenario") == null;
+
+    /** Whether a waiting reload is held for now: a Sol menu (or the texture editor) is open. */
+    private static boolean holding() {
+        return HOLD_IN_MENU && io.github.georgwav.cosmetics.ui.ScreenOpener.current() instanceof io.github.georgwav.cosmetics.sol.ui.kit.SolScreen screen
+                && (screen.feature() == Feature.MENU || screen.feature() == Feature.STYLES);
+    }
+
+    /** Whether a reload waits for the menu to close (the Styles page says so). */
+    public static boolean held() {
+        return reloadAt >= 0L && reloadStarted == 0L && holding();
+    }
     private static int lastTint = Integer.MIN_VALUE, lastGlint = Integer.MIN_VALUE;
     private static int rainbowStep;
     private static long rainbowAt;
@@ -333,6 +351,7 @@ public final class Styles {
             long t0 = System.nanoTime();
             Mixer.Plan next;
             List<Live> live;
+            owedNext = false;
             try {
                 next = Mixer.plan(s, PartTable.get(), idx::get, idx.vanilla(), Styles::packText, tint, glint);
                 // Sol's own files made now, off the render thread.
@@ -346,7 +365,8 @@ public final class Styles {
                 working = false;
             }
             long mixMs = (System.nanoTime() - t0) / 1_000_000L;
-            Minecraft.getInstance().execute(() -> applyOnRenderThread(old, next, live, mixMs));
+            boolean owes = owedNext;
+            Minecraft.getInstance().execute(() -> applyOnRenderThread(old, next, live, owes, mixMs));
         });
     }
 
@@ -355,8 +375,9 @@ public final class Styles {
     }
 
     /**
-     * The textures to write live, or null when the change needs a reload: anything but a texture changed, a texture
-     * changed size, or the base changed.
+     * The textures to write live, or null when the change needs a reload first: anything but a texture changed, or the
+     * base changed. A texture of another size, or one with new animation settings, goes in live too and still owes a
+     * reload ({@link #owedNext}).
      */
     private static List<Live> livePath(Mixer.Plan old, Mixer.Plan next, StyleSetup s, StylesIndex.Snapshot idx) {
         if (!java.util.Objects.equals(baseOf(old), s.base())) {
@@ -371,6 +392,11 @@ public final class Styles {
             if (a != null && b != null && a.identity().equals(b.identity())) {
                 continue;
             }
+            if (k.endsWith(".png.mcmeta") && !k.contains(":")) {
+                // Animation and filtering: its picture goes in live (the first frame), the rest with the reload.
+                owedNext = true;
+                continue;
+            }
             if (!k.endsWith(".png") || k.contains(":")) {
                 return null;
             }
@@ -382,7 +408,7 @@ public final class Styles {
             try {
                 byte[] wb = read(was), nb = read(now);
                 Pixels.Image wi = wb == null ? null : Builder.decode(wb), ni = nb == null ? null : Builder.decode(nb);
-                if (wi == null || ni == null || wi.w() != ni.w() || wi.h() != ni.h()) {
+                if (wi == null || ni == null) {
                     return null;
                 }
                 out.add(new Live(k, ni, wi.w(), wi.h()));
@@ -407,20 +433,22 @@ public final class Styles {
         return mountedBase;
     }
 
-    private static void applyOnRenderThread(Mixer.Plan old, Mixer.Plan next, List<Live> live, long mixMs) {
+    private static void applyOnRenderThread(Mixer.Plan old, Mixer.Plan next, List<Live> live, boolean owes, long mixMs) {
         Guard.run(Feature.STYLES, () -> {
             plan = next;
             for (String n : next.notes()) {
                 io.github.georgwav.cosmetics.sol.util.LogOnce.warn("styles:note:" + n, "[Sol] Styles: {}", n);
             }
-            boolean needReload = live == null;
+            boolean needReload = live == null, scaled = owes;
             if (!needReload && !live.isEmpty()) {
                 long t0 = System.nanoTime();
                 for (Live l : live) {
-                    if (!LiveWrite.write(l.path(), l.image(), l.w(), l.h())) {
+                    LiveWrite.Result r = LiveWrite.write(l.path(), l.image(), l.w(), l.h());
+                    if (r == LiveWrite.Result.NO) {
                         needReload = true;
                         break;
                     }
+                    scaled |= r == LiveWrite.Result.SCALED;
                 }
                 if (!needReload) {
                     liveWrites += live.size();
@@ -430,8 +458,10 @@ public final class Styles {
                     CosmeticsMod.LOGGER.debug("[Sol] Styles: {} texture(s) written live in {} ms (mixed in {} ms)", live.size(), lastApplyMillis, mixMs);
                 }
             }
-            if (needReload) {
-                reloadAt = System.currentTimeMillis() + RELOAD_DELAY_MS;
+            if (needReload || scaled) {
+                // Shown live as far as it goes; the rest (another resolution sharp, models, a new base) with one
+                // reload, when the menu closes if it's open.
+                reloadAt = Math.max(reloadAt, System.currentTimeMillis() + RELOAD_DELAY_MS);
             }
         });
         if (dirty) {
@@ -451,7 +481,7 @@ public final class Styles {
             changed();
         }
         long now = System.currentTimeMillis();
-        if (reloadAt >= 0L && now >= reloadAt && !working && io.github.georgwav.cosmetics.sol.render.Mc.overlay() == null) {
+        if (reloadAt >= 0L && now >= reloadAt && !working && io.github.georgwav.cosmetics.sol.render.Mc.overlay() == null && !holding()) {
             reloadAt = -1L;
             reload(mc);
         }
@@ -485,6 +515,11 @@ public final class Styles {
             reloadStarted = 0L;
             CosmeticsMod.LOGGER.info("[Sol] Styles: applied by a resource reload in {} ms", lastApplyMillis);
         });
+    }
+
+    /** Any resource reload (F3+T too): textures written live at another size go back to the game. Render thread. */
+    public static void resourcesReloaded() {
+        LiveWrite.reloaded();
     }
 
     /** The colour theme-following parts take now (the rainbow's step instead while one is on). */
@@ -526,7 +561,7 @@ public final class Styles {
     /** A texture's new pixels written straight into the game (an editor stroke). Render thread; false when it can't. */
     public static boolean writeLive(String path, Pixels.Image img) {
         try {
-            return LiveWrite.write(path, img, img.w(), img.h());
+            return LiveWrite.write(path, img, img.w(), img.h()) != LiveWrite.Result.NO;
         } catch (RuntimeException | LinkageError e) {
             io.github.georgwav.cosmetics.sol.util.LogOnce.warn("styles:live:" + path, "[Sol] Styles: couldn't write {} live: {}", path, e.toString());
             return false;

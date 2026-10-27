@@ -49,7 +49,8 @@ public final class CrystalPvp extends FxModule {
     final Setting.Slider size = add(new Setting.Slider("crystal_size", 100, 25, 150, 5, v -> Math.round(v) + "%").group("crystal"));
     private final Setting.Toggle pops = add(new Setting.Toggle("pop_messages", true).group("combat"));
     private final Setting.Toggle offhand = add(new Setting.Toggle("offhand_warning", true).group("combat"));
-    private final Setting.Toggle lowHealth = add(new Setting.Toggle("low_health", true).group("combat"));
+    /** Off unless asked for: a red screen in the middle of a fight is more in the way than it helps. */
+    private final Setting.Toggle lowHealth = add(new Setting.Toggle("low_health", false).was(true).group("combat"));
     private final Setting.Slider lowAt = add(new Setting.Slider("low_health_at", 4, 1, 10, 0.5, v -> trimmed(v) + " hearts").group("combat"));
     private final Setting.Color lowColor = add(new Setting.Color("low_health_color", 0xFFFF2A2A).themed().group("combat"));
 

@@ -99,7 +99,7 @@ public final class DevScenario {
     /** How high above where the test stands the player starts gliding, blocks. */
     private static final double ELYTRA_LAUNCH_HEIGHT = 100;
     /** Bundled emotes; fewer loaded means some failed to load. */
-    private static final int BUNDLED_EMOTES = 16;
+    private static final int BUNDLED_EMOTES = 17;
 
     private final boolean smoke;
     private final boolean benchmark;
@@ -207,6 +207,7 @@ public final class DevScenario {
                     client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                     if (smoke) {
                         giveShield(client);
+                        MixinAudit.run(failures);
                     }
                     enter(Phase.WARMUP);
                 } else if (ticks > 20 * 60 * 5) {

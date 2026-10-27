@@ -189,8 +189,9 @@ public final class CosmeticControls {
             new OwnSpecial("elytra", "preview_elytra", null, new Gate(null, "cape"), "preview_elytra"),
             // The setting for every shield cosmetic, on the shield's own page too, where you look for it.
             new OwnSpecial("shield", "shield_item_icon", null, new Gate(null, "shield"), "shield_item_icon"),
+            // First in Colour, on every cosmetic: the theme's colour reaches those whose files allow no colour too.
+            new OwnSpecial("color", "follow_theme", "themeColor", new Gate(null, null), "follow_theme"),
             new OwnSpecial("color", "color", "color", new Gate(CosmeticOption.TINT, null), "color"),
-            new OwnSpecial("color", "follow_theme", "themeColor", new Gate(CosmeticOption.TINT, null), "follow_theme"),
             new OwnToggle("color", "rainbow", "rainbow", new Gate(CosmeticOption.RAINBOW, null), o -> o.rainbow, (o, v) -> o.rainbow = v),
             new OwnSlider("color", "rainbow_speed", "rainbowSpeed", new Gate(CosmeticOption.RAINBOW, "rainbow_on"), 0.1, 5, 0.1,
                     o -> o.rainbowSpeed, (o, v) -> o.rainbowSpeed = (float) v, "times"),

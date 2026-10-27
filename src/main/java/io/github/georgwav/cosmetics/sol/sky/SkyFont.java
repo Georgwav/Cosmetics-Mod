@@ -10,10 +10,11 @@ import java.util.List;
  * The night sky's lettering: the Sol font (Geist Mono for the constellations, Geist for stars and worlds) cut into
  * glyphs at every pixel size from 6 to 28 ({@code sky/sky_text.dat} and {@code .png}, made by
  * {@code tools/sol-assets/make_sky_text.py}), so names are written into the sky one glyph at a time on whole pixels.
- * Pure Java; immutable once read.
+ * The lyrics' lettering ({@code sky/lyrics_text}) is read the same way: Geist SemiBold with punctuation and accented
+ * letters. Pure Java; immutable once read.
  */
 public final class SkyFont {
-    public static final int MONO = 0, SANS = 1;
+    public static final int MONO = 0, SANS = 1, LYRICS = 2;
 
     /** A glyph: where it is in the picture, its offset from the pen on the baseline, and how far it moves the pen. */
     public record Glyph(int x, int y, int w, int h, int dx, int dy, int advance) {
@@ -23,7 +24,7 @@ public final class SkyFont {
     public static final class Face {
         public final int family, size, ascent;
         private final Glyph[] ascii = new Glyph[128];
-        private Glyph oUpper, oLower;
+        private final java.util.Map<Integer, Glyph> more = new java.util.HashMap<>();
 
         Face(int family, int size, int ascent) {
             this.family = family;
@@ -34,16 +35,19 @@ public final class SkyFont {
         void put(int code, Glyph g) {
             if (code < 128) {
                 ascii[code] = g;
-            } else if (code == 'Ö') {
-                oUpper = g;
-            } else if (code == 'ö') {
-                oLower = g;
+            } else {
+                more.put(code, g);
             }
+        }
+
+        /** Whether the face has its own glyph for a character. */
+        public boolean has(int c) {
+            return c < 128 ? c >= 0 && ascii[c] != null : more.containsKey(c);
         }
 
         /** The glyph for a character, or the space's for one the sky's letters don't have. */
         public Glyph glyph(char c) {
-            Glyph g = c < 128 ? ascii[c] : c == 'Ö' ? oUpper : c == 'ö' ? oLower : null;
+            Glyph g = c < 128 ? ascii[c] : more.get((int) c);
             if (g == null && c < 128 && Character.isLowerCase(c)) {
                 g = ascii[Character.toUpperCase(c)];
             }
