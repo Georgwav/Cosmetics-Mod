@@ -42,6 +42,12 @@ public final class CosmeticsMixinPlugin implements IMixinConfigPlugin {
         all.add("CosmosCracksMixin");
         all.add("ContainerScreenAccessor");
         all.add("ScreenSlideMixin");
+        // Bent arms and legs for emotes (BentLimbs).
+        all.add("ModelPartAccess");
+        all.add("BentModelMixin");
+        //? if <1.21.2 {
+        /*all.add("CubeAccess");
+        *///?}
         // Chunk rise: not on 1.21.5 (ChunkRise), nor with Sodium. Sodium replaces the game's chunk drawing with its
         // own copy of the method, and Mixin refuses to inject into a replaced method even where it isn't required:
         // the game wouldn't start.

@@ -51,7 +51,7 @@ def gauss(a, sigma):
 W = gauss(W, 1.3)
 
 NOSE, L_EAR, R_EAR, L_SH, R_SH, L_EL, R_EL, L_WR, R_WR = 0, 7, 8, 11, 12, 13, 14, 15, 16
-L_HIP, R_HIP, L_AN, R_AN = 23, 24, 27, 28
+L_HIP, R_HIP, L_KN, R_KN, L_AN, R_AN = 23, 24, 25, 26, 27, 28
 
 
 def unit(v):
@@ -100,7 +100,9 @@ def limb(d):
     return euler(R)
 
 
-rows = {k: [] for k in ("root", "waist", "head", "right_arm", "left_arm", "right_leg", "left_leg")}
+LIMBS = (("right_arm", "right_forearm"), ("left_arm", "left_forearm"), ("right_leg", "right_shin"),
+         ("left_leg", "left_shin"))
+rows = {k: [] for k in ("root", "waist", "head") + sum(LIMBS, ())}
 for t in range(n):
     p = W[t]
     hip = (p[L_HIP] + p[R_HIP]) / 2
@@ -124,12 +126,13 @@ for t in range(n):
     rows["root"].append((0.0, yaw, 0.0))
     rows["waist"].append(euler(W_rel))
     rows["head"].append(euler(H_rel))
-    # An arm aims at a point on the forearm, nearer the wrist: a straight arm as long as the block player's, aimed at
-    # a hand folded in to the chest, would reach past it to the face. A straight arm points the same either way.
-    hand = {R_WR: 0.35 * p[R_EL] + 0.65 * p[R_WR], L_WR: 0.35 * p[L_EL] + 0.65 * p[L_WR]}
-    for name, a, b, parent in (("right_arm", R_SH, R_WR, T), ("left_arm", L_SH, L_WR, T),
-                               ("right_leg", R_HIP, R_AN, R_root), ("left_leg", L_HIP, L_AN, R_root)):
-        rows[name].append(limb(parent.T @ (hand.get(b, p[b]) - p[a])))
+    # Arms and legs bend in the middle: the upper half points from the shoulder to the elbow (hip to knee) in its
+    # parent's frame, the lower half from there to the wrist (ankle) in the upper half's frame.
+    for (upper, lower), a, mid, b, parent in zip(LIMBS, (R_SH, L_SH, R_HIP, L_HIP), (R_EL, L_EL, R_KN, L_KN),
+                                                 (R_WR, L_WR, R_AN, L_AN), (T, T, R_root, R_root)):
+        up = limb(parent.T @ (p[mid] - p[a]))
+        rows[upper].append(up)
+        rows[lower].append(limb(rot(*up).T @ (parent.T @ (p[b] - p[mid]))))
 
 deg = {k: np.degrees(np.unwrap(np.array(v), axis=0)) for k, v in rows.items()}
 # Calibrate the head and torso to the dancer's own posture: their typical pose counts as upright and square (the

@@ -730,6 +730,11 @@ the file is an emote: a file with one animation is the emote `<namespace>:<name>
   `"root_pivot"`: pixels up from the feet, next to `bones`). They hang together like the Bedrock player:
   the head and arms move with the body, the body with the waist, everything with the root. Other bones are
   ignored with a warning in the log.
+- **Elbows and knees**: `right_forearm`, `left_forearm`, `right_shin` and `left_shin` (also `right_lower_arm`,
+  `left_lower_leg` and so on) turn the lower half of an arm or leg about its middle, relative to the upper half
+  (`right_arm` and the rest): `rotation` only, with the same signs (a forearm folding forward is `-x`, a shin
+  folding back `+x`). The limb bends there in the game, its skin and sleeve with it, and a held item stays in the
+  hand. Armour on the limb stays straight.
 - **`rotation`** is in degrees, `[x, y, z]`, with the Bedrock player's signs (raising the right arm sideways is
   `+z`, forward is `-x`). **`position`** is in pixels with +Y up. **`scale`** makes a part bigger or smaller
   around its pivot (1 = as it is, 0 = gone); the root's scales every part.

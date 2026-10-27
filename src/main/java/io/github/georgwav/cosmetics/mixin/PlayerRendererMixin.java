@@ -4,8 +4,8 @@ package io.github.georgwav.cosmetics.mixin;
 // before the player renderer turns the player and adjusts it after. Tucks the elytra in towards the back in the
 // render state (from 1.21.2; ElytraModelMixin before; see ElytraLook). And raises the name above head cosmetics
 // (see NameTags) around where the renderer draws it: renderNameTag before 1.21.9, submitNameTag after, renamed
-// submitNameDisplay in 26.1. The renderer is AvatarRenderer from 1.21.9 (PlayerRenderer before), and takes a
-// render state from 1.21.2 (the entity before).
+// submitNameDisplay in 26.1. Gives the first-person hand back its straight arm (see BentLimbs). The renderer is
+// AvatarRenderer from 1.21.9 (PlayerRenderer before), and takes a render state from 1.21.2 (the entity before).
 //? if >=26.1 {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.georgwav.cosmetics.render.ElytraLook;
@@ -56,6 +56,12 @@ abstract class PlayerRendererMixin {
     private void cosmeticsmod$afterName(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                                         CameraRenderState camera, CallbackInfo ci) {
         NameTags.end(poseStack);
+    }
+
+    // The first-person hand is drawn straight, whatever an emote bent last (BentLimbs).
+    @Inject(method = "renderHand", at = @At("HEAD"))
+    private void cosmeticsmod$straightHand(CallbackInfo ci) {
+        io.github.georgwav.cosmetics.render.BentLimbs.restore();
     }
 }
 *///?} elif >=1.21.9 {
@@ -108,6 +114,12 @@ abstract class PlayerRendererMixin {
     private void cosmeticsmod$afterName(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                                         CameraRenderState camera, CallbackInfo ci) {
         NameTags.end(poseStack);
+    }
+
+    // The first-person hand is drawn straight, whatever an emote bent last (BentLimbs).
+    @Inject(method = "renderHand", at = @At("HEAD"))
+    private void cosmeticsmod$straightHand(CallbackInfo ci) {
+        io.github.georgwav.cosmetics.render.BentLimbs.restore();
     }
 }
 //?} elif >=1.21.2 {
@@ -162,6 +174,12 @@ abstract class PlayerRendererMixin {
                                         MultiBufferSource buffers, int light, CallbackInfo ci) {
         NameTags.end(poseStack);
     }
+
+    // The first-person hand is drawn straight, whatever an emote bent last (BentLimbs).
+    @Inject(method = "renderHand", at = @At("HEAD"))
+    private void cosmeticsmod$straightHand(CallbackInfo ci) {
+        io.github.georgwav.cosmetics.render.BentLimbs.restore();
+    }
 }
 *///?} else {
 /*import com.mojang.blaze3d.vertex.PoseStack;
@@ -204,6 +222,12 @@ abstract class PlayerRendererMixin {
     private void cosmeticsmod$afterName(AbstractClientPlayer player, Component name, PoseStack poseStack,
                                         MultiBufferSource buffers, int light, float partialTick, CallbackInfo ci) {
         NameTags.end(poseStack);
+    }
+
+    // The first-person hand is drawn straight, whatever an emote bent last (BentLimbs).
+    @Inject(method = "renderHand", at = @At("HEAD"))
+    private void cosmeticsmod$straightHand(CallbackInfo ci) {
+        io.github.georgwav.cosmetics.render.BentLimbs.restore();
     }
 }
 *///?}

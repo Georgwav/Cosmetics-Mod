@@ -334,6 +334,24 @@ class EmoteTest {
                 """));
     }
 
+    @Test
+    void readsElbowsAndKnees() {
+        Emote emote = parse("""
+                {"animations": {"a": {"bones": {
+                  "right_arm": {"rotation": [-90, 0, 0]},
+                  "right_forearm": {"rotation": [-45, 0, 0]},
+                  "leftLowerArm": {"rotation": [0, 0, 20]},
+                  "right_shin": {"rotation": [30, 0, 0]},
+                  "left-shin": {"rotation": [10, 0, 0]}}}}}
+                """).get(0);
+        assertEquals(-45f * DEG, emote.channels(Emote.Bone.RIGHT_FOREARM)[Emote.X_ROT].sample(0f, 0f), EPS);
+        assertEquals(20f * DEG, emote.channels(Emote.Bone.LEFT_FOREARM)[Emote.Z_ROT].sample(0f, 0f), EPS);
+        assertEquals(30f * DEG, emote.channels(Emote.Bone.RIGHT_SHIN)[Emote.X_ROT].sample(0f, 0f), EPS);
+        assertEquals(10f * DEG, emote.channels(Emote.Bone.LEFT_SHIN)[Emote.X_ROT].sample(0f, 0f), EPS);
+        assertEquals(-90f * DEG, emote.channels(Emote.Bone.RIGHT_ARM)[Emote.X_ROT].sample(0f, 0f), EPS,
+                "the upper arm stays its own bone");
+    }
+
     // ---------------------------------------------------------------- Emotecraft files
 
     @Test

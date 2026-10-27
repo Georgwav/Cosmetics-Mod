@@ -38,9 +38,10 @@ the bundled Brazilian Dance emote was made.
   the video has them.
 - **The hips** turn the whole player (`root`). **The torso** bends and twists at the `waist`, relative to the hips.
   **The head** turns relative to the torso. The dancer's typical torso and head pose counts as upright.
-- **Arms and legs** don't bend in Minecraft. A leg points from hip to ankle. An arm points from the shoulder to a point
-  on the forearm, nearer the wrist, so a hand folded in to the chest doesn't send a straight arm past the face. Each
-  limb takes the shortest swing from hanging down, so it never rolls about its own length.
+- **Arms and legs** bend in the middle, as the client draws them for emotes: the upper half (`right_arm`, `right_leg`,
+  ...) points from the shoulder to the elbow (hip to knee) in its parent's frame, and the lower half
+  (`right_forearm`, `right_shin`, ...) from there to the wrist (ankle) in the upper half's frame. Each takes the
+  shortest swing from hanging down, so it never rolls about its own length.
 - **Keyframes** every second frame (15 a second), Catmull-Rom between, as the client plays them.
 
 ## The music
